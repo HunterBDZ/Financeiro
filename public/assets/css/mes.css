@@ -40,6 +40,7 @@ details.mes-ed > summary:hover::after, .mes-sub-titulo:hover::after,
 
 /* fita com todos os meses: no celular corre de ponta a ponta da tela */
 .mes-fita {
+    position: relative;             /* contém os .sr-only (absolutos): sem isso eles alargam a página */
     margin-inline: calc(-1 * max(16px, env(safe-area-inset-left, 0px)));
     overflow-x: auto; overscroll-behavior-x: contain;
     scrollbar-width: none; -webkit-overflow-scrolling: touch;
