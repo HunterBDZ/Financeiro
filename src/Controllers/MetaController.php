@@ -1,0 +1,155 @@
+<?php
+namespace Financeiro\Controllers;
+
+use Financeiro\Auth;
+use Financeiro\Models\CategoriaModel;
+use Financeiro\Models\MetaModel;
+use Financeiro\Services\GastosMensais;
+use Financeiro\Services\MotorFinanceiro;
+use Financeiro\View;
+
+/**
+ * Meta (aba entre extrato e mês). Define uma meta mensal de gasto por categoria.
+ * Só categorias de gasto (as de CategoriaModel::gastos()) podem ter meta; o mês usa a meta
+ * para pintar a barra de verde (dentro) ou vermelho (fora). Campo vazio = sem meta.
+ */
+final class MetaController
+{
+    public function index(): void
+    {
+        Auth::requireLogin();
+
+        $gastos = CategoriaModel::gastos();
+        $metas  = MetaModel::todas();
+
+        // Mês corrente (aberto) para a renda e o gasto já realizado de cada categoria.
+        $matriz   = GastosMensais::matriz();
+        $mesAtual = null;
+        foreach ($matriz as $k => $linha) {
+            if (($linha['estado'] ?? '') === 'aberto') {
+                $mesAtual = $k;                              // o último aberto é o mês de hoje
+            }
+        }
+        if ($mesAtual === null) {
+            $hojeMes  = date('Y-m-01');
+            $mesAtual = isset($matriz[$hojeMes]) ? $hojeMes : (array_key_last($matriz) ?: $hojeMes);
+        }
+        $linhaMes = $matriz[$mesAtual] ?? ['renda' => 0.0, 'cats' => []];
+        $entradas = (float) ($linhaMes['renda'] ?? 0.0);
+        $cats     = $linhaMes['cats'] ?? [];
+
+        // renda do mês = entradas do mês + o que sobrou do mês anterior (saldo em conta que veio)
+        $linhaPlano = MotorFinanceiro::linhaDoMes($mesAtual);
+        $sobra = $linhaPlano !== null ? (float) ($linhaPlano['sobrou_mes_anterior'] ?? 0.0) : 0.0;
+        $renda = $entradas + $sobra;
+
+        // Só mostra categorias que o usuário escolheu: as que já têm meta, mais uma recém-
+        // adicionada via ?add. As demais vão para o seletor "adicionar categoria".
+        $add = (int) ($_GET['add'] ?? 0);
+        $mostrar = $metas;                         // ids com meta
+        $temGasto = [];
+        foreach ($gastos as $c) {
+            $temGasto[(int) $c['id']] = true;
+        }
+        if ($add > 0 && isset($temGasto[$add])) {
+            $mostrar[$add] = $mostrar[$add] ?? 0.0;
+        }
+
+        $ess = $naoEss = $addEss = $addNao = [];
+        $totalMeta = $metaEss = $metaNaoEss = $gastoEss = $gastoNaoEss = 0.0;
+        $gastoTotal = $gastoComMeta = 0.0;
+        foreach ($gastos as $c) {
+            $id = (int) $c['id'];
+            $c['meta']  = $metas[$id] ?? null;
+            $c['gasto'] = (float) ($cats[$id]['real'] ?? 0.0);
+            $gastoTotal += $c['gasto'];
+            if ($c['meta'] !== null) {
+                $totalMeta    += $c['meta'];
+                $gastoComMeta += $c['gasto'];
+            }
+            $ehEss = (int) $c['essencial'] === 1;
+            if (isset($mostrar[$id])) {
+                if ($ehEss) {
+                    $ess[] = $c;
+                    $metaEss  += $c['meta'] ?? 0.0;
+                    $gastoEss += $c['gasto'];
+                } else {
+                    $naoEss[] = $c;
+                    $metaNaoEss  += $c['meta'] ?? 0.0;
+                    $gastoNaoEss += $c['gasto'];
+                }
+            } else {
+                $ehEss ? ($addEss[] = $c) : ($addNao[] = $c);
+            }
+        }
+
+        View::render('meta/index', [
+            'pageTitle'     => 'meta · financeiro',
+            'essenciais'    => $ess,
+            'naoEssenciais' => $naoEss,
+            'addEss'        => $addEss,
+            'addNao'        => $addNao,
+            'comMeta'       => count($metas),
+            'mesAtual'      => $mesAtual,
+            'renda'         => round($renda, 2),
+            'entradas'      => round($entradas, 2),
+            'sobra'         => round($sobra, 2),
+            'totalMeta'     => round($totalMeta, 2),
+            'gastoTotal'    => round($gastoTotal, 2),
+            'gastoComMeta'  => round($gastoComMeta, 2),
+            'gastoSemMeta'  => round($gastoTotal - $gastoComMeta, 2),
+            'metaEss'       => round($metaEss, 2),
+            'metaNaoEss'    => round($metaNaoEss, 2),
+            'gastoEss'      => round($gastoEss, 2),
+            'gastoNaoEss'   => round($gastoNaoEss, 2),
+        ], 'meta');
+    }
+
+    public function salvar(): void
+    {
+        Auth::requireLogin();
+        csrfCheck();
+
+        $validas = [];
+        foreach (CategoriaModel::gastos() as $c) {
+            $validas[(int) $c['id']] = true;                 // só gasto recebe meta
+        }
+
+        $erroCampo = null;
+        $parsed = [];
+        foreach ((array) ($_POST['meta'] ?? []) as $id => $bruto) {
+            $id = (int) $id;
+            if (!isset($validas[$id])) {
+                continue;
+            }
+            $bruto = is_string($bruto) ? trim($bruto) : '';
+            if ($bruto === '') {
+                $parsed[$id] = null;                         // vazio = remove a meta
+                continue;
+            }
+            $v = parseMoedaBr($bruto);
+            if ($v === null || $v < 0 || $v > 1000000) {
+                $erroCampo = $id;
+                break;
+            }
+            $parsed[$id] = round($v, 2) <= 0 ? null : round($v, 2);
+        }
+
+        if ($erroCampo !== null) {
+            flash('error', 'meta?');
+            redirecionar('/meta#c' . $erroCampo, 303);
+        }
+
+        $n = 0;
+        foreach ($parsed as $id => $v) {
+            if ($v === null) {
+                MetaModel::remover($id);
+            } else {
+                MetaModel::definir($id, $v);
+                $n++;
+            }
+        }
+        flash('success', $n === 0 ? 'metas limpas' : 'metas salvas · ' . $n . ($n === 1 ? ' categoria' : ' categorias'));
+        redirecionar('/meta', 303);
+    }
+}

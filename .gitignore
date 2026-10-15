@@ -1,0 +1,5 @@
+config/.env
+database/data/
+backups/
+*.log
+.DS_Store

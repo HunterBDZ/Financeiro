@@ -1,0 +1,13 @@
+RewriteEngine On
+
+# Assets e arquivos reais servem direto
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^ - [L]
+
+# Tudo mais passa pelo front controller
+RewriteRule ^ index.php [L]
+
+# Nunca serve dotfiles (.env, .git, etc.) mesmo que alguém os copie pra dentro do webroot por engano
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>

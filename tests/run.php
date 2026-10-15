@@ -1,0 +1,161 @@
+<?php
+/**
+ * Testes de fumaça e invariantes do motor, contra o banco real (só leitura).
+ * Uso: cd /var/www/financeiro && php tests/run.php   (deploy.sh roda isto depois de publicar)
+ * Sai com 1 se algo falhar.
+ */
+declare(strict_types=1);
+
+error_reporting(E_ALL);
+set_error_handler(static function (int $no, string $str, string $file, int $line): bool {
+    throw new \ErrorException($str, 0, $no, $file, $line);
+});
+
+$_SERVER['REQUEST_URI']    = '/';
+$_SERVER['REQUEST_METHOD'] = 'GET';
+$_SERVER['HTTP_HOST']      = 'localhost';
+$_SERVER['HTTPS']          = 'on';
+
+require __DIR__ . '/../src/bootstrap.php';
+
+use Financeiro\Controllers\AjustesController;
+use Financeiro\Controllers\DashboardController;
+use Financeiro\Controllers\FuturoController;
+use Financeiro\Controllers\LancamentosController;
+use Financeiro\Controllers\MesController;
+use Financeiro\Controllers\MetaController;
+use Financeiro\Database;
+use Financeiro\Models\AjusteModel;
+use Financeiro\Models\LancamentoModel;
+use Financeiro\Models\MesModel;
+use Financeiro\Models\MetaModel;
+use Financeiro\Models\UsuarioModel;
+use Financeiro\Services\MotorFinanceiro;
+
+$ok = 0;
+$falhas = 0;
+$check = static function (string $nome, bool $cond, string $detalhe = '') use (&$ok, &$falhas): void {
+    if ($cond) {
+        $ok++;
+        echo "ok    {$nome}\n";
+    } else {
+        $falhas++;
+        echo "FALHA {$nome}" . ($detalhe !== '' ? " — {$detalhe}" : '') . "\n";
+    }
+};
+
+$pdo = Database::connection();
+
+// ---- sessão simulada (primeiro usuário)
+$uid = (int) $pdo->query('SELECT MIN(id) FROM usuarios')->fetchColumn();
+$_SESSION['usuario_id']    = $uid;
+$_SESSION['usuario_nome']  = 'teste';
+$_SESSION['sessao_versao'] = (int) UsuarioModel::sessaoVersao($uid);
+
+// ---- 1. motor: todo mês REAL fecha com o extrato
+$plano    = MotorFinanceiro::calcularPlano();
+$saldoIni = AjusteModel::valor('saldo_ini');
+$check('plano tem pelo menos 12 meses', count($plano) >= 12, (string) count($plano));
+foreach ($plano as $mes => $l) {
+    if ($l['situacao'] !== 'REAL') {
+        continue;
+    }
+    $fim  = date('Y-m-t', strtotime($mes));
+    $calc = LancamentoModel::saldoCalculado($saldoIni, $fim);
+    $check("fica_na_conta {$mes} = saldo calculado em {$fim}", abs($l['fica_na_conta'] - $calc) < 0.01, sprintf('%.2f vs %.2f', $l['fica_na_conta'], $calc));
+
+    $st = $pdo->prepare('SELECT COALESCE(SUM(l.valor * c.sinal), 0) FROM lancamentos l JOIN categorias c ON c.id = l.categoria_id WHERE l.data >= :a AND l.data <= :b');
+    $st->execute(['a' => $mes, 'b' => $fim]);
+    $fluxo = (float) $st->fetchColumn();
+    [, , $bal] = MotorFinanceiro::balancoTotal($l);
+    $check("balanço total {$mes} = Σ sinal·valor", abs($bal - $fluxo) < 0.01, sprintf('%.2f vs %.2f', $bal, $fluxo));
+}
+foreach ($plano as $mes => $l) {
+    $check("dívida nunca negativa em {$mes}", $l['falta_pagar'] >= -0.005, (string) $l['falta_pagar']);
+}
+
+// ---- 2. Início: entradas e saídas do mês de referência batem com o banco
+$mesRef = MesModel::referencia();
+$fim    = date('Y-m-t', strtotime($mesRef));
+$somaEnt = 0.0;
+foreach (LancamentoModel::entradasDoMes($mesRef) as $c) {
+    $somaEnt += $c['real'];
+}
+$st = $pdo->prepare('SELECT COALESCE(SUM(l.valor), 0) FROM lancamentos l JOIN categorias c ON c.id = l.categoria_id WHERE c.sinal = 1 AND l.data >= :a AND l.data <= :b');
+$st->execute(['a' => $mesRef, 'b' => $fim]);
+$check("entradasDoMes({$mesRef}) = Σ entradas", abs($somaEnt - (float) $st->fetchColumn()) < 0.01);
+
+// ---- 3. telas renderizam sem erro e com o bloco principal
+$telas = [
+    ['/',           DashboardController::class,   'index',      'dash-ring'],
+    ['/lancamentos', LancamentosController::class, 'index',      'ex-main'],
+    ['/lancar',     LancamentosController::class, 'lancarForm', 'data-lf'],
+    ['/meta',       MetaController::class,         'index',      'meta-form'],
+    ['/mes',        MesController::class,         'index',      'mes-resumo'],
+    ['/mes/fechar', MesController::class,         'fecharForm', 'fe-topo'],
+    ['/futuro',     FuturoController::class,      'index',      'fu-meses'],
+    ['/ajustes',    AjustesController::class,     'index',      'aj-titulo'],
+];
+foreach ($telas as [$path, $cls, $metodo, $marcador]) {
+    $_SERVER['REQUEST_URI'] = $path;
+    $_GET = [];
+    ob_start();
+    try {
+        (new $cls())->$metodo();
+        $html = (string) ob_get_clean();
+        $ruim = preg_match('/\b(Warning|Fatal error|Deprecated|Notice):/', $html) === 1;
+        $check("GET {$path} renderiza", str_contains($html, $marcador) && !$ruim && strlen($html) > 2000,
+            $ruim ? 'aviso PHP no HTML' : (str_contains($html, $marcador) ? 'HTML curto' : "sem '{$marcador}'"));
+    } catch (\Throwable $e) {
+        ob_end_clean();
+        $check("GET {$path} renderiza", false, get_class($e) . ': ' . $e->getMessage() . ' em ' . basename($e->getFile()) . ':' . $e->getLine());
+    }
+}
+
+// ---- 4. meta: definir uma meta pinta a barra no mês (verde/vermelho), sem sujar o banco
+$mesMeta = null;
+$catMeta = null;
+$gastoMeta = 0.0;
+foreach (MesModel::todos() as $m) {
+    if ($m['situacao'] !== 'PREVISAO') {
+        continue;
+    }
+    $fimM = date('Y-m-t', strtotime((string) $m['mes']));
+    $st = $pdo->prepare(
+        "SELECT l.categoria_id, SUM(l.valor) tot FROM lancamentos l JOIN categorias c ON c.id = l.categoria_id
+         WHERE c.grupo = 'Dia a dia' AND c.sinal = -1 AND l.data >= :a AND l.data <= :b
+         GROUP BY l.categoria_id ORDER BY tot DESC LIMIT 1"
+    );
+    $st->execute(['a' => (string) $m['mes'], 'b' => $fimM]);
+    $row = $st->fetch();
+    if ($row) {
+        $mesMeta = (string) $m['mes'];
+        $catMeta = (int) $row['categoria_id'];
+        $gastoMeta = (float) $row['tot'];
+        break;
+    }
+}
+if ($mesMeta === null) {
+    $check('meta pinta a barra no mês', true, 'sem gasto de dia a dia para testar');
+} else {
+    $pdo->beginTransaction();
+    MetaModel::definir($catMeta, round($gastoMeta / 2, 2));        // meta abaixo do gasto → fora da meta
+    MotorFinanceiro::limparCache();
+    $_SERVER['REQUEST_URI'] = '/mes?mes=' . $mesMeta;
+    $_GET = ['mes' => $mesMeta];
+    ob_start();
+    try {
+        (new MesController())->index();
+        $html = (string) ob_get_clean();
+        $check('meta pinta a barra no mês', str_contains($html, 'meta-barra') && str_contains($html, 'fora-meta'),
+            'sem meta-barra/fora-meta no HTML');
+    } catch (\Throwable $e) {
+        ob_end_clean();
+        $check('meta pinta a barra no mês', false, get_class($e) . ': ' . $e->getMessage());
+    }
+    $pdo->rollBack();
+    MotorFinanceiro::limparCache();
+}
+
+echo "\n{$ok} ok, {$falhas} falha(s)\n";
+exit($falhas > 0 ? 1 : 0);
