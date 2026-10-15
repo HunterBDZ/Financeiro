@@ -14,6 +14,7 @@ final class PrevisaoEdicao
 {
     public const ACOES = ['salvar', 'tirar', 'meta'];
     public const VALOR_MAX = 1000000.0;
+    public const ERRO_VALOR = 'valor? ex.: 1.200 ou 1.200,50';
 
     /** Só categorias operacionais (renda e gasto): empréstimo e poupança ficam com o motor. */
     public static function editavel(?array $cat): bool
@@ -63,7 +64,7 @@ final class PrevisaoEdicao
         switch ($acao) {
             case 'salvar':
                 if ($valor === null || $valor < 0 || $valor > self::VALOR_MAX) {
-                    throw new \InvalidArgumentException('valor?');
+                    throw new \InvalidArgumentException(self::ERRO_VALOR);
                 }
                 $v = round($valor, 2);
                 $novo = $meta !== null && abs($v - $meta) < 0.005 ? null : $v;

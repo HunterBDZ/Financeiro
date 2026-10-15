@@ -69,7 +69,7 @@ $refs = [[0.0, 'fu-base', '0', ''], [$reserva, 'fu-reserva', num($reserva, 0), '
                 <?php foreach ($linhas as $i => $l): $cls = $l['alerta'] === 'neg' ? 'fu-pt-neg' : ($l['alerta'] === 'warn' ? 'fu-pt-warn' : 'fu-pt-ok'); ?>
                     <circle class="fu-pt <?= $cls ?>" cx="<?= $f($x($i)) ?>" cy="<?= $f($y((float) $l['fica'])) ?>" r="3.5"><title><?= e(monthLabel($l['mes']) . ': ' . num((float) $l['fica'], 0)) ?></title></circle>
                 <?php endforeach; ?>
-                <?php foreach (array_unique([$iMin, $n - 1]) as $i): $v = (float) $linhas[$i]['fica']; $acima = $i !== $iMin || $v >= $reserva; ?>
+                <?php foreach (array_unique([$iMin, $n - 1]) as $i): $v = (float) $linhas[$i]['fica']; $acima = $i !== $iMin || $v >= $reserva || $y($v) + 16 > $H - $mb - 4; /* embaixo só se não encostar no eixo */ ?>
                     <text class="fu-rot" x="<?= $f($x($i)) ?>" y="<?= $f($y($v) + ($acima ? -9 : 16)) ?>" text-anchor="<?= $i === $n - 1 ? 'end' : 'middle' ?>"><?= e(num($v, 0)) ?></text>
                 <?php endforeach; ?>
                 <?php foreach ($linhas as $i => $l): ?>
