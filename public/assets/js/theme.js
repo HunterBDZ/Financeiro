@@ -6,8 +6,9 @@
     if (t === 'light' || t === 'dark') {
         document.documentElement.setAttribute('data-theme', t);
     }
-    var meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) {
-        meta.setAttribute('content', t === 'light' ? '#f3f7f4' : '#0a0f0d');
+    if (t === 'light' || t === 'dark') {                     // sem escolha, as duas metas seguem o aparelho
+        document.querySelectorAll('meta[name="theme-color"]').forEach(function (meta) {
+            meta.setAttribute('content', t === 'light' ? '#ffffff' : '#000000');
+        });
     }
 })();

@@ -9,14 +9,21 @@
 
     var root = document.documentElement;
 
+    // o tema em vigor: o escolhido ou, sem escolha, o do aparelho
+    function temaAtual() {
+        var t = root.getAttribute('data-theme');
+        if (t === 'light' || t === 'dark') {
+            return t;
+        }
+        return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
     function trocarTema() {
-        var novo = root.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+        var novo = temaAtual() === 'light' ? 'dark' : 'light';
         root.setAttribute('data-theme', novo);
         try { localStorage.setItem('tema', novo); } catch (e) {}
-        var meta = document.querySelector('meta[name="theme-color"]');
-        if (meta) {
-            meta.setAttribute('content', novo === 'light' ? '#f3f7f4' : '#0a0f0d');
-        }
+        document.querySelectorAll('meta[name="theme-color"]').forEach(function (meta) {
+            meta.setAttribute('content', novo === 'light' ? '#ffffff' : '#000000');
+        });
     }
 
     function fecharMenus(excetoDentroDe) {
@@ -211,8 +218,8 @@
         if (det && !det.hidden) { metaAlocDet(pg); }
     }
 
-    // detalhe da barra: subdivide o pedaço "gasto em metas" por categoria, em cores (ao clicar)
-    var META_PAL = ['#5b9bf5', '#a855f7', '#38bdf8', '#f472b6', '#818cf8', '#c084fc', '#60a5fa', '#e879f9'];
+    // detalhe da barra: subdivide o pedaço "gasto em metas" por categoria, em tons de tinta (ao clicar)
+    var META_PAL = ['var(--m1)', 'var(--m2)', 'var(--m3)', 'var(--m4)', 'var(--m5)', 'var(--m6)'];
     function metaAlocDet(pg) {
         var det = pg.querySelector('[data-aloc-det]');
         var segM = pg.querySelector('[data-seg-metas]');
@@ -329,13 +336,6 @@
         var inp = row.querySelector('input'); if (inp) { inp.focus(); }
     }
 
-    document.addEventListener('change', function (ev) {
-        var el = ev.target;
-        if (!(el instanceof Element) || !el.matches('select[data-meta-add]')) { return; }
-        var pg = el.closest('.meta-pg');
-        var opt = el.options[el.selectedIndex];
-        if (pg && opt && opt.value) { metaAdiciona(pg, opt); }
-    });
 
     // ---- select[data-autosubmit]: muda e reenvia o form (ex.: ordenar o extrato)
     document.addEventListener('change', function (ev) {
@@ -375,9 +375,13 @@
     function metaAddSetup(pg) {
         var form = pg.querySelector('[data-meta-add-form]');
         if (!form) { return; }
-        var btn = form.querySelector('.meta-add-btn');
-        if (btn) { btn.hidden = true; }                 // com JS, adiciona ao escolher
-        form.addEventListener('submit', function (ev) { ev.preventDefault(); });
+        // com JS, o botão adiciona na hora (sem recarregar); sem JS, o form manda ?add= e a página volta com ela
+        form.addEventListener('submit', function (ev) {
+            ev.preventDefault();
+            var sel = form.querySelector('select[data-meta-add]');
+            var opt = sel ? sel.options[sel.selectedIndex] : null;
+            if (opt && opt.value) { metaAdiciona(pg, opt); } else if (sel) { sel.focus(); }
+        });
     }
 
     // ---- [data-confirm]: pede confirmação antes de enviar o form (ex.: remover categoria)
@@ -395,9 +399,18 @@
         syncTodosQuando();
         var pg = document.querySelector('.meta-pg');
         if (pg) { metaRecalc(pg); metaAddSetup(pg); }
+        // foco automático: no computador, ou num campo com erro (no celular abriria o teclado sozinho)
         var autofocus = document.querySelector('[data-autofocus]');
-        if (autofocus && typeof autofocus.focus === 'function') {
+        var fino = window.matchMedia && window.matchMedia('(pointer: fine)').matches;
+        if (autofocus && typeof autofocus.focus === 'function' && (fino || autofocus.getAttribute('aria-invalid') === 'true')) {
             autofocus.focus();
+        }
+        // o aviso já vem na página: reescreve o texto para o leitor de tela anunciar
+        var toastMsg = document.querySelector('[data-toast] .toast-msg');
+        if (toastMsg) {
+            var html = toastMsg.innerHTML;
+            toastMsg.innerHTML = '';
+            setTimeout(function () { toastMsg.innerHTML = html; }, 120);
         }
     }
     if (document.readyState === 'loading') {

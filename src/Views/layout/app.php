@@ -20,7 +20,7 @@ $abas = [
 $publico = __DIR__ . '/../../../public';
 $existe  = static fn(string $p): bool => is_file($publico . $p);
 $estilos = array_filter(['/assets/css/style.css', '/assets/css/inicio.css', '/assets/css/lancar.css', '/assets/css/mes.css'], $existe);
-$scripts = array_filter(['/assets/js/app.js', '/assets/js/lancar.js', '/assets/js/grafico.js', '/assets/js/mes.js'], $existe);
+$scripts = array_filter(['/assets/js/app.js', '/assets/js/lancar.js', '/assets/js/mes.js'], $existe);
 
 $uri     = (string) ($_SERVER['REQUEST_URI'] ?? '/');
 $volta   = voltaSegura($uri, '/');
@@ -51,19 +51,22 @@ $atual = static function (string $chave) use ($activePage): string {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
-<meta name="theme-color" content="#0a0f0d">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
 <meta name="format-detection" content="telephone=no">
 <title><?= e($pageTitle ?? 'financeiro') ?></title>
 <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+<link rel="preload" href="/assets/fonts/archivo-var-latin.woff2" as="font" type="font/woff2" crossorigin>
 <script src="<?= e(asset('/assets/js/theme.js')) ?>"></script>
 <?php foreach ($estilos as $css): ?>
 <link rel="stylesheet" href="<?= e(asset($css)) ?>">
 <?php endforeach; ?>
 </head>
 <body>
+<a class="pular" href="#conteudo">pular para o conteúdo</a>
 <header class="topbar">
     <div class="topbar-in">
-        <a class="marca" href="/" aria-label="financeiro — início">financeiro<span>_</span></a>
+        <a class="marca" href="/" translate="no">financeiro</a>
 
         <nav class="topnav" aria-label="principal">
             <?php foreach ($abas as $chave => [$href, $rotulo]): ?>
@@ -71,7 +74,7 @@ $atual = static function (string $chave) use ($activePage): string {
             <?php endforeach; ?>
         </nav>
 
-        <a class="btn btn-primary btn-sm topbar-lancar" href="<?= e($hrefLancar) ?>" data-lancar><?= svgIcon('plus', 16) ?>lançar</a>
+        <a class="btn btn-primary btn-sm topbar-lancar" href="<?= e($hrefLancar) ?>" data-lancar><?= svgIcon('plus', 16) ?>Lançar</a>
 
         <details class="menu menu-avatar">
             <summary aria-label="menu"><span class="avatar<?= $activePage === 'ajustes' ? ' is-active' : '' ?>"><?= e($inicial) ?></span></summary>
@@ -91,22 +94,9 @@ $atual = static function (string $chave) use ($activePage): string {
     </div>
 </header>
 
-<main class="page" id="conteudo">
-<?= $content ?>
-</main>
-
-<nav class="tabbar" aria-label="principal">
-    <?php $i = 0; foreach ($abas as $chave => [$href, $rotulo, $icone]): ?>
-        <?php if ($i++ === 3): ?>
-            <a class="tab-add" href="<?= e($hrefLancar) ?>" data-lancar aria-label="lançar"><?= svgIcon('plus', 24) ?></a>
-        <?php endif; ?>
-        <a class="tab<?= $aba($chave) ?>" href="<?= e($href) ?>"<?= $atual($chave) ?>><?= svgIcon($icone, 20) ?><span><?= e($rotulo) ?></span></a>
-    <?php endforeach; ?>
-</nav>
-
 <?php if (is_array($flash) && ($flash['message'] ?? '') !== ''): ?>
 <div class="toast toast-<?= e($flashTipo) ?>" role="<?= $flashTipo === 'error' ? 'alert' : 'status' ?>" data-toast>
-    <?php /* cada trecho entre " · " fica inteiro na mesma linha ("set/26 ● fechado", "Delivery −12,34"); o "·" é do CSS (.toast-seg::before) */ ?>
+    <?php /* cada trecho da mensagem (separado por " · ") vira uma linha: a 1ª em destaque, as outras menores */ ?>
     <?php $segs = explode(' · ', (string) $flash['message']); ?>
     <span class="toast-msg"><span class="toast-linhas"><?php foreach ($segs as $i => $t): ?><span class="toast-seg"><?php if ($i > 0): ?><span class="sr-only"> · </span><?php endif; ?><?= e($t) ?></span><?php endforeach; ?></span></span>
     <?php if (!empty($flash['acao']['url']) && is_string($flash['acao']['url'])): ?>
@@ -121,6 +111,19 @@ $atual = static function (string $chave) use ($activePage): string {
     <button type="button" class="toast-x" data-toast-fechar aria-label="fechar"><?= svgIcon('x', 16) ?></button>
 </div>
 <?php endif; ?>
+
+<main class="page" id="conteudo">
+<?= $content ?>
+</main>
+
+<nav class="tabbar" aria-label="principal">
+    <?php $i = 0; foreach ($abas as $chave => [$href, $rotulo, $icone]): ?>
+        <?php if ($i++ === 3): ?>
+            <a class="tab-add" href="<?= e($hrefLancar) ?>" data-lancar aria-label="lançar"><?= svgIcon('plus', 24) ?></a>
+        <?php endif; ?>
+        <a class="tab<?= $aba($chave) ?>" href="<?= e($href) ?>"<?= $atual($chave) ?>><?= svgIcon($icone, 20) ?><span><?= e($rotulo) ?></span></a>
+    <?php endforeach; ?>
+</nav>
 
 <?php if ($comDialogo): ?>
 <dialog id="lancar" class="sheet" aria-label="lançar">
