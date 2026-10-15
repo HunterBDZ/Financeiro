@@ -334,8 +334,6 @@ details.mes-ed:target > summary { animation: mes-realce 1.6s ease-out 1; }   /* 
 
 .fu-graf-head { flex-direction: column; align-items: flex-start; gap: 4px; }
 .fu-resumo { color: var(--tinta-2); font-size: var(--t-peq); white-space: normal; }
-.fu-graf { padding-left: var(--s2); padding-right: var(--s3); }
-.fu-graf > .card-head { padding-left: var(--s2); }
 .fu-fig { --calha: 64px; margin: var(--s3) 0 0; }
 .fu-fases, .fu-plot, .fu-eixo { margin-left: var(--calha); }
 
@@ -480,7 +478,7 @@ details.mes-ed:target > summary { animation: mes-realce 1.6s ease-out 1; }   /* 
     .aj-titulo, .fu-titulo, .fe-titulo { font-size: 48px; }
     .mes-fita { margin-inline: 0; }
     .mes-fita > ol { padding: 0; }
-    .mes-resumo { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s5); align-items: end; }
+    .mes-resumo { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s5); align-items: center; }
     .mes-resumo-total { padding: var(--s5); }
     .mes-sec { padding-left: var(--s3); padding-right: var(--s3); }
     .fe-grade { grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 2fr); }
@@ -501,6 +499,8 @@ details.mes-ed:target > summary { animation: mes-realce 1.6s ease-out 1; }   /* 
     .meta-pg { max-width: 860px; }
 }
 @media (max-width: 760px) {
+    .fu-graf { padding-left: var(--s2); padding-right: var(--s3); }     /* o gráfico ganha largura; o título fica no lugar */
+    .fu-graf > .card-head { padding-left: var(--s2); }
     .meta-rodape > .btn { width: 100%; }
     .meta-grupo-cab {
         display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "tit seta" "res seta";

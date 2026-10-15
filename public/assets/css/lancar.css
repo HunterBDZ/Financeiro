@@ -121,7 +121,7 @@
 .ex-vazio p { color: var(--tinta); }
 
 @media (min-width: 761px) {
-    .ex-filtros-row { grid-template-columns: minmax(0, 2fr) minmax(0, 1.2fr) minmax(0, 1fr) auto; grid-template-areas: "busca cat ordem btn"; }
+    .ex-filtros-row { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto; }
     .ex-busca-btn { padding: 0 20px; }
     .ex-busca-txt { display: inline; }
 }
