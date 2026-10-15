@@ -6,7 +6,8 @@ use Financeiro\Database;
 /**
  * Dados do gráfico "gastos mês a mês" (SPEC §3.1): previsto e real por categoria × mês, só das
  * categorias operacionais de gasto (Dia a dia, Fixos, Cartao, Ano), SEM filtro de `ativo` — o
- * motor soma todas, e o gráfico tem que bater com ele. A renda vem do plano do motor.
+ * motor soma todas, e o gráfico tem que bater com ele. A renda vem do plano do motor. O previsto
+ * é o da view previsao_efetiva (o do mês, senão a meta), o mesmo que o motor usa.
  */
 final class GastosMensais
 {
@@ -41,7 +42,7 @@ final class GastosMensais
                        COUNT(l.id) AS n
                 FROM meses m
                 CROSS JOIN categorias c
-                LEFT JOIN previsao p ON p.categoria_id = c.id AND p.mes = m.mes
+                LEFT JOIN previsao_efetiva p ON p.categoria_id = c.id AND p.mes = m.mes
                 LEFT JOIN lancamentos l ON l.categoria_id = c.id
                       AND l.data >= m.mes AND l.data < DATE_ADD(m.mes, INTERVAL 1 MONTH)
                 WHERE c.operacional = 1 AND c.sinal = -1

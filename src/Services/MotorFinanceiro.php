@@ -47,9 +47,13 @@ final class MotorFinanceiro
 
     /**
      * Tudo o que o motor precisa, numa leitura só (cache por requisição; limparCache() zera).
+     * prev = previsão efetiva (view previsao_efetiva: o valor do mês, senão a meta, senão nada);
+     * excecao[mes][cat] = o mês tem linha própria em `previsao`; metas[cat] = a meta que vale como
+     * previsão padrão (só gasto ativo — a mesma condição da view).
      * @return array{meses:list<array{mes:string,situacao:string}>, aj:array<string,float>, loanIni:float,
      *   cats:array<int,array{id:int,nome:string,apelido:?string,grupo:string,sinal:int,operacional:int,essencial:int,ativo:int,ordem:int}>,
-     *   prev:array<string,array<int,float>>, real:array<string,array<int,float>>, n:array<string,array<int,int>>,
+     *   prev:array<string,array<int,float>>, excecao:array<string,array<int,true>>, metas:array<int,float>,
+     *   real:array<string,array<int,float>>, n:array<string,array<int,int>>,
      *   ult:array<string,array<int,string>>, esp:array{cred:?int,amort:?int,guard:?int,resg:?int}}
      */
     public static function dados(): array
@@ -78,9 +82,20 @@ final class MotorFinanceiro
             }
         }
 
-        $prev = [];
-        foreach ($pdo->query('SELECT mes, categoria_id, valor FROM previsao') as $r) {
-            $prev[(string) $r['mes']][(int) $r['categoria_id']] = (float) $r['valor'];
+        $prev = $excecao = $metas = [];
+        foreach ($pdo->query('SELECT mes, categoria_id, valor, fonte FROM previsao_efetiva WHERE fonte IS NOT NULL') as $r) {
+            $m = (string) $r['mes'];
+            $c = (int) $r['categoria_id'];
+            $prev[$m][$c] = (float) $r['valor'];
+            if ($r['fonte'] === 'mes') {
+                $excecao[$m][$c] = true;
+            }
+        }
+        foreach ($pdo->query('SELECT categoria_id, valor FROM metas') as $r) {
+            $c = $cats[(int) $r['categoria_id']] ?? null;
+            if ($c !== null && $c['ativo'] === 1 && $c['operacional'] === 1 && $c['sinal'] === -1) {
+                $metas[$c['id']] = (float) $r['valor'];
+            }
         }
 
         $real = $n = $ult = [];
@@ -96,7 +111,8 @@ final class MotorFinanceiro
 
         return self::$dadosCache = [
             'meses' => $meses, 'aj' => $aj, 'loanIni' => $loanIni, 'cats' => $cats,
-            'prev' => $prev, 'real' => $real, 'n' => $n, 'ult' => $ult, 'esp' => $esp,
+            'prev' => $prev, 'excecao' => $excecao, 'metas' => $metas,
+            'real' => $real, 'n' => $n, 'ult' => $ult, 'esp' => $esp,
         ];
     }
 

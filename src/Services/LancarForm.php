@@ -122,7 +122,7 @@ final class LancarForm
     {
         $stmt = Database::connection()->prepare(
             "SELECT c.id,
-                    COALESCE((SELECT p.valor FROM previsao p WHERE p.categoria_id = c.id AND p.mes = :m), 0) AS prev,
+                    COALESCE((SELECT p.valor FROM previsao_efetiva p WHERE p.categoria_id = c.id AND p.mes = :m), 0) AS prev,
                     COALESCE((SELECT SUM(l.valor) FROM lancamentos l
                                WHERE l.categoria_id = c.id AND l.data >= :ini AND l.data < :fim), 0) AS gasto
              FROM categorias c

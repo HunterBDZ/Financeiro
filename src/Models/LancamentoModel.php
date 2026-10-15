@@ -245,7 +245,7 @@ final class LancamentoModel
     {
         $stmt = Database::connection()->prepare(
             'SELECT c.id, c.nome, c.apelido, c.grupo, c.operacional,
-                    COALESCE((SELECT MAX(p.valor) FROM previsao p WHERE p.categoria_id = c.id AND p.mes = :mes1), 0) AS previsto,
+                    COALESCE((SELECT MAX(p.valor) FROM previsao_efetiva p WHERE p.categoria_id = c.id AND p.mes = :mes1), 0) AS previsto,
                     COALESCE((SELECT SUM(l.valor) FROM lancamentos l
                               WHERE l.categoria_id = c.id AND l.data >= :mes2 AND l.data < :fim), 0) AS realizado
              FROM categorias c

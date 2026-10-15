@@ -9,13 +9,15 @@ use Financeiro\Models\PrevisaoModel;
  * Único caminho de gravação da previsão (invariante 7, SPEC §4.6): grava um lote de células
  * com log (antes/depois) para desfazer e auditar. Transação só é aberta aqui se ninguém abriu
  * antes (POST de Fechar mês e tests/run.php já abrem a sua).
+ * Valor null numa célula = apagar a linha do mês (a categoria volta a seguir a meta); no log,
+ * antes/depois NULL = "sem linha", e o desfazer apaga ou recria a linha conforme o caso.
  */
 final class PrevisaoLote
 {
-    public const ORIGENS = ['manual', 'propagar', 'sugestao', 'fechar'];
+    public const ORIGENS = ['manual', 'propagar', 'sugestao', 'fechar', 'migracao'];
 
     /**
-     * @param list<array{0:int,1:string,2:float}> $celulas [categoria_id, mes 'Y-m-01', valor]
+     * @param list<array{0:int,1:string,2:?float}> $celulas [categoria_id, mes 'Y-m-01', valor | null]
      * @return ?string o id do lote; null se não houver nada a gravar (lista vazia, ou todas as
      *                 células já têm esse valor) — o chamador mostra "nada mudou".
      * @throws \InvalidArgumentException origem/célula inválida, ou mês que não está em PREVISAO
@@ -44,8 +46,9 @@ final class PrevisaoLote
             $stAntes = $pdo->prepare('SELECT valor FROM previsao WHERE categoria_id = :c AND mes = :m FOR UPDATE');
             $mudar = [];
             foreach ($celulas as $cel) {
-                [$cat, $mes, $valor] = [(int) $cel[0], (string) $cel[1], round((float) $cel[2], 2)];
-                if ($cat <= 0 || !preg_match('/^\d{4}-\d{2}-01$/', $mes) || $valor < 0) {
+                $valor = $cel[2] ?? null;
+                [$cat, $mes, $valor] = [(int) $cel[0], (string) $cel[1], $valor === null ? null : round((float) $valor, 2)];
+                if ($cat <= 0 || !preg_match('/^\d{4}-\d{2}-01$/', $mes) || ($valor !== null && $valor < 0)) {
                     throw new \InvalidArgumentException('Célula inválida');
                 }
                 if (!isset($sit[$mes])) {
@@ -58,7 +61,7 @@ final class PrevisaoLote
                 $stAntes->execute(['c' => $cat, 'm' => $mes]);
                 $a = $stAntes->fetchColumn();
                 $antes = $a === false ? null : (float) $a;
-                if ($antes !== null && abs($antes - $valor) < 0.005) {
+                if (self::iguais($antes, $valor)) {
                     continue; // já está assim: não entra no lote
                 }
                 $mudar[$cat . '|' . $mes] = [$cat, $mes, $valor, $antes];
@@ -89,7 +92,11 @@ final class PrevisaoLote
                 'INSERT INTO previsao_log (lote, categoria_id, mes, antes, depois) VALUES (:lote, :c, :m, :a, :d)'
             );
             foreach ($mudar as [$cat, $mes, $valor, $antes]) {
-                PrevisaoModel::setValor($cat, $mes, $valor);
+                if ($valor === null) {
+                    PrevisaoModel::remover($cat, $mes);
+                } else {
+                    PrevisaoModel::setValor($cat, $mes, $valor);
+                }
                 $stLog->execute(['lote' => $lote, 'c' => $cat, 'm' => $mes, 'a' => $antes, 'd' => $valor]);
             }
             if ($objetivoNovo !== null) {
@@ -112,7 +119,8 @@ final class PrevisaoLote
 
     /**
      * Desfaz um lote: restaura `antes` só nas células que continuam iguais a `depois` e cujo mês
-     * ainda está em PREVISAO (antes NULL vira 0). Restaura o objetivo se ninguém o mudou depois.
+     * ainda está em PREVISAO (antes NULL = apaga a linha: volta a valer a meta, ou 0 sem meta).
+     * Restaura o objetivo se ninguém o mudou depois.
      * @return array{restauradas:int,total:int,ja_desfeito:bool}
      */
     public static function desfazer(string $lote, int $usuarioId): array
@@ -149,11 +157,17 @@ final class PrevisaoLote
             foreach ($log as $l) {
                 $stAtual->execute(['c' => (int) $l['categoria_id'], 'm' => $l['mes']]);
                 $atual = $stAtual->fetch();
-                if (!$atual || $atual['situacao'] !== 'PREVISAO' || $atual['valor'] === null
-                    || abs((float) $atual['valor'] - (float) $l['depois']) >= 0.005) {
+                // valor NULL no LEFT JOIN = o mês não tem linha (previsao.valor é NOT NULL)
+                $valorAtual = $atual && $atual['valor'] !== null ? (float) $atual['valor'] : null;
+                $depois = $l['depois'] !== null ? (float) $l['depois'] : null;
+                if (!$atual || $atual['situacao'] !== 'PREVISAO' || !self::iguais($valorAtual, $depois)) {
                     continue;
                 }
-                PrevisaoModel::setValor((int) $l['categoria_id'], (string) $l['mes'], $l['antes'] === null ? 0.0 : (float) $l['antes']);
+                if ($l['antes'] === null) {
+                    PrevisaoModel::remover((int) $l['categoria_id'], (string) $l['mes']);
+                } else {
+                    PrevisaoModel::setValor((int) $l['categoria_id'], (string) $l['mes'], (float) $l['antes']);
+                }
                 $restauradas++;
             }
 
@@ -201,5 +215,14 @@ final class PrevisaoLote
             'lote' => (string) $row['lote'], 'origem' => (string) $row['origem'], 'criado_em' => (string) $row['criado_em'],
             'n' => (int) $row['n'], 'mes_inicio' => (string) $row['mes_inicio'], 'usuario_id' => (int) $row['usuario_id'],
         ];
+    }
+
+    /** Mesma célula? null = sem linha no mês; dois valores iguais ao centavo. */
+    private static function iguais(?float $a, ?float $b): bool
+    {
+        if ($a === null || $b === null) {
+            return $a === $b;
+        }
+        return abs($a - $b) < 0.005;
     }
 }
