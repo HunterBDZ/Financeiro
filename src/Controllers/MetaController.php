@@ -2,16 +2,20 @@
 namespace Financeiro\Controllers;
 
 use Financeiro\Auth;
+use Financeiro\Database;
 use Financeiro\Models\CategoriaModel;
 use Financeiro\Models\MetaModel;
 use Financeiro\Services\GastosMensais;
 use Financeiro\Services\MotorFinanceiro;
+use Financeiro\Services\PrevisaoEdicao;
 use Financeiro\View;
 
 /**
  * Meta (aba entre extrato e mês). Define uma meta mensal de gasto por categoria.
  * Só categorias de gasto (as de CategoriaModel::gastos()) podem ter meta; o mês usa a meta
  * para pintar a barra de verde (dentro) ou vermelho (fora). Campo vazio = sem meta.
+ * A meta também é a previsão padrão de todo mês (view previsao_efetiva): mudar a meta muda a
+ * projeção — o aviso depois de salvar mostra o efeito no fim do último mês.
  */
 final class MetaController
 {
@@ -140,16 +144,44 @@ final class MetaController
             redirecionar('/meta#c' . $erroCampo, 303);
         }
 
+        $antes = MotorFinanceiro::calcularPlano();
+        $pdo = Database::connection();
         $n = 0;
-        foreach ($parsed as $id => $v) {
-            if ($v === null) {
-                MetaModel::remover($id);
-            } else {
-                MetaModel::definir($id, $v);
-                $n++;
+        try {
+            $pdo->beginTransaction();                        // tudo ou nada: a meta mexe na projeção
+            foreach ($parsed as $id => $v) {
+                if ($v === null) {
+                    MetaModel::remover($id);
+                } else {
+                    MetaModel::definir($id, $v);
+                    $n++;
+                }
             }
+            $pdo->commit();
+        } catch (\Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            error_log('meta/salvar: ' . $e->getMessage());
+            flash('error', 'não salvou · tente de novo');
+            redirecionar('/meta', 303);
         }
-        flash('success', $n === 0 ? 'metas limpas' : 'metas salvas · ' . $n . ($n === 1 ? ' categoria' : ' categorias'));
+        MotorFinanceiro::limparCache();
+        $depois = MotorFinanceiro::calcularPlano();
+
+        $segs = [$n === 0 ? 'metas limpas' : 'metas salvas', $n === 0 ? null : $n . ($n === 1 ? ' categoria' : ' categorias')];
+        $ult  = array_key_last($depois);
+        if ($ult !== null && isset($antes[$ult])
+            && abs((float) $antes[$ult]['fica_na_conta'] - (float) $depois[$ult]['fica_na_conta']) >= 0.5) {
+            $segs[] = 'fim de ' . monthLabel((string) $ult) . ' ' . num((float) $antes[$ult]['fica_na_conta'], 0)
+                . ' → ' . num((float) $depois[$ult]['fica_na_conta'], 0);
+        }
+        $reserva = (float) (MotorFinanceiro::dados()['aj']['reserva_minima'] ?? 0.0);
+        $alerta  = PrevisaoEdicao::piorou($antes, $depois, date('Y-m-01'), $reserva);
+        if ($alerta !== null) {
+            $segs[] = 'atenção: ' . monthLabel($alerta['mes']) . ($alerta['tipo'] === 'vermelho' ? ' no vermelho' : ' abaixo da reserva');
+        }
+        flash($alerta !== null ? 'warn' : 'success', implode(' · ', array_filter($segs, static fn($s) => $s !== null)));
         redirecionar('/meta', 303);
     }
 }

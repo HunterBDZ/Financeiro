@@ -93,7 +93,7 @@ $sinal = static fn(float $v): string => ($v > 0.004 ? '+' : '') . num($v);
             </p>
             <label class="fe-aplicar">
                 <input type="checkbox" name="aplicar" value="1" checked>
-                <span>aplicar em <?= e(monthLabel($previa['mes'])) ?></span>
+                <span>aplicar em <?= e(monthLabel($previa['mes'])) ?><small class="fe-aplicar-nota">o dia a dia de <?= e(mesCurto($previa['mes'])) ?> fica com os valores sugeridos (no lugar das metas, só nesse mês)</small></span>
             </label>
         </section>
         <?php endif; ?>

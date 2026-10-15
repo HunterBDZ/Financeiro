@@ -119,6 +119,8 @@ $temAdd = $addEss !== [] || $addNao !== [];
         <?php endif; ?>
     </section>
 
+    <p class="meta-dica meta-previsao">a meta também é a <b>previsão de todos os meses</b> e entra na conta da aba anual. num mês diferente (férias, presente, conta extra), ajuste o valor na aba <a href="/mes">mês</a>.</p>
+
     <!-- escolher quais categorias terão meta -->
     <form class="card meta-add" method="get" action="/meta" data-meta-add-form>
         <label class="meta-add-lbl" for="meta-add">adicionar categoria</label>

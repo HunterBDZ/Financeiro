@@ -47,6 +47,7 @@ $router->post('/meta/salvar', [MetaController::class, 'salvar']);
 
 // ---- mês e fechar mês
 $router->get('/mes', [MesController::class, 'index']);
+$router->post('/mes/previsao', [MesController::class, 'salvarPrevisao']);
 $router->post('/mes/desfazer', [MesController::class, 'desfazerLote']);
 $router->get('/mes/fechar', [MesController::class, 'fecharForm']);
 $router->post('/mes/fechar', [MesController::class, 'fechar']);

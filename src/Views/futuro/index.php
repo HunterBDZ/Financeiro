@@ -1,7 +1,8 @@
 <?php
 /**
  * Anual — a conta mês a mês pelo plano do motor: a linha do saldo projetado ao fim de cada mês
- * (contra a reserva e a meta) e a tabela entradas / saídas / balanço com detalhe por mês.
+ * (contra a reserva e a meta) e a tabela entradas / saídas / balanço com detalhe por mês; o
+ * detalhe de cada mês leva à aba Mês daquele mês (onde se ajusta a previsão).
  * Variáveis: $hoje, $ref, $ultimo, $reserva, $meta, $linhas, $quita, $bate.
  */
 $n    = count($linhas);
@@ -114,6 +115,7 @@ $refs = [[0.0, 'fu-base', '0', ''], [$reserva, 'fu-reserva', num($reserva, 0), '
                         <?php if ($l['amort'] > 0.004): ?><p>amortização extra <?= e(num($l['amort'])) ?></p><?php endif; ?>
                         <p class="<?= e($l['alerta']) ?>"><?= $l['estado'] === 'real' ? 'conta no fim do mês' : 'conta no fim do mês (projeção)' ?> <?= e(num($l['fica'])) ?></p>
                         <p>dívida <?= e(num($l['divida'])) ?></p>
+                        <a class="btn-link fu-abrir" href="/mes?mes=<?= e($l['mes']) ?>"><?= $l['estado'] === 'real' ? 'ver' : 'ver e ajustar' ?> <?= e(monthLabel($l['mes'])) ?> ›</a>
                     </div>
                 </details>
             <?php endforeach; ?>

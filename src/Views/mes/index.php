@@ -3,6 +3,8 @@
  * Mês — entradas, saídas (essenciais × não essenciais) e o saldo em conta.
  * Base dos números, por estado do mês: fechado = só o lançado; aberto = lançado até hoje e,
  * nas contas, o previsto do que ainda falta (max); futuro = previsto.
+ * Mês aberto ou futuro: tocar numa linha abre a edição da previsão do mês (POST /mes/previsao);
+ * "+ incluir conta" põe no mês uma conta que ainda não tem previsão. Fita com todos os meses no topo.
  * Nenhum cálculo de motor aqui: tudo vem do MesController.
  */
 use Financeiro\View;
@@ -80,24 +82,94 @@ $totalSaidas = $totalEss + $totalNaoEss;
 $balanco     = round($totalEntrou - $totalSaidas, 2);
 $contaCls    = $emConta < -0.004 ? 'neg' : ($emConta < $reserva - 0.004 ? 'warn' : '');
 
+/* ---------------------------------------------------------------- edição da previsão (mês em PREVISAO) */
+// Só meses editáveis usam $linhaDia/$linhaConta/$linhaEntrada; cada linha é um <details> cujo
+// painel grava a previsão do mês (POST /mes/previsao). A meta é a previsão padrão de todo mês;
+// um valor próprio do mês é "ajustado" e pode voltar à meta.
+$consignado = (float) ($linha['parcela_consignado'] ?? 0.0);
+$ehUltimo   = $mes === $ultimo;
+$ultLbl     = monthLabel($ultimo);
+$erroDe     = static fn(array $l): ?array => $erroLinha !== null && (int) ($erroLinha['cat'] ?? 0) === (int) $l['id'] ? $erroLinha : null;
+
+// 2ª linha nos meses futuros: de onde vem o previsto (só categorias com meta)
+$origem = static function (array $l) use ($estado, $fmt): string {
+    if ($estado !== 'previsto' || $l['meta_padrao'] === null) {
+        return '';
+    }
+    return $l['ajuste']
+        ? '<span class="mes-l2 mes-origem is-ajuste">ajustado neste mês · meta ' . e($fmt((float) $l['meta_padrao'])) . '</span>'
+        : '<span class="mes-l2 mes-origem">segue a meta</span>';
+};
+
+$painel = static function (array $l, string $tipo) use ($csrf, $mes, $mesLbl, $estado, $fmt, $erroDe, $consignado, $ehUltimo, $ultLbl): void {
+    $erro = $erroDe($l);
+    $meta = $l['meta_padrao'];
+    $info = [];
+    if ($meta !== null) {
+        $info[] = $l['ajuste'] ? 'valor só deste mês · a meta é ' . $fmt((float) $meta) : 'segue a meta · vale para todo mês sem ajuste';
+    }
+    if ($estado === 'aberto') {
+        $ja = $tipo === 'conta' ? (float) ($l['pago'] ?? $l['real']) : (float) $l['real'];
+        if ($ja > 0.004) {
+            $info[] = ($tipo === 'entrada' ? 'recebido' : 'lançado') . ' até hoje ' . $fmt($ja);
+        }
+    }
+    if ($tipo === 'entrada' && $l['nome_completo'] === 'Salário' && $consignado > 0.004) {
+        $info[] = 'bruto: o consignado (' . MENOS . $fmt($consignado) . ') sai na folha';
+    }
+    $temAcoes = ($meta !== null && $l['ajuste']) || $l['prev'] > 0.004; ?>
+    <form class="mes-form" method="post" action="/mes/previsao">
+        <?= $csrf ?>
+        <input type="hidden" name="mes" value="<?= e($mes) ?>">
+        <input type="hidden" name="categoria_id" value="<?= (int) $l['id'] ?>">
+        <div class="mes-form-l1">
+            <label class="mes-form-campo">
+                <span>previsto em <?= e($mesLbl) ?></span>
+                <input type="text" name="valor" inputmode="decimal" autocomplete="off" enterkeyhint="done"
+                       value="<?= e($erro !== null ? (string) $erro['valor'] : numInput((float) $l['prev'])) ?>" data-mes-valor<?= $erro !== null ? ' aria-invalid="true" data-autofocus' : '' ?>>
+            </label>
+            <button type="submit" name="acao" value="salvar" class="btn btn-primary btn-sm mes-salvar">salvar</button>
+        </div>
+        <?php if ($erro !== null): ?><p class="aviso aviso-error"><?= e((string) $erro['msg']) ?></p><?php endif; ?>
+        <?php if ($info !== []): ?><p class="mes-form-info"><?= e(implode(' · ', $info)) ?></p><?php endif; ?>
+        <?php if (!$ehUltimo): ?>
+            <label class="mes-prop"><input type="checkbox" name="propagar" value="1"<?= !empty($erro['propagar']) ? ' checked' : '' ?>><span>também nos meses seguintes, até <?= e($ultLbl) ?></span></label>
+        <?php endif; ?>
+        <?php if ($temAcoes): ?>
+            <div class="mes-form-acoes">
+                <?php if ($meta !== null && $l['ajuste']): ?><button type="submit" name="acao" value="meta" class="btn-link">voltar à meta (<?= e($fmt((float) $meta)) ?>)</button><?php endif; ?>
+                <?php if ($l['prev'] > 0.004): ?><button type="submit" name="acao" value="tirar" class="btn-link-danger">tirar deste mês</button><?php endif; ?>
+            </div>
+        <?php endif; ?>
+    </form>
+<?php };
+
+// abre/fecha a linha editável (o resumo da linha vai no <summary>)
+$abreLinha = static function (array $l) use ($erroDe): void { ?>
+    <details class="mes-linha mes-ed" id="cat-<?= (int) $l['id'] ?>"<?= $erroDe($l) !== null ? ' open' : '' ?>>
+        <summary>
+<?php };
+
 /* ---------------------------------------------------------------- linhas */
-$linhaDia = static function (array $l) use ($estado, $valorDia, $metaBarra, $metaValCls): void {
+$linhaDia = static function (array $l) use ($estado, $valorDia, $metaBarra, $metaValCls, $origem, $painel, $abreLinha): void {
     $v    = $valorDia($l);
     $meta = $estado === 'previsto' ? null : ($l['meta'] ?? null);
-    $barra = $metaBarra((float) $l['real'], $meta); ?>
-    <div class="mes-linha">
+    $barra = $metaBarra((float) $l['real'], $meta);
+    $abreLinha($l); ?>
         <span class="mes-sum">
             <span class="mes-l1">
                 <span class="mes-tag mes-tag-var">variável</span>
                 <span class="mes-nome"><?= e($l['nome']) ?></span>
                 <span class="mes-val num<?= $metaValCls((float) $l['real'], $meta) ?>"><?= e(num($v, 0)) ?></span>
             </span>
-            <?= $barra ?>
+            <?= $barra ?><?= $origem($l) ?>
         </span>
-    </div>
+        </summary>
+        <?php $painel($l, 'dia'); ?>
+    </details>
 <?php };
 
-$linhaConta = static function (array $l) use ($estado, $valorConta, $fmt, $metaBarra, $metaValCls): void {
+$linhaConta = static function (array $l) use ($estado, $valorConta, $fmt, $metaBarra, $metaValCls, $origem, $painel, $abreLinha): void {
     $st = $l['status'];
     $tipo = $l['grupo'] === 'Fixos' ? 'fixo' : 'variável';
     // Selo de status à direita do lançamento: verde = pago, amarelo = previsto (ainda não pago).
@@ -119,8 +191,8 @@ $linhaConta = static function (array $l) use ($estado, $valorConta, $fmt, $metaB
         } else {
             $selo = 'previsto';
         }
-    } ?>
-    <div class="mes-linha">
+    }
+    $abreLinha($l); ?>
         <span class="mes-sum">
             <span class="mes-l1">
                 <span class="mes-tag mes-tag-<?= $tipo === 'fixo' ? 'fixo' : 'var' ?>"><?= e($tipo) ?></span>
@@ -128,20 +200,69 @@ $linhaConta = static function (array $l) use ($estado, $valorConta, $fmt, $metaB
                 <span class="mes-val num<?= $metaValCls($gastoConta, $metaConta) ?>"><?= e($fmt($valorConta($l))) ?></span>
                 <?php if ($selo !== ''): ?><span class="mes-status mes-status-<?= $seloCls ?>"><?= e($selo) ?></span><?php endif; ?>
             </span>
-            <?= $metaBarra($gastoConta, $metaConta) ?>
+            <?= $metaBarra($gastoConta, $metaConta) ?><?= $origem($l) ?>
         </span>
-    </div>
+        </summary>
+        <?php $painel($l, 'conta'); ?>
+    </details>
 <?php };
 
-$linhaEntrada = static function (array $l) use ($valorEnt, $fmt): void { ?>
-    <div class="mes-linha">
+$linhaEntrada = static function (array $l) use ($valorEnt, $fmt, $painel, $abreLinha): void {
+    $abreLinha($l); ?>
         <span class="mes-sum">
             <span class="mes-l1">
                 <span class="mes-nome"><?= e($l['nome']) ?></span>
                 <span class="mes-val num"><?= e($fmt($valorEnt($l))) ?></span>
             </span>
         </span>
-    </div>
+        </summary>
+        <?php $painel($l, 'entrada'); ?>
+    </details>
+<?php };
+
+// "+ incluir": contas (Fixos, Cartão, Pontuais) sem previsão neste mês
+$incluirConta = static function () use ($incluir, $csrf, $mes, $mesLbl, $erroLinha, $ehUltimo, $ultLbl): void {
+    if ($incluir === []) {
+        return;
+    }
+    $ids  = array_map(static fn($l) => (int) $l['id'], $incluir);
+    $erro = $erroLinha !== null && in_array((int) ($erroLinha['cat'] ?? 0), $ids, true) ? $erroLinha : null;
+    $porGrupo = [];
+    foreach ($incluir as $l) {
+        $porGrupo[grupoLabel($l['grupo'])][] = $l;
+    } ?>
+    <details class="mes-incluir" id="incluir"<?= $erro !== null ? ' open' : '' ?>>
+        <summary><?= svgIcon('plus', 16) ?>incluir conta em <?= e($mesLbl) ?></summary>
+        <form class="mes-form" method="post" action="/mes/previsao">
+            <?= $csrf ?>
+            <input type="hidden" name="mes" value="<?= e($mes) ?>">
+            <label class="mes-form-campo">
+                <span>conta</span>
+                <select name="categoria_id" required>
+                    <option value="">escolher…</option>
+                    <?php foreach ($porGrupo as $g => $ls): ?>
+                        <optgroup label="<?= e($g) ?>">
+                            <?php foreach ($ls as $l): ?>
+                                <option value="<?= (int) $l['id'] ?>"<?= $erro !== null && (int) $erro['cat'] === (int) $l['id'] ? ' selected' : '' ?>><?= e($l['nome_completo']) ?></option>
+                            <?php endforeach; ?>
+                        </optgroup>
+                    <?php endforeach; ?>
+                </select>
+            </label>
+            <div class="mes-form-l1">
+                <label class="mes-form-campo">
+                    <span>previsto em <?= e($mesLbl) ?></span>
+                    <input type="text" name="valor" inputmode="decimal" autocomplete="off" enterkeyhint="done" placeholder="0,00"
+                           value="<?= e($erro !== null ? (string) $erro['valor'] : '') ?>"<?= $erro !== null ? ' aria-invalid="true" data-autofocus' : '' ?>>
+                </label>
+                <button type="submit" name="acao" value="salvar" class="btn btn-primary btn-sm mes-salvar">incluir</button>
+            </div>
+            <?php if ($erro !== null): ?><p class="aviso aviso-error"><?= e((string) $erro['msg']) ?></p><?php endif; ?>
+            <?php if (!$ehUltimo): ?>
+                <label class="mes-prop"><input type="checkbox" name="propagar" value="1"<?= !empty($erro['propagar']) ? ' checked' : '' ?>><span>também nos meses seguintes, até <?= e($ultLbl) ?></span></label>
+            <?php endif; ?>
+        </form>
+    </details>
 <?php };
 
 $linhaLeitura = static function (array $l, float $v): void { ?>
@@ -180,6 +301,8 @@ $linhaLeitura = static function (array $l, float $v): void { ?>
             </details>
         <?php endif; ?>
     </header>
+
+    <?php View::partial('partials/mes_fita', ['mes' => $mes, 'meses' => $meses, 'hoje' => $hoje]); ?>
 
     <!-- resumo -->
     <div class="mes-resumo">
@@ -246,6 +369,8 @@ $linhaLeitura = static function (array $l, float $v): void { ?>
                         </div>
                     </details>
                 <?php endif; ?>
+
+                <?php $incluirConta(); ?>
 
             <?php else: ?>
                 <ul class="mes-ros">

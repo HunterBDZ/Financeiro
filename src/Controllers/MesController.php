@@ -9,13 +9,16 @@ use Financeiro\Models\MetaModel;
 use Financeiro\Models\SaldoConferenciaModel;
 use Financeiro\Services\ChecklistContas;
 use Financeiro\Services\MotorFinanceiro;
+use Financeiro\Services\PrevisaoEdicao;
 use Financeiro\Services\PrevisaoLote;
 use Financeiro\Services\SugestaoAlocacao;
 use Financeiro\View;
 
 /**
  * Mês (SPEC §2.5) e Fechar mês (§2.6). A previsão só é gravada por PrevisaoLote::gravar()
- * (invariante 7); desfazer e reabrir ficam no menu ⋯ do mês.
+ * (invariante 7): aqui, pela edição linha a linha (POST /mes/previsao) e pelo Fechar mês.
+ * Desfazer e reabrir ficam no menu ⋯ do mês. A meta é a previsão padrão de todo mês; o que
+ * se grava no mês é a exceção (view previsao_efetiva).
  */
 final class MesController
 {
@@ -60,7 +63,8 @@ final class MesController
             $status[(int) $s['categoria_id']] = $s;
         }
 
-        $dia = $diaZeradas = $contasLinhas = $entradas = [];
+        $excecao = $d['excecao'][$mes] ?? [];
+        $dia = $diaZeradas = $contasLinhas = $entradas = $incluir = [];
         foreach ($cats as $id => $c) {
             $p = round((float) ($prev[$id] ?? 0.0), 2);
             $r = round((float) ($real[$id] ?? 0.0), 2);
@@ -68,6 +72,8 @@ final class MesController
                 'id' => $id, 'nome' => nomeCurto($c), 'nome_completo' => $c['nome'], 'grupo' => $c['grupo'],
                 'essencial' => (bool) ($c['essencial'] ?? true), 'prev' => $p, 'real' => $r, 'ativo' => $c['ativo'] === 1,
                 'meta' => $metas[$id] ?? null,
+                // previsão: a meta vale para todo mês; 'ajuste' = este mês tem valor próprio
+                'meta_padrao' => PrevisaoEdicao::meta($d, $id), 'ajuste' => isset($excecao[$id]),
             ];
             $temValor = $p > 0.004 || $r > 0.004;
             if (!$temValor && !$l['ativo']) {
@@ -85,6 +91,9 @@ final class MesController
                 case 'Cartao':
                 case 'Ano':
                     if (!$temValor) {
+                        if ($editavel && $l['ativo']) {
+                            $incluir[] = $l;                     // conta sem previsão no mês: "+ incluir"
+                        }
                         break;
                     }
                     $s = $status[$id] ?? null;
@@ -126,6 +135,11 @@ final class MesController
             'desfazer' => PrevisaoLote::ultimoDesfazivel(),
         ];
 
+        // erro da última edição (valor inválido etc.): reabre a linha com o que foi digitado
+        $erro = $_SESSION['mes_erro'] ?? null;
+        unset($_SESSION['mes_erro']);
+        $erroLinha = is_array($erro) && ($erro['mes'] ?? '') === $mes ? $erro : null;
+
         View::render('mes/index', [
             'pageTitle' => monthLabel($mes) . ' · mês · financeiro',
             'mes' => $mes, 'meses' => $meses, 'hoje' => $hoje, 'situacao' => $situacao, 'estado' => $estado,
@@ -133,7 +147,79 @@ final class MesController
             'emConta' => round($emConta, 2), 'projetado' => $projetado, 'reserva' => $reserva,
             'dia' => $dia, 'diaZeradas' => $diaZeradas, 'contasAbertas' => $abertas, 'contasPagas' => $pagas,
             'entradas' => $entradas, 'linha' => $linha, 'menu' => $menu,
+            'incluir' => $incluir, 'erroLinha' => $erroLinha,
         ], 'mes');
+    }
+
+    /* ================================================================== POST /mes/previsao */
+
+    /**
+     * Edição da previsão de uma categoria no mês (e, com propagar, nos meses seguintes).
+     * Campos: mes, categoria_id, acao (salvar | tirar | meta), valor, propagar=1.
+     */
+    public function salvarPrevisao(): void
+    {
+        Auth::requireLogin();
+        csrfCheck();
+
+        $mes = self::mesPost();
+        if ($mes === null) {
+            flash('error', 'mês?');
+            redirecionar('/mes', 303);
+        }
+        $cat   = (int) ($_POST['categoria_id'] ?? 0);
+        $volta = '/mes?mes=' . $mes . ($cat > 0 ? '#cat-' . $cat : '');
+        $acao  = is_string($_POST['acao'] ?? null) ? $_POST['acao'] : 'salvar';
+        $bruto = is_string($_POST['valor'] ?? null) ? trim($_POST['valor']) : '';
+        $propagar = ($_POST['propagar'] ?? '') === '1';
+
+        $d = MotorFinanceiro::dados();
+        try {
+            $celulas = PrevisaoEdicao::celulas($d, $cat, $mes, $acao, $acao === 'salvar' ? parseMoedaBr($bruto) : null, $propagar);
+        } catch (\InvalidArgumentException $e) {
+            $_SESSION['mes_erro'] = ['mes' => $mes, 'cat' => $cat, 'msg' => $e->getMessage(), 'valor' => $bruto, 'propagar' => $propagar];
+            redirecionar($volta, 303);
+        }
+
+        $antes = MotorFinanceiro::calcularPlano();
+        try {
+            $lote = PrevisaoLote::gravar($propagar ? 'propagar' : 'manual', $celulas, (int) Auth::id());
+        } catch (\InvalidArgumentException) {
+            flash('error', 'não salvou · ' . monthLabel($mes) . ' ' . estadoLabel('real'));   // fechado no meio do caminho
+            redirecionar($volta, 303);
+        } catch (\Throwable $e) {
+            error_log('mes/previsao: ' . $e->getMessage());
+            flash('error', 'não salvou · tente de novo');
+            redirecionar($volta, 303);
+        }
+        if ($lote === null) {
+            flash('success', 'nada mudou');
+            redirecionar($volta, 303);
+        }
+        $depois = MotorFinanceiro::calcularPlano();
+
+        $c    = $d['cats'][$cat];
+        $novo = $celulas[0][2];
+        $meta = PrevisaoEdicao::meta($d, $cat);
+        $oQue = match (true) {
+            $novo === null           => nomeCurto($c) . ' segue a meta ' . self::valorCurto((float) $meta),
+            $acao === 'tirar'        => nomeCurto($c) . ' tirado',
+            default                  => nomeCurto($c) . ' ' . self::valorCurto($novo),
+        };
+        $ultimoCel = (string) end($celulas)[1];
+        $segs = [$oQue, monthLabel($mes) . ($ultimoCel !== $mes ? ' → ' . monthLabel($ultimoCel) : '')];
+        if (isset($antes[$mes], $depois[$mes])) {
+            $segs[] = 'fim de ' . mesCurto($mes) . ' ' . num((float) $antes[$mes]['fica_na_conta'], 0)
+                . ' → ' . num((float) $depois[$mes]['fica_na_conta'], 0);
+        }
+        $reserva = (float) ($d['aj']['reserva_minima'] ?? 0.0);
+        $alerta  = PrevisaoEdicao::piorou($antes, $depois, $mes, $reserva);
+        if ($alerta !== null) {
+            $segs[] = 'atenção: ' . monthLabel($alerta['mes']) . ($alerta['tipo'] === 'vermelho' ? ' no vermelho' : ' abaixo da reserva');
+        }
+        flash($alerta !== null ? 'warn' : 'success', implode(' · ', $segs),
+            ['url' => '/mes/desfazer', 'label' => 'desfazer', 'campos' => ['lote' => $lote, 'mes' => $mes]]);
+        redirecionar($volta, 303);
     }
 
     /* ================================================================== POST /mes/desfazer */
@@ -424,6 +510,12 @@ final class MesController
     }
 
     /* ================================================================== internos */
+
+    /** `1.200` · `159,90`: centavos só quando há. */
+    private static function valorCurto(float $v): string
+    {
+        return num($v, fmod(abs($v), 1) > 0.004 ? 2 : 0);
+    }
 
     private static function situacaoEm(array $meses, string $mes): string
     {

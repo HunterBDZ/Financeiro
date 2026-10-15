@@ -1,6 +1,7 @@
 <?php
 /**
- * Testes de fumaça e invariantes do motor, contra o banco real (só leitura).
+ * Testes de fumaça e invariantes do motor, contra o banco real. O que grava (meta, previsão)
+ * roda dentro de uma transação desfeita no fim do teste: o banco não muda.
  * Uso: cd /var/www/financeiro && php tests/run.php   (deploy.sh roda isto depois de publicar)
  * Sai com 1 se algo falhar.
  */
@@ -29,8 +30,11 @@ use Financeiro\Models\AjusteModel;
 use Financeiro\Models\LancamentoModel;
 use Financeiro\Models\MesModel;
 use Financeiro\Models\MetaModel;
+use Financeiro\Models\PrevisaoModel;
 use Financeiro\Models\UsuarioModel;
 use Financeiro\Services\MotorFinanceiro;
+use Financeiro\Services\PrevisaoEdicao;
+use Financeiro\Services\PrevisaoLote;
 
 $ok = 0;
 $falhas = 0;
@@ -156,6 +160,162 @@ if ($mesMeta === null) {
     $pdo->rollBack();
     MotorFinanceiro::limparCache();
 }
+
+// ---- 5-9: previsão — a meta é a previsão padrão de todo mês; o valor do mês é exceção
+$prevMeses = array_values(array_map(static fn($m) => (string) $m['mes'],
+    array_filter(MesModel::todos(), static fn($m) => $m['situacao'] === 'PREVISAO')));
+$realMes = null;
+foreach (MesModel::todos() as $m) {
+    if ($m['situacao'] === 'REAL') {
+        $realMes = (string) $m['mes'];
+        break;
+    }
+}
+$catDia = (int) $pdo->query(
+    "SELECT id FROM categorias WHERE grupo = 'Dia a dia' AND ativo = 1 AND operacional = 1 AND sinal = -1 ORDER BY id LIMIT 1"
+)->fetchColumn();
+$catMov = (int) $pdo->query('SELECT id FROM categorias WHERE operacional = 0 ORDER BY id LIMIT 1')->fetchColumn();
+$linhaCrua = static function (int $c, string $m) use ($pdo): ?float {
+    $st = $pdo->prepare('SELECT valor FROM previsao WHERE categoria_id = :c AND mes = :m');
+    $st->execute(['c' => $c, 'm' => $m]);
+    $v = $st->fetchColumn();
+    return $v === false ? null : (float) $v;
+};
+$emTransacao = static function (string $nome, callable $corpo) use ($pdo, $check): void {
+    $pdo->beginTransaction();
+    MotorFinanceiro::limparCache();
+    try {
+        $corpo();
+    } catch (\Throwable $e) {
+        $check($nome, false, get_class($e) . ': ' . $e->getMessage() . ' em ' . basename($e->getFile()) . ':' . $e->getLine());
+    } finally {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        MotorFinanceiro::limparCache();
+    }
+};
+
+if (count($prevMeses) < 2 || $catDia === 0) {
+    $check('previsão efetiva', true, 'sem 2 meses em PREVISAO ou sem categoria de dia a dia para testar');
+} else {
+    [$m1, $m2] = [$prevMeses[count($prevMeses) - 2], $prevMeses[count($prevMeses) - 1]];
+
+    // 5. a meta vale onde o mês não tem linha; a linha do mês vence; categoria arquivada não herda meta
+    $emTransacao('previsão efetiva', static function () use ($pdo, $check, $catDia, $m1, $m2): void {
+        $pdo->prepare('DELETE FROM previsao WHERE categoria_id = :c AND mes IN (:a, :b)')->execute(['c' => $catDia, 'a' => $m1, 'b' => $m2]);
+        MetaModel::definir($catDia, 123.45);
+        MotorFinanceiro::limparCache();
+        $d = MotorFinanceiro::dados();
+        $check('meta vira a previsão do mês sem linha', abs(PrevisaoModel::valor($catDia, $m1) - 123.45) < 0.001
+            && abs(($d['prev'][$m1][$catDia] ?? 0.0) - 123.45) < 0.001 && empty($d['excecao'][$m1][$catDia])
+            && abs(($d['metas'][$catDia] ?? 0.0) - 123.45) < 0.001);
+        PrevisaoModel::setValor($catDia, $m1, 50.0);
+        MotorFinanceiro::limparCache();
+        $d = MotorFinanceiro::dados();
+        $check('valor do mês vence a meta (exceção)', abs(PrevisaoModel::valor($catDia, $m1) - 50.0) < 0.001
+            && !empty($d['excecao'][$m1][$catDia]) && abs(PrevisaoModel::valor($catDia, $m2) - 123.45) < 0.001);
+        $pdo->prepare('UPDATE categorias SET ativo = 0 WHERE id = :c')->execute(['c' => $catDia]);
+        MotorFinanceiro::limparCache();
+        $check('categoria arquivada não herda a meta', PrevisaoModel::valor($catDia, $m2) == 0.0
+            && !isset(MotorFinanceiro::dados()['metas'][$catDia]));
+    });
+
+    // 6. PrevisaoLote: célula null apaga a linha (volta à meta) e o desfazer recria; nada muda → null; REAL recusa
+    $emTransacao('PrevisaoLote com célula null', static function () use ($pdo, $check, $catDia, $m1, $m2, $uid, $realMes, $linhaCrua): void {
+        $pdo->prepare('DELETE FROM previsao WHERE categoria_id = :c AND mes IN (:a, :b)')->execute(['c' => $catDia, 'a' => $m1, 'b' => $m2]);
+        MetaModel::definir($catDia, 200.0);
+        PrevisaoModel::setValor($catDia, $m1, 80.0);
+        $lote = PrevisaoLote::gravar('manual', [[$catDia, $m1, null]], $uid);
+        $st = $pdo->prepare('SELECT antes, depois FROM previsao_log WHERE lote = :l');
+        $st->execute(['l' => (string) $lote]);
+        $log = $st->fetch();
+        $check('voltar à meta apaga a linha e loga depois NULL', $lote !== null && $linhaCrua($catDia, $m1) === null
+            && abs(PrevisaoModel::valor($catDia, $m1) - 200.0) < 0.001 && $log && $log['depois'] === null && abs((float) $log['antes'] - 80.0) < 0.001);
+        $r = PrevisaoLote::desfazer((string) $lote, $uid);
+        $check('desfazer recria a linha do mês', $r['restauradas'] === 1 && abs((float) $linhaCrua($catDia, $m1) - 80.0) < 0.001);
+        $check('mesmo valor: nada a gravar', PrevisaoLote::gravar('manual', [[$catDia, $m1, 80.0]], $uid) === null);
+        $l2 = PrevisaoLote::gravar('manual', [[$catDia, $m2, 33.0]], $uid);
+        $r2 = PrevisaoLote::desfazer((string) $l2, $uid);
+        $check('desfazer de linha nova apaga a linha (volta à meta)', $r2['restauradas'] === 1 && $linhaCrua($catDia, $m2) === null);
+        $check('sem linha e null: nada a gravar', PrevisaoLote::gravar('manual', [[$catDia, $m2, null]], $uid) === null);
+        if ($realMes !== null) {
+            $recusou = false;
+            try {
+                PrevisaoLote::gravar('manual', [[$catDia, $realMes, 1.0]], $uid);
+            } catch (\InvalidArgumentException) {
+                $recusou = true;
+            }
+            $check('PrevisaoLote recusa mês fechado', $recusou);
+        }
+    });
+
+    // 7. PrevisaoEdicao::celulas (aritmética pura)
+    $d = MotorFinanceiro::dados();
+    $todos = PrevisaoEdicao::celulas($d, $catDia, $m1, 'salvar', 10.0, true);
+    $mesesCel = array_map(static fn($c) => $c[1], $todos);
+    $check('propagar: este mês e os PREVISAO seguintes, nunca fechado', $mesesCel === array_values(array_filter($prevMeses, static fn($m) => $m >= $m1))
+        && array_sum(array_map(static fn($c) => (float) $c[2], $todos)) == 10.0 * count($todos));
+    $check('sem propagar: só o mês', PrevisaoEdicao::celulas($d, $catDia, $m1, 'salvar', 10.0, false) === [[$catDia, $m1, 10.0]]);
+    $dMeta = $d;
+    $dMeta['metas'][$catDia] = 77.0;
+    $check('salvar o valor da meta = seguir a meta (null)', PrevisaoEdicao::celulas($dMeta, $catDia, $m1, 'salvar', 77.0, false) === [[$catDia, $m1, null]]);
+    $check('tirar = 0 no mês', PrevisaoEdicao::celulas($d, $catDia, $m1, 'tirar', null, false) === [[$catDia, $m1, 0.0]]);
+    $erroDe = static function (callable $f): string {
+        try {
+            $f();
+        } catch (\InvalidArgumentException $e) {
+            return $e->getMessage();
+        }
+        return '';
+    };
+    $dSemMeta = $d;
+    unset($dSemMeta['metas'][$catDia]);
+    $check('voltar à meta sem meta: recusa', $erroDe(static fn() => PrevisaoEdicao::celulas($dSemMeta, $catDia, $m1, 'meta', null, false)) === 'sem meta');
+    $check('valor negativo ou vazio: recusa', $erroDe(static fn() => PrevisaoEdicao::celulas($d, $catDia, $m1, 'salvar', -1.0, false)) === 'valor?'
+        && $erroDe(static fn() => PrevisaoEdicao::celulas($d, $catDia, $m1, 'salvar', null, false)) === 'valor?');
+    if ($realMes !== null) {
+        $check('mês fechado: recusa', str_contains($erroDe(static fn() => PrevisaoEdicao::celulas($d, $catDia, $realMes, 'salvar', 1.0, false)), 'fechado'));
+    }
+    if ($catMov > 0) {
+        $check('empréstimo/poupança não se edita na Mês', $erroDe(static fn() => PrevisaoEdicao::celulas($d, $catMov, $m1, 'salvar', 1.0, false)) === 'categoria?');
+    }
+
+    // 8. alerta de reserva/vermelho depois de uma mudança
+    $pa = [$m1 => ['estado' => 'previsto', 'fica_na_conta' => 3500.0], $m2 => ['estado' => 'previsto', 'fica_na_conta' => 100.0]];
+    $pb = [$m1 => ['estado' => 'previsto', 'fica_na_conta' => 2900.0], $m2 => ['estado' => 'previsto', 'fica_na_conta' => -5.0]];
+    $check('piorou: primeiro mês que furou a reserva', PrevisaoEdicao::piorou($pa, $pb, $m1, 3000.0) === ['mes' => $m1, 'tipo' => 'reserva']
+        && PrevisaoEdicao::piorou($pa, $pb, $m2, 3000.0) === ['mes' => $m2, 'tipo' => 'vermelho']
+        && PrevisaoEdicao::piorou($pa, $pa, $m1, 3000.0) === null);
+}
+
+// ---- 9. Mês: editável em PREVISAO (form, fita, incluir); só leitura quando fechado; anual leva ao mês
+$render = static function (string $cls, string $metodo, array $get) use ($check): string {
+    $_SERVER['REQUEST_URI'] = '/x?' . http_build_query($get);
+    $_GET = $get;
+    ob_start();
+    try {
+        (new $cls())->$metodo();
+        return (string) ob_get_clean();
+    } catch (\Throwable $e) {
+        ob_end_clean();
+        $check("render {$cls}::{$metodo}", false, get_class($e) . ': ' . $e->getMessage());
+        return '';
+    }
+};
+if ($prevMeses !== []) {
+    $html = $render(MesController::class, 'index', ['mes' => end($prevMeses)]);
+    $check('último mês: linhas editáveis + fita, sem "meses seguintes"', str_contains($html, 'action="/mes/previsao"')
+        && str_contains($html, 'class="mes-linha mes-ed"') && str_contains($html, 'data-mes-fita') && !str_contains($html, 'name="propagar"'));
+    $html = $render(MesController::class, 'index', ['mes' => $prevMeses[0]]);
+    $check('Mês aberto: editável com "também nos meses seguintes"', str_contains($html, 'action="/mes/previsao"') && str_contains($html, 'name="propagar"'));
+}
+if ($realMes !== null) {
+    $html = $render(MesController::class, 'index', ['mes' => $realMes]);
+    $check('Mês fechado: só leitura', str_contains($html, 'mes-ros') && !str_contains($html, 'action="/mes/previsao"'));
+}
+$check('anual: cada mês leva à aba Mês', str_contains($render(FuturoController::class, 'index', []), 'class="btn-link fu-abrir" href="/mes?mes='));
+$check('meta: explica que a meta é a previsão de todo mês', str_contains($render(MetaController::class, 'index', []), 'meta-previsao'));
 
 echo "\n{$ok} ok, {$falhas} falha(s)\n";
 exit($falhas > 0 ? 1 : 0);
