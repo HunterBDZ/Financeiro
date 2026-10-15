@@ -105,9 +105,9 @@ $plano = static function () {
 $fmtPlano = static function (array $p, float $reserva): string {
     $ult = (string) array_key_last($p);
     $abaixo = array_keys(array_filter($p, static fn($l) => $l['estado'] !== 'real' && $l['fica_na_conta'] < $reserva - 0.004));
-    return sprintf('fim de %s %s · dívida em %s %s · quita %s · abaixo da reserva: %s',
+    return sprintf('fim de %s %s · dívida em %s %s · %s · abaixo da reserva: %s',
         monthLabel($ult), num((float) $p[$ult]['fica_na_conta'], 0), monthLabel($ult), num((float) $p[$ult]['falta_pagar'], 0),
-        ($q = MotorFinanceiro::quitaEm($p)) !== null ? monthLabel($q) : 'não quita até ' . monthLabel($ult),
+        ($q = MotorFinanceiro::quitaEm($p)) !== null ? 'quita em ' . monthLabel($q) : 'não quita até ' . monthLabel($ult),
         $abaixo === [] ? 'nenhum mês' : implode(' ', array_map('mesCurto', $abaixo)));
 };
 $reserva = (float) ($d['aj']['reserva_minima'] ?? 0.0);
@@ -119,8 +119,9 @@ if ($resumo1 === []) {
 }
 foreach ($resumo1 as $cat => $itens) {
     $vals = array_unique(array_map(static fn($i) => num($i[1], 0), $itens));
-    printf("   %-28s meta %7s · sai a previsão antiga (%s) em %d meses: %s → %s\n", nomeCurto($cats[$cat]), num($d['metas'][$cat], 0),
-        implode(' / ', $vals), count($itens), monthLabel($itens[0][0]), monthLabel(end($itens)[0]));
+    printf("   %-28s meta %7s · sai a previsão antiga (%s) em %d %s: %s\n", nomeCurto($cats[$cat]), num($d['metas'][$cat], 0),
+        implode(' / ', $vals), count($itens), count($itens) === 1 ? 'mês' : 'meses',
+        count($itens) === 1 ? monthLabel($itens[0][0]) : monthLabel($itens[0][0]) . ' → ' . monthLabel(end($itens)[0]));
 }
 echo "\n2) " . ($resumo2 !== '' ? $resumo2 : 'Delivery: nada a fazer') . "\n\n";
 
