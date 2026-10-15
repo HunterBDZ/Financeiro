@@ -106,6 +106,16 @@ CREATE TABLE `meses` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `metas` (
+  `categoria_id` int unsigned NOT NULL,
+  `valor` decimal(14,2) NOT NULL,
+  `atualizado_em` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`categoria_id`),
+  CONSTRAINT `fk_metas_categoria` FOREIGN KEY (`categoria_id`) REFERENCES `categorias` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `previsao` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `categoria_id` int unsigned NOT NULL,
@@ -118,6 +128,14 @@ CREATE TABLE `previsao` (
   CONSTRAINT `previsao_ibfk_2` FOREIGN KEY (`mes`) REFERENCES `meses` (`mes`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+SET @saved_cs_client     = @@character_set_client;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50001 CREATE VIEW `previsao_efetiva` AS SELECT 
+ 1 AS `categoria_id`,
+ 1 AS `mes`,
+ 1 AS `valor`,
+ 1 AS `fonte`*/;
+SET character_set_client = @saved_cs_client;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `previsao_log` (
@@ -126,7 +144,7 @@ CREATE TABLE `previsao_log` (
   `categoria_id` int unsigned NOT NULL,
   `mes` date NOT NULL,
   `antes` decimal(12,2) DEFAULT NULL,
-  `depois` decimal(12,2) NOT NULL,
+  `depois` decimal(12,2) DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `idx_log_lote` (`lote`),
   KEY `fk_log_categoria` (`categoria_id`),
@@ -140,7 +158,7 @@ CREATE TABLE `previsao_log` (
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `previsao_lotes` (
   `lote` char(16) NOT NULL,
-  `origem` enum('manual','propagar','sugestao','fechar') NOT NULL,
+  `origem` enum('manual','propagar','sugestao','fechar','migracao','congelar') NOT NULL,
   `mes_inicio` date NOT NULL,
   `usuario_id` int unsigned NOT NULL,
   `objetivo_antes` decimal(14,4) DEFAULT NULL,
@@ -196,17 +214,19 @@ CREATE TABLE `usuarios` (
   UNIQUE KEY `login` (`login`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `metas` (
-  `categoria_id` int unsigned NOT NULL,
-  `valor` decimal(14,2) NOT NULL,
-  `atualizado_em` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`categoria_id`),
-  CONSTRAINT `fk_metas_categoria` FOREIGN KEY (`categoria_id`) REFERENCES `categorias` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
+/*!50001 DROP VIEW IF EXISTS `previsao_efetiva`*/;
+/*!50001 SET @saved_cs_client          = @@character_set_client */;
+/*!50001 SET @saved_cs_results         = @@character_set_results */;
+/*!50001 SET @saved_col_connection     = @@collation_connection */;
+/*!50001 SET character_set_client      = utf8mb4 */;
+/*!50001 SET character_set_results     = utf8mb4 */;
+/*!50001 SET collation_connection      = utf8mb4_0900_ai_ci */;
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`root`@`localhost` SQL SECURITY INVOKER */
+/*!50001 VIEW `previsao_efetiva` AS select `c`.`id` AS `categoria_id`,`m`.`mes` AS `mes`,cast(coalesce(`p`.`valor`,(case when ((`m`.`situacao` = 'PREVISAO') and (`c`.`ativo` = 1) and (`c`.`operacional` = 1) and (`c`.`sinal` = -(1))) then `mt`.`valor` end),0) as decimal(12,2)) AS `valor`,(case when (`p`.`id` is not null) then 'mes' when ((`mt`.`valor` is not null) and (`m`.`situacao` = 'PREVISAO') and (`c`.`ativo` = 1) and (`c`.`operacional` = 1) and (`c`.`sinal` = -(1))) then 'meta' end) AS `fonte` from (((`categorias` `c` join `meses` `m`) left join `previsao` `p` on(((`p`.`categoria_id` = `c`.`id`) and (`p`.`mes` = `m`.`mes`)))) left join `metas` `mt` on((`mt`.`categoria_id` = `c`.`id`))) */;
+/*!50001 SET character_set_client      = @saved_cs_client */;
+/*!50001 SET character_set_results     = @saved_cs_results */;
+/*!50001 SET collation_connection      = @saved_col_connection */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
