@@ -317,5 +317,31 @@ if ($realMes !== null) {
 $check('anual: cada mês leva à aba Mês', str_contains($render(FuturoController::class, 'index', []), 'class="btn-link fu-abrir" href="/mes?mes='));
 $check('meta: explica que a meta é a previsão de todo mês', str_contains($render(MetaController::class, 'index', []), 'meta-previsao'));
 
+// ---- 10. fechar congela as metas do mês; mês fechado não segue a meta; reabrir descongela
+if ($prevMeses !== [] && $catDia > 0) {
+    $mC = $prevMeses[0];
+    $emTransacao('congelar ao fechar', static function () use ($pdo, $check, $catDia, $mC, $uid, $linhaCrua): void {
+        $pdo->prepare('DELETE FROM previsao WHERE categoria_id = :c AND mes = :m')->execute(['c' => $catDia, 'm' => $mC]);
+        MetaModel::definir($catDia, 222.0);
+        MotorFinanceiro::limparCache();
+        $lote = PrevisaoLote::congelar($mC, $uid);
+        $check('congelar grava a meta como linha do mês', $lote !== null && abs((float) $linhaCrua($catDia, $mC) - 222.0) < 0.001);
+        $ult = PrevisaoLote::ultimoDesfazivel();
+        $check('congelamento fica fora do "desfazer última alteração"', $ult === null || $ult['lote'] !== $lote);
+        MesModel::setSituacao($mC, 'REAL');
+        MetaModel::definir($catDia, 333.0);
+        MotorFinanceiro::limparCache();
+        $check('mês fechado não muda quando a meta muda', abs(PrevisaoModel::valor($catDia, $mC) - 222.0) < 0.001);
+        MesModel::setSituacao($mC, 'PREVISAO');
+        PrevisaoLote::descongelar($mC, $uid);
+        MotorFinanceiro::limparCache();
+        $check('reabrir descongela: o mês volta a seguir a meta', $linhaCrua($catDia, $mC) === null
+            && abs(PrevisaoModel::valor($catDia, $mC) - 333.0) < 0.001);
+        MesModel::setSituacao($mC, 'REAL');
+        MotorFinanceiro::limparCache();
+        $check('mês fechado sem linha: a meta não vale', PrevisaoModel::valor($catDia, $mC) == 0.0);
+    });
+}
+
 echo "\n{$ok} ok, {$falhas} falha(s)\n";
 exit($falhas > 0 ? 1 : 0);

@@ -226,7 +226,8 @@ $incluirConta = static function () use ($incluir, $csrf, $mes, $mesLbl, $erroLin
         return;
     }
     $ids  = array_map(static fn($l) => (int) $l['id'], $incluir);
-    $erro = $erroLinha !== null && in_array((int) ($erroLinha['cat'] ?? 0), $ids, true) ? $erroLinha : null;
+    $erro = $erroLinha !== null && (($erroLinha['ancora'] ?? null) === 'incluir' || in_array((int) ($erroLinha['cat'] ?? 0), $ids, true))
+        ? $erroLinha : null;
     $porGrupo = [];
     foreach ($incluir as $l) {
         $porGrupo[grupoLabel($l['grupo'])][] = $l;
@@ -236,6 +237,7 @@ $incluirConta = static function () use ($incluir, $csrf, $mes, $mesLbl, $erroLin
         <form class="mes-form" method="post" action="/mes/previsao">
             <?= $csrf ?>
             <input type="hidden" name="mes" value="<?= e($mes) ?>">
+            <input type="hidden" name="ancora" value="incluir">
             <label class="mes-form-campo">
                 <span>conta</span>
                 <select name="categoria_id" required>

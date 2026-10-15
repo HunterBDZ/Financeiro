@@ -14,7 +14,7 @@ use Financeiro\Models\PrevisaoModel;
  */
 final class PrevisaoLote
 {
-    public const ORIGENS = ['manual', 'propagar', 'sugestao', 'fechar', 'migracao'];
+    public const ORIGENS = ['manual', 'propagar', 'sugestao', 'fechar', 'migracao', 'congelar'];
 
     /**
      * @param list<array{0:int,1:string,2:?float}> $celulas [categoria_id, mes 'Y-m-01', valor | null]
@@ -203,7 +203,7 @@ final class PrevisaoLote
             'SELECT l.lote, l.origem, l.criado_em, l.mes_inicio, l.usuario_id,
                     (SELECT COUNT(*) FROM previsao_log g WHERE g.lote = l.lote) AS n
              FROM previsao_lotes l
-             WHERE l.desfeito_em IS NULL AND l.criado_em >= (NOW() - INTERVAL 7 DAY)
+             WHERE l.desfeito_em IS NULL AND l.origem <> 'congelar' AND l.criado_em >= (NOW() - INTERVAL 7 DAY)
              ORDER BY l.criado_em DESC,
                       (SELECT COALESCE(MAX(g2.id), 0) FROM previsao_log g2 WHERE g2.lote = l.lote) DESC
              LIMIT 1'
@@ -215,6 +215,37 @@ final class PrevisaoLote
             'lote' => (string) $row['lote'], 'origem' => (string) $row['origem'], 'criado_em' => (string) $row['criado_em'],
             'n' => (int) $row['n'], 'mes_inicio' => (string) $row['mes_inicio'], 'usuario_id' => (int) $row['usuario_id'],
         ];
+    }
+
+    /**
+     * Ao fechar o mês (ainda em PREVISAO): grava como linhas do próprio mês a previsão que vinha da
+     * meta, para o mês fechado não mudar quando a meta mudar depois. Lote 'congelar' (fica fora do
+     * "desfazer última alteração"); reabrir o mês chama descongelar().
+     */
+    public static function congelar(string $mes, int $usuarioId): ?string
+    {
+        $d = MotorFinanceiro::dados();
+        $celulas = [];
+        foreach ($d['prev'][$mes] ?? [] as $cat => $valor) {
+            if (empty($d['excecao'][$mes][$cat])) {          // veio da meta (sem linha no mês)
+                $celulas[] = [(int) $cat, $mes, (float) $valor];
+            }
+        }
+        return self::gravar('congelar', $celulas, $usuarioId);
+    }
+
+    /** Ao reabrir: desfaz o último congelamento do mês (só nas células em que ninguém mexeu depois). */
+    public static function descongelar(string $mes, int $usuarioId): void
+    {
+        $st = Database::connection()->prepare(
+            "SELECT lote FROM previsao_lotes WHERE origem = 'congelar' AND mes_inicio = :m AND desfeito_em IS NULL
+             ORDER BY criado_em DESC LIMIT 1"
+        );
+        $st->execute(['m' => $mes]);
+        $lote = $st->fetchColumn();
+        if ($lote !== false) {
+            self::desfazer((string) $lote, $usuarioId);
+        }
     }
 
     /** Mesma célula? null = sem linha no mês; dois valores iguais ao centavo. */

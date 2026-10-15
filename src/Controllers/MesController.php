@@ -172,13 +172,19 @@ final class MesController
         $acao  = is_string($_POST['acao'] ?? null) ? $_POST['acao'] : 'salvar';
         $bruto = is_string($_POST['valor'] ?? null) ? trim($_POST['valor']) : '';
         $propagar = ($_POST['propagar'] ?? '') === '1';
+        $incluindo = ($_POST['ancora'] ?? '') === 'incluir';     // veio do "+ incluir conta"
 
         $d = MotorFinanceiro::dados();
         try {
             $celulas = PrevisaoEdicao::celulas($d, $cat, $mes, $acao, $acao === 'salvar' ? parseMoedaBr($bruto) : null, $propagar);
         } catch (\InvalidArgumentException $e) {
-            $_SESSION['mes_erro'] = ['mes' => $mes, 'cat' => $cat, 'msg' => $e->getMessage(), 'valor' => $bruto, 'propagar' => $propagar];
-            redirecionar($volta, 303);
+            if (!$incluindo && !PrevisaoEdicao::editavel($d['cats'][$cat] ?? null)) {
+                flash('error', $e->getMessage());                // não há linha para reabrir com o erro
+                redirecionar('/mes?mes=' . $mes, 303);
+            }
+            $_SESSION['mes_erro'] = ['mes' => $mes, 'cat' => $cat, 'msg' => $e->getMessage(), 'valor' => $bruto,
+                'propagar' => $propagar, 'ancora' => $incluindo ? 'incluir' : null];
+            redirecionar($incluindo ? '/mes?mes=' . $mes . '#incluir' : $volta, 303);
         }
 
         $antes = MotorFinanceiro::calcularPlano();
@@ -452,7 +458,9 @@ final class MesController
         }
         $aplicar = ($_POST['aplicar'] ?? '') === '1' && $prox !== null && MotorFinanceiro::v2();
 
-        // uma transação só (§2.6): conferência → REAL → limpa cache → sugestão do mês seguinte
+        // uma transação só (§2.6): conferência → congela as metas do mês → REAL → limpa cache →
+        // sugestão do mês seguinte. Congelar = gravar como linhas do mês a previsão que vinha da
+        // meta, para o mês fechado não mudar quando a meta mudar depois (reabrir descongela).
         $pdo = Database::connection();
         $lote = null;
         try {
@@ -460,6 +468,7 @@ final class MesController
             if ($saldo !== null) {
                 SaldoConferenciaModel::registrar($dataSaldo, round($saldo, 2), (int) Auth::id());
             }
+            PrevisaoLote::congelar($mes, (int) Auth::id());
             MesModel::setSituacao($mes, 'REAL');
             MotorFinanceiro::limparCache();
             if ($aplicar) {
@@ -500,7 +509,22 @@ final class MesController
         }
         $volta = voltaSegura(is_string($_POST['volta'] ?? null) ? $_POST['volta'] : null, '/mes?mes=' . $mes);
         if (self::situacaoEm(MesModel::todos(), $mes) === 'REAL') {
-            MesModel::setSituacao($mes, 'PREVISAO');
+            // reabre e descongela (as linhas que o fechamento gravou a partir da meta saem, se
+            // ninguém mexeu nelas): o mês volta a seguir as metas de hoje
+            $pdo = Database::connection();
+            try {
+                $pdo->beginTransaction();
+                MesModel::setSituacao($mes, 'PREVISAO');
+                PrevisaoLote::descongelar($mes, (int) Auth::id());
+                $pdo->commit();
+            } catch (\Throwable $e) {
+                if ($pdo->inTransaction()) {
+                    $pdo->rollBack();
+                }
+                error_log('mes/reabrir: ' . $e->getMessage());
+                flash('error', 'não reabriu · tente de novo');
+                redirecionar($volta, 303);
+            }
             MotorFinanceiro::limparCache();
             flash('success', monthLabel($mes) . ' reaberto');
         } else {
