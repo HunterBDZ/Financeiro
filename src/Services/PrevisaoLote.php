@@ -203,7 +203,7 @@ final class PrevisaoLote
             'SELECT l.lote, l.origem, l.criado_em, l.mes_inicio, l.usuario_id,
                     (SELECT COUNT(*) FROM previsao_log g WHERE g.lote = l.lote) AS n
              FROM previsao_lotes l
-             WHERE l.desfeito_em IS NULL AND l.origem <> 'congelar' AND l.criado_em >= (NOW() - INTERVAL 7 DAY)
+             WHERE l.desfeito_em IS NULL AND l.origem <> \'congelar\' AND l.criado_em >= (NOW() - INTERVAL 7 DAY)
              ORDER BY l.criado_em DESC,
                       (SELECT COALESCE(MAX(g2.id), 0) FROM previsao_log g2 WHERE g2.lote = l.lote) DESC
              LIMIT 1'
