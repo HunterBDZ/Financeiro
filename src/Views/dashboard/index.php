@@ -74,7 +74,7 @@ $topMax   = $p['top'] !== [] ? max(array_column($p['top'], 'valor')) : 0.0;
         <p class="sr-only">Em conta hoje: <?= e(num($conta)) ?>. <?= e($frase) ?></p>
         <div class="agua-campo agua-sup" aria-hidden="true"></div>
         <div class="agua-campo agua-inf" aria-hidden="true"></div>
-        <span class="agua-rotulo" aria-hidden="true">em conta hoje</span>
+        <span class="agua-rotulo" aria-hidden="true">Em conta hoje</span>
         <span class="agua-reserva num" aria-hidden="true">reserva <?= e(num($reserva, 0)) ?></span>
         <?php foreach (['sup', 'inf'] as $camada): ?>
             <div class="agua-camada agua-c-<?= $camada ?>" aria-hidden="true">

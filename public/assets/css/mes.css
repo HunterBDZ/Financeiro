@@ -249,7 +249,10 @@ details.mes-ed:target > summary { animation: mes-realce 1.6s ease-out 1; }   /* 
 .meta-lista { display: flex; flex-direction: column; }
 .meta-cat { padding: 10px 0; }
 .meta-cat-top { display: flex; align-items: center; gap: var(--s2); min-width: 0; }
-.meta-cat-nome { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.meta-cat-nome {
+    flex: 1 1 auto; min-width: 0; font-weight: 500; line-height: 1.25; overflow-wrap: anywhere;
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+}
 .meta-cat .meta-cat-input { flex: none; width: 128px; }
 .meta-cat-input > input { text-align: right; font-size: 18px; font-weight: 700; }
 .meta-cat-input > input::placeholder { font-size: var(--t-peq); font-weight: 400; }
@@ -293,7 +296,7 @@ details.mes-ed:target > summary { animation: mes-realce 1.6s ease-out 1; }   /* 
 .fe-volta:hover { background: var(--sup-3); }
 .fe-volta-seta { transform: rotate(180deg); }
 
-.fe-blocos { display: flex; flex-direction: column; gap: var(--s4); }
+.fe-form, .fe-blocos { display: flex; flex-direction: column; gap: var(--s4); }
 .fe-h { margin-bottom: var(--s4); font-size: var(--t-lead); font-weight: 650; }
 
 .fe-grade { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s5) var(--s3); }
@@ -331,7 +334,10 @@ details.mes-ed:target > summary { animation: mes-realce 1.6s ease-out 1; }   /* 
 
 .fu-graf-head { flex-direction: column; align-items: flex-start; gap: 4px; }
 .fu-resumo { color: var(--tinta-2); font-size: var(--t-peq); white-space: normal; }
-.fu-fig { margin: var(--s3) 0 0; }
+.fu-graf { padding-left: var(--s2); padding-right: var(--s3); }
+.fu-graf > .card-head { padding-left: var(--s2); }
+.fu-fig { --calha: 64px; margin: var(--s3) 0 0; }
+.fu-fases, .fu-plot, .fu-eixo { margin-left: var(--calha); }
 
 /* fechados × previsão, sobre a divisa */
 .fu-fases { position: relative; height: 24px; }
@@ -350,13 +356,14 @@ details.mes-ed:target > summary { animation: mes-realce 1.6s ease-out 1; }   /* 
 .fu-linha { fill: none; stroke: var(--tinta); stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
 .fu-linha-prev { stroke-dasharray: 7 6; stroke-linecap: butt; }
 
-.fu-ref {
-    position: absolute; left: 0; transform: translateY(calc(-100% - 3px));
-    padding-right: 6px; background: var(--sup);
-    color: var(--tinta-2); font-size: var(--t-peq); font-weight: 600; line-height: 1.2; white-space: nowrap;
+.fu-ref {                         /* na calha: o nome em cima, o valor embaixo, centrados na linha */
+    position: absolute; right: calc(100% + 10px); transform: translateY(-50%);
+    display: flex; flex-direction: column; align-items: flex-end;
+    color: var(--tinta); font-size: var(--t-peq); font-weight: 650; line-height: 1.15; white-space: nowrap;
     font-variant-numeric: tabular-nums;
 }
-.fu-reserva-rot { color: var(--alerta-txt); }
+.fu-ref > span { color: var(--tinta-2); font-weight: 500; }
+.fu-reserva-rot > span { color: var(--alerta-txt); }
 .fu-pt {
     position: absolute; width: 10px; height: 10px; margin: -5px 0 0 -5px;
     border-radius: 50%; background: var(--tinta); box-shadow: 0 0 0 2px var(--sup);
@@ -378,15 +385,14 @@ details.mes-ed:target > summary { animation: mes-realce 1.6s ease-out 1; }   /* 
 
 /* eixo dos meses */
 .fu-eixo { position: relative; height: 44px; margin-top: 8px; }
-.fu-mx {
+.fu-mx, .fu-ano {
     position: absolute; top: 0; transform: translateX(-50%);
-    display: flex; flex-direction: column; align-items: center;
     color: var(--tinta-2); font-size: var(--t-peq); line-height: 1.25; white-space: nowrap;
 }
-.fu-mx > small { font-variant-numeric: tabular-nums; }
+.fu-ano { top: 20px; font-variant-numeric: tabular-nums; }
 .fu-mx.is-ref { color: var(--tinta); font-weight: 700; }
 @media (max-width: 560px) {
-    .fu-fig.is-denso .fu-mx.is-impar:not(.is-ref):not(:has(small)) { visibility: hidden; }
+    .fu-fig.is-denso .fu-mx.is-salta { visibility: hidden; }
 }
 
 /* mês a mês */
@@ -435,6 +441,7 @@ details.mes-ed:target > summary { animation: mes-realce 1.6s ease-out 1; }   /* 
 .aj-input { position: relative; flex: none; width: 150px; }
 .aj-input > input { text-align: right; font-weight: 650; }
 .aj-input.tem-un > input { padding-right: 34px; }
+.aj-input.aj-input-mes { width: 200px; }
 .aj-un { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); color: var(--tinta-2); pointer-events: none; }
 .aj-ajuda { margin: 0 0 6px; color: var(--tinta-2); font-size: var(--t-peq); line-height: 1.45; }
 .aj-extra { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px var(--s3); padding-bottom: 6px; }
@@ -482,6 +489,7 @@ details.mes-ed:target > summary { animation: mes-realce 1.6s ease-out 1; }   /* 
     .fu-mes > summary { font-size: var(--t-corpo); }
     .fu-det { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .aj-input { width: 180px; }
+    .aj-input.aj-input-mes { width: 220px; }
     .aj-nova { grid-template-columns: minmax(0, 1fr) 112px auto; }
     .aj-nova > select { grid-column: auto; }
     .meta-cat .meta-cat-input { width: 150px; }
@@ -494,4 +502,11 @@ details.mes-ed:target > summary { animation: mes-realce 1.6s ease-out 1; }   /* 
 }
 @media (max-width: 760px) {
     .meta-rodape > .btn { width: 100%; }
+    .meta-grupo-cab {
+        display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "tit seta" "res seta";
+        row-gap: 2px; padding: 10px 0;
+    }
+    .meta-grupo-tit { grid-area: tit; }
+    .meta-grupo-res { grid-area: res; margin-left: 0; }
+    .meta-grupo-cab::after { grid-area: seta; }
 }

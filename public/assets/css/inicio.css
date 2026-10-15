@@ -35,7 +35,7 @@
 .agua {
     --costura: 44%;
     --amp: 26px;
-    position: relative; height: 280px; overflow: hidden; isolation: isolate;
+    position: relative; height: 248px; overflow: hidden; isolation: isolate;
     margin-inline: calc(-1 * max(16px, env(safe-area-inset-left, 0px)));
 }
 .agua-rotulo { position: absolute; z-index: 2; left: 16px; top: 14px; font-size: var(--t-corpo); font-weight: 600; color: var(--tinta); }

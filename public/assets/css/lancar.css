@@ -52,11 +52,20 @@
 .ex-topo { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); }
 
 .ex-filtros-wrap { display: flex; flex-direction: column; gap: var(--s3); }
-.ex-filtros-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s2); }
-.ex-busca-inline { position: relative; grid-column: 1 / -1; min-width: 0; }
+/* celular: busca + botão quadrado; embaixo categoria e ordem (larguras para caberem os textos) */
+.ex-filtros-row {
+    display: grid; gap: var(--s2);
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) 48px;
+    grid-template-areas: "busca busca btn" "cat ordem ordem";
+}
+.ex-busca-inline { grid-area: busca; position: relative; min-width: 0; }
 .ex-busca-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--tinta-2); pointer-events: none; display: grid; }
 .ex-busca-input { padding-left: 42px; }
-.ex-busca-btn { grid-column: 1 / -1; }
+.ex-cat-select { grid-area: cat; }
+.ex-ordem-select { grid-area: ordem; }
+.ex-filtros-row select { padding-left: 12px; padding-right: 34px; background-position: right 12px center; }
+.ex-busca-btn { grid-area: btn; padding: 0; }
+.ex-busca-txt { display: none; }
 .ex-filtros-ativos { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); }
 .ex-chip-x { max-width: 100%; }
 .ex-limpar { min-height: var(--tap); display: inline-flex; align-items: center; padding: 0 6px; color: var(--tinta); text-decoration: underline; text-decoration-color: var(--sup-3); text-underline-offset: 4px; text-decoration-thickness: 2px; }
@@ -112,8 +121,9 @@
 .ex-vazio p { color: var(--tinta); }
 
 @media (min-width: 761px) {
-    .ex-filtros-row { grid-template-columns: minmax(0, 2fr) minmax(0, 1.2fr) minmax(0, 1fr) auto; }
-    .ex-busca-inline, .ex-busca-btn { grid-column: auto; }
+    .ex-filtros-row { grid-template-columns: minmax(0, 2fr) minmax(0, 1.2fr) minmax(0, 1fr) auto; grid-template-areas: "busca cat ordem btn"; }
+    .ex-busca-btn { padding: 0 20px; }
+    .ex-busca-txt { display: inline; }
 }
 @media (min-width: 1100px) {
     .ex { grid-template-columns: 340px minmax(0, 1fr); gap: var(--s6); }
@@ -141,6 +151,7 @@
 }
 .lg-marca { font-size: clamp(64px, 19vw, 104px); font-weight: 900; font-stretch: 62%; line-height: .84; letter-spacing: -0.02em; }
 .lg-sub { color: var(--tinta-2); font-size: var(--t-lead); margin-bottom: var(--s3); }
+.lg-marca, .lg-sub, .lg-cert { padding-inline: var(--s5); }       /* alinhados com os campos do cartão */
 .lg-card { display: flex; flex-direction: column; gap: var(--s4); padding: var(--s5); background: var(--chao); --campo: var(--sup); }
 .lg-lembrar { display: flex; align-items: center; gap: 10px; min-height: var(--tap); cursor: pointer; }
 .lg-cert { color: var(--tinta-campo); font-size: var(--t-peq); }

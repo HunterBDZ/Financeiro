@@ -143,7 +143,7 @@ input:not([type]), select, textarea) {
     transition: background-color .15s ease-out;
 }
 :where(textarea) { min-height: 96px; padding: 12px 14px; resize: vertical; }
-:where(input, select, textarea):hover { background: var(--campo-hover, var(--sup-2)); }
+:where(input, select, textarea):hover { background-color: var(--campo-hover, var(--sup-2)); }   /* só a cor: a seta do select é background-image */
 :where(input, select, textarea):focus-visible { outline: 2px solid var(--foco); outline-offset: 0; }
 :where(input, select, textarea)[aria-invalid="true"] { box-shadow: inset 0 -3px 0 var(--laranja); }
 ::placeholder { color: var(--tinta-2); opacity: 1; }

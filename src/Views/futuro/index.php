@@ -55,8 +55,16 @@ foreach ([[$reserva, 'fu-reserva', 'Reserva'], [$meta, 'fu-meta-l', 'Meta']] as 
         $refs[] = [$v, $cls, $nome . ' ' . num($v, 0)];
     }
 }
-$zeroRot = $y(0.0) - $y($reserva) > $VH * 0.14 ? '0' : '';
+$zeroRot = $y(0.0) - $y($reserva) > $VH * 0.2 ? '0' : '';
 $denso = $n > 8 ? ' is-denso' : '';
+// eixo apertado (celular): mostra meses alternados, na paridade do 1º janeiro (os janeiros ficam visíveis)
+$par = 0;
+foreach ($linhas as $i => $l) {
+    if (substr($l['mes'], 5, 2) === '01') {
+        $par = $i % 2;
+        break;
+    }
+}
 ?>
 <div class="fu">
     <h1 class="fu-titulo">Os próximos meses</h1>
@@ -70,7 +78,7 @@ $denso = $n > 8 ? ' is-denso' : '';
         <figure class="fu-fig<?= $denso ?>" role="img" aria-label="Saldo em conta no fim de cada mês, de <?= e(monthLabel($linhas[0]['mes'])) ?> a <?= e(monthLabel($ultimo)) ?>. Os valores estão na lista mês a mês.">
             <?php if ($ultReal >= 0 && $ultReal < $n - 1): $xc = $x($ultReal) + $VW / max(1, $n) / 2; ?>
                 <div class="fu-fases" aria-hidden="true">
-                    <span class="fu-fase fu-fase-real" style="left:<?= $pc($xc, $VW) ?>">fechados</span>
+                    <?php if ($xc > $VW * 0.22): ?><span class="fu-fase fu-fase-real" style="left:<?= $pc($xc, $VW) ?>">fechados</span><?php endif; ?>
                     <span class="fu-fase fu-fase-prev" style="left:<?= $pc($xc, $VW) ?>">previsão</span>
                 </div>
             <?php endif; ?>
@@ -87,8 +95,8 @@ $denso = $n > 8 ? ' is-denso' : '';
                     <?php if ($ultReal >= 1): ?><path class="fu-linha" d="<?= $caminho(0, $ultReal) ?>"/><?php endif; ?>
                     <path class="fu-linha fu-linha-prev" d="<?= $caminho(max(0, $ultReal), $n - 1) ?>"/>
                 </svg>
-                <?php foreach ($refs as [$v, $cls, $rot]): ?>
-                    <span class="fu-ref <?= $cls ?>-rot" style="top:<?= $pc($y($v), $VH) ?>"><?= e($rot) ?></span>
+                <?php foreach ($refs as [$v, $cls, $rot]): [$nomeRef, $valRef] = explode(' ', $rot, 2); ?>
+                    <span class="fu-ref <?= $cls ?>-rot" style="top:<?= $pc($y($v), $VH) ?>"><span><?= e($nomeRef) ?></span><?= e($valRef) ?></span>
                 <?php endforeach; ?>
                 <?php if ($zeroRot !== ''): ?><span class="fu-ref fu-base-rot" style="top:<?= $pc($y(0.0), $VH) ?>">0</span><?php endif; ?>
                 <?php foreach ($linhas as $i => $l): $cls = $l['alerta'] === 'neg' ? 'fu-pt-neg' : ($l['alerta'] === 'warn' ? 'fu-pt-warn' : 'fu-pt-ok'); ?>
@@ -102,8 +110,9 @@ $denso = $n > 8 ? ' is-denso' : '';
                 <?php endforeach; ?>
             </div>
             <div class="fu-eixo" aria-hidden="true">
-                <?php foreach ($linhas as $i => $l): $jan = substr($l['mes'], 5, 2) === '01'; ?>
-                    <span class="fu-mx<?= $i % 2 === 1 ? ' is-impar' : '' ?><?= $l['mes'] === $ref ? ' is-ref' : '' ?>" style="left:<?= $pc($x($i), $VW) ?>"><?= e(mesCurto($l['mes'])) ?><?php if ($i === 0 || $jan): ?><small><?= e(substr($l['mes'], 0, 4)) ?></small><?php endif; ?></span>
+                <?php foreach ($linhas as $i => $l): ?>
+                    <span class="fu-mx<?= $i % 2 !== $par ? ' is-salta' : '' ?><?= $l['mes'] === $ref ? ' is-ref' : '' ?>" style="left:<?= $pc($x($i), $VW) ?>"><?= e(mesCurto($l['mes'])) ?></span>
+                    <?php if ($i === 0 || substr($l['mes'], 5, 2) === '01'): ?><span class="fu-ano" style="left:<?= $pc($x($i), $VW) ?>"><?= e(substr($l['mes'], 0, 4)) ?></span><?php endif; ?>
                 <?php endforeach; ?>
             </div>
         </figure>

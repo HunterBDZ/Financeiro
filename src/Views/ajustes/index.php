@@ -60,7 +60,7 @@ $campo = static function (string $chave, string $rotulo, string $un = '', int $d
             ?>
             <div class="aj-campo">
                 <label for="aj-consignado_inicio">1ª parcela descontada em</label>
-                <span class="aj-input"><input id="aj-consignado_inicio" type="month" name="valores[consignado_inicio]" value="<?= e($iniTxt) ?>"<?= $erro !== null && ($erro['campo'] ?? '') === 'consignado_inicio' ? ' aria-invalid="true" autofocus' : '' ?>></span>
+                <span class="aj-input aj-input-mes"><input id="aj-consignado_inicio" type="month" name="valores[consignado_inicio]" value="<?= e($iniTxt) ?>"<?= $erro !== null && ($erro['campo'] ?? '') === 'consignado_inicio' ? ' aria-invalid="true" autofocus' : '' ?>></span>
             </div>
             <p class="aj-ajuda">A parcela só abate a dívida e o soldo a partir desse mês. Em branco, vale desde o início do plano.</p>
             <?php $erroDe('parametros'); ?>
