@@ -15,10 +15,12 @@ $css = array_filter(['/assets/css/style.css', '/assets/css/lancar.css'], static 
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
-<meta name="theme-color" content="#0a0f0d">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
 <meta name="format-detection" content="telephone=no">
-<title>entrar · financeiro</title>
+<title>Entrar · financeiro</title>
 <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+<link rel="preload" href="/assets/fonts/archivo-var-latin.woff2" as="font" type="font/woff2" crossorigin>
 <script src="<?= e(asset('/assets/js/theme.js')) ?>"></script>
 <?php foreach ($css as $c): ?>
 <link rel="stylesheet" href="<?= e(asset($c)) ?>">
@@ -31,38 +33,39 @@ $css = array_filter(['/assets/css/style.css', '/assets/css/lancar.css'], static 
 </button>
 
 <main class="lg">
-    <div class="lg-marca" aria-label="financeiro">financeiro<span>_</span></div>
+    <h1 class="lg-marca" translate="no">financeiro</h1>
+    <p class="lg-sub">O dinheiro da casa, mês a mês.</p>
 
     <form class="lg-card" method="post" action="/login">
         <?= csrfField() ?>
         <label class="campo">
-            <span>login</span>
+            <span>Login</span>
             <input type="text" name="login" value="<?= e($login) ?>" required maxlength="100"
                    autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false"
                    enterkeyhint="next"<?= $login === '' ? ' data-autofocus' : '' ?>>
         </label>
         <label class="campo">
-            <span>senha</span>
+            <span>Senha</span>
             <input type="password" name="senha" required autocomplete="current-password" enterkeyhint="go"<?= $login !== '' ? ' data-autofocus' : '' ?>>
         </label>
         <label class="lg-lembrar">
             <input type="checkbox" name="lembrar" value="1"<?= $lembrar ? ' checked' : '' ?>>
-            <span>lembrar este aparelho</span>
+            <span>Lembrar este aparelho</span>
         </label>
 
         <?php if ($erro !== null): ?>
             <div class="aviso aviso-error" role="alert"><?= e($erro) ?></div>
         <?php elseif ($expirou): ?>
-            <div class="aviso aviso-warn" role="status">Sessão expirou.</div>
+            <div class="aviso aviso-warn" role="status">A sessão expirou. Entre de novo.</div>
         <?php endif; ?>
 
-        <button type="submit" class="btn btn-primary btn-block">entrar</button>
+        <button type="submit" class="btn btn-primary btn-block">Entrar</button>
     </form>
 
     <details class="lg-cert">
-        <summary>O navegador avisou "conexão não segura"?</summary>
+        <summary>O navegador avisou “conexão não segura”?</summary>
         <p>Esse aviso é esperado: o app roda só na sua rede local, com certificado próprio. Toque em
-        <strong>Avançado</strong> (ou "Detalhes") e depois em <strong>Continuar / Prosseguir</strong>.
+        <strong>Avançado</strong> (ou “Detalhes”) e depois em <strong>Continuar</strong> ou <strong>Prosseguir</strong>.
         Os dados não saem da sua rede.</p>
     </details>
 </main>

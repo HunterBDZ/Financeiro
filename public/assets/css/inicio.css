@@ -30,13 +30,15 @@
 /* ---------------------------------------------------------------- linha d'água */
 /* dois campos que se encontram na costura (a reserva); o número fica tanto mais para baixo
    quanto mais abaixo da reserva está, e muda de cor ao atravessar a costura (duas cópias,
-   cada uma recortada no seu campo). --y: −1 (bem acima) … 1 (bem abaixo). */
+   cada uma recortada no seu campo). --y: −1 (bem acima) … 1 (bem abaixo). --amp fica sempre
+   abaixo de meia altura do número: ele sempre cruza a costura e nenhuma cópia some inteira. */
 .agua {
-    --costura: 52%;
-    --amp: 44px;
-    position: relative; height: 330px; overflow: hidden; isolation: isolate;
+    --costura: 44%;
+    --amp: 26px;
+    position: relative; height: 280px; overflow: hidden; isolation: isolate;
     margin-inline: calc(-1 * max(16px, env(safe-area-inset-left, 0px)));
 }
+.agua-rotulo { position: absolute; z-index: 2; left: 16px; top: 14px; font-size: var(--t-corpo); font-weight: 600; color: var(--tinta); }
 .agua-campo { position: absolute; left: 0; right: 0; }
 .agua-sup { top: 0; height: var(--costura); background: var(--chao); }
 .agua-inf { top: var(--costura); bottom: 0; background: var(--menta); }
@@ -53,10 +55,6 @@
     translate: 0 calc(-50% + var(--y, 0) * var(--amp));
     font-size: clamp(64px, 19vw, 136px); font-weight: 900; font-stretch: 62%;
     letter-spacing: -0.02em; line-height: .84; white-space: nowrap;
-}
-.agua-valor small {
-    display: block; margin-bottom: 10px;
-    font-size: var(--t-corpo); font-weight: 600; font-stretch: 100%; letter-spacing: 0; line-height: 1.2;
 }
 .agua-frase {
     position: absolute; z-index: 2; left: 16px; right: 16px; bottom: 14px;
@@ -144,7 +142,8 @@
 
 /* ---------------------------------------------------------------- computador */
 @media (min-width: 761px) {
-    .agua { --amp: 64px; height: 400px; margin-inline: 0; }
+    .agua { --amp: 46px; --costura: 46%; height: 340px; margin-inline: 0; }
+    .agua-rotulo { left: 32px; top: 20px; }
     .agua-valor { left: 32px; right: 32px; }
     .agua-frase { left: 32px; right: 32px; bottom: 20px; font-size: var(--t-lead); }
     .agua-reserva { right: 32px; }

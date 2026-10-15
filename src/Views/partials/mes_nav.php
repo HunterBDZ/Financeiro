@@ -5,8 +5,9 @@
  *                                      'href' => '/mes?mes=', 'sufixo' => '#contas']);
  * Variáveis: $mes (AAAA-MM-01), $meses (linhas {mes, situacao} em ordem), $href (prefixo do link,
  * recebe o mês no fim), $sufixo (opcional, ex. '#contas'), $hoje (opcional, Y-m-d).
- * Saída: <nav class="mes-nav"><a>‹</a><strong>out/26</strong> <span class="estado …">○ previsto</span><a>›</a></nav>
- * Nas pontas a seta vira <span aria-disabled="true">.
+ * Saída: <nav class="mes-nav"><a>‹</a><h1>Outubro <span>2026</span></h1> <span class="estado …">previsto</span><a>›</a></nav>
+ * O mês é o título (h1) da tela; o CSS põe o título à esquerda e as duas setas juntas à direita.
+ * Nas pontas a seta vira <span class="is-off" aria-hidden="true">.
  */
 $mes    = (string) ($mes ?? date('Y-m-01'));
 $meses  = $meses ?? [];
@@ -35,12 +36,12 @@ $estado   = estadoMes($mes, $situacao, $hoje);
     <?php if ($anterior !== null): ?>
         <a class="mes-nav-seta" href="<?= e($href . $anterior . $sufixo) ?>" rel="prev" aria-label="<?= e(monthLabel($anterior)) ?>">‹</a>
     <?php else: ?>
-        <span class="mes-nav-seta" aria-disabled="true">‹</span>
+        <span class="mes-nav-seta is-off" aria-hidden="true">‹</span>
     <?php endif; ?>
-    <strong><?= e(monthLabel($mes)) ?></strong> <span class="estado estado-<?= e($estado) ?>"><?= e(estadoLabel($estado)) ?></span>
+    <h1 class="mes-nav-t"><?= e(mb_convert_case(mesExtenso($mes), MB_CASE_TITLE)) ?> <span class="mes-nav-ano num"><?= e(substr($mes, 0, 4)) ?></span></h1> <span class="estado estado-<?= e($estado) ?>"><?= e(estadoLabel($estado)) ?></span>
     <?php if ($proximo !== null): ?>
         <a class="mes-nav-seta" href="<?= e($href . $proximo . $sufixo) ?>" rel="next" aria-label="<?= e(monthLabel($proximo)) ?>">›</a>
     <?php else: ?>
-        <span class="mes-nav-seta" aria-disabled="true">›</span>
+        <span class="mes-nav-seta is-off" aria-hidden="true">›</span>
     <?php endif; ?>
 </nav>

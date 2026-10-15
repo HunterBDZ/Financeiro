@@ -11,8 +11,7 @@
 $p        = $painel;
 $previsto = $p['base'] === 'previsto';
 $semana   = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
-$nomesMes = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
-$mesNome  = $nomesMes[(int) substr($mesRef, 5, 2) - 1];
+$mesNome  = mesExtenso($mesRef);
 $ano      = substr($mesRef, 0, 4);
 $share    = static fn(float $v, float $tot): int => $tot > 0.004 ? (int) round($v / $tot * 100) : 0;
 $fmtCurto = static fn(float $v): string => num($v, fmod(abs($v), 1) > 0.004 ? 2 : 0);
@@ -22,7 +21,6 @@ $dif   = $conta - $reserva;
 $razao = $reserva > 0.004 ? max(-1.0, min(1.0, -$dif / $reserva)) : ($dif >= 0 ? -1.0 : 1.0);
 $abaixo = $dif < -0.004;
 $vermelho = $conta < -0.004;
-$esconder = $razao >= 0.85 ? 'sup' : ($razao <= -0.85 ? 'inf' : '');   // a cópia que ficaria toda fora da vista
 if ($vermelho) {
     $frase = 'No vermelho. Faltam ' . num(abs($conta)) . ' para zerar e ' . num($reserva, 0) . ' para a reserva.';
 } elseif ($abaixo) {
@@ -76,10 +74,11 @@ $topMax   = $p['top'] !== [] ? max(array_column($p['top'], 'valor')) : 0.0;
         <p class="sr-only">Em conta hoje: <?= e(num($conta)) ?>. <?= e($frase) ?></p>
         <div class="agua-campo agua-sup" aria-hidden="true"></div>
         <div class="agua-campo agua-inf" aria-hidden="true"></div>
+        <span class="agua-rotulo" aria-hidden="true">em conta hoje</span>
         <span class="agua-reserva num" aria-hidden="true">reserva <?= e(num($reserva, 0)) ?></span>
         <?php foreach (['sup', 'inf'] as $camada): ?>
-            <div class="agua-camada agua-c-<?= $camada ?>" aria-hidden="true"<?= $esconder === $camada ? ' hidden' : '' ?>>
-                <p class="agua-valor num"><small>em conta hoje</small><span><?= e(num($conta)) ?></span></p>
+            <div class="agua-camada agua-c-<?= $camada ?>" aria-hidden="true">
+                <p class="agua-valor num"><?= e(num($conta)) ?></p>
             </div>
         <?php endforeach; ?>
         <p class="agua-frase num" aria-hidden="true"><?= e($frase) ?></p>

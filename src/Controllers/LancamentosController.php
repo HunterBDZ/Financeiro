@@ -376,7 +376,7 @@ final class LancamentosController
 
     /**
      * Aviso depois de lançar (§2.2): `Delivery −56,80 · resta 343,20`; mês fechado:
-     * `Delivery −56,80 · set/26 ● fechado`; categoria sem previsão no mês: só `Salário +11.839,24`.
+     * `Delivery −56,80 · set/26 fechado`; categoria sem previsão no mês: só `Salário +11.839,24`.
      */
     private static function avisoLancado(array $cat, float $valor, string $data): string
     {

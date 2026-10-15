@@ -156,6 +156,14 @@ function mesCurto(string $mes): string
     return $ts ? $meses[(int) date('n', $ts) - 1] : '';
 }
 
+/** `outubro` (minúsculo; o título usa mb_convert_case). */
+function mesExtenso(string $mes): string
+{
+    static $meses = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+    $ts = strtotime($mes);
+    return $ts ? $meses[(int) date('n', $ts) - 1] : '';
+}
+
 /** `24/09`. */
 function diaMes(string $data): string
 {
@@ -186,13 +194,13 @@ function estadoMes(string $mes, string $situacao, ?string $hoje = null): string
     return substr($mes, 0, 7) <= substr($hoje, 0, 7) ? 'aberto' : 'previsto';
 }
 
-/** `● fechado` · `◐ aberto` · `○ previsto`. */
+/** `fechado` · `aberto` · `previsto` (o ponto de cada estado é desenhado pelo CSS: .estado-*::before). */
 function estadoLabel(string $estado): string
 {
     return match ($estado) {
-        'real'   => '● fechado',
-        'aberto' => '◐ aberto',
-        default  => '○ previsto',
+        'real'   => 'fechado',
+        'aberto' => 'aberto',
+        default  => 'previsto',
     };
 }
 
@@ -380,7 +388,8 @@ function renderErro(int $codigo, string $titulo, string $mensagem): never
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0a0f0d">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
 <title><?= e((string) $codigo) ?> · financeiro</title>
 <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
 <script src="<?= e(asset('/assets/js/theme.js')) ?>"></script>
@@ -388,10 +397,10 @@ function renderErro(int $codigo, string $titulo, string $mensagem): never
 </head>
 <body class="tela-erro">
 <main class="vazio erro">
-    <div class="erro-codigo num"><?= e((string) $codigo) ?><span>_</span></div>
-    <div class="erro-titulo"><?= e(mb_strtolower($titulo)) ?></div>
-    <div class="dim small"><?= e($mensagem) ?></div>
-    <a class="btn btn-ghost btn-sm" href="/">‹ início</a>
+    <p class="erro-codigo num" aria-hidden="true"><?= e((string) $codigo) ?></p>
+    <h1 class="erro-titulo"><?= e(mb_strtoupper(mb_substr($titulo, 0, 1)) . mb_substr($titulo, 1)) ?></h1>
+    <p class="dim"><?= e(mb_strtoupper(mb_substr($mensagem, 0, 1)) . mb_substr($mensagem, 1)) ?>.</p>
+    <a class="btn btn-primary btn-sm" href="/">Voltar ao início</a>
 </main>
 </body>
 </html>

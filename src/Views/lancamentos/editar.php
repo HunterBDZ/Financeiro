@@ -15,8 +15,8 @@ $l = $lancamento;
         <form method="post" action="/lancamentos/<?= (int) $l['id'] ?>/excluir" class="lf-excluir">
             <?= csrfField() ?>
             <input type="hidden" name="volta" value="<?= e($volta) ?>">
-            <button type="submit" class="btn-link-danger">excluir</button>
+            <button type="submit" class="btn-link-danger">Excluir lançamento</button>
         </form>
-        <p class="lf-meta">lançado por <?= e((string) $l['usuario_nome']) ?> · <?= e(diaMesHora((string) $l['criado_em'])) ?></p>
+        <p class="lf-meta">Lançado por <?= e((string) $l['usuario_nome']) ?> em <?= e(diaMesHora((string) $l['criado_em'])) ?></p>
     </div>
 </div>

@@ -36,8 +36,8 @@ if (!isset($a['descricao']) && $l !== null && $desc === (string) ($l['categoria_
 $gruposSel = $outras;
 
 $acao   = $editar && $l !== null ? '/lancamentos/' . (int) $l['id'] : '/lancamentos';
-$titulo = $editar ? 'editar' : 'novo lançamento';
-$botao  = $editar ? 'salvar' : ($dup !== null ? 'lançar mesmo assim' : 'lançar');
+$titulo = $editar ? 'Editar lançamento' : 'Novo lançamento';
+$botao  = $editar ? 'Salvar' : ($dup !== null ? 'Lançar mesmo assim' : 'Lançar');
 $foco   = $modo === 'pagina' && $topo !== false;
 ?>
 <form class="lf lf--<?= e($modo) ?>" method="post" action="<?= e($acao) ?>" novalidate
@@ -63,8 +63,16 @@ $foco   = $modo === 'pagina' && $topo !== false;
                value="<?= e($valorTxt) ?>" data-lf-valor<?= $foco ? ' data-autofocus' : '' ?>>
     </div>
 
+    <?php if ($chips !== [] && !$editar): ?>
+        <div class="lf-atalhos" role="group" aria-label="categorias mais usadas">
+            <?php foreach (array_slice($chips, 0, 6) as $c): ?>
+                <button type="button" class="chip lf-atalho" data-lf-cat="<?= (int) $c['id'] ?>" aria-pressed="<?= (int) $c['id'] === $catSel ? 'true' : 'false' ?>"><?= e((string) $c['curto']) ?></button>
+            <?php endforeach; ?>
+        </div>
+    <?php endif; ?>
+
     <select name="categoria_id" class="lf-select" aria-label="categoria">
-        <option value="">selecione a categoria</option>
+        <option value=""><?= $chips !== [] && !$editar ? 'Outra categoria…' : 'Categoria' ?></option>
         <?php foreach ($gruposSel as $grupo => $itens): if ($itens === []) { continue; } ?>
             <optgroup label="<?= e((string) $grupo) ?>">
                 <?php foreach ($itens as $c): ?>
@@ -75,12 +83,12 @@ $foco   = $modo === 'pagina' && $topo !== false;
     </select>
 
     <label class="lf-dia">
-        <span class="lf-dia-lbl">dia</span>
+        <span class="lf-dia-lbl">Dia</span>
         <input type="date" name="data" class="lf-data" value="<?= e($data) ?>" aria-label="dia do lançamento"
                min="<?= e((string) ($data_min ?? '')) ?>" max="<?= e((string) ($data_max ?? '')) ?>">
     </label>
 
-    <input type="text" name="descricao" class="lf-desc" placeholder="descrição" aria-label="descrição"
+    <input type="text" name="descricao" class="lf-desc" placeholder="Descrição (opcional)" aria-label="descrição"
            enterkeyhint="send" maxlength="255" autocomplete="off" list="<?= e($pref) ?>-descs"
            value="<?= e($desc) ?>">
     <?php if (!empty($descricoes)): ?>
@@ -95,7 +103,7 @@ $foco   = $modo === 'pagina' && $topo !== false;
         <div class="aviso aviso-error lf-aviso" role="alert"><?= e($erro) ?></div>
     <?php endif; ?>
     <?php if ($dup !== null): ?>
-        <div class="aviso aviso-warn lf-aviso" role="status">igual: "<?= e((string) ($dup['descricao'] ?? '')) ?>" · <?= e((string) ($dup['inicial'] ?? '')) ?> · <?= e(diaMes((string) ($dup['data'] ?? ''))) ?></div>
+        <div class="aviso aviso-warn lf-aviso" role="status">Parece repetido: “<?= e((string) ($dup['descricao'] ?? '')) ?>”, lançado por <?= e((string) ($dup['inicial'] ?? '')) ?> em <?= e(diaMes((string) ($dup['data'] ?? ''))) ?>.</div>
     <?php endif; ?>
     <div class="aviso aviso-error lf-aviso" role="alert" data-lf-erro hidden></div>
 

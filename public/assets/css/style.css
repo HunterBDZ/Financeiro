@@ -154,7 +154,24 @@ input:not([type]), select, textarea) {
 }
 :where(input[type="date"], input[type="month"]) { min-width: 0; }
 input[type="date"]::-webkit-calendar-picker-indicator, input[type="month"]::-webkit-calendar-picker-indicator { opacity: .6; cursor: pointer; }
-:where(input[type="checkbox"], input[type="radio"]) { accent-color: var(--tinta); width: 20px; height: 20px; margin: 0; vertical-align: middle; }
+:where(input[type="radio"]) { accent-color: var(--tinta); width: 20px; height: 20px; margin: 0; vertical-align: middle; }
+/* caixa de marcar: quadrada; marcada vira tinta com o visto recortado na cor do chão */
+:where(input[type="checkbox"]) {
+    -webkit-appearance: none; appearance: none;
+    display: inline-grid; place-content: center; flex: none;
+    width: 24px; height: 24px; margin: 0; vertical-align: middle;
+    background: var(--campo, var(--sup-2)); box-shadow: inset 0 0 0 2px var(--tinta-2);
+    cursor: pointer; transition: background-color .12s ease-out, box-shadow .12s ease-out;
+}
+:where(input[type="checkbox"])::before {
+    content: ""; width: 14px; height: 14px;
+    clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+    box-shadow: inset 1em 1em var(--sobre);
+    transform: scale(0); transition: transform .12s ease-out;
+}
+:where(input[type="checkbox"]):checked { background: var(--tinta); box-shadow: none; }
+:where(input[type="checkbox"]):checked::before { transform: scale(1); }
+:where(input[type="checkbox"]):focus-visible { outline: 2px solid var(--foco); outline-offset: 2px; }
 input[type="number"] { -moz-appearance: textfield; }
 fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
 summary { cursor: pointer; }
@@ -465,9 +482,11 @@ a.linha:hover { background: var(--sel); }
 .linha-val { flex: none; margin-left: auto; font-variant-numeric: tabular-nums; white-space: nowrap; font-weight: 600; }
 .linha-b { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: var(--t-peq); color: var(--tinta-2); line-height: 1.3; }
 
-/* estado do mês */
-.estado { display: inline-flex; align-items: baseline; gap: 4px; white-space: nowrap; font-size: var(--t-peq); font-weight: 500; color: var(--tinta-2); }
+/* estado do mês: ponto cheio (aberto, em tinta), cheio suave (fechado), vazado (previsto) */
+.estado { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-size: var(--t-peq); font-weight: 500; color: var(--tinta-2); }
+.estado::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
 .estado-aberto { color: var(--tinta); }
+.estado-previsto::before { background: transparent; box-shadow: inset 0 0 0 1.5px currentColor; }
 
 /* aviso em linha */
 .aviso { padding: 12px 14px; background: var(--sup-2); color: var(--tinta); font-size: var(--t-peq); line-height: 1.45; }
@@ -498,19 +517,31 @@ details.dobra > summary:hover::after { border-color: var(--tinta); }
     font-variant-numeric: tabular-nums;
 }
 
-/* navegação de mês (partial mes_nav): o mês é o título da tela */
-.mes-nav { display: flex; align-items: center; gap: var(--s2); min-height: var(--tap); min-width: 0; }
-.mes-nav .mes-nav-t { margin: 0; font-size: var(--t-titulo); font-weight: 700; letter-spacing: -0.02em; line-height: 1; white-space: nowrap; }
-.mes-nav > a, .mes-nav > [aria-hidden="true"].mes-nav-seta {
-    display: inline-grid; place-items: center; flex: none;
+/* navegação de mês (partial mes_nav): o mês por extenso é o título; as duas setas ficam juntas à direita */
+.mes-nav {
+    flex: 1 1 auto; min-width: 0;
+    display: grid; grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-areas: "t ant prox" "e ant prox";
+    align-items: center; column-gap: 4px; row-gap: 4px;
+}
+.mes-nav .mes-nav-t {
+    grid-area: t; min-width: 0; margin: 0;
+    font-size: 36px; font-weight: 800; font-stretch: 85%; letter-spacing: -0.02em; line-height: 1;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.mes-nav-ano { font-size: 22px; font-weight: 500; font-stretch: 100%; letter-spacing: 0; color: var(--tinta-2); }
+.mes-nav > .estado { grid-area: e; justify-self: start; }
+.mes-nav > :first-child { grid-area: ant; }
+.mes-nav > :last-child { grid-area: prox; }
+.mes-nav > .mes-nav-seta {
+    display: inline-grid; place-items: center;
     width: var(--tap); height: var(--tap);
     background: var(--sup-2); color: var(--tinta);
-    font-size: 22px; line-height: 1;
+    font-size: 24px; line-height: 1;
     transition: background-color .15s ease-out;
 }
-.mes-nav > a:hover { background: var(--sup-3); }
-.mes-nav > .mes-nav-seta.is-off { opacity: .3; }
-.mes-nav .estado { margin-left: 4px; }
+.mes-nav > a.mes-nav-seta:hover { background: var(--sup-3); }
+.mes-nav > .mes-nav-seta.is-off { opacity: .35; }
 
 /* vazio */
 .vazio { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: var(--s3); padding: 48px var(--s4); color: var(--tinta-2); }
@@ -540,6 +571,8 @@ details.dobra > summary:hover::after { border-color: var(--tinta); }
     .topnav-item.is-active::after { content: ""; position: absolute; left: 12px; right: 12px; bottom: 10px; height: 3px; background: var(--tinta); }
     .topnav-item:focus-visible { outline-offset: -4px; }
     .topbar-in > .topbar-lancar { display: inline-flex; }
+    .mes-nav .mes-nav-t { font-size: 48px; }
+    .mes-nav-ano { font-size: 26px; }
     .page { padding-top: var(--s6); padding-bottom: 96px; padding-left: max(32px, env(safe-area-inset-left, 0px)); padding-right: max(32px, env(safe-area-inset-right, 0px)); }
     .tabbar { display: none; }
     .card { padding: var(--s5); }

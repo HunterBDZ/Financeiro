@@ -1,4 +1,4 @@
 <section class="card vazio">
-    <div class="vazio-glifo" aria-hidden="true">$<span>_</span></div>
-    <div class="titulo">nenhum mês cadastrado</div>
+    <h1 class="titulo">Nenhum mês cadastrado</h1>
+    <p>Os meses do plano aparecem aqui assim que forem criados no banco.</p>
 </section>

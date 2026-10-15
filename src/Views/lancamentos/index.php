@@ -7,6 +7,19 @@
 use Financeiro\View;
 
 $semana = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+$mesesCurtos = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+/** Cabeçalho do grupo de um dia: Hoje · Ontem · Qua, 14 de out (agendado, se for depois de hoje). */
+$rotuloDia = static function (string $data) use ($hoje, $semana, $mesesCurtos): string {
+    if ($data === $hoje) {
+        return 'Hoje';
+    }
+    if ($data === date('Y-m-d', (int) strtotime($hoje . ' -1 day'))) {
+        return 'Ontem';
+    }
+    $ts = (int) strtotime($data);
+    return mb_convert_case($semana[(int) date('w', $ts)], MB_CASE_TITLE) . ', ' . (int) date('j', $ts) . ' de ' . $mesesCurtos[(int) date('n', $ts) - 1]
+        . ($data > $hoje ? ' (agendado)' : '');
+};
 
 /** URL do extrato com os filtros atuais trocados por $mudar ('' remove). */
 $url = static function (array $mudar = []) use ($params): string {
@@ -67,13 +80,13 @@ $catAtual = $categoria !== null ? (int) $categoria['id'] : 0;
 
                 <div class="ex-busca-inline">
                     <span class="ex-busca-icon" aria-hidden="true"><?= svgIcon('search', 16) ?></span>
-                    <input type="search" name="q" value="<?= e($q) ?>" placeholder="buscar descrição ou categoria" aria-label="buscar"
+                    <input type="search" name="q" value="<?= e($q) ?>" placeholder="Buscar descrição ou categoria…" aria-label="buscar"
                            enterkeyhint="search" autocomplete="off" maxlength="80" class="ex-busca-input">
                 </div>
 
                 <?php $selVal = $catAtual > 0 ? (string) $catAtual : ($f !== '' ? 'g:' . $f : ''); ?>
                 <select class="ex-cat-select" aria-label="categoria" id="ex-cat-sel">
-                    <option value="">todas as categorias</option>
+                    <option value="">Todas as categorias</option>
                     <?php foreach ($classes as $gf => $cl): if ($cl['cats'] === []) { continue; } ?>
                     <optgroup label="<?= e($cl['rotulo']) ?>">
                         <option value="g:<?= e($gf) ?>"<?= $selVal === 'g:' . $gf ? ' selected' : '' ?>><?= e($cl['todas']) ?></option>
@@ -85,7 +98,7 @@ $catAtual = $categoria !== null ? (int) $categoria['id'] : 0;
                 </select>
 
                 <?php
-                $ordens = ['' => 'mais recentes', 'dia-asc' => 'mais antigos', 'valor-desc' => 'maior valor', 'valor-asc' => 'menor valor', 'alfa' => 'A → Z'];
+                $ordens = ['' => 'Mais recentes', 'dia-asc' => 'Mais antigos', 'valor-desc' => 'Maior valor', 'valor-asc' => 'Menor valor', 'alfa' => 'De A a Z'];
                 ?>
                 <select class="ex-ordem-select" name="ordem" aria-label="ordenar" data-autosubmit>
                     <?php foreach ($ordens as $ov => $olbl): ?>
@@ -93,46 +106,46 @@ $catAtual = $categoria !== null ? (int) $categoria['id'] : 0;
                     <?php endforeach; ?>
                 </select>
 
-                <button type="submit" class="btn btn-primary ex-busca-btn" aria-label="buscar"><?= svgIcon('search', 16) ?><span class="ex-busca-txt">buscar</span></button>
+                <button type="submit" class="btn btn-primary ex-busca-btn" aria-label="buscar"><?= svgIcon('search', 16) ?><span class="ex-busca-txt">Buscar</span></button>
             </form>
 
             <?php if ($filtrado): ?>
                 <div class="ex-filtros-ativos">
                     <?php if ($q !== ''): ?>
-                        <a class="chip is-on ex-chip-x" href="<?= e($url(['q' => ''])) ?>" aria-label="tirar busca">"<?= e($q) ?>" <span aria-hidden="true">×</span></a>
+                        <a class="chip is-on ex-chip-x" href="<?= e($url(['q' => ''])) ?>" aria-label="tirar busca">“<?= e($q) ?>” <span aria-hidden="true">×</span></a>
                     <?php endif; ?>
                     <?php if ($categoria !== null): ?>
                         <a class="chip is-on ex-chip-x" href="<?= e($url(['cat' => ''])) ?>" aria-label="tirar filtro <?= e(nomeCurto($categoria)) ?>"><?= e(nomeCurto($categoria)) ?> <span aria-hidden="true">×</span></a>
                     <?php endif; ?>
-                    <a class="ex-limpar" href="<?= e($url(['f' => '', 'cat' => '', 'q' => ''])) ?>">limpar filtros</a>
+                    <a class="ex-limpar" href="<?= e($url(['f' => '', 'cat' => '', 'q' => ''])) ?>">Limpar filtros</a>
                 </div>
             <?php endif; ?>
         </div>
 
         <details class="card ex-nova" id="nova-categoria">
-            <summary class="ex-nova-sum"><?= svgIcon('settings', 16) ?>categorias</summary>
+            <summary class="ex-nova-sum"><?= svgIcon('settings', 16) ?>Categorias</summary>
 
             <form class="ex-nova-form ex-nova-criar" method="post" action="/categorias">
                 <?= csrfField() ?>
                 <input type="hidden" name="volta" value="<?= e($urlAtual) ?>">
-                <label class="campo ex-nova-nome"><span>nome</span>
-                    <input type="text" name="nome" maxlength="100" required autocomplete="off" placeholder="ex. Pet, Farmácia">
+                <label class="campo ex-nova-nome"><span>Nome da categoria</span>
+                    <input type="text" name="nome" maxlength="100" required autocomplete="off" placeholder="ex.: Pet, Farmácia">
                 </label>
                 <fieldset class="ex-nova-opts">
-                    <legend>tipo</legend>
+                    <legend>Tipo</legend>
                     <div class="chip-row">
-                        <label class="chip-r"><input type="radio" name="tipo" value="saida" checked><span>saída</span></label>
-                        <label class="chip-r"><input type="radio" name="tipo" value="entrada"><span>entrada</span></label>
+                        <label class="chip-r"><input type="radio" name="tipo" value="saida" checked><span>Saída</span></label>
+                        <label class="chip-r"><input type="radio" name="tipo" value="entrada"><span>Entrada</span></label>
                     </div>
                 </fieldset>
                 <fieldset class="ex-nova-opts ex-nova-ess">
-                    <legend>classe</legend>
+                    <legend>Classe</legend>
                     <div class="chip-row">
-                        <label class="chip-r"><input type="radio" name="essencial" value="1" checked><span>essencial</span></label>
-                        <label class="chip-r"><input type="radio" name="essencial" value="0"><span>não essencial</span></label>
+                        <label class="chip-r"><input type="radio" name="essencial" value="1" checked><span>Essencial</span></label>
+                        <label class="chip-r"><input type="radio" name="essencial" value="0"><span>Não essencial</span></label>
                     </div>
                 </fieldset>
-                <button type="submit" class="btn btn-primary ex-nova-btn">criar categoria</button>
+                <button type="submit" class="btn btn-primary ex-nova-btn">Criar categoria</button>
             </form>
 
             <div class="ex-cats">
@@ -143,7 +156,7 @@ $catAtual = $categoria !== null ? (int) $categoria['id'] : 0;
                             <li class="ex-cat-item">
                                 <span class="ex-cat-nome"><?= e(nomeCurto($c)) ?></span>
                                 <form method="post" action="/categorias/<?= (int) $c['id'] ?>/remover" class="ex-cat-rm"
-                                      data-confirm="remover <?= e(nomeCurto($c)) ?>?">
+                                      data-confirm="Remover a categoria <?= e(nomeCurto($c)) ?>? Se ela tiver lançamentos, só sai das listas.">
                                     <?= csrfField() ?>
                                     <input type="hidden" name="volta" value="<?= e($urlAtual) ?>">
                                     <button type="submit" class="ex-cat-x" aria-label="remover <?= e(nomeCurto($c)) ?>"><?= svgIcon('x', 16) ?></button>
@@ -158,12 +171,12 @@ $catAtual = $categoria !== null ? (int) $categoria['id'] : 0;
         <?php if ($linhas === []): ?>
             <div class="card ex-vazio">
                 <?php if ($q !== ''): ?>
-                    <p>nada com "<?= e($q) ?>" em <?= e(monthLabel($mes)) ?></p>
+                    <p>Nada com “<?= e($q) ?>” em <?= e(monthLabel($mes)) ?>.</p>
                 <?php elseif ($categoria !== null): ?>
-                    <p>nada de <?= e(nomeCurto($categoria)) ?> em <?= e(monthLabel($mes)) ?></p>
+                    <p>Nada de <?= e(nomeCurto($categoria)) ?> em <?= e(monthLabel($mes)) ?>.</p>
                 <?php else: ?>
-                    <p>nada em <?= e(monthLabel($mes)) ?></p>
-                    <a class="btn btn-primary" href="/lancar?volta=<?= e($voltaEnc) ?>" data-lancar>+ lançar</a>
+                    <p>Nada lançado em <?= e(monthLabel($mes)) ?>.</p>
+                    <a class="btn btn-primary" href="/lancar?volta=<?= e($voltaEnc) ?>" data-lancar>Lançar</a>
                 <?php endif; ?>
             </div>
         <?php else: ?>
@@ -180,7 +193,8 @@ $catAtual = $categoria !== null ? (int) $categoria['id'] : 0;
             <?php endif; ?>
 
             <div class="card ex-lista">
-                <?php $i = 0; foreach ($dias as $data => $rows): ?>
+                <?php $agrupado = $ordem === '' || $ordem === 'dia-asc'; $i = 0; foreach ($dias as $data => $rows): ?>
+                    <?php if ($agrupado): ?><h3 class="ex-dia"><?= e($rotuloDia((string) $data)) ?></h3><?php endif; ?>
                     <div class="linhas">
                         <?php foreach ($rows as $r): ?>
                             <?php
@@ -193,7 +207,7 @@ $catAtual = $categoria !== null ? (int) $categoria['id'] : 0;
                             ?>
                             <a class="linha ex-linha" href="/lancamentos/<?= (int) $r['id'] ?>/editar?volta=<?= e($voltaEnc) ?>"<?= $i === $limite - 60 && $i > 0 ? ' id="ex-r' . $i . '"' : '' ?>>
                                 <span class="linha-a"><span class="linha-txt"><?= e((string) $r['descricao']) ?></span><span class="linha-val <?= $cls ?>"><?= e($txt) ?></span></span>
-                                <span class="linha-b"><i class="dot-g <?= e(corClasse($r)) ?>"></i><span class="ex-cat"><?= e(nomeCurto($cat)) ?></span><span class="ex-data"><?= e($semana[(int) date('w', strtotime($r['data']))] . ' ' . diaMes($r['data'])) ?></span><?php if ($r['data'] > $hoje): ?><span class="ex-agendado">agendado</span><?php endif; ?></span>
+                                <span class="linha-b"><i class="dot-g <?= e(corClasse($r)) ?>"></i><span class="ex-cat"><?= e(nomeCurto($cat)) ?></span><?php if (!$agrupado): ?><span class="ex-data"><?= e($semana[(int) date('w', strtotime($r['data']))] . ' ' . diaMes($r['data'])) ?></span><?php if ($r['data'] > $hoje): ?><span class="ex-agendado">agendado</span><?php endif; ?><?php endif; ?></span>
                             </a>
                             <?php $i++; ?>
                         <?php endforeach; ?>
@@ -201,7 +215,7 @@ $catAtual = $categoria !== null ? (int) $categoria['id'] : 0;
                 <?php endforeach; ?>
 
                 <?php if ($faltam > 0): ?>
-                    <a class="btn btn-ghost btn-block ex-mais" href="<?= e($url(['limite' => $limite + 60])) ?>#ex-r<?= (int) $limite ?>">ver mais (<?= $faltam ?>)</a>
+                    <a class="btn btn-ghost btn-block ex-mais" href="<?= e($url(['limite' => $limite + 60])) ?>#ex-r<?= (int) $limite ?>">Ver mais (<?= $faltam ?>)</a>
                 <?php endif; ?>
             </div>
         <?php endif; ?>

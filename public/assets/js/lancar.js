@@ -46,6 +46,15 @@
         if (sel) {
             sel.value = String(id);
         }
+        sincronizarAtalhos(form);
+    }
+
+    // atalhos (categorias mais usadas): o que corresponde ao select fica marcado
+    function sincronizarAtalhos(form) {
+        var atual = categoriaDe(form);
+        form.querySelectorAll('[data-lf-cat]').forEach(function (b) {
+            b.setAttribute('aria-pressed', b.getAttribute('data-lf-cat') === atual ? 'true' : 'false');
+        });
     }
 
     function mostrarErro(form, texto) {
@@ -131,7 +140,8 @@
             return false;                       // sem <dialog>: segue o href (/lancar?…)
         }
         if (!dlg.open) {
-            resetar(form);
+            mostrarErro(form, '');              // o que já foi digitado fica (fechar sem querer não perde nada)
+            destravar(form);
             dlg.showModal();                    // 1. abre
         }
         aplicar(form, origem);                  // 2. categoria/valor/descrição do gatilho
@@ -167,6 +177,12 @@
         }
         if (t.closest('[data-lancar-fechar]')) {
             fechar();
+            return;
+        }
+        var atalho = t.closest('[data-lf-cat]');
+        if (atalho && atalho.form) {
+            marcarCategoria(atalho.form, atalho.getAttribute('data-lf-cat'));
+            mostrarErro(atalho.form, '');
         }
     });
 
@@ -217,6 +233,7 @@
         var el = ev.target;
         if (el instanceof Element && el.matches('form[data-lf] [name="categoria_id"]') && el.form) {
             mostrarErro(el.form, '');
+            sincronizarAtalhos(el.form);
         }
     });
 
@@ -234,10 +251,10 @@
         var erro = null;
         var foco = null;
         if (valor && !/[1-9]/.test(valor.value)) {
-            erro = 'valor?';
+            erro = 'Digite o valor.';
             foco = valor;
         } else if (!categoriaDe(form)) {
-            erro = 'categoria?';
+            erro = 'Escolha a categoria.';
             foco = campoCategoria(form);
         }
         if (erro) {

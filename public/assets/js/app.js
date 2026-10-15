@@ -173,7 +173,7 @@
                 var resto = meta - gasto;
                 if (nums) {
                     nums.textContent = fmtBR(gasto) + ' de ' + fmtBR(meta) +
-                        (resto >= -0.004 ? ' · restam ' + fmtBR(Math.max(0, resto)) : ' · passou ' + fmtBR(-resto));
+                        (resto >= -0.004 ? ', restam ' + fmtBR(Math.max(0, resto)) : ', passou ' + fmtBR(-resto));
                 }
                 totalMeta += meta;
                 gastoComMeta += gasto;
@@ -181,7 +181,7 @@
             } else {
                 if (fill) { fill.style.setProperty('--pct', '0%'); }
                 cat.classList.add('is-none');
-                if (nums) { nums.textContent = gasto > 0.004 ? ('gasto ' + fmtBR(gasto)) : 'defina a meta'; }
+                if (nums) { nums.textContent = gasto > 0.004 ? ('Gasto ' + fmtBR(gasto)) : 'Defina a meta'; }
             }
         }
 
@@ -198,7 +198,7 @@
         setTxt('[data-v-metaalvo]', fmtBR(totalMeta));
         setTxt('[data-v-gasto]', fmtBR(gastoSemMeta));
         setTxt('[data-v-conta]', fmtBR(Math.abs(emConta)));
-        setTxt('[data-conta-lbl]', noVermelho ? 'no vermelho' : 'em conta');
+        setTxt('[data-conta-lbl]', noVermelho ? 'No vermelho' : 'Em conta');
         var cbox = pg.querySelector('[data-conta-box]');
         if (cbox) {
             cbox.classList.remove('is-neg', 'is-pos');
@@ -238,7 +238,7 @@
         rows.sort(function (a, b) { return b.gasto - a.gasto; });
         if (rows.length === 0 || tot <= 0) {
             if (segM) { segM.innerHTML = ''; }
-            det.innerHTML = '<p class="aloc-det-vazio">ainda não há gasto nas categorias com meta.</p>';
+            det.innerHTML = '<p class="aloc-det-vazio">Ainda não há gasto nas categorias com meta.</p>';
             return;
         }
         var segHtml = '', detHtml = '';
@@ -309,7 +309,7 @@
         sel.disabled = false;
         var btn = pg.querySelector('.meta-add-btn'); if (btn) { btn.disabled = false; }
         var first = sel.querySelector('option[value=""]');
-        if (first) { first.textContent = 'escolher categoria…'; }
+        if (first) { first.textContent = 'Escolher categoria…'; }
     }
     function metaAdiciona(pg, opt) {
         var id = opt.value;

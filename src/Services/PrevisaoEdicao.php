@@ -57,7 +57,7 @@ final class PrevisaoEdicao
             throw new \InvalidArgumentException('mês?');
         }
         if ($situacao !== 'PREVISAO') {
-            throw new \InvalidArgumentException(monthLabel($mes) . ' ● fechado');
+            throw new \InvalidArgumentException(monthLabel($mes) . ' está fechado');
         }
 
         $meta = self::meta($d, $cat);
