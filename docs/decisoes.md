@@ -4,6 +4,25 @@ Repositório canônico: `~/financeiro` no servidor 192.168.0.154 (git, branch `m
 Produção: `/var/www/financeiro`, publicada a partir deste repositório. O código que estava
 na máquina .164 (publicado em 10/10/2026) é o primeiro commit daqui; trabalhe sempre neste.
 
+## 2026-10-16 — "e se" no Anual
+
+- **O que faz:** no cartão "E se…?" do Anual (fechado por padrão) dá para simular economizar ou
+  gastar a mais todo mês a partir de um mês, um gasto ou uma entrada num mês, e ligar ou desligar o
+  adiantamento do empréstimo com a sobra. **Nada é gravado:** a simulação vai na URL (GET,
+  `?se=1&mensal=…&mensal_tipo=economizar|gastar&mensal_de=AAAA-MM-01&uma=…&uma_tipo=gasto|entrada&uma_mes=…&adiantar=1`),
+  então dá para voltar, recarregar ou mandar o link.
+- **Como calcula:** `MotorFinanceiro::calcular` ganhou a opção `extra` (mês → valor, só fora de mês
+  fechado: + entra, − sai, como uma categoria operacional a mais); sem `adiantar`, usa `objetivo` 3.
+  `FuturoController::simulacao` lê e valida a URL (valor inválido é avisado e ignorado; teto de
+  1 milhão; os meses precisam ser do plano, do atual em diante).
+- **O que mostra:** com a simulação ativa a página inteira é o simulado (resumo, gráfico, tabela),
+  com um aviso no topo ("Simulação: … Nada foi salvo." e "Voltar ao plano"). O cartão compara
+  plano × simulação: conta e dívida no fim, mês mais apertado, meses abaixo da reserva, quando o
+  empréstimo acaba e os juros até quitar (`AnualResumo::numeros`/`quitacao`). A dívida no fim
+  entrou porque, sem ela, "sem adiantar" parecia melhor do que é. O gráfico mostra o plano em
+  cinza por trás; os meses afetados ganham o chip "E se: ±valor" e a conta do mês diz quanto
+  do "e se" entrou. No celular a comparação vira um bloco por indicador.
+
 ## 2026-10-16 — aba Anual repensada
 
 - **Por quê:** o casal achou ruim a divisão do espaço (no computador as 5 colunas se espalhavam
