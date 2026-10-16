@@ -299,6 +299,7 @@ details.mes-ed:target > summary { animation: mes-realce 1.6s ease-out 1; }   /* 
 .fu-linha.is-prev { stroke-dasharray: 7 5; stroke-linecap: butt; }   /* previsão tracejada; o que já fechou, sólido */
 .fu-gl { position: absolute; left: 0; transform: translateY(calc(-100% - 3px)); color: var(--text-3); font-size: 11.5px; font-weight: 650; line-height: 1; }
 .fu-ref { position: absolute; right: 0; transform: translateY(calc(-100% - 3px)); color: var(--warn); font-size: 12px; font-weight: 750; line-height: 1.2; white-space: nowrap; }
+.fu-reserva-rot { transform: translateY(4px); }   /* embaixo da linha: em cima, os pontos parados na reserva cobririam o texto */
 .fu-meta-rot { color: var(--text-3); }
 .fu-hoje { position: absolute; top: 0; transform: translate(-50%, calc(-100% - 4px)); color: var(--text-2); font-size: 11.5px; font-weight: 750; line-height: 1; }
 .fu-pt {
@@ -318,16 +319,15 @@ details.mes-ed:target > summary { animation: mes-realce 1.6s ease-out 1; }   /* 
 }
 .fu-nota.is-baixo { transform: translate(-50%, 9px); }
 .fu-nota.is-fim { transform: translate(calc(-100% + 5px), calc(-100% - 9px)); }
-.fu-nota.is-cima { color: var(--text-2); font-weight: 750; }
 .fu-nota.neg { color: var(--neg); }
 .fu-nota.warn { color: var(--warn); }
 .fu-eixo { position: relative; height: 40px; margin-top: 10px; }
 .fu-mx, .fu-ano { position: absolute; top: 0; transform: translateX(-50%); color: var(--text-3); font-size: 12px; font-weight: 650; line-height: 1.25; white-space: nowrap; }
 .fu-ano { top: 18px; font-variant-numeric: tabular-nums; }
 .fu-mx.is-ref { color: var(--text); font-weight: 800; }
+.fu-evento { color: var(--pos); font-weight: 750; font-variant-numeric: normal; }
 @media (max-width: 560px) {
     .fu-fig.is-denso .fu-mx.is-salta { visibility: hidden; }
-    .fu-nota.is-cima { display: none; }   /* no celular, só o mês mais apertado e o fim */
 }
 
 /* mês a mês: tabela por ano. Celular: Mês | Balanço | Conta no fim; o resto ao abrir a linha */
@@ -365,7 +365,7 @@ details.mes-ed:target > summary { animation: mes-realce 1.6s ease-out 1; }   /* 
 .fu-total .fu-m { font-weight: 800; }
 .fu-total small { margin-left: 4px; color: var(--text-3); font-size: 12px; font-weight: 650; }
 .fu-total .fu-v { color: var(--text); font-weight: 750; }
-.fu-largo, .fu-xl { display: none; }
+.fu-largo, .fu-cols > .fu-xl { display: none; }
 
 /* o que mudou em relação ao mês anterior: a seta diz se subiu ou caiu; a cor, se foi bom ou ruim */
 .fu-chips { display: flex; flex-wrap: wrap; gap: 4px 6px; min-width: 0; }
@@ -486,9 +486,8 @@ details.mes-ed:target > summary { animation: mes-realce 1.6s ease-out 1; }   /* 
 }
 @media (min-width: 1600px) {
     .fu { grid-template-columns: minmax(0, 1fr) 360px; }
-    .fu-xl { display: block; }
-    .fu-xl.fu-chips { display: flex; flex-wrap: nowrap; overflow: hidden; }
-    .fu-xl .fu-chip:nth-child(n+4) { display: none; }
+    .fu-cols > .fu-xl { display: block; }
+    .fu-cols > .fu-xl.fu-chips { display: flex; flex-wrap: wrap; height: 22px; overflow: hidden; }   /* só os chips que cabem inteiros */
     .fu-tab { max-width: none; }
     .fu-cols { grid-template-columns: 104px repeat(5, 92px) minmax(0, 1fr) 12px; column-gap: 18px; }
     .fu-det-mudou { display: none; }

@@ -159,10 +159,8 @@ $yZero = $y(0.0);
 // números anotados: o mês mais apertado (se abaixo da reserva), a quitação e o fim
 $apertado = $marcos['apertado'];
 $iAp = $apertado !== null && $apertado['fica'] < $reserva - 0.004 ? array_search($apertado['mes'], array_column($linhas, 'mes'), true) : false;
-$iQuita = $quita !== null && $quita >= $ref ? array_search($quita, array_column($linhas, 'mes'), true) : false;
-if ($iQuita === $n - 1) {
-    $iQuita = false;   // no último mês, a nota do fim já basta
-}
+// a quitação vai no eixo, embaixo do mês (em cima do ponto a linha passaria por cima do texto)
+$iQuita = $quita !== null && $quita >= $ref && substr($quita, 5, 2) !== '01' ? array_search($quita, array_column($linhas, 'mes'), true) : false;
 // eixo apertado (celular): meses alternados, na paridade do 1º janeiro (os janeiros ficam visíveis)
 $par = 0;
 foreach ($linhas as $i => $l) {
@@ -273,15 +271,13 @@ $alertaIc = static fn(string $a): string => $a !== '' ? svgIcon('alert', 13, 'fu
                 <?php if ($iAp !== false): ?>
                     <span class="fu-nota is-baixo <?= $vals[$iAp] < -0.004 ? 'neg' : 'warn' ?> num" style="left:<?= $pc($x($iAp), $VW) ?>;top:<?= $pc($y($vals[$iAp]), $VH) ?>"><?= e($valor($vals[$iAp])) ?></span>
                 <?php endif; ?>
-                <?php if ($iQuita !== false): ?>
-                    <span class="fu-nota is-cima" style="left:<?= $pc($x($iQuita), $VW) ?>;top:<?= $pc($y($vals[$iQuita]), $VH) ?>">fim do empréstimo</span>
-                <?php endif; ?>
                 <span class="fu-nota is-fim num" style="left:<?= $pc($x($n - 1), $VW) ?>;top:<?= $pc($y($vals[$n - 1]), $VH) ?>"><?= e($valor($vals[$n - 1])) ?></span>
             </div>
             <div class="fu-eixo" aria-hidden="true">
                 <?php foreach ($linhas as $i => $l): ?>
                     <span class="fu-mx<?= $i % 2 !== $par ? ' is-salta' : '' ?><?= $l['mes'] === $ref ? ' is-ref' : '' ?>" style="left:<?= $pc($x($i), $VW) ?>"><?= e(mesCurto($l['mes'])) ?></span>
                     <?php if ($i === 0 || substr($l['mes'], 5, 2) === '01'): ?><span class="fu-ano" style="left:<?= $pc($x($i), $VW) ?>"><?= e(substr($l['mes'], 0, 4)) ?></span><?php endif; ?>
+                    <?php if ($i === $iQuita): ?><span class="fu-ano fu-evento" style="left:<?= $pc($x($i), $VW) ?>">fim do empréstimo</span><?php endif; ?>
                 <?php endforeach; ?>
             </div>
         </figure>
