@@ -20,13 +20,16 @@ $_SERVER['HTTPS']          = 'on';
 require __DIR__ . '/../src/bootstrap.php';
 
 use Financeiro\Controllers\AjustesController;
+use Financeiro\Controllers\CategoriaController;
 use Financeiro\Controllers\DashboardController;
 use Financeiro\Controllers\FuturoController;
 use Financeiro\Controllers\LancamentosController;
 use Financeiro\Controllers\MesController;
 use Financeiro\Controllers\MetaController;
 use Financeiro\Database;
+use Financeiro\Icones;
 use Financeiro\Models\AjusteModel;
+use Financeiro\Models\CategoriaModel;
 use Financeiro\Models\LancamentoModel;
 use Financeiro\Models\MesModel;
 use Financeiro\Models\MetaModel;
@@ -341,6 +344,72 @@ if ($prevMeses !== [] && $catDia > 0) {
         MotorFinanceiro::limparCache();
         $check('mês fechado sem linha: a meta não vale', PrevisaoModel::valor($catDia, $mC) == 0.0);
     });
+}
+
+// ---- 11. ícones de categoria: catálogo, sugestão pelo nome, escolher e trocar
+$todosExistem = true;
+foreach (Icones::REGRAS as [$k]) {
+    $todosExistem = $todosExistem && Icones::existe($k);
+}
+foreach (Icones::POR_GRUPO as $k) {
+    $todosExistem = $todosExistem && Icones::existe($k);
+}
+$check('ícones: toda regra e todo grupo apontam para um ícone do catálogo', $todosExistem);
+$lic = Icones::lista();
+$dim = @getimagesize(__DIR__ . '/../public/assets/img/icones.png');
+$check('ícones: o sprite tem o tamanho do catálogo', is_array($dim)
+    && $dim[0] === $lic['colunas'] * $lic['tamanho'] && $dim[1] === $lic['linhas'] * $lic['tamanho']
+    && count($lic['icones']) <= $lic['colunas'] * $lic['linhas']);
+$esperado = ['Farmácia e saúde' => 'pilula', 'Mercado' => 'prato', 'Combustível' => 'combustivel',
+             'Imposto de renda' => 'leao', 'Gastos mesada Matheus' => 'nota', 'Seguro do carro' => 'carro',
+             'Licenciamento do carro' => 'documento', 'Ração do Bob' => 'cachorro', 'Barbeiro' => 'barbearia'];
+$erradas = [];
+foreach ($esperado as $nomeCat => $k) {
+    if (Icones::sugerir($nomeCat, 'Dia a dia') !== $k) {
+        $erradas[] = $nomeCat . ' → ' . Icones::sugerir($nomeCat, 'Dia a dia');
+    }
+}
+$check('ícones: sugestão pelo nome', $erradas === [], implode('; ', $erradas));
+$check('ícones: sem palavra conhecida, vale o ícone do grupo', Icones::sugerir('Xyzw', 'Entradas') === 'moeda'
+    && Icones::sugerir('Xyzw', 'Dia a dia') === 'sacola' && Icones::sugerir('Xyzw', '') === 'sacola');
+$semIcone = [];
+foreach ($pdo->query('SELECT id, nome, grupo FROM categorias')->fetchAll() as $c) {
+    if (!Icones::existe(Icones::daCategoria((int) $c['id'], (string) $c['nome'], (string) $c['grupo']))) {
+        $semIcone[] = (string) $c['nome'];
+    }
+}
+$check('ícones: toda categoria do banco tem ícone', $semIcone === [], implode(', ', $semIcone));
+$check('ícones: o HTML posiciona o sprite', str_contains(Icones::html('pilula', 40), 'background-position:')
+    && str_contains(Icones::html('chave-que-nao-existe', 20), 'width:20px'));
+$emTransacao('categoria com ícone', static function () use ($check): void {
+    $id = CategoriaModel::criar('Teste ícone ' . bin2hex(random_bytes(3)), 'saida', false, 'gato');
+    Icones::limpar();
+    $check('categoria nova guarda o ícone escolhido', $id !== null && Icones::daCategoria((int) $id) === 'gato');
+    CategoriaModel::setIcone((int) $id, 'cachorro');
+    Icones::limpar();
+    $check('trocar o ícone grava', Icones::daCategoria((int) $id) === 'cachorro');
+    $id2 = CategoriaModel::criar('Farmácia teste ' . bin2hex(random_bytes(3)), 'saida', true);
+    Icones::limpar();
+    $check('sem escolha, a categoria nova usa a sugestão pelo nome', $id2 !== null
+        && Icones::daCategoria((int) $id2, 'Farmácia teste', 'Dia a dia') === 'pilula');
+});
+Icones::limpar();
+$htmlEx = $render(LancamentosController::class, 'index', []);
+$check('extrato: ícone em cada lançamento e escolha de ícone na categoria nova', str_contains($htmlEx, 'class="ci"')
+    && str_contains($htmlEx, 'data-ic-sugerir') && str_contains($htmlEx, 'name="icone"') && str_contains($htmlEx, '/icone?volta='));
+$check('lançar: só o select de categoria, sem atalhos', !str_contains($render(LancamentosController::class, 'lancarForm', []), 'lf-atalho'));
+if ($catDia > 0) {
+    $_SERVER['REQUEST_URI'] = '/categorias/' . $catDia . '/icone';
+    $_GET = [];
+    ob_start();
+    try {
+        (new CategoriaController())->iconeForm((string) $catDia);
+        $htmlIc = (string) ob_get_clean();
+    } catch (\Throwable $e) {
+        ob_end_clean();
+        $htmlIc = '';
+    }
+    $check('trocar ícone: a página abre com o atual marcado', str_contains($htmlIc, 'ic-picker') && str_contains($htmlIc, ' checked>'));
 }
 
 echo "\n{$ok} ok, {$falhas} falha(s)\n";
