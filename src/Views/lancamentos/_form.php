@@ -95,7 +95,7 @@ $vezes  = (int) ($a['parcelas'] ?? 1) ?: 1;
                 <small data-ct-previa-sub></small>
             </div>
             <details class="ct-antiga"<?= (($a['parcelas_outro'] ?? '0') !== '0' || ($a['parcela_atual'] ?? '0') !== '0') ? ' open' : '' ?>>
-                <summary>Mais opções: outra quantidade de vezes ou compra antiga</summary>
+                <summary>Outras vezes ou compra antiga</summary>
                 <div class="ct-antiga-c">
                     <label for="<?= e($pref) ?>-outro">Outra quantidade de vezes</label>
                     <input id="<?= e($pref) ?>-outro" name="parcelas_outro" type="text" inputmode="numeric" maxlength="2" placeholder="ex.: 18"

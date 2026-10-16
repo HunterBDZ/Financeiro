@@ -204,7 +204,8 @@ $hrefLancar = '/lancar?pagou=cartao&volta=' . rawurlencode('/cartao');
                         <a class="ct-linha" href="/cartao/compras/<?= (int) $c['id'] ?>/editar">
                             <?= iconeCategoria((int) ($c['categoria_id'] ?? 0), (string) ($c['categoria_nome'] ?? $c['descricao']), (string) ($c['categoria_grupo'] ?? ''), 40) ?>
                             <span class="ct-linha-n"><b><?= e($c['descricao']) ?><?php if ((int) $c['parcelas'] > 1): ?><span class="ct-vez num"><?= (int) $it['k'] ?>/<?= (int) $c['parcelas'] ?></span><?php endif; ?></b>
-                                <small><?= e(nomeCurto(['apelido' => $c['categoria_apelido'], 'nome' => $c['categoria_nome'] ?? ''])) ?><?= (int) $c['parcelas'] === 1 ? ' · ' . e(diaMes($c['data'])) : '' ?></small></span>
+                                <small><?= e(implode(' · ', array_filter([nomeCurto(['apelido' => $c['categoria_apelido'], 'nome' => $c['categoria_nome'] ?? '']),
+                                    (int) $c['parcelas'] === 1 ? diaMes($c['data']) : ''], static fn($x) => $x !== ''))) ?></small></span>
                             <span class="ct-linha-v num"><?= e(num((float) $it['valor'])) ?></span>
                         </a>
                     <?php endforeach; ?>
