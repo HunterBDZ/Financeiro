@@ -1,6 +1,7 @@
 // app.js (P1): comportamento da casca. Sem nada inline (CSP script-src 'self').
 // - alterna o tema ([data-theme-toggle]) ou escolhe um ([data-tema="light|dark"], o seletor do menu lateral);
 // - esconde/mostra os valores ([data-ocultar], o olho do cartão do saldo; só nesta aba);
+// - [data-ic-sugerir]: no form de nova categoria, o ícone acompanha o nome digitado até a pessoa escolher um;
 // - fecha details.menu ao clicar fora (e com Esc);
 // - [data-quando]: o radio value="outro" revela .quando-data (fallback para navegador sem :has);
 // - fecha o toast ([data-toast-fechar]);
@@ -46,6 +47,51 @@
         });
     }
     marcarOlho();
+
+    // ---- ícone sugerido pelo nome da categoria nova (as regras vêm de Icones::REGRAS, no data-ic-regras)
+    function normalizar(s) {
+        return String(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    }
+    function casaTermo(termo, norm, palavras) {
+        if (termo.charAt(0) === '=') { return palavras.indexOf(termo.slice(1)) !== -1; }
+        if (termo.indexOf(' ') !== -1) { return (' ' + norm + ' ').indexOf(' ' + termo) !== -1; }
+        for (var i = 0; i < palavras.length; i++) { if (palavras[i].indexOf(termo) === 0) { return true; } }
+        return false;
+    }
+    function sugerirIcone(cfg, nome, grupo) {
+        var norm = normalizar(nome);
+        var palavras = norm === '' ? [] : norm.split(' ');
+        for (var r = 0; r < cfg.regras.length; r++) {
+            var termos = cfg.regras[r][1];
+            for (var t = 0; t < termos.length; t++) {
+                if (casaTermo(termos[t], norm, palavras)) { return cfg.regras[r][0]; }
+            }
+        }
+        return cfg.grupos[grupo] || 'sacola';
+    }
+    document.querySelectorAll('[data-ic-sugerir]').forEach(function (picker) {
+        var cfg;
+        try { cfg = JSON.parse(picker.getAttribute('data-ic-regras') || ''); } catch (e) { return; }
+        var form = picker.closest('form');
+        var campo = form ? form.querySelector('input[name="nome"]') : null;
+        if (!campo) { return; }
+        var escolheu = false;
+        picker.addEventListener('change', function () { escolheu = true; });
+        function atualizar() {
+            if (escolheu) { return; }
+            var tipo = form.querySelector('input[name="tipo"]:checked');
+            var grupo = tipo && tipo.value === 'entrada' ? 'Entradas' : 'Dia a dia';
+            var nome = campo.value.trim();
+            var marcado = picker.querySelector('input[name="icone"]:checked');
+            if (nome === '') { if (marcado) { marcado.checked = false; } return; }
+            var alvo = picker.querySelector('input[name="icone"][value="' + sugerirIcone(cfg, nome, grupo) + '"]');
+            if (alvo && alvo !== marcado) { alvo.checked = true; }
+        }
+        campo.addEventListener('input', atualizar);
+        form.addEventListener('change', function (ev) {
+            if (ev.target instanceof Element && ev.target.matches('input[name="tipo"]')) { atualizar(); }
+        });
+    });
 
     function fecharMenus(excetoDentroDe) {
         var abertos = document.querySelectorAll('details.menu[open]');
@@ -328,10 +374,10 @@
         var hs = pg.querySelectorAll('.meta-form input[type="hidden"][name="meta[' + id + ']"]');
         for (var i = 0; i < hs.length; i++) { hs[i].parentNode.removeChild(hs[i]); }
     }
-    function metaOpcaoDeVolta(pg, id, nome, grupo, gasto) {
+    function metaOpcaoDeVolta(pg, id, nome, grupo, gasto, icone) {
         var sel = pg.querySelector('[data-meta-add]');
         if (!sel) { return; }
-        var rotulo = grupo === 'ess' ? 'essenciais' : 'não essenciais';
+        var rotulo = grupo === 'ess' ? 'Essenciais' : 'Não essenciais';
         var og = null, ogs = sel.querySelectorAll('optgroup');
         for (var i = 0; i < ogs.length; i++) { if (ogs[i].label === rotulo) { og = ogs[i]; break; } }
         if (!og) {
@@ -344,6 +390,7 @@
         opt.setAttribute('data-nome', nome);
         opt.setAttribute('data-grupo', grupo);
         opt.setAttribute('data-gasto', gasto);
+        if (icone) { opt.setAttribute('data-ic', icone); }
         og.appendChild(opt);
         sel.disabled = false;
         var btn = pg.querySelector('.meta-add-btn'); if (btn) { btn.disabled = false; }
@@ -359,7 +406,8 @@
         var nome = opt.getAttribute('data-nome') || opt.textContent || '';
         tiraHidden(pg, id);
         var html = tpl.innerHTML.replace(/__ID__/g, id).replace(/__GRUPO__/g, grupo)
-            .replace(/__GASTO__/g, gasto).replace(/__NOME__/g, escHtml(nome));
+            .replace(/__GASTO__/g, gasto).replace(/__NOME__/g, escHtml(nome))
+            .replace('__ICONE__', opt.getAttribute('data-ic') || '');
         var wrap = document.createElement('div');
         wrap.innerHTML = html.trim();
         var row = wrap.firstElementChild;
@@ -397,6 +445,8 @@
         var nome = (row.querySelector('.meta-cat-nome') || {}).textContent || '';
         var grupo = row.getAttribute('data-grupo') === 'ess' ? 'ess' : 'nao';
         var gasto = row.getAttribute('data-gasto') || '0';
+        var ic = row.querySelector('.ci');
+        var icone = ic ? ic.outerHTML : '';
         if (id) {
             tiraHidden(pg, id);
             var form = pg.querySelector('.meta-form');
@@ -407,7 +457,7 @@
             }
         }
         row.parentNode.removeChild(row);
-        if (id) { metaOpcaoDeVolta(pg, id, nome, grupo, gasto); }
+        if (id) { metaOpcaoDeVolta(pg, id, nome, grupo, gasto, icone); }
         metaRecalc(pg);
     });
 

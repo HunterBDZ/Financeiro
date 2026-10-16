@@ -60,12 +60,16 @@
 .dash-nota { margin-top: 6px; color: var(--text-2); font-size: 13px; }
 
 /* para onde foi */
-.barras-i { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 7px 12px; margin: 0 -10px; padding: 8px 10px; border-radius: 12px; transition: background-color .12s ease-out; }
+.barras-i {
+    display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 6px 12px;
+    margin: 0 -10px; padding: 8px 10px; border-radius: 12px; transition: background-color .12s ease-out;
+}
+.barras-ic { grid-row: 1 / span 2; }
 .barras-i:hover { background: var(--sel); }
 .barras-n { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 650; }
 .barras-v { font-weight: 750; text-align: right; }
 .barras-v small { margin-left: 6px; color: var(--text-3); font-size: 12.5px; font-weight: 650; }
-.barras-i .trilho { grid-column: 1 / -1; }
+.barras-i .trilho { grid-column: 2 / -1; }
 
 /* conferir com o banco */
 .dash-conf > summary { flex-wrap: wrap; row-gap: 0; }

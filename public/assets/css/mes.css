@@ -30,30 +30,6 @@ details.mes-ed > summary:hover::after, .mes-sub-titulo:hover::after,
 .menu-item > .mes-desfazer-txt { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; }
 .mes-desfazer-txt > small { color: var(--text-2); font-weight: 500; }
 
-/* fita com todos os meses: pílulas que correm de lado */
-.mes-fita {
-    position: relative;             /* contém os .sr-only (absolutos): sem isso eles alargam a página */
-    margin-inline: calc(-1 * max(16px, env(safe-area-inset-left, 0px)));
-    overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none;
-}
-.mes-fita::-webkit-scrollbar { display: none; }
-.mes-fita > ol { display: flex; gap: 6px; width: max-content; padding: 2px max(16px, env(safe-area-inset-left, 0px)) 4px; }
-.mes-fita-m {
-    display: flex; align-items: baseline; gap: 4px;
-    min-height: 38px; padding: 9px 13px; border-radius: 99px;
-    background: var(--card); border: 1px solid var(--line); box-shadow: var(--sombra);
-    color: var(--text); font-size: 14px; font-weight: 750; line-height: 1;
-    transition: background-color .15s ease-out;
-}
-.mes-fita-m > small { display: inline-flex; align-items: center; gap: 4px; color: var(--text-3); font-size: 12px; font-weight: 650; font-variant-numeric: tabular-nums; }
-.mes-fita-m:hover { background: var(--card-2); }
-.mes-fita-m.estado-real { color: var(--text-2); }
-.ponto-estado { display: inline-block; flex: none; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
-.mes-fita-m.estado-aberto .ponto-estado { background: var(--pos); }
-.mes-fita-m.estado-previsto .ponto-estado { background: transparent; box-shadow: inset 0 0 0 1.2px currentColor; }
-.mes-fita-m.is-on { background: var(--text); color: var(--bg); border-color: transparent; }
-.mes-fita-m.is-on > small { color: var(--bg); opacity: .7; }
-
 /* resumo (cartão escuro; o componente .saldo está em style.css) */
 .mes-resumo .saldo-v { margin: 10px 0 14px; font-size: 34px; }
 .mes-resumo .saldo-v span { font-size: 20px; }
@@ -124,7 +100,12 @@ details.mes-ed:target > summary { animation: mes-realce 1.6s ease-out 1; }   /* 
 .mes-salvar.btn { flex: none; min-height: 52px; padding: 0 20px; border-radius: 14px; font-size: 15px; }
 .mes-form-info { font-size: 13px; color: var(--text-2); line-height: 1.45; }
 .mes-prop { display: flex; flex-direction: row-reverse; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; font-weight: 600; cursor: pointer; }
-.mes-form-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 0 14px; margin: -4px 0 -6px -4px; }
+.mes-form-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.mes-form-acoes > .btn-link {          /* voltar à meta: caixa neutra ao lado da vermelha */
+    min-height: var(--tap); padding: 0 16px; border-radius: 14px;
+    background: var(--card); box-shadow: inset 0 0 0 1px var(--line-2);
+}
+.mes-form-acoes > .btn-link:hover { text-decoration: none; background: var(--card-3); }
 
 /* incluir conta no mês */
 .mes-incluir { margin-top: 12px; }
@@ -140,7 +121,7 @@ details.mes-ed:target > summary { animation: mes-realce 1.6s ease-out 1; }   /* 
 
 /* mês fechado: só leitura */
 .mes-ros { display: flex; flex-direction: column; }
-.mes-ro { display: flex; align-items: baseline; gap: 12px; min-height: 46px; padding: 10px 2px; }
+.mes-ro { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 8px 2px; }
 .mes-ro + .mes-ro { border-top: 1px solid var(--line); }
 .mes-ro > .mes-nome { flex: 1 1 auto; white-space: normal; line-height: 1.3; overflow-wrap: anywhere; font-weight: 600; }
 .mes-ro > .num { flex: none; font-weight: 750; }
@@ -207,7 +188,7 @@ details.mes-ed:target > summary { animation: mes-realce 1.6s ease-out 1; }   /* 
 .meta-lista { display: flex; flex-direction: column; }
 .meta-cat { padding: 12px 0; }
 .meta-cat + .meta-cat { border-top: 1px solid var(--line); }
-.meta-cat-top { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.meta-cat-top { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .meta-cat-nome {
     flex: 1 1 auto; min-width: 0; font-weight: 650; line-height: 1.25; overflow-wrap: anywhere;
     display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
@@ -379,8 +360,6 @@ details.mes-ed:target > summary { animation: mes-realce 1.6s ease-out 1; }   /* 
 @media (min-width: 1024px) {
     .mes, .fe, .fu, .aj { gap: 18px; }
     .aj-titulo, .fu-titulo, .fe-titulo { font-size: 26px; }
-    .mes-fita { margin-inline: 0; }
-    .mes-fita > ol { padding: 2px 0 4px; }
     .mes-grade { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 16px; align-items: start; }
     .mes-col { gap: 16px; }
     .fe-grade { grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 2fr); }

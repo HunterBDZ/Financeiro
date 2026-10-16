@@ -46,15 +46,6 @@
         if (sel) {
             sel.value = String(id);
         }
-        sincronizarAtalhos(form);
-    }
-
-    // atalhos (categorias mais usadas): o que corresponde ao select fica marcado
-    function sincronizarAtalhos(form) {
-        var atual = categoriaDe(form);
-        form.querySelectorAll('[data-lf-cat]').forEach(function (b) {
-            b.setAttribute('aria-pressed', b.getAttribute('data-lf-cat') === atual ? 'true' : 'false');
-        });
     }
 
     function mostrarErro(form, texto) {
@@ -71,16 +62,6 @@
         var b = form.querySelector('[data-lf-enviar]');
         if (b) {
             b.removeAttribute('aria-disabled');
-        }
-    }
-
-    function resetar(form) {
-        form.reset();
-        mostrarErro(form, '');
-        destravar(form);
-        var q = form.querySelector('[data-quando]');
-        if (q) {
-            q.classList.remove('is-outro');
         }
     }
 
@@ -179,11 +160,6 @@
             fechar();
             return;
         }
-        var atalho = t.closest('[data-lf-cat]');
-        if (atalho && atalho.form) {
-            marcarCategoria(atalho.form, atalho.getAttribute('data-lf-cat'));
-            mostrarErro(atalho.form, '');
-        }
     });
 
     // toque no fundo escurecido fecha (no celular a folha fica presa no topo)
@@ -233,7 +209,6 @@
         var el = ev.target;
         if (el instanceof Element && el.matches('form[data-lf] [name="categoria_id"]') && el.form) {
             mostrarErro(el.form, '');
-            sincronizarAtalhos(el.form);
         }
     });
 

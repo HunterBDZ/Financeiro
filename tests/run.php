@@ -305,8 +305,8 @@ $render = static function (string $cls, string $metodo, array $get) use ($check)
 };
 if ($prevMeses !== []) {
     $html = $render(MesController::class, 'index', ['mes' => end($prevMeses)]);
-    $check('último mês: linhas editáveis + fita, sem "meses seguintes"', str_contains($html, 'action="/mes/previsao"')
-        && str_contains($html, 'class="mes-linha mes-ed"') && str_contains($html, 'data-mes-fita') && !str_contains($html, 'name="propagar"'));
+    $check('último mês: linhas editáveis + seletor de meses, sem "meses seguintes"', str_contains($html, 'action="/mes/previsao"')
+        && str_contains($html, 'class="mes-linha mes-ed"') && str_contains($html, 'data-mes-picker') && !str_contains($html, 'name="propagar"'));
     $html = $render(MesController::class, 'index', ['mes' => $prevMeses[0]]);
     $check('Mês aberto: editável com "também nos meses seguintes"', str_contains($html, 'action="/mes/previsao"') && str_contains($html, 'name="propagar"'));
 }

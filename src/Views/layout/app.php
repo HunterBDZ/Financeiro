@@ -69,7 +69,7 @@ $marca = '<span class="marca"><img src="/assets/img/spitz.png" alt="" width="216
 <link rel="stylesheet" href="<?= e(asset($css)) ?>">
 <?php endforeach; ?>
 </head>
-<body>
+<body style="--ic-sprite:url('<?= e(asset('/assets/img/icones.png')) ?>')">
 <a class="pular" href="#conteudo">Pular para o conteúdo</a>
 
 <aside class="lateral" aria-label="menu">

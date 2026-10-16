@@ -10,7 +10,6 @@ $l      = is_array($lancamento ?? null) ? $lancamento : null;
 $a      = is_array($antigo ?? null) ? $antigo : [];
 $topo   = $topo ?? true;
 $volta  = voltaSegura((string) ($volta ?? '/'), '/');
-$chips  = $chips ?? [];
 $outras = $outras ?? [];
 $hoje   = (string) ($hoje ?? date('Y-m-d'));
 
@@ -64,17 +63,9 @@ $foco   = $modo === 'pagina' && $topo !== false;
                value="<?= e($valorTxt) ?>" data-lf-valor<?= $foco ? ' data-autofocus' : '' ?>>
     </div>
 
-    <p class="lf-rot" aria-hidden="true">Categoria</p>
-    <?php if ($chips !== [] && !$editar): ?>
-        <div class="lf-atalhos" role="group" aria-label="categorias mais usadas">
-            <?php foreach (array_slice($chips, 0, 6) as $c): ?>
-                <button type="button" class="chip lf-atalho" data-lf-cat="<?= (int) $c['id'] ?>" aria-pressed="<?= (int) $c['id'] === $catSel ? 'true' : 'false' ?>"><?= e((string) $c['curto']) ?></button>
-            <?php endforeach; ?>
-        </div>
-    <?php endif; ?>
-
-    <select name="categoria_id" class="lf-select" aria-label="categoria">
-        <option value=""><?= $chips !== [] && !$editar ? 'Outra categoria…' : 'Categoria' ?></option>
+    <label class="lf-rot" for="<?= e($pref) ?>-cat">Categoria</label>
+    <select name="categoria_id" class="lf-select" id="<?= e($pref) ?>-cat">
+        <option value="">Escolha a categoria</option>
         <?php foreach ($gruposSel as $grupo => $itens): if ($itens === []) { continue; } ?>
             <optgroup label="<?= e((string) $grupo) ?>">
                 <?php foreach ($itens as $c): ?>

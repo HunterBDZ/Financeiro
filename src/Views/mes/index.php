@@ -4,7 +4,7 @@
  * Base dos números, por estado do mês: fechado = só o lançado; aberto = lançado até hoje e,
  * nas contas, o previsto do que ainda falta (max); futuro = previsto.
  * Mês aberto ou futuro: tocar numa linha abre a edição da previsão do mês (POST /mes/previsao);
- * "+ incluir conta" põe no mês uma conta que ainda não tem previsão. Fita com todos os meses no topo.
+ * "+ incluir conta" põe no mês uma conta que ainda não tem previsão. O título abre o seletor de meses.
  * Nenhum cálculo de motor aqui: tudo vem do MesController.
  */
 use Financeiro\View;
@@ -149,6 +149,7 @@ $painel = static function (array $l, string $tipo) use ($csrf, $mes, $mesLbl, $e
 $abreLinha = static function (array $l) use ($erroDe): void { ?>
     <details class="mes-linha mes-ed" id="cat-<?= (int) $l['id'] ?>"<?= $erroDe($l) !== null ? ' open' : '' ?>>
         <summary>
+            <?= iconeCategoria((int) $l['id'], (string) ($l['nome_completo'] ?? $l['nome']), (string) ($l['grupo'] ?? ''), 40, 'mes-ic') ?>
 <?php };
 
 /* ---------------------------------------------------------------- linhas */
@@ -270,6 +271,7 @@ $incluirConta = static function () use ($incluir, $csrf, $mes, $mesLbl, $erroLin
 
 $linhaLeitura = static function (array $l, float $v): void { ?>
     <li class="mes-ro">
+        <?= iconeCategoria((int) $l['id'], (string) ($l['nome_completo'] ?? $l['nome']), (string) ($l['grupo'] ?? ''), 40, 'mes-ic') ?>
         <span class="mes-nome"><?= e(in_array($l['grupo'] ?? '', ['Fixos', 'Cartao', 'Ano'], true) ? $l['nome_completo'] : $l['nome']) ?></span>
         <span class="num"><?= e(num($v, fmod(abs($v), 1) > 0.004 ? 2 : 0)) ?></span>
     </li>
@@ -305,8 +307,6 @@ $linhaLeitura = static function (array $l, float $v): void { ?>
         <?php endif; ?>
     </header>
 
-    <?php View::partial('partials/mes_fita', ['mes' => $mes, 'meses' => $meses, 'hoje' => $hoje]); ?>
-
     <div class="mes-grade">
     <div class="mes-col mes-esq">
 
@@ -321,8 +321,8 @@ $linhaLeitura = static function (array $l, float $v): void { ?>
             <div class="saldo-l1"><h2 id="mes-res-t"><?= substr((string) $hoje, 0, 7) === substr($mes, 0, 7) ? 'Em conta hoje' : 'Conta no fim do mês' ?></h2><span class="saldo-estado num"><?= e($estadoTxt) ?></span></div>
             <p class="saldo-v num"><small>R$</small><?= e($virgula === false ? $txtConta : substr($txtConta, 0, $virgula)) ?><span><?= e($virgula === false ? '' : substr($txtConta, $virgula)) ?></span></p>
             <div class="saldo-duas num">
-                <div><small>Entradas</small><b><?= e(num($totalEntrou)) ?></b></div>
-                <div><small>Saídas</small><b><?= e(num($totalSaidas)) ?></b></div>
+                <div><small>Entradas</small><b class="saldo-pos"><?= e(num($totalEntrou)) ?></b></div>
+                <div><small>Saídas</small><b class="saldo-neg"><?= e(num($totalSaidas)) ?></b></div>
             </div>
         </section>
 
@@ -346,7 +346,7 @@ $linhaLeitura = static function (array $l, float $v): void { ?>
         <section class="card mes-sec" id="saidas">
             <div class="card-head">
                 <h2 class="titulo">Saídas</h2>
-                <span class="card-acao num"><?= e(num($totalSaidas)) ?></span>
+                <span class="card-acao num neg"><?= e(num($totalSaidas)) ?></span>
             </div>
 
             <?php if ($editavel): ?>

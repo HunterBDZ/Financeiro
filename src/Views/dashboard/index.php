@@ -102,7 +102,7 @@ $quandoFoi   = static function (string $data) use ($hoje): string {
             </div>
             <ul class="resumo">
                 <li><span class="ri pos"><?= svgIcon('arrow-up', 16) ?></span><span class="resumo-n">Entrou</span><b class="num pos"><?= e(num($p['entradas'])) ?></b></li>
-                <li><span class="ri neg"><?= svgIcon('arrow-down', 16) ?></span><span class="resumo-n">Saiu</span><b class="num"><?= e(num($p['saidas'])) ?></b></li>
+                <li><span class="ri neg"><?= svgIcon('arrow-down', 16) ?></span><span class="resumo-n">Saiu</span><b class="num neg"><?= e(num($p['saidas'])) ?></b></li>
                 <li class="resumo-total"><span class="resumo-n"><?= $balanco < -0.004 ? 'Déficit do mês' : 'Sobra do mês' ?></span><b class="num <?= $balanco < -0.004 ? 'neg' : 'pos' ?>"><?= e(($balanco < -0.004 ? MENOS : '') . num(abs($balanco))) ?></b></li>
             </ul>
             <details class="resumo-det">
@@ -137,6 +137,7 @@ $quandoFoi   = static function (string $data) use ($hoje): string {
                     <?php foreach ($p['top'] as $t): ?>
                         <li>
                             <a class="barras-i" href="/lancamentos?mes=<?= e($mesRef) ?>&amp;cat=<?= (int) $t['id'] ?>">
+                                <?= iconeCategoria((int) $t['id'], (string) $t['nome'], '', 40, 'barras-ic') ?>
                                 <span class="barras-n"><?= e($t['nome']) ?></span>
                                 <span class="barras-v num"><?= e(num($t['valor'], 0)) ?><small><?= $share($t['valor'], $p['saidas']) ?>%</small></span>
                                 <span class="trilho" aria-hidden="true"><i style="--w:<?= $topMax > 0 ? round($t['valor'] / $topMax * 100, 1) : 0 ?>%"></i></span>
@@ -199,13 +200,13 @@ $quandoFoi   = static function (string $data) use ($hoje): string {
                         $ent = !$mov && (int) $r['sinal'] > 0;
                         $v   = (float) $r['valor'];
                         $txt = $mov ? '⇄ ' . num($v) : ($ent ? '+' . num($v) : MENOS . num($v));
-                        $cls = $mov ? 'dim' : ($ent ? 'pos' : '');
+                        $cls = $mov ? 'dim' : ($ent ? 'pos' : 'neg');
                         $cat = ['nome' => $r['categoria_nome'], 'apelido' => $r['apelido']];
                         $desc = trim((string) $r['descricao']);
                         ?>
                         <li>
                             <a class="lista-i" href="/lancamentos/<?= (int) $r['id'] ?>/editar?volta=%2F">
-                                <span class="ini" aria-hidden="true"><?= e(mb_strtoupper(mb_substr($desc !== '' ? $desc : nomeCurto($cat), 0, 1))) ?></span>
+                                <?= iconeCategoria((int) $r['categoria_id'], (string) $r['categoria_nome'], (string) ($r['grupo'] ?? ''), 40) ?>
                                 <span class="lista-n"><b><?= e($desc !== '' ? $desc : nomeCurto($cat)) ?></b><small><?= e(nomeCurto($cat)) ?></small></span>
                                 <span class="lista-v"><b class="num <?= $cls ?>"><?= e($txt) ?></b><small><?= e($quandoFoi((string) $r['data'])) ?></small></span>
                             </a>

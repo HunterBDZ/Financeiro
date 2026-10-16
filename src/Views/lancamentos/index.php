@@ -51,10 +51,10 @@ $classeDe = static function (array $c): string {
     return (int) $c['essencial'] === 1 ? 'essenciais' : 'naoess';
 };
 $classes = [
-    'entradas'   => ['rotulo' => 'entradas',       'todas' => 'todas as entradas',       'cats' => []],
-    'essenciais' => ['rotulo' => 'essenciais',     'todas' => 'todas as essenciais',     'cats' => []],
-    'naoess'     => ['rotulo' => 'não essenciais', 'todas' => 'todas as não essenciais', 'cats' => []],
-    'mov'        => ['rotulo' => '⇄ movimentações', 'todas' => 'todas as movimentações', 'cats' => []],
+    'entradas'   => ['rotulo' => 'Entradas',        'todas' => 'Todas as entradas',       'cats' => []],
+    'essenciais' => ['rotulo' => 'Essenciais',      'todas' => 'Todas as essenciais',     'cats' => []],
+    'naoess'     => ['rotulo' => 'Não essenciais',  'todas' => 'Todas as não essenciais', 'cats' => []],
+    'mov'        => ['rotulo' => '⇄ Movimentações', 'todas' => 'Todas as movimentações',  'cats' => []],
 ];
 foreach ($categorias as $c) {
     $classes[$classeDe($c)]['cats'][] = $c;
@@ -145,6 +145,7 @@ $catAtual = $categoria !== null ? (int) $categoria['id'] : 0;
                         <label class="chip-r"><input type="radio" name="essencial" value="0"><span>Não essencial</span></label>
                     </div>
                 </fieldset>
+                <?php View::partial('partials/icone_picker', ['sugerir' => true, 'legenda' => 'Ícone']); ?>
                 <button type="submit" class="btn btn-primary ex-nova-btn">Criar categoria</button>
             </form>
 
@@ -154,6 +155,7 @@ $catAtual = $categoria !== null ? (int) $categoria['id'] : 0;
                     <ul class="ex-cats-lista">
                         <?php foreach ($cl['cats'] as $c): ?>
                             <li class="ex-cat-item">
+                                <a class="ex-cat-ic" href="/categorias/<?= (int) $c['id'] ?>/icone?volta=<?= e(rawurlencode($urlAtual . '#nova-categoria')) ?>" title="Trocar o ícone" aria-label="trocar o ícone de <?= e(nomeCurto($c)) ?>"><?= iconeCategoria((int) $c['id'], (string) $c['nome'], (string) ($c['grupo'] ?? ''), 40) ?></a>
                                 <span class="ex-cat-nome"><?= e(nomeCurto($c)) ?></span>
                                 <form method="post" action="/categorias/<?= (int) $c['id'] ?>/remover" class="ex-cat-rm"
                                       data-confirm="Remover a categoria <?= e(nomeCurto($c)) ?>? Se ela tiver lançamentos, só sai das listas.">
@@ -202,12 +204,12 @@ $catAtual = $categoria !== null ? (int) $categoria['id'] : 0;
                             $ent = !$mov && (int) $r['sinal'] > 0;
                             $v   = (float) $r['valor'];
                             $txt = $mov ? '⇄ ' . num($v) : ($ent ? '+' . num($v) : MENOS . num($v));
-                            $cls = $mov ? 'ex-v-mov' : ($ent ? 'ex-v-ent' : 'ex-v-gasto');
+                            $cls = $mov ? 'ex-v-mov' : ($ent ? 'ex-v-ent' : 'ex-v-gasto neg');
                             $cat = ['nome' => $r['categoria_nome'], 'apelido' => $r['apelido']];
                             ?>
                             <?php $desc = trim((string) $r['descricao']); $rot = $desc !== '' ? $desc : nomeCurto($cat); ?>
                             <li><a class="lista-i ex-linha" href="/lancamentos/<?= (int) $r['id'] ?>/editar?volta=<?= e($voltaEnc) ?>"<?= $i === $limite - 60 && $i > 0 ? ' id="ex-r' . $i . '"' : '' ?>>
-                                <span class="ini" aria-hidden="true"><?= e(mb_strtoupper(mb_substr($rot, 0, 1))) ?></span>
+                                <?= iconeCategoria((int) $r['categoria_id'], (string) $r['categoria_nome'], (string) $r['grupo'], 40) ?>
                                 <span class="lista-n"><b><?= e($rot) ?></b><small><?= e(nomeCurto($cat)) ?><?php if (!$agrupado): ?>, <?= e($semana[(int) date('w', strtotime($r['data']))] . ' ' . diaMes($r['data'])) ?><?php endif; ?></small></span>
                                 <span class="lista-v"><b class="num <?= $cls ?>"><?= e($txt) ?></b><?php if ($r['data'] > $hoje): ?><small class="ex-agendado">agendado</small><?php endif; ?></span>
                             </a></li>

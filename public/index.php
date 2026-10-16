@@ -40,6 +40,8 @@ $router->post('/lancamentos/{id}/excluir', [LancamentosController::class, 'destr
 $router->post('/lancamentos/{id}', [LancamentosController::class, 'update']);
 $router->post('/categorias', [CategoriaController::class, 'criar']);
 $router->post('/categorias/{id}/remover', [CategoriaController::class, 'remover']);
+$router->get('/categorias/{id}/icone', [CategoriaController::class, 'iconeForm']);
+$router->post('/categorias/{id}/icone', [CategoriaController::class, 'salvarIcone']);
 
 // ---- meta (metas de gasto por categoria)
 $router->get('/meta', [MetaController::class, 'index']);

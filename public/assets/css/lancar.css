@@ -32,10 +32,8 @@
 .lf-valor-in.input-grande:hover, .lf-valor-in.input-grande:focus-visible { box-shadow: none; background: transparent; }
 .lf-valor:focus-within { box-shadow: inset 0 -2px 0 var(--acc); }
 
-/* categorias: as mais usadas em pílulas; as outras no select */
+/* categoria: um select só */
 .lf-rot { color: var(--text-2); font-size: 13px; font-weight: 650; margin: 4px 0 -4px; }
-.lf-atalhos { display: flex; flex-wrap: wrap; gap: 8px; }
-.lf-atalho { min-height: 40px; padding: 0 14px; }
 
 .lf-dia { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 12px; padding-left: 14px; border-radius: 12px; background: var(--campo, var(--card-2)); box-shadow: inset 0 0 0 1px var(--line); }
 .lf-dia-lbl { color: var(--text-2); font-size: 14px; font-weight: 650; }
@@ -96,9 +94,20 @@
 .ex-cats { margin-top: 18px; }
 .ex-cats-grupo { margin: 14px 0 2px; color: var(--text-2); font-size: 13px; font-weight: 700; }
 .ex-cats-lista { display: flex; flex-direction: column; }
-.ex-cat-item { display: flex; align-items: center; gap: 12px; min-height: 44px; }
+.ex-cat-item { display: flex; align-items: center; gap: 12px; min-height: 56px; }
 .ex-cat-item + .ex-cat-item { border-top: 1px solid var(--line); }
 .ex-cat-nome { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; font-weight: 600; }
+.ex-cat-ic {                         /* o ícone leva à troca de ícone; o lápis no canto avisa */
+    position: relative; display: grid; place-items: center; flex: none;
+    width: 48px; height: 48px; margin-left: -4px; border-radius: 14px;
+    transition: background-color .12s ease-out;
+}
+.ex-cat-ic:hover { background: var(--card-2); }
+.ex-cat-ic::after {
+    content: ""; position: absolute; right: 1px; bottom: 1px; width: 18px; height: 18px; border-radius: 50%;
+    background: var(--text) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 20h4L19 9l-4-4L4 16v4Z'/%3E%3C/svg%3E") center / 11px no-repeat;
+    box-shadow: 0 0 0 2px var(--card);
+}
 .ex-cat-rm { margin: 0; flex: none; }
 .ex-cat-x {
     display: grid; place-items: center; width: 40px; height: 40px; padding: 0; border-radius: 50%;
@@ -192,3 +201,33 @@
     .ex-lista .lista-n { display: contents; }
     .ex-lista .lista-n small { font-size: 14px; }
 }
+
+/* ---------------------------------------------------------------- ícones: escolher e trocar */
+.ic-picker { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.ic-picker > legend { margin-bottom: 4px; color: var(--text-2); font-size: 13px; font-weight: 650; }
+.ic-dica { color: var(--text-2); font-size: 13px; }
+.ic-grupo { margin-top: 8px; color: var(--text-2); font-size: 12.5px; font-weight: 750; }
+.ic-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); gap: 6px; }
+.ic-opcao {
+    position: relative; display: grid; place-items: center; height: 54px; border-radius: 14px;
+    background: var(--card-2); cursor: pointer; transition: background-color .12s ease-out, box-shadow .12s ease-out;
+}
+.ic-opcao:hover { background: var(--card-3); }
+.ic-opcao > input { position: absolute; top: 0; left: 0; width: 1px; height: 1px; margin: 0; opacity: 0; pointer-events: none; }
+.ic-opcao > input:checked + .ci { outline: 2px solid var(--text); outline-offset: 5px; border-radius: 6px; }   /* sem :has */
+.ic-opcao:has(input:checked) { background: var(--card); box-shadow: inset 0 0 0 2px var(--text); }
+.ic-opcao:has(input:checked) > .ci { outline: 0; }
+.ic-opcao:has(input:focus-visible) { outline: 2px solid var(--foco); outline-offset: 2px; }
+.ex-nova-form .ic-picker { margin-top: 2px; }
+
+.ic-pagina { width: 100%; max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+.ic-pagina .lf-topo { justify-content: flex-start; }
+.ic-atual {
+    display: flex; align-items: center; gap: 16px; padding: 16px; border-radius: var(--r);
+    background: var(--card); border: 1px solid var(--line); box-shadow: var(--sombra);
+}
+.ic-atual p { color: var(--text-2); }
+.ic-atual b { color: var(--text); }
+.ic-form { display: flex; flex-direction: column; gap: 16px; padding: 16px; border-radius: var(--r); background: var(--card); border: 1px solid var(--line); box-shadow: var(--sombra); --campo: var(--card-2); }
+.ic-salvar { position: sticky; bottom: calc(86px + env(safe-area-inset-bottom, 0px)); }
+@media (min-width: 1024px) { .ic-salvar { bottom: 20px; } }

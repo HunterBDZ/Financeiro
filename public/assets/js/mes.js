@@ -1,6 +1,6 @@
 // mes.js: comportamento da aba Mês. Sem nada inline (CSP script-src 'self'); sem JS tudo funciona.
-// - abrir uma linha (details.mes-ed) fecha as outras e põe o cursor no valor, já selecionado;
-// - a fita de meses ([data-mes-fita]) rola até o mês aberto, sem mexer na rolagem da página.
+// - abrir uma linha (details.mes-ed) fecha as outras e põe o cursor no valor, já selecionado.
+// (O seletor de meses do título é um details.menu: app.js fecha ao clicar fora e com Esc.)
 (function () {
     'use strict';
 
@@ -23,20 +23,4 @@
             }
         }
     }, true);
-
-    function centralizarFita() {
-        var fita = document.querySelector('[data-mes-fita]');
-        var atual = fita ? fita.querySelector('.is-on') : null;
-        if (!fita || !atual) {
-            return;
-        }
-        // scrollLeft direto: scrollIntoView também rolaria a página (e perderia o #cat-… do redirect)
-        fita.scrollLeft = Math.max(0, atual.offsetLeft - (fita.clientWidth - atual.offsetWidth) / 2);
-    }
-
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', centralizarFita);
-    } else {
-        centralizarFita();
-    }
 })();

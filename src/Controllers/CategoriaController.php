@@ -2,11 +2,14 @@
 namespace Financeiro\Controllers;
 
 use Financeiro\Auth;
+use Financeiro\Icones;
 use Financeiro\Models\CategoriaModel;
+use Financeiro\View;
 
 /**
- * Criar categoria (a partir do extrato). Escolhe-se entrada/saída e, para saída,
- * essencial/não essencial. Entrada cai em Entradas (+1); saída em Dia a dia (-1).
+ * Criar categoria (a partir do extrato). Escolhe-se entrada/saída, para saída
+ * essencial/não essencial, e o ícone (Icones). Entrada cai em Entradas (+1); saída em Dia a dia (-1).
+ * Trocar o ícone de uma categoria: GET/POST /categorias/{id}/icone.
  */
 final class CategoriaController
 {
@@ -21,6 +24,7 @@ final class CategoriaController
         $nome = trim((string) preg_replace('/[\x00-\x1F\x7F]+/', ' ', $nome));
         $tipo = ($_POST['tipo'] ?? '') === 'entrada' ? 'entrada' : 'saida';
         $essencial = ($_POST['essencial'] ?? '') === '1';
+        $icone = is_string($_POST['icone'] ?? null) && Icones::existe($_POST['icone']) ? $_POST['icone'] : null;
 
         if ($nome === '') {
             flash('error', 'nome da categoria?');
@@ -31,7 +35,7 @@ final class CategoriaController
             redirecionar($volta . '#nova-categoria', 303);
         }
 
-        $id = CategoriaModel::criar($nome, $tipo, $essencial);
+        $id = CategoriaModel::criar($nome, $tipo, $essencial, $icone);
         if ($id === null) {
             flash('error', 'já existe uma categoria "' . $nome . '"');
             redirecionar($volta . '#nova-categoria', 303);
@@ -39,6 +43,45 @@ final class CategoriaController
 
         $rotulo = $tipo === 'entrada' ? 'entrada' : ($essencial ? 'gasto essencial' : 'gasto não essencial');
         flash('success', $nome . ' criada · ' . $rotulo);
+        redirecionar($volta, 303);
+    }
+
+    /** GET /categorias/{id}/icone — escolher outro ícone para a categoria. */
+    public function iconeForm(string $id): void
+    {
+        Auth::requireLogin();
+        $cat = CategoriaModel::find((int) $id);
+        if ($cat === null) {
+            renderErro(404, 'categoria não encontrada', 'essa categoria não existe mais');
+        }
+        $volta = voltaSegura(is_string($_GET['volta'] ?? null) ? $_GET['volta'] : null, '/lancamentos#nova-categoria');
+        View::render('categorias/icone', [
+            'pageTitle' => 'Ícone de ' . nomeCurto($cat) . ' · financeiro',
+            'cat'       => $cat,
+            'atual'     => Icones::daCategoria((int) $cat['id'], (string) $cat['nome'], (string) $cat['grupo']),
+            'volta'     => $volta,
+        ], 'extrato');
+    }
+
+    /** POST /categorias/{id}/icone */
+    public function salvarIcone(string $id): void
+    {
+        Auth::requireLogin();
+        csrfCheck();
+
+        $volta = voltaSegura(is_string($_POST['volta'] ?? null) ? $_POST['volta'] : null, '/lancamentos#nova-categoria');
+        $cat   = CategoriaModel::find((int) $id);
+        $icone = is_string($_POST['icone'] ?? null) ? $_POST['icone'] : '';
+        if ($cat === null) {
+            flash('error', 'categoria não encontrada');
+            redirecionar($volta, 303);
+        }
+        if (!Icones::existe($icone)) {
+            flash('error', 'escolha um ícone');
+            redirecionar('/categorias/' . (int) $id . '/icone?volta=' . rawurlencode($volta), 303);
+        }
+        CategoriaModel::setIcone((int) $id, $icone);
+        flash('success', 'Ícone de ' . nomeCurto($cat) . ' trocado · ' . Icones::rotulo($icone));
         redirecionar($volta, 303);
     }
 

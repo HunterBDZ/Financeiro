@@ -40,6 +40,7 @@ $linha = static function (array $c) use ($pct): void {
     } ?>
     <div class="meta-cat <?= $cls ?>" id="c<?= $id ?>" data-grupo="<?= $grupo ?>" data-gasto="<?= e(number_format($gasto, 2, '.', '')) ?>">
         <div class="meta-cat-top">
+            <?= iconeCategoria($id, (string) $c['nome'], (string) ($c['grupo'] ?? ''), 40, 'meta-ic') ?>
             <label class="meta-cat-nome" for="meta-<?= $id ?>"><?= e(nomeCurto($c)) ?></label>
             <span class="aj-input meta-cat-input">
                 <input id="meta-<?= $id ?>" type="text" name="meta[<?= $id ?>]" inputmode="decimal"
@@ -74,7 +75,8 @@ $optAdd = static function (array $cats): void {
         <option value="<?= (int) $c['id'] ?>"
                 data-nome="<?= e(nomeCurto($c)) ?>"
                 data-grupo="<?= (int) $c['essencial'] === 1 ? 'ess' : 'nao' ?>"
-                data-gasto="<?= e(number_format((float) $c['gasto'], 2, '.', '')) ?>"><?= e(nomeCurto($c)) ?></option>
+                data-gasto="<?= e(number_format((float) $c['gasto'], 2, '.', '')) ?>"
+                data-ic="<?= e(iconeCategoria((int) $c['id'], (string) $c['nome'], (string) ($c['grupo'] ?? ''), 40, 'meta-ic')) ?>"><?= e(nomeCurto($c)) ?></option>
     <?php }
 };
 $temAdd = $addEss !== [] || $addNao !== [];
@@ -148,6 +150,7 @@ $temAdd = $addEss !== [] || $addNao !== [];
     <template id="meta-cat-tpl">
         <div class="meta-cat is-none" data-grupo="__GRUPO__" data-gasto="__GASTO__">
             <div class="meta-cat-top">
+                __ICONE__
                 <label class="meta-cat-nome" for="meta-__ID__">__NOME__</label>
                 <span class="aj-input meta-cat-input">
                     <input id="meta-__ID__" type="text" name="meta[__ID__]" inputmode="decimal" autocomplete="off" placeholder="sem meta" value="">

@@ -10,7 +10,7 @@ final class CategoriaModel
     {
         $pdo = Database::connection();
         $stmt = $pdo->query(
-            'SELECT id, nome, apelido, grupo, sinal, operacional, essencial
+            'SELECT id, nome, apelido, icone, grupo, sinal, operacional, essencial
              FROM categorias
              WHERE ativo = 1
              ORDER BY FIELD(grupo, "Entradas","Fixos","Dia a dia","Cartao","Ano","Emprestimo","Poupanca"), ordem, nome'
@@ -66,6 +66,24 @@ final class CategoriaModel
         $stmt->execute(['e' => $essencial ? 1 : 0, 'id' => $id]);
     }
 
+    /** @return array<int, ?string> [id => categorias.icone] de todas as categorias (ativas ou não) */
+    public static function icones(): array
+    {
+        $out = [];
+        foreach (Database::connection()->query('SELECT id, icone FROM categorias')->fetchAll() as $r) {
+            $out[(int) $r['id']] = $r['icone'] !== null ? (string) $r['icone'] : null;
+        }
+        return $out;
+    }
+
+    /** Troca o ícone (chave de src/icones_lista.php, já validada pelo controller). */
+    public static function setIcone(int $id, string $icone): bool
+    {
+        $stmt = Database::connection()->prepare('UPDATE categorias SET icone = :i WHERE id = :id');
+        $stmt->execute(['i' => $icone, 'id' => $id]);
+        return $stmt->rowCount() > 0 || self::find($id) !== null;
+    }
+
     public static function find(int $id): ?array
     {
         $pdo = Database::connection();
@@ -81,9 +99,10 @@ final class CategoriaModel
      *   'entrada' → grupo Entradas, sinal +1, nunca essencial
      *   'saida'   → grupo Dia a dia, sinal -1, essencial conforme $essencial
      * Retorna o id novo, ou null se o nome já existir (UNIQUE) ou for inválido.
-     * $nome: 1–100 caracteres já aparados pelo controller.
+     * $nome: 1–100 caracteres já aparados pelo controller. $icone: chave já validada (ou null:
+     * vale a sugestão pelo nome, ver Icones::daCategoria).
      */
-    public static function criar(string $nome, string $tipo, bool $essencial): ?int
+    public static function criar(string $nome, string $tipo, bool $essencial, ?string $icone = null): ?int
     {
         $nome = trim($nome);
         if ($nome === '' || mb_strlen($nome) > 100 || !in_array($tipo, ['entrada', 'saida'], true)) {
@@ -101,10 +120,10 @@ final class CategoriaModel
         $ordem = (int) $pdo->query("SELECT COALESCE(MAX(ordem), 0) + 1 FROM categorias WHERE grupo = " . $pdo->quote($grupo))->fetchColumn();
         try {
             $stmt = $pdo->prepare(
-                'INSERT INTO categorias (nome, grupo, sinal, ativo, ordem, essencial)
-                 VALUES (:nome, :grupo, :sinal, 1, :ordem, :ess)'
+                'INSERT INTO categorias (nome, icone, grupo, sinal, ativo, ordem, essencial)
+                 VALUES (:nome, :icone, :grupo, :sinal, 1, :ordem, :ess)'
             );
-            $stmt->execute(['nome' => $nome, 'grupo' => $grupo, 'sinal' => $sinal, 'ordem' => $ordem, 'ess' => $ess]);
+            $stmt->execute(['nome' => $nome, 'icone' => $icone, 'grupo' => $grupo, 'sinal' => $sinal, 'ordem' => $ordem, 'ess' => $ess]);
         } catch (\PDOException) {
             return null;                                    // corrida no UNIQUE, p.ex.
         }
