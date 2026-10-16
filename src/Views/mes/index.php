@@ -318,7 +318,7 @@ $linhaLeitura = static function (array $l, float $v): void { ?>
             : ($emConta < $reserva - 0.004 ? num($reserva - $emConta, 0) . ' abaixo da reserva' : num($emConta - $reserva, 0) . ' acima da reserva');
         ?>
         <section class="saldo mes-resumo <?= $emConta < -0.004 ? 'is-vermelho' : $nivel ?>" aria-labelledby="mes-res-t">
-            <div class="saldo-l1"><h2 id="mes-res-t"><?= $projetado ? 'Conta no fim do mês' : 'Em conta hoje' ?></h2><span class="saldo-estado num"><?= e($estadoTxt) ?></span></div>
+            <div class="saldo-l1"><h2 id="mes-res-t"><?= substr((string) $hoje, 0, 7) === substr($mes, 0, 7) ? 'Em conta hoje' : 'Conta no fim do mês' ?></h2><span class="saldo-estado num"><?= e($estadoTxt) ?></span></div>
             <p class="saldo-v num"><small>R$</small><?= e($virgula === false ? $txtConta : substr($txtConta, 0, $virgula)) ?><span><?= e($virgula === false ? '' : substr($txtConta, $virgula)) ?></span></p>
             <div class="saldo-duas num">
                 <div><small>Entradas</small><b><?= e(num($totalEntrou)) ?></b></div>
