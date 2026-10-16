@@ -4,6 +4,33 @@ Repositório canônico: `~/financeiro` no servidor 192.168.0.154 (git, branch `m
 Produção: `/var/www/financeiro`, publicada a partir deste repositório. O código que estava
 na máquina .164 (publicado em 10/10/2026) é o primeiro commit daqui; trabalhe sempre neste.
 
+## 2026-10-16 — ícones de categoria, seletor de meses e ajustes pedidos
+
+- **Ícones de categoria (pixel art):** cada categoria tem um ícone (Farmácia = pílula, Mercado =
+  prato de comida, Soldo = saco de dinheiro…), mostrado no Início (últimos lançamentos, para onde
+  foi), no Extrato, no Mês, nas Metas e na lista de categorias. São 77 emojis do Twemoji (CC-BY 4.0)
+  reduzidos a 20×20 num sprite só (`public/assets/img/icones.png`, ~35 KB), gerado por
+  `tools/icones/gerar.py` a partir de `tools/icones/icones.json` (créditos em `tools/icones/CREDITOS.md`).
+- **Escolher o ícone:** ao criar uma categoria (Extrato → Categorias) há um catálogo por grupo
+  (comida, casa e contas, transporte, saúde, dinheiro, lazer). Enquanto ninguém escolhe, o ícone
+  acompanha o nome digitado. Nas categorias existentes, tocar no ícone abre
+  `/categorias/{id}/icone` para trocar.
+- **Banco:** coluna nova `categorias.icone` (VARCHAR(24), NULL), migração
+  `database/migrations/2026_10_18_icone_categoria.sql`. NULL = o app sugere pelo nome e grupo
+  (`Icones::sugerir`, regras em `Icones::REGRAS`), por isso as categorias que já existiam não
+  precisaram de dado novo e uma categoria criada só em produção também ganha ícone.
+- **Seletor de meses:** a fileira de meses do Mês virou um painel que abre no título do mês (no Mês
+  e no Extrato): meses por ano, ponto de estado, mês corrente destacado; funciona sem JS
+  (`details.menu`) e fecha com Esc ou clicando fora. No celular as setas descem para a linha do estado.
+- **Ações destrutivas** ("Tirar deste mês", "Excluir lançamento") viraram caixas vermelhas do
+  tamanho de um botão; "Voltar à meta" virou uma caixa neutra ao lado.
+- **Saídas em vermelho:** valores de saída nos lançamentos (Início, Extrato), "Saiu" no resumo do
+  Início e o total de Saídas no Mês. Os valores por categoria do Mês ficam neutros (o vermelho ali
+  continua querendo dizer "passou da meta").
+- **Lançar sem atalhos:** saíram as 6 pílulas de categorias mais usadas; fica só o select (que
+  continua com as mais usadas no topo de cada grupo). O serviço `LancarForm` perdeu a consulta que
+  só servia aos atalhos.
+
 ## 2026-10-16 — visual novo ("fintech"), claro e escuro, com o spitz da casa
 
 - **Por quê:** o casal pediu um visual moderno de app de banco/cripto, limpo e intuitivo

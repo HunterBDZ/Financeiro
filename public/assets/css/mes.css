@@ -39,6 +39,7 @@ details.mes-ed > summary:hover::after, .mes-sub-titulo:hover::after,
 .mes-sec > .card-head { margin-bottom: 4px; }
 .mes-sec > .card-head > .card-acao { color: var(--text); font-size: 15px; font-weight: 750; }
 .mes-sec > .card-head > .card-acao.pos { color: var(--pos); }
+.mes-sec > .card-head > .card-acao.neg { color: var(--neg); }
 
 /* grupo (essenciais / não essenciais) */
 .mes-grupo + .mes-grupo { margin-top: 10px; }
