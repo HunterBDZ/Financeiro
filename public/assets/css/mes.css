@@ -299,8 +299,8 @@ details.mes-ed:target > summary { animation: mes-realce 1.6s ease-out 1; }   /* 
 .fu-linha.is-prev { stroke-dasharray: 7 5; stroke-linecap: butt; }   /* previsão tracejada; o que já fechou, sólido */
 .fu-div-l { fill: none; stroke: var(--text-3); stroke-width: 1.6; stroke-linejoin: round; vector-effect: non-scaling-stroke; opacity: .75; }
 .fu-div-l.is-prev { stroke-dasharray: 4 4; }
-.fu-serie { position: absolute; transform: translate(-4px, calc(-100% - 8px)); color: var(--text); font-size: 12px; font-weight: 800; line-height: 1; white-space: nowrap; text-shadow: 0 0 3px var(--card), 0 0 3px var(--card); }
-.fu-serie-div { color: var(--text-3); }
+.fu-serie { position: absolute; transform: translate(9px, -50%); color: var(--text-3); font-size: 12px; font-weight: 800; line-height: 1; white-space: nowrap; text-shadow: 0 0 3px var(--card), 0 0 3px var(--card); }
+.fu-serie.is-inicio { transform: translate(-4px, 8px); }   /* sem descida no plano: embaixo do começo da linha */
 .fu-gl { position: absolute; left: 0; transform: translateY(calc(-100% - 3px)); color: var(--text-3); font-size: 11.5px; font-weight: 650; line-height: 1; }
 .fu-ref { position: absolute; right: 0; transform: translateY(calc(-100% - 3px)); color: var(--warn); font-size: 12px; font-weight: 750; line-height: 1.2; white-space: nowrap; }
 .fu-reserva-rot { transform: translateY(4px); }   /* embaixo da linha: em cima, os pontos parados na reserva cobririam o texto */

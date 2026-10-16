@@ -29,6 +29,7 @@ foreach ($linhas as $i => $l) {
 }
 $fim    = $marcos['fim'] ?? ['mes' => $ultimo, 'fica' => $vals[$n - 1], 'desde' => 0.0];
 $valor  = static fn(float $v): string => ($v < -0.004 ? MENOS : '') . num(abs($v), 0);
+$valor2 = static fn(float $v): string => ($v < -0.004 ? MENOS : '') . num(abs($v));
 $sinal  = static fn(float $v): string => ($v > 0.004 ? '+' : ($v < -0.004 ? MENOS : '')) . num(abs($v), 0);
 $faixa  = static function (string $ini, string $fimM): string {
     if ($ini === $fimM) {
@@ -181,6 +182,14 @@ $caminhoD = static function (int $de, int $ate) use ($ptsD, $f): string {
     }
     return $s;
 };
+// rótulo "Dívida" na descida (o 1º mês com até 2/3 da dívida de hoje), à direita do ponto; sem descida, no começo
+$iDivRot = null;
+for ($i = $iRef; $i <= $iZera; $i++) {
+    if ($divs[$i] <= $divs[$iRef] * 0.66) {
+        $iDivRot = $i;
+        break;
+    }
+}
 $divSolida    = $comDivida && $iReal >= 1 ? $caminhoD(0, min($iReal, $iZera)) : '';
 $divTracejada = $comDivida && $iReal < $iZera ? $caminhoD(max(0, $iReal), $iZera) : '';
 $yRes  = $y($reserva);
@@ -297,8 +306,7 @@ $alertaIc = static fn(string $a): string => $a !== '' ? svgIcon('alert', 13, 'fu
                 <?php endif; ?>
                 <span class="fu-hoje" style="left:<?= $pc($x($iRef), $VW) ?>">hoje</span>
                 <?php if ($comDivida): ?>
-                    <span class="fu-serie fu-serie-div" style="left:<?= $pc($x(0), $VW) ?>;top:<?= $pc($y($divs[0]), $VH) ?>">Dívida</span>
-                    <span class="fu-serie" style="left:<?= $pc($x(0), $VW) ?>;top:<?= $pc($y($vals[0]), $VH) ?>">Conta</span>
+                    <span class="fu-serie<?= $iDivRot === null ? ' is-inicio' : '' ?>" style="left:<?= $pc($x($iDivRot ?? 0), $VW) ?>;top:<?= $pc($y($divs[$iDivRot ?? 0]), $VH) ?>">Dívida</span>
                 <?php endif; ?>
                 <?php foreach ($linhas as $i => $l): ?>
                     <i class="fu-pt is-<?= $l['estado'] === 'real' ? 'real' : ($l['estado'] === 'aberto' ? 'aberto' : 'prev') ?><?= $l['alerta'] !== '' ? ' is-' . e($l['alerta']) : '' ?>" style="left:<?= $pc($x($i), $VW) ?>;top:<?= $pc($y($vals[$i]), $VH) ?>"></i>
@@ -361,7 +369,7 @@ $alertaIc = static fn(string $a): string => $a !== '' ? svgIcon('alert', 13, 'fu
                         </summary>
                         <div class="fu-det">
                             <div class="fu-conta num">
-                                <p><span>Começou o mês com</span> <?= e($valor((float) $l['antes'])) ?></p>
+                                <p><span>Começou o mês com</span> <?= e($valor2((float) $l['antes'])) ?></p>
                                 <p><span>+ Entradas</span> <?= e(num($l['entra_op'])) ?></p>
                                 <?php if ($l['consignado'] > 0.004): ?><p class="fu-conta-sub"><span>soldo de <?= e(num($l['entra_bruto'])) ?> menos <?= e(num($l['consignado'])) ?> do consignado</span></p><?php endif; ?>
                                 <?php if ($l['cred'] > 0.004): ?><p><span>+ Crédito do empréstimo</span> <?= e(num($l['cred'])) ?></p><?php endif; ?>
@@ -369,7 +377,7 @@ $alertaIc = static fn(string $a): string => $a !== '' ? svgIcon('alert', 13, 'fu
                                 <p><span><?= MENOS ?> Gastos</span> <?= e(num($l['gastos'])) ?></p>
                                 <?php if ($l['amort'] > 0.004): ?><p><span><?= MENOS ?> Adiantado do empréstimo</span> <?= e(num($l['amort'])) ?></p><?php endif; ?>
                                 <?php if ($l['poup'] < -0.004): ?><p><span><?= MENOS ?> Guardado na poupança</span> <?= e(num(abs($l['poup']))) ?></p><?php endif; ?>
-                                <p class="fu-conta-fim<?= $l['alerta'] !== '' ? ' ' . e($l['alerta']) : '' ?>"><span>= Conta no fim</span> <?= e($valor((float) $l['fica'])) ?></p>
+                                <p class="fu-conta-fim<?= $l['alerta'] !== '' ? ' ' . e($l['alerta']) : '' ?>"><span>= Conta no fim</span> <?= e($valor2((float) $l['fica'])) ?></p>
                                 <p class="fu-conta-div"><span>Dívida no fim</span> <?= $l['divida'] > 0.004 ? e(num($l['divida'])) : 'quitada' ?></p>
                             </div>
                             <div class="fu-det-lado">
