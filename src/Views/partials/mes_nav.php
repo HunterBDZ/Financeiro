@@ -4,7 +4,8 @@
  *   View::partial('partials/mes_nav', ['mes' => '2026-10-01', 'meses' => MesModel::todos(),
  *                                      'href' => '/mes?mes=', 'sufixo' => '#contas']);
  * Variáveis: $mes (AAAA-MM-01), $meses (linhas {mes, situacao} em ordem), $href (prefixo do link,
- * recebe o mês no fim), $sufixo (opcional, ex. '#contas'), $hoje (opcional, Y-m-d).
+ * recebe o mês no fim), $sufixo (opcional, ex. '#contas'), $hoje (opcional, Y-m-d),
+ * $anual (opcional: true põe "Visão anual" no fim do painel; no celular é o caminho para o Anual).
  * O mês por extenso é o botão de um seletor (details.menu, funciona sem JS): abre um painel com
  * todos os meses por ano, cada um com o ponto do estado. Setas redondas à direita.
  * O h1 da tela fica escondido para leitor de tela (o botão mostra o mesmo texto).
@@ -14,6 +15,7 @@ $meses  = $meses ?? [];
 $href   = (string) ($href ?? '?mes=');
 $sufixo = (string) ($sufixo ?? '');
 $hoje   = $hoje ?? null;
+$anual  = !empty($anual);
 
 $lista = [];
 $situacoes = [];
@@ -67,6 +69,9 @@ foreach ($lista as $k) {
                 <span class="leg-aberto"><i class="ponto-estado"></i>Aberto</span>
                 <span class="leg-previsto"><i class="ponto-estado"></i>Previsto</span>
             </p>
+            <?php if ($anual): ?>
+                <a class="mes-picker-anual" href="/futuro"><?= svgIcon('trend', 18) ?><span>Visão anual</span><?= svgIcon('chevron', 16) ?></a>
+            <?php endif; ?>
         </div>
     </details>
     <span class="estado estado-<?= e($estado) ?>"><?= e(estadoLabel($estado)) ?></span>

@@ -280,7 +280,7 @@ $linhaLeitura = static function (array $l, float $v): void { ?>
 <div class="mes">
 
     <header class="mes-topo">
-        <?php View::partial('partials/mes_nav', ['mes' => $mes, 'meses' => $meses, 'href' => '/mes?mes=', 'hoje' => $hoje]); ?>
+        <?php View::partial('partials/mes_nav', ['mes' => $mes, 'meses' => $meses, 'href' => '/mes?mes=', 'hoje' => $hoje, 'anual' => true]); ?>
         <?php if ($menu['fechar'] || $menu['reabrir'] || $menu['desfazer']): ?>
             <details class="menu mes-menu">
                 <summary aria-label="mais ações"><?= svgIcon('more', 20) ?></summary>

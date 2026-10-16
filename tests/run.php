@@ -356,10 +356,10 @@ foreach (Icones::POR_GRUPO as $k) {
 }
 $check('ícones: toda regra e todo grupo apontam para um ícone do catálogo', $todosExistem);
 $lic = Icones::lista();
-$dim = @getimagesize(__DIR__ . '/../public/assets/img/icones.png');
-$check('ícones: o sprite tem o tamanho do catálogo', is_array($dim)
-    && $dim[0] === $lic['colunas'] * $lic['tamanho'] && $dim[1] === $lic['linhas'] * $lic['tamanho']
-    && count($lic['icones']) <= $lic['colunas'] * $lic['linhas']);
+$dim = @getimagesize(__DIR__ . '/../public/assets/img/icones.webp');
+$check('ícones: o sprite tem o tamanho do catálogo (célula + respiro)', is_array($dim)
+    && $dim[0] === $lic['colunas'] * $lic['passo'] && $dim[1] === $lic['linhas'] * $lic['passo']
+    && $lic['passo'] > $lic['tamanho'] && count($lic['icones']) <= $lic['colunas'] * $lic['linhas']);
 $esperado = ['Farmácia e saúde' => 'pilula', 'Mercado' => 'prato', 'Combustível' => 'combustivel',
              'Imposto de renda' => 'leao', 'Gastos mesada Matheus' => 'nota', 'Seguro do carro' => 'carro',
              'Licenciamento do carro' => 'documento', 'Ração do Bob' => 'cachorro', 'Barbeiro' => 'barbearia'];
@@ -379,8 +379,8 @@ foreach ($pdo->query('SELECT id, nome, grupo FROM categorias')->fetchAll() as $c
     }
 }
 $check('ícones: toda categoria do banco tem ícone', $semIcone === [], implode(', ', $semIcone));
-$check('ícones: o HTML posiciona o sprite', str_contains(Icones::html('pilula', 40), 'background-position:')
-    && str_contains(Icones::html('chave-que-nao-existe', 20), 'width:20px'));
+$check('ícones: o HTML põe o emoji do sprite dentro do círculo', str_contains(Icones::html('pilula', 40), '<i style="background-size:')
+    && str_contains(Icones::html('pilula', 40), 'background-position:') && str_contains(Icones::html('chave-que-nao-existe', 20), 'width:20px'));
 $emTransacao('categoria com ícone', static function () use ($check): void {
     $id = CategoriaModel::criar('Teste ícone ' . bin2hex(random_bytes(3)), 'saida', false, 'gato');
     Icones::limpar();
@@ -411,6 +411,17 @@ if ($catDia > 0) {
     }
     $check('trocar ícone: a página abre com o atual marcado', str_contains($htmlIc, 'ic-picker') && str_contains($htmlIc, ' checked>'));
 }
+
+// ---- 12. barra do celular: o "+" no meio de 4 abas; o Anual abre pelo seletor de meses do Mês
+$htmlMes = $render(MesController::class, 'index', []);
+preg_match('#<nav class="tabbar".*?</nav>#s', $htmlMes, $m);
+$barra = $m[0] ?? '';
+preg_match_all('#<a class="(tab[^" ]*)#', $barra, $itens);
+$check('barra do celular: 2 abas, o +, 2 abas (sem o Anual)', $itens[1] === ['tab', 'tab', 'tab-add', 'tab', 'tab']
+    && !str_contains($barra, 'href="/futuro"') && str_contains($htmlMes, 'class="lat-i" href="/futuro"'), implode(',', $itens[1]));
+$check('seletor de meses do Mês leva ao Anual; o do Extrato não', str_contains($htmlMes, 'class="mes-picker-anual" href="/futuro"')
+    && !str_contains($htmlEx, 'mes-picker-anual'));
+$check('no Anual, a aba Mês da barra fica acesa', str_contains($render(FuturoController::class, 'index', []), 'class="tab is-active" href="/mes"'));
 
 echo "\n{$ok} ok, {$falhas} falha(s)\n";
 exit($falhas > 0 ? 1 : 0);

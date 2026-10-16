@@ -1,6 +1,6 @@
 {
-  "fonte": "Twemoji 15.1.0 (jdecked/twemoji), CC-BY 4.0 — https://github.com/jdecked/twemoji",
-  "tamanho": 20,
+  "fonte": "Apple Color Emoji (© Apple Inc.), imagens de 160 px do iamcal/emoji-data — https://github.com/iamcal/emoji-data",
+  "tamanho": 160,
   "colunas": 10,
   "grupos": [
     ["comida", "Comida e bebida", [

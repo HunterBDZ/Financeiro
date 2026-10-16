@@ -4,9 +4,9 @@ namespace Financeiro;
 use Financeiro\Models\CategoriaModel;
 
 /**
- * Ícones de categoria: pixel art (emojis Twemoji reduzidos a 20×20) num sprite só,
- * public/assets/img/icones.png; a lista com posição e grupo de cada um é gerada em
- * src/icones_lista.php por tools/icones/gerar.py.
+ * Ícones de categoria: emojis da Apple (160 px) num sprite só, public/assets/img/icones.webp;
+ * a lista com posição e grupo de cada um é gerada em src/icones_lista.php por
+ * tools/icones/gerar.py.
  *
  * Cada categoria guarda a chave em categorias.icone (escolhida no formulário). Sem chave, ou
  * com uma que saiu da lista, vale a sugestão pelo nome (REGRAS) e, por último, a do grupo.
@@ -188,16 +188,23 @@ final class Icones
         self::$porId = null;
     }
 
-    /** <span> com o ícone do sprite, no tamanho $px (múltiplo de 20 fica nítido). Decorativo. */
+    /**
+     * <span> do tamanho $px (o círculo) com o emoji do sprite dentro. Decorativo.
+     * Cada célula do sprite tem 'tamanho' px de desenho a cada 'passo' px (o resto é respiro).
+     */
     public static function html(string $chave, int $px = 40, string $classe = ''): string
     {
         $l = self::lista();
         [, $c, $r] = $l['icones'][$chave] ?? $l['icones']['sacola'];
-        $x = $l['colunas'] > 1 ? round($c / ($l['colunas'] - 1) * 100, 4) : 0;
-        $y = $l['linhas'] > 1 ? round($r / ($l['linhas'] - 1) * 100, 4) : 0;
+        $t = $l['tamanho'];
+        $p = $l['passo'];
+        $w = $l['colunas'] * $p;
+        $h = $l['linhas'] * $p;
+        $tam = round($w / $t * 100, 4) . '% ' . round($h / $t * 100, 4) . '%';
+        $pos = round($c * $p / ($w - $t) * 100, 4) . '% ' . round($r * $p / ($h - $t) * 100, 4) . '%';
         $cls = 'ci' . ($classe !== '' ? ' ' . $classe : '');
-        return '<span class="' . e($cls) . '" style="width:' . $px . 'px;height:' . $px . 'px;background-size:'
-            . ($l['colunas'] * 100) . '% ' . ($l['linhas'] * 100) . '%;background-position:' . $x . '% ' . $y . '%" aria-hidden="true"></span>';
+        return '<span class="' . e($cls) . '" style="width:' . $px . 'px;height:' . $px . 'px" aria-hidden="true">'
+            . '<i style="background-size:' . $tam . ';background-position:' . $pos . '"></i></span>';
     }
 
     /** Regras e ícones por grupo em JSON, para o formulário sugerir o ícone enquanto se digita. */

@@ -260,7 +260,7 @@ details.menu[open] > .menu-painel { animation: menu-abre .16s cubic-bezier(.2, .
 .tabbar {
     position: fixed; left: 50%; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 40;
     width: calc(100% - 24px); max-width: 440px; height: 66px; padding: 0 6px;
-    display: grid; grid-template-columns: repeat(2, 1fr) 64px repeat(3, 1fr); align-items: center;
+    display: grid; grid-template-columns: repeat(2, 1fr) 64px repeat(2, 1fr); align-items: center;
     border-radius: 22px; border: 1px solid var(--line);
     background: color-mix(in srgb, var(--card) 92%, transparent);
     -webkit-backdrop-filter: blur(18px) saturate(140%); backdrop-filter: blur(18px) saturate(140%);
@@ -584,6 +584,14 @@ details.dobra > summary:hover::after { border-color: var(--text); }
     border-top: 1px solid var(--line); color: var(--text-2); font-size: 12.5px; font-weight: 650;
 }
 .mes-picker-leg > span { display: inline-flex; align-items: center; gap: 6px; }
+.mes-picker-anual {
+    display: flex; align-items: center; gap: 10px; min-height: 44px; margin-top: 12px; padding: 0 12px;
+    border-radius: 12px; background: var(--card-2); color: var(--text); font-size: 14px; font-weight: 750;
+    transition: background-color .12s ease-out;
+}
+.mes-picker-anual:hover { background: var(--card-3); }
+.mes-picker-anual > span { flex: 1 1 auto; }
+.mes-picker-anual > svg:last-child { color: var(--text-2); }
 
 /* vazio */
 .vazio { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: var(--s3); padding: 40px var(--s4); color: var(--text-2); }
@@ -719,11 +727,14 @@ details.dobra > summary:hover::after { border-color: var(--text); }
 .trilho.quase > i { background: var(--warn); opacity: 1; }
 .trilho.passou > i { background: var(--neg); opacity: 1; }
 
-/* ícone de categoria: pixel art do sprite (tamanho e posição vêm no style, de Icones::html) */
+/* ícone de categoria: emoji da Apple num círculo (tamanho e posição no sprite vêm de Icones::html) */
 .ci {
-    display: inline-block; flex: none; vertical-align: middle;
-    background-image: var(--ic-sprite, url('/assets/img/icones.png')); background-repeat: no-repeat;
-    image-rendering: pixelated;
+    display: inline-grid; place-items: center; flex: none; vertical-align: middle;
+    border-radius: 50%; background: var(--card-2);
+}
+.ci > i {
+    width: 62%; height: 62%;
+    background-image: var(--ic-sprite, url('/assets/img/icones.webp')); background-repeat: no-repeat;
 }
 
 /* lista com ícone, nome e valor */

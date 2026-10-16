@@ -1,13 +1,15 @@
 # Créditos dos ícones de categoria
 
-Os ícones em `public/assets/img/icones.png` são emojis do **Twemoji** reduzidos a pixel art
-(20×20) por `tools/icones/gerar.py`.
+Os ícones em `public/assets/img/icones.webp` são os emojis da Apple (Apple Color Emoji) em
+160 px, juntados num sprite por `tools/icones/gerar.py`.
 
-- Twemoji 15.1.0 — https://github.com/jdecked/twemoji (originalmente Twitter/X).
-- Gráficos licenciados sob **CC-BY 4.0** — https://creativecommons.org/licenses/by/4.0/
-- Mudanças: redução de tamanho, paleta limitada, contorno de 1 px e cinzas escuros clareados.
+- Desenhos © Apple Inc. Não têm licença livre: aqui servem só ao uso pessoal deste app da casa,
+  então não publique o sprite nem o repositório.
+- As imagens vêm do repositório iamcal/emoji-data (pasta `img-apple-160`),
+  https://github.com/iamcal/emoji-data, e ficam em cache em `tools/icones/.apple/`, fora do git.
+- Até 2026-10-15 os ícones eram Twemoji (CC-BY 4.0) reduzidos a pixel art; ver o histórico do git.
 
 Para trocar ou acrescentar ícones: edite `tools/icones/icones.json` (chave, rótulo, código do
-emoji, grupo) e rode `python3 tools/icones/gerar.py` (precisa de cairosvg, Pillow e numpy). Ele
-regera o sprite e `src/icones_lista.php`. Novas palavras para a sugestão pelo nome ficam em
-`Icones::REGRAS` (src/Icones.php).
+emoji, grupo) e rode `python3 tools/icones/gerar.py` (precisa de Pillow com WebP). Ele baixa o
+que faltar, regera o sprite e `src/icones_lista.php`. Novas palavras para a sugestão pelo nome
+ficam em `Icones::REGRAS` (src/Icones.php); o formulário recebe as regras prontas em JSON.

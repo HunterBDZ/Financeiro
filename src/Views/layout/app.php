@@ -3,7 +3,8 @@
  * Layout (P1). Variáveis: $content, $pageTitle, $active (inicio|extrato|meta|mes|futuro|ajustes),
  * $semDialogoLancar (true = não renderiza o <dialog id="lancar">).
  * Computador: menu lateral (marca, Lançar, abas, Claro/Escuro, quem está e sair).
- * Celular: barra de cima (marca, sol/lua, menu do avatar) e barra flutuante embaixo com o "+".
+ * Celular: barra de cima (marca, sol/lua, menu do avatar) e barra flutuante embaixo com o "+" no
+ * meio de 4 abas; o Anual sai dela e abre pelo seletor de meses do Mês ("Visão anual").
  * CSS/JS dos pacotes entram só se o arquivo existir (D19): nenhum 404 durante o build.
  */
 use Financeiro\Auth;
@@ -48,6 +49,9 @@ $aba = static function (string $chave) use ($activePage): string {
 $atual = static function (string $chave) use ($activePage): string {
     return $activePage === $chave ? ' aria-current="page"' : '';
 };
+// barra do celular: Início, Extrato, +, Mês, Metas; no Anual quem fica acesa é a do Mês
+$barra = array_diff_key($abas, ['futuro' => true]);
+$acesaNaBarra = $activePage === 'futuro' ? 'mes' : $activePage;
 $marca = '<span class="marca"><img src="/assets/img/spitz.png" alt="" width="216" height="181"></span>';
 ?>
 <!doctype html>
@@ -69,7 +73,7 @@ $marca = '<span class="marca"><img src="/assets/img/spitz.png" alt="" width="216
 <link rel="stylesheet" href="<?= e(asset($css)) ?>">
 <?php endforeach; ?>
 </head>
-<body style="--ic-sprite:url('<?= e(asset('/assets/img/icones.png')) ?>')">
+<body style="--ic-sprite:url('<?= e(asset('/assets/img/icones.webp')) ?>')">
 <a class="pular" href="#conteudo">Pular para o conteúdo</a>
 
 <aside class="lateral" aria-label="menu">
@@ -135,11 +139,11 @@ $marca = '<span class="marca"><img src="/assets/img/spitz.png" alt="" width="216
 </main>
 
 <nav class="tabbar" aria-label="principal">
-    <?php $i = 0; foreach ($abas as $chave => [$href, $rotulo, $icone]): ?>
+    <?php $i = 0; foreach ($barra as $chave => [$href, $rotulo, $icone]): ?>
         <?php if ($i++ === 2): ?>
             <a class="tab-add" href="<?= e($hrefLancar) ?>" data-lancar aria-label="lançar"><?= svgIcon('plus', 24) ?></a>
         <?php endif; ?>
-        <a class="tab<?= $aba($chave) ?>" href="<?= e($href) ?>"<?= $atual($chave) ?>><?= svgIcon($icone, 21) ?><span><?= e($rotulo) ?></span></a>
+        <a class="tab<?= $acesaNaBarra === $chave ? ' is-active' : '' ?>" href="<?= e($href) ?>"<?= $atual($chave) ?>><?= svgIcon($icone, 21) ?><span><?= e($rotulo) ?></span></a>
     <?php endforeach; ?>
 </nav>
 

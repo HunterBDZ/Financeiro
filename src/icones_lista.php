@@ -1,8 +1,9 @@
 <?php
 // GERADO por tools/icones/gerar.py a partir de tools/icones/icones.json: não editar à mão.
-// Ícones: Twemoji 15.1.0 (jdecked/twemoji), CC-BY 4.0 — https://github.com/jdecked/twemoji
+// Ícones: Apple Color Emoji (© Apple Inc.), imagens de 160 px do iamcal/emoji-data — https://github.com/iamcal/emoji-data
 return [
-  'tamanho' => 20,
+  'tamanho' => 160,
+  'passo' => 168,
   'colunas' => 10,
   'linhas' => 8,
   'grupos' => [
