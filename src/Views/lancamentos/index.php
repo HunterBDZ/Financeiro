@@ -194,7 +194,7 @@ $catAtual = $categoria !== null ? (int) $categoria['id'] : 0;
 
             <div class="card ex-lista">
                 <?php $agrupado = $ordem === '' || $ordem === 'dia-asc'; $i = 0; foreach ($dias as $data => $rows): ?>
-                    <?php if ($agrupado): ?><h3 class="ex-dia"><?= e($rotuloDia((string) $data)) ?></h3><?php endif; ?>
+                    <?php if ($agrupado): ?><h2 class="ex-dia"><?= e($rotuloDia((string) $data)) ?></h2><?php endif; ?>
                     <ul class="lista">
                         <?php foreach ($rows as $r): ?>
                             <?php

@@ -33,13 +33,13 @@
     --line-2: rgba(15, 18, 30, .14);
     --text: #0e1116;
     --text-2: #5d6470;
-    --text-3: #8a909b;           /* só rótulos curtos e ícones */
+    --text-3: #646b76;           /* rótulos curtos e ícones (4,8:1 no fundo) */
     --acc: #c6f24e;              /* ação principal */
     --acc-hover: #b8e63c;
     --on-acc: #0c0d10;
-    --pos: #15803d;
-    --neg: #dc2626;
-    --warn: #b45309;
+    --pos: #13702f;
+    --neg: #c81e1e;
+    --warn: #9a4a07;
     --pos-bg: rgba(21, 128, 61, .10);
     --neg-bg: rgba(220, 38, 38, .09);
     --warn-bg: rgba(180, 83, 9, .10);
@@ -67,7 +67,7 @@
     :root:not([data-theme="light"]) {
         --bg: #0a0b0f; --card: #13151c; --card-2: #1b1e27; --card-3: #252935;
         --line: rgba(255, 255, 255, .07); --line-2: rgba(255, 255, 255, .12);
-        --text: #f3f4f7; --text-2: #9aa1ae; --text-3: #6b7281;
+        --text: #f3f4f7; --text-2: #9aa1ae; --text-3: #8a919f;
         --pos: #79d68e; --neg: #ff7b7b; --warn: #f5b04a;
         --pos-bg: rgba(121, 214, 142, .13); --neg-bg: rgba(255, 123, 123, .13); --warn-bg: rgba(245, 176, 74, .14);
         --barra: #e9ebf0; --foco: #c6f24e; --sel: rgba(255, 255, 255, .04);
@@ -78,7 +78,7 @@
 :root[data-theme="dark"] {
     --bg: #0a0b0f; --card: #13151c; --card-2: #1b1e27; --card-3: #252935;
     --line: rgba(255, 255, 255, .07); --line-2: rgba(255, 255, 255, .12);
-    --text: #f3f4f7; --text-2: #9aa1ae; --text-3: #6b7281;
+    --text: #f3f4f7; --text-2: #9aa1ae; --text-3: #8a919f;
     --pos: #79d68e; --neg: #ff7b7b; --warn: #f5b04a;
     --pos-bg: rgba(121, 214, 142, .13); --neg-bg: rgba(255, 123, 123, .13); --warn-bg: rgba(245, 176, 74, .14);
     --barra: #e9ebf0; --foco: #c6f24e; --sel: rgba(255, 255, 255, .04);
@@ -156,7 +156,7 @@ input:not([type]), select, textarea) {
 ::placeholder { color: var(--text-3); font-weight: 500; opacity: 1; }
 :where(select) {
     padding-right: 40px;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%238a909b' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%23646b76' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");
     background-repeat: no-repeat; background-position: right 16px center;
 }
 :where(input[type="date"], input[type="month"]) { min-width: 0; }
