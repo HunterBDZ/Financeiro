@@ -8,7 +8,7 @@
 .lf { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .lf-topo { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 4px; }
 .lf-titulo { font-size: 17px; font-weight: 800; letter-spacing: -0.01em; line-height: 1.2; }
-.lf--pagina .lf-topo { justify-content: flex-start; }
+.lf--pagina .lf-topo, .lf--editar .lf-topo { justify-content: flex-start; }
 .lf-titulo-col { font-size: 16px; font-weight: 750; margin-bottom: 2px; }
 .lf-x {
     display: inline-grid; place-items: center; flex: none;
