@@ -108,7 +108,7 @@ $hrefLancar = '/lancar?pagou=cartao&volta=' . rawurlencode('/cartao');
     <?php if (!$cfg['alimenta_plano']): ?>
         <section class="card ct-conf" aria-labelledby="ct-conf-t">
             <h2 class="ct-conf-t" id="ct-conf-t">O plano ainda usa a previsão digitada da Fatura do cartão</h2>
-            <p class="ct-escada-sub">Lance as compras parceladas que já estão no cartão (em "Mais opções", diga qual parcela cai na fatura aberta). Quando as faturas baterem, ligue o cartão ao plano.</p>
+            <p class="ct-escada-sub">Lance as compras parceladas que já estão no cartão (em "Outras vezes ou compra antiga", diga qual parcela cai na fatura aberta). Quando as faturas baterem, ligue o cartão ao plano.</p>
             <table class="ct-conf-tab num">
                 <thead><tr><th scope="col">Fatura</th><th scope="col">Previsão de hoje</th><th scope="col">Lançado no cartão</th></tr></thead>
                 <tbody>
