@@ -421,6 +421,7 @@ $check('barra do celular: 2 abas, o +, 2 abas (sem o Anual)', $itens[1] === ['ta
     && !str_contains($barra, 'href="/futuro"') && str_contains($htmlMes, 'class="lat-i" href="/futuro"'), implode(',', $itens[1]));
 $check('seletor de meses do Mês leva ao Anual; o do Extrato não', str_contains($htmlMes, 'class="mes-picker-anual" href="/futuro"')
     && !str_contains($htmlEx, 'mes-picker-anual'));
+$check('menu do avatar (celular) também leva ao Anual', str_contains($htmlMes, 'class="menu-item" href="/futuro"'));
 $check('no Anual, a aba Mês da barra fica acesa', str_contains($render(FuturoController::class, 'index', []), 'class="tab is-active" href="/mes"'));
 
 echo "\n{$ok} ok, {$falhas} falha(s)\n";

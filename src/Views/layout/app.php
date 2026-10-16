@@ -4,7 +4,8 @@
  * $semDialogoLancar (true = não renderiza o <dialog id="lancar">).
  * Computador: menu lateral (marca, Lançar, abas, Claro/Escuro, quem está e sair).
  * Celular: barra de cima (marca, sol/lua, menu do avatar) e barra flutuante embaixo com o "+" no
- * meio de 4 abas; o Anual sai dela e abre pelo seletor de meses do Mês ("Visão anual").
+ * meio de 4 abas; o Anual sai dela e abre pelo seletor de meses do Mês ("Visão anual") e pelo
+ * menu do avatar, ao lado de Ajustes.
  * CSS/JS dos pacotes entram só se o arquivo existir (D19): nenhum 404 durante o build.
  */
 use Financeiro\Auth;
@@ -107,6 +108,7 @@ $marca = '<span class="marca"><img src="/assets/img/spitz.png" alt="" width="216
         <summary aria-label="menu"><span class="avatar<?= $activePage === 'ajustes' ? ' is-active' : '' ?>"><?= e($inicial) ?></span></summary>
         <div class="menu-painel">
             <?php if ($nome): ?><div class="menu-quem"><?= e($nome) ?></div><?php endif; ?>
+            <a class="menu-item<?= $activePage === 'futuro' ? ' is-active' : '' ?>" href="/futuro"<?= $atual('futuro') ?>><?= svgIcon('trend', 18) ?>Anual</a>
             <a class="menu-item<?= $activePage === 'ajustes' ? ' is-active' : '' ?>" href="/ajustes"><?= svgIcon('settings', 18) ?>Ajustes</a>
             <form method="post" action="/logout">
                 <?= csrfField() ?>

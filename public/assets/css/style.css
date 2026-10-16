@@ -53,6 +53,7 @@
     --cofre: #101219;
     --cofre-txt: #f3f4f7;
     --cofre-txt-2: #b9bfcb;
+    --ic-halo: none;             /* contorno do emoji de categoria (só no escuro) */
 
     --f: 'Manrope', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
     --fn: 'Sora', 'Manrope', system-ui, sans-serif;
@@ -73,6 +74,7 @@
         --pos-bg: rgba(121, 214, 142, .13); --neg-bg: rgba(255, 123, 123, .13); --warn-bg: rgba(245, 176, 74, .14);
         --barra: #e9ebf0; --foco: #c6f24e; --sel: rgba(255, 255, 255, .04);
         --sombra: none; --sombra-flutua: 0 18px 50px -18px rgba(0, 0, 0, .7);
+        --ic-halo: drop-shadow(0 0 1px rgba(255, 255, 255, .45));
         color-scheme: dark;
     }
 }
@@ -84,6 +86,7 @@
     --pos-bg: rgba(121, 214, 142, .13); --neg-bg: rgba(255, 123, 123, .13); --warn-bg: rgba(245, 176, 74, .14);
     --barra: #e9ebf0; --foco: #c6f24e; --sel: rgba(255, 255, 255, .04);
     --sombra: none; --sombra-flutua: 0 18px 50px -18px rgba(0, 0, 0, .7);
+    --ic-halo: drop-shadow(0 0 1px rgba(255, 255, 255, .45));
     color-scheme: dark;
 }
 
@@ -733,8 +736,9 @@ details.dobra > summary:hover::after { border-color: var(--text); }
     border-radius: 50%; background: var(--card-2);
 }
 .ci > i {
-    width: 62%; height: 62%;
+    width: 66%; height: 66%;
     background-image: var(--ic-sprite, url('/assets/img/icones.webp')); background-repeat: no-repeat;
+    filter: var(--ic-halo);        /* no escuro, a nota musical e o estetoscópio somem sem ele */
 }
 
 /* lista com ícone, nome e valor */
