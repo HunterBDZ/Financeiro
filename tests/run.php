@@ -445,6 +445,10 @@ $dadosT = ['real' => [], 'cats' => [
 ], 'prev' => ['2027-01-01' => [1 => 10000.0], '2027-02-01' => [1 => 10000.0, 2 => 1200.0], '2027-03-01' => [1 => 15000.0, 2 => 100.0]]];
 $planoM = ['2027-01-01' => $pl('2027-01-01', 0.0), '2027-02-01' => $pl('2027-02-01', 0.0), '2027-03-01' => $pl('2027-03-01', 0.0, false, 300.0)];
 $mu = AnualResumo::mudancas($planoM, $dadosT);
+$htmlFu = $render(FuturoController::class, 'index', []);
+$check('anual: resumo, conclusão no título do gráfico, previsão tracejada e total por ano', str_contains($htmlFu, 'class="card fu-res"')
+    && str_contains($htmlFu, 'id="fu-graf-t">A conta fica') && str_contains($htmlFu, 'class="fu-linha is-prev"')
+    && str_contains($htmlFu, 'class="fu-cols fu-total num"') && !str_contains($htmlFu, 'fu-area'));
 $check('anual: o que mudou no mês, do maior efeito para o menor', $mu['2027-01-01'] === []
     && ($mu['2027-02-01'][0]['nome'] ?? '') === 'IPVA' && abs($mu['2027-02-01'][0]['efeito'] + 1200.0) < 0.01
     && array_map(static fn($x) => $x['nome'] . ' ' . (int) $x['efeito'], $mu['2027-03-01'])
