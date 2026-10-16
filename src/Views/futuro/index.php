@@ -161,6 +161,9 @@ foreach ([500, 1000, 2000, 2500, 5000, 10000, 20000, 25000, 50000] as $p) {
 }
 $grade = [];
 for ($g = ceil($yMin / $passo) * $passo; $g <= $yMax; $g += $passo) {
+    if ($comMeta && abs($g - $meta) < $amp * 0.07) {
+        continue;   // a linha da meta já marca esse valor (e o rótulo dela vai à esquerda)
+    }
     $grade[] = (float) $g;
 }
 $pts = array_map(static fn(int $i): array => [$x($i), $y($vals[$i])], array_keys($vals));
@@ -376,7 +379,7 @@ $opcoesMes = static function (string $sel) use ($se): string {
     <!-- conta no fim de cada mês -->
     <section class="card fu-graf" aria-labelledby="fu-graf-t">
         <h2 class="fu-graf-t" id="fu-graf-t"><?= e($titulo) ?></h2>
-        <p class="fu-graf-sub">Conta no fim de cada mês<?= $comDivida ? ' e a dívida do empréstimo' : '' ?>, em R$</p>
+        <p class="fu-graf-sub"><?= $sim ? 'Simulação tracejada e o plano em cinza (linha cheia). ' : '' ?>Conta no fim de cada mês<?= $comDivida ? ' e a dívida do empréstimo' : '' ?>, em R$</p>
         <figure class="fu-fig is-denso" role="img" aria-label="<?= e($titulo . ' Conta no fim de cada mês' . ($comDivida ? ' e dívida do empréstimo' : '') . ', de ' . monthLabel($linhas[0]['mes']) . ' a ' . monthLabel($ultimo) . '. Os valores estão na tabela mês a mês.') ?>">
             <div class="fu-plot" aria-hidden="true">
                 <svg class="fu-svg" viewBox="0 0 <?= $VW ?> <?= $VH ?>" preserveAspectRatio="none" focusable="false">

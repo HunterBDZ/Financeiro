@@ -305,7 +305,7 @@ details.mes-ed:target > summary { animation: mes-realce 1.6s ease-out 1; }   /* 
 .fu-ref { position: absolute; right: 0; transform: translateY(calc(-100% - 3px)); color: var(--warn); font-size: 12px; font-weight: 750; line-height: 1.2; white-space: nowrap; }
 .fu-gl, .fu-ref, .fu-hoje { text-shadow: 0 0 3px var(--card), 0 0 3px var(--card); }   /* as linhas passam por trás do texto */
 .fu-reserva-rot { transform: translateY(4px); }   /* embaixo da linha: em cima, os pontos parados na reserva cobririam o texto */
-.fu-meta-rot { color: var(--text-3); }
+.fu-meta-rot { left: 0; right: auto; color: var(--text-3); }   /* à esquerda: na direita encosta no número do fim */
 .fu-hoje { position: absolute; top: 0; transform: translate(-50%, calc(-100% - 4px)); color: var(--text-2); font-size: 11.5px; font-weight: 750; line-height: 1; }
 .fu-pt {
     --c: var(--text);
@@ -334,6 +334,7 @@ details.mes-ed:target > summary { animation: mes-realce 1.6s ease-out 1; }   /* 
 @media (max-width: 560px) {
     .fu-fig.is-denso .fu-mx.is-salta { visibility: hidden; }
     .fu-pt:not(.is-chave) { display: none; }   /* no celular, os 16 pontos embolam: só hoje, o mais apertado e o fim */
+    .fu-nota.is-plano { display: none; }       /* e o "plano" encostaria na dívida: o subtítulo explica as linhas */
 }
 
 /* mês a mês: tabela por ano. Celular: Mês | Balanço | Conta no fim; o resto ao abrir a linha */
