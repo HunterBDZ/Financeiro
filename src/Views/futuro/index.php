@@ -311,6 +311,8 @@ $alertaIc = static fn(string $a): string => $a !== '' ? svgIcon('alert', 13, 'fu
                 <?php foreach ($doAno as $l):
                     $balCls = $l['bal'] < -0.004 ? ' neg' : '';
                     $lista = $chips($l);
+                    // no detalhe, crédito, adiantamento e poupança já aparecem como valores: só as mudanças
+                    $listaDet = array_values(array_filter($lista, static fn($c) => $c['tipo'] !== 'info'));
                     ?>
                     <details class="fu-mes<?= $l['mes'] === $ref ? ' is-ref' : '' ?>">
                         <summary class="fu-cols num">
@@ -334,7 +336,7 @@ $alertaIc = static fn(string $a): string => $a !== '' ? svgIcon('alert', 13, 'fu
                             <?php if (abs($l['poup']) > 0.004): ?><p><span>Poupança</span> <?= e(($l['poup'] > 0 ? '+' : '') . num($l['poup'])) ?></p><?php endif; ?>
                             <?php if ($l['amort'] > 0.004): ?><p><span>Adiantado do empréstimo</span> <?= e(num($l['amort'])) ?></p><?php endif; ?>
                             <p class="fu-so-cel"><span>Dívida no fim</span> <?= $l['divida'] > 0.004 ? e(num($l['divida'])) : 'quitada' ?></p>
-                            <?php if ($lista !== []): ?><div class="fu-det-mudou"><span>O que mudou</span><div class="fu-chips"><?= $chipsHtml($lista) ?></div></div><?php endif; ?>
+                            <?php if ($listaDet !== []): ?><div class="fu-det-mudou"><span>O que mudou</span><div class="fu-chips"><?= $chipsHtml($listaDet) ?></div></div><?php endif; ?>
                             <a class="btn-link fu-abrir" href="/mes?mes=<?= e($l['mes']) ?>"><?= $l['estado'] === 'real' ? 'Ver' : 'Ver e ajustar' ?> <?= e(monthLabel($l['mes'])) ?></a>
                         </div>
                     </details>
