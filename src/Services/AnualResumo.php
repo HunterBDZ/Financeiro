@@ -165,7 +165,7 @@ final class AnualResumo
 
     /**
      * Os números que o "e se" compara com o plano, contados a partir do mês de referência.
-     * @return array{fim:float, apertado:?array{mes:string, fica:float}, abaixo:int, quita:?string, juros:?float}
+     * @return array{fim:float, divida:float, apertado:?array{mes:string, fica:float}, abaixo:int, quita:?string, juros:?float}
      */
     public static function numeros(array $plano, float $reserva, string $ref, float $parcela, float $jurosMes): array
     {
@@ -177,7 +177,9 @@ final class AnualResumo
             }
         }
         $q = self::quitacao($plano, $parcela, $jurosMes);
-        return ['fim' => (float) ($mk['fim']['fica'] ?? 0.0), 'apertado' => $mk['apertado'], 'abaixo' => $abaixo,
+        $ult = end($plano);
+        return ['fim' => (float) ($mk['fim']['fica'] ?? 0.0), 'divida' => max(0.0, (float) ($ult['falta_pagar'] ?? 0.0)),
+                'apertado' => $mk['apertado'], 'abaixo' => $abaixo,
                 'quita' => $q['mes'] ?? null, 'juros' => $q['juros'] ?? null];
     }
 

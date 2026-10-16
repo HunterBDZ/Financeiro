@@ -329,16 +329,20 @@ $opcoesMes = static function (string $sel) use ($se): string {
             $apert = static fn(?array $a): string => $a === null ? '—' : monthLabel($a['mes']) . ': ' . (($a['fica'] < -0.004 ? MENOS : '') . num(abs($a['fica']), 0));
             $quitaTxt = static fn(?string $q): string => $q === null ? 'não dá para dizer' : monthLabel($q);
             ?>
-            <table class="fu-cmp num">
+            <?php /* papéis explícitos: no celular cada linha vira um bloco (display grid) e alguns leitores de tela perdem a tabela */ ?>
+            <table class="fu-cmp num" role="table">
                 <caption class="sr-only">Plano comparado com a simulação</caption>
-                <thead><tr><th scope="col"><span class="sr-only">O quê</span></th><th scope="col">Plano</th><th scope="col">E se</th></tr></thead>
-                <tbody>
-                    <tr><th scope="row">Fim de <?= e(monthLabel($ultimo)) ?></th><td><?= e($valor($cp['fim'])) ?></td><td><b><?= e($valor($cs['fim'])) ?></b><?php if (abs($dFim) >= 0.5): ?> <small class="<?= $dFim > 0 ? 'pos' : 'neg' ?>"><?= e($sinal($dFim)) ?></small><?php endif; ?></td></tr>
-                    <tr><th scope="row">Mês mais apertado</th><td><?= e($apert($cp['apertado'])) ?></td><td><b><?= e($apert($cs['apertado'])) ?></b></td></tr>
-                    <tr><th scope="row">Meses abaixo da reserva</th><td><?= (int) $cp['abaixo'] ?></td><td><b><?= (int) $cs['abaixo'] ?></b></td></tr>
+                <thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader"><span class="sr-only">O quê</span></th><th scope="col" role="columnheader">Plano</th><th scope="col" role="columnheader">E se</th></tr></thead>
+                <tbody role="rowgroup">
+                    <tr role="row"><th scope="row" role="rowheader">Conta no fim de <?= e(monthLabel($ultimo)) ?></th><td role="cell" data-rot="Plano"><?= e($valor($cp['fim'])) ?></td><td role="cell" data-rot="E se"><b><?= e($valor($cs['fim'])) ?></b><?php if (abs($dFim) >= 0.5): ?> <small class="<?= $dFim > 0 ? 'pos' : 'neg' ?>"><?= e($sinal($dFim)) ?></small><?php endif; ?></td></tr>
                     <?php if ($temDivida): ?>
-                        <tr><th scope="row">Empréstimo acaba</th><td><?= e($quitaTxt($cp['quita'])) ?></td><td><b><?= e($quitaTxt($cs['quita'])) ?></b></td></tr>
-                        <tr><th scope="row">Juros até quitar</th><td><?= $cp['juros'] === null ? '—' : e(num($cp['juros'], 0)) ?></td><td><b><?= $cs['juros'] === null ? '—' : e(num($cs['juros'], 0)) ?></b></td></tr>
+                        <tr role="row"><th scope="row" role="rowheader">Dívida no fim de <?= e(monthLabel($ultimo)) ?></th><td role="cell" data-rot="Plano"><?= $cp['divida'] > 0.004 ? e(num($cp['divida'], 0)) : 'quitada' ?></td><td role="cell" data-rot="E se"><b><?= $cs['divida'] > 0.004 ? e(num($cs['divida'], 0)) : 'quitada' ?></b></td></tr>
+                    <?php endif; ?>
+                    <tr role="row"><th scope="row" role="rowheader">Mês mais apertado</th><td role="cell" data-rot="Plano"><?= e($apert($cp['apertado'])) ?></td><td role="cell" data-rot="E se"><b><?= e($apert($cs['apertado'])) ?></b></td></tr>
+                    <tr role="row"><th scope="row" role="rowheader">Meses abaixo da reserva</th><td role="cell" data-rot="Plano"><?= (int) $cp['abaixo'] ?></td><td role="cell" data-rot="E se"><b><?= (int) $cs['abaixo'] ?></b></td></tr>
+                    <?php if ($temDivida): ?>
+                        <tr role="row"><th scope="row" role="rowheader">Empréstimo acaba</th><td role="cell" data-rot="Plano"><?= e($quitaTxt($cp['quita'])) ?></td><td role="cell" data-rot="E se"><b><?= e($quitaTxt($cs['quita'])) ?></b></td></tr>
+                        <tr role="row"><th scope="row" role="rowheader">Juros até quitar</th><td role="cell" data-rot="Plano"><?= $cp['juros'] === null ? '—' : e(num($cp['juros'], 0)) ?></td><td role="cell" data-rot="E se"><b><?= $cs['juros'] === null ? '—' : e(num($cs['juros'], 0)) ?></b></td></tr>
                     <?php endif; ?>
                 </tbody>
             </table>
@@ -363,7 +367,7 @@ $opcoesMes = static function (string $sel) use ($se): string {
                 <input type="hidden" name="adiantar" value="1">
             <?php endif; ?>
             <div class="fu-ese-acoes">
-                <button type="submit" class="btn fu-ese-btn">Simular</button>
+                <button type="submit" class="btn btn-primary fu-ese-btn">Simular</button>
                 <?php if ($sim): ?><a class="btn-link" href="/futuro">Voltar ao plano</a><?php endif; ?>
             </div>
         </form>

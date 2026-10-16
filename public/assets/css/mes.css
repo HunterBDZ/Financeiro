@@ -394,6 +394,15 @@ details.mes-ed:target > summary { animation: mes-realce 1.6s ease-out 1; }   /* 
 .fu-cmp td { padding-left: 14px; color: var(--text-2); font-weight: 650; }
 .fu-cmp td b { color: var(--text); font-weight: 800; }
 .fu-cmp small { margin-left: 6px; font-size: 12.5px; font-weight: 750; }
+@media (max-width: 560px) {
+    /* no celular a comparação vira um bloco por linha: o nome em cima, Plano e E se lado a lado */
+    .fu-cmp thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+    .fu-cmp tr { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 14px; padding: 9px 0; border-bottom: 1px solid var(--line); }
+    .fu-cmp th, .fu-cmp td { padding: 0; border: 0; }
+    .fu-cmp tbody th { grid-column: 1 / -1; padding: 0 0 3px; }
+    .fu-cmp td { text-align: left; }
+    .fu-cmp td::before { content: attr(data-rot); display: block; color: var(--text-3); font-size: 12px; font-weight: 700; }
+}
 .fu-ese-form { display: flex; flex-direction: column; gap: 12px; --campo: var(--card-2); }
 .fu-ese-l { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "rot rot" "tipo valor" "mes mes"; gap: 8px; align-items: center; }
 .fu-ese-rot { grid-area: rot; font-size: 14px; font-weight: 750; }
