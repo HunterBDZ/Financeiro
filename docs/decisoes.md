@@ -4,6 +4,36 @@ Repositório canônico: `~/financeiro` no servidor 192.168.0.154 (git, branch `m
 Produção: `/var/www/financeiro`, publicada a partir deste repositório. O código que estava
 na máquina .164 (publicado em 10/10/2026) é o primeiro commit daqui; trabalhe sempre neste.
 
+## 2026-10-16 — aba Anual repensada
+
+- **Por quê:** o casal achou ruim a divisão do espaço (no computador as 5 colunas se espalhavam
+  pela largura toda) e as informações "mais ou menos". Antes de mexer foram feitas duas pesquisas:
+  boas práticas de gráfico e tabela (IBCS, Stephen Few, Datawrapper, NN/g, GOV.UK) e 26 apps de
+  finanças e de previsão de caixa (PocketSmith, Simplifi, YNAB, Undebt.it, Float, Mobills,
+  Organizze, Meu Dinheiro Web…). As notas ficaram fora do repositório, em `~/financeiro/research_notes/`
+  na máquina de trabalho.
+- **Resumo** (coluna à direita a partir de 1280 px, parada enquanto a tabela rola; no topo no
+  celular): como o plano termina e os marcos em ordem, cada um levando ao mês. Os trechos abaixo
+  da reserva ou no vermelho, a volta à reserva, a sobra adiantando o empréstimo e a quitação vêm de
+  `AnualResumo::marcos`. **O ganho de adiantar** vem de `AnualResumo::ganho`, que compara com o mesmo
+  plano sem adiantamento (`objetivo` 3) e continua só com as parcelas até zerar: em 16/10, quitar
+  em out/27 em vez de nov/35, com cerca de 17,6 mil de juros a menos.
+- **Gráfico:** o título diz a conclusão ("A conta fica no vermelho em nov/26 e volta à reserva em
+  dez/26"). A curva suave deu lugar à linha reta, com um ponto por mês (● fechado, ◐ aberto,
+  ○ previsto); no celular só ficam os pontos de hoje, do mês mais apertado e do fim, porque os 16
+  embolavam. A previsão é tracejada, há uma faixa âmbar abaixo da reserva e uma vermelha abaixo
+  de zero, a marca "hoje" e a dívida em cinza (enquanto a conta fica parada na reserva, é ela que
+  cai). A quitação vai no eixo, embaixo do mês.
+- **Tabela:** separada por ano, com o total do ano (entradas, saídas e balanço somados; conta e
+  dívida de dezembro). Os números não se esticam (no máximo 820 px até 1600 px de tela), a cor só
+  aparece nas exceções e a dívida quitada vira "—". No celular ficam Mês | Balanço | Conta no fim.
+  Em tela larga (≥ 1600 px), cada linha mostra o que mudou em relação ao mês anterior
+  (`AnualResumo::mudancas`, mudanças a partir de R$ 150; a seta diz se subiu ou caiu e a cor, se
+  foi bom ou ruim). A linha aberta mostra a conta do mês: começou com + entradas − gastos −
+  adiantado = conta no fim.
+- **Ficou para depois:** um "e se" (sem adiantar, +R$ 500/mês) e o previsto × realizado dos meses
+  fechados, as duas ideias que sobraram da pesquisa.
+
 ## 2026-10-16 — emojis da Apple e barra do celular com o "+" no meio
 
 - **Emojis da Apple no lugar da pixel art:** o casal achou a pixel art feia e pediu "os emojis do
