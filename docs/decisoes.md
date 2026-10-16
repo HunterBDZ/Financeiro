@@ -4,6 +4,29 @@ Repositório canônico: `~/financeiro` no servidor 192.168.0.154 (git, branch `m
 Produção: `/var/www/financeiro`, publicada a partir deste repositório. O código que estava
 na máquina .164 (publicado em 10/10/2026) é o primeiro commit daqui; trabalhe sempre neste.
 
+## 2026-10-16 — visual novo ("fintech"), claro e escuro, com o spitz da casa
+
+- **Por quê:** o casal pediu um visual moderno de app de banco/cripto, limpo e intuitivo
+  ("menos poluição é melhor", "menos gamificado"). Um redesign anterior ("linha d'água",
+  papel e tinta) foi recusado antes de ir ao ar e foi todo substituído.
+- **Regras do visual:** uma coisa em destaque por tela; cor só com função (limão = ação
+  principal; verde = entrou; vermelho = saiu/negativo; âmbar = atenção, abaixo da reserva,
+  perto do limite da meta). Manrope no texto e Sora nos números grandes, auto-hospedadas
+  (`public/assets/fonts`, licenças OFL junto). Cinzas e cores com contraste AA (axe: 0
+  violações em todas as telas, nos dois temas, no celular e no computador).
+- **Tema:** segue o aparelho até alguém escolher; a escolha fica no `localStorage` (`tema`,
+  como antes). Seletor Claro/Escuro sempre visível: menu lateral no computador e sol/lua no
+  topo no celular (a Natalia usa o claro).
+- **Olho do saldo** (`[data-ocultar]`): borra os números da página; vale só para a aba aberta
+  (`sessionStorage`), porque o `localStorage` só guarda o tema.
+- **Spitz:** a imagem em pixel art (`public/assets/img/spitz.png`) foi enviada pelo usuário; é
+  a marca do app, o ícone da aba e espia por cima do cartão do login.
+- **Rótulos corrigidos junto:** no Mês, "Em conta hoje" só no mês atual (nos outros, "Conta no
+  fim do mês", que é o valor mostrado); no Anual, a comparação é com o fim do mês atual
+  ("desde out/26"), não com "hoje".
+- Nenhuma mudança de banco nem de regra de cálculo; os 57 testes seguem iguais (só o marcador
+  da tela inicial mudou de `agua-valor` para `saldo-v`).
+
 ## 2026-10-15/17 — aba Mês editável; a meta é a previsão padrão (opção B)
 
 - **Regra:** a meta de uma categoria de gasto vale como previsão de **todo mês ainda em
