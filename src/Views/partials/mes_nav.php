@@ -63,9 +63,9 @@ foreach ($lista as $k) {
                 </ol>
             <?php endforeach; ?>
             <p class="mes-picker-leg" aria-hidden="true">
-                <span class="estado-real"><i class="ponto-estado"></i>Fechado</span>
-                <span class="estado-aberto"><i class="ponto-estado"></i>Aberto</span>
-                <span class="estado-previsto"><i class="ponto-estado"></i>Previsto</span>
+                <span class="leg-real"><i class="ponto-estado"></i>Fechado</span>
+                <span class="leg-aberto"><i class="ponto-estado"></i>Aberto</span>
+                <span class="leg-previsto"><i class="ponto-estado"></i>Previsto</span>
             </p>
         </div>
     </details>

@@ -105,7 +105,7 @@
 .ex-cat-ic:hover { background: var(--card-2); }
 .ex-cat-ic::after {
     content: ""; position: absolute; right: 1px; bottom: 1px; width: 18px; height: 18px; border-radius: 50%;
-    background: var(--text) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 20h4L19 9l-4-4L4 16v4Z'/%3E%3C/svg%3E") center / 11px no-repeat;
+    background: var(--acc) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230c0d10' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 20h4L19 9l-4-4L4 16v4Z'/%3E%3C/svg%3E") center / 11px no-repeat;
     box-shadow: 0 0 0 2px var(--card);
 }
 .ex-cat-rm { margin: 0; flex: none; }
@@ -229,5 +229,5 @@
 .ic-atual p { color: var(--text-2); }
 .ic-atual b { color: var(--text); }
 .ic-form { display: flex; flex-direction: column; gap: 16px; padding: 16px; border-radius: var(--r); background: var(--card); border: 1px solid var(--line); box-shadow: var(--sombra); --campo: var(--card-2); }
-.ic-salvar { position: sticky; bottom: calc(86px + env(safe-area-inset-bottom, 0px)); }
+.ic-salvar { position: sticky; bottom: calc(86px + env(safe-area-inset-bottom, 0px)); box-shadow: 0 12px 30px -12px rgba(0, 0, 0, .45); }
 @media (min-width: 1024px) { .ic-salvar { bottom: 20px; } }

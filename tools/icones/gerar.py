@@ -44,8 +44,8 @@ def pixelar(codigo, n):
         pal = np.array(q.getpalette()[:k * 3]).reshape(-1, 3).astype(np.float32)
         # pretos fortes viram grafite (senão somem no tema escuro); o contorno continua mais escuro
         lum = pal @ np.array([0.2126, 0.7152, 0.0722], np.float32)
-        escuros = lum < 50
-        pal[escuros] = pal[escuros] * 0.5 + np.array([96, 102, 116], np.float32) * 0.5
+        escuros = lum < 75
+        pal[escuros] = pal[escuros] * 0.4 + np.array([140, 146, 160], np.float32) * 0.6
         rgb8[cheio] = pal.astype(np.uint8)[np.array(q).reshape(-1)]
     out = np.zeros((n, n, 4), np.uint8)
     out[1:-1, 1:-1, :3] = rgb8
