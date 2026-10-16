@@ -79,7 +79,8 @@
             if (!noCartao()) { return; }
             var v = lerValor(), n = vezes();
             var k = parseInt(atual && atual.value || '', 10);
-            var primeira = k > 1 && k <= n ? soma(cfg.aberta, -(k - 1)) : faturaDe(data && data.value ? data.value : cfg.aberta, cfg.fecha, cfg.vence);
+            var antiga = k > 1 && k <= n;      // compra antiga: a parcela k cai na fatura aberta
+            var primeira = antiga ? soma(cfg.aberta, -(k - 1)) : faturaDe(data && data.value ? data.value : cfg.aberta, cfg.fecha, cfg.vence);
             var cent = Math.round(v * 100), base = Math.floor(cent / n), resto = cent - base * n;
             var add = {};
             for (var p = 0; p < n; p++) { add[soma(primeira, p)] = (base + (p === 0 ? resto : 0)) / 100; }
@@ -96,14 +97,26 @@
             var pf = partes(primeira), ultima = soma(primeira, n - 1);
             var venceDia = Math.min(cfg.vence, diasNoMes(pf[0], pf[1]));
             out.textContent = '';
-            out.appendChild(document.createTextNode((k > 1 ? 'A parcela ' + k + ' está na fatura aberta. A 1ª foi na fatura de ' : 'Cai na fatura de ')));
-            var b1 = document.createElement('b'); b1.textContent = EXT[pf[1]]; out.appendChild(b1);
-            out.appendChild(document.createTextNode(', que vence em ' + venceDia + '/' + String(pf[1] + 1).padStart(2, '0') + '. '));
+            var b1 = document.createElement('b');
+            if (antiga) {                    // as faturas de antes da aberta já foram pagas
+                var bk = document.createElement('b'); bk.className = 'num'; bk.textContent = k + ' de ' + n;
+                out.appendChild(document.createTextNode('A parcela ')); out.appendChild(bk);
+                out.appendChild(document.createTextNode(' está na fatura aberta, de '));
+                b1.textContent = EXT[partes(cfg.aberta)[1]]; out.appendChild(b1);
+                out.appendChild(document.createTextNode('. '));
+            } else {
+                out.appendChild(document.createTextNode('Cai na fatura de '));
+                b1.textContent = EXT[pf[1]]; out.appendChild(b1);
+                out.appendChild(document.createTextNode(', que vence em ' + venceDia + '/' + String(pf[1] + 1).padStart(2, '0') + '. '));
+            }
             var b2 = document.createElement('b'); b2.className = 'num';
             b2.textContent = n === 1 ? 'À vista, ' + brl(v) : n + ' × ' + brl(base / 100);
             out.appendChild(b2);
             out.appendChild(document.createTextNode(n > 1 ? ', de ' + rot(primeira) + ' a ' + rot(ultima) + '.' : '.'));
-            sub.textContent = (n === 1 ? 'Só a fatura de ' + EXT[pf[1]] + ' sobe ' + brl(v) : 'Cada fatura de ' + rot(primeira) + ' a ' + rot(ultima) + ' sobe ' + brl(base / 100))
+            var faltam = n - k + 1;
+            sub.textContent = (antiga ? (faltam === 1 ? 'Falta 1 parcela: só a fatura de ' + rot(cfg.aberta) + ' sobe '
+                                                      : 'Faltam ' + faltam + ' parcelas: cada fatura de ' + rot(cfg.aberta) + ' a ' + rot(ultima) + ' sobe ') + brl(base / 100)
+                : n === 1 ? 'Só a fatura de ' + EXT[pf[1]] + ' sobe ' + brl(v) : 'Cada fatura de ' + rot(primeira) + ' a ' + rot(ultima) + ' sobe ' + brl(base / 100))
                 + '. Em destaque, o que esta compra soma.';
         }
         form.addEventListener('input', atualizar);

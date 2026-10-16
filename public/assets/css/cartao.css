@@ -66,10 +66,11 @@
 .ct-fat-cab h2 { font-size: 16px; font-weight: 750; }
 .ct-fat-cab b { font-family: var(--fn); font-size: 18px; font-weight: 600; }
 .ct-grupo { margin: 14px 0 2px; color: var(--text-3); font-size: 12.5px; font-weight: 750; }
-.ct-linha { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; min-height: 58px;
+.ct-linha { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; min-height: 58px;
             margin: 0 -10px; padding: 7px 10px; border-radius: 14px; color: var(--text); transition: background-color .12s ease-out; }
 .ct-linha:hover { background: var(--sel); }
-.ct-linha + .ct-linha { border-top: 1px solid var(--line); }
+/* o fio entre as compras fica na largura do conteúdo, reto (a linha tem cantos arredondados por causa do hover) */
+.ct-linha + .ct-linha::before { content: ""; position: absolute; top: 0; left: 10px; right: 10px; border-top: 1px solid var(--line); }
 .ct-linha-n { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .ct-linha-n b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
 .ct-linha-n small { color: var(--text-2); font-size: 13px; }
@@ -194,6 +195,9 @@ fieldset.ct-pagou { border: 0; margin: 0 0 6px; min-width: 0; }
 .ct-antiga-c small { color: var(--text-3); font-size: 12.5px; line-height: 1.4; }
 
 /* Mês: a Fatura do cartão que vem do cartão (só leitura, leva à fatura) */
-.mes-do-cartao { color: var(--text); border-radius: 14px; transition: background-color .12s ease-out; }
-.mes-do-cartao:hover { background: var(--sel); }
+.mes-do-cartao { color: var(--text); }
+.mes-do-cartao:hover .mes-nome { text-decoration: underline; text-decoration-color: var(--line-2); text-underline-offset: 3px; }
 .mes-do-cartao .mes-sum { flex: 1 1 auto; min-width: 0; }
+.mes-do-cartao::after { content: ""; flex: none; width: 8px; height: 8px; border-right: 2px solid var(--text-3); border-bottom: 2px solid var(--text-3);
+                        transform: rotate(-45deg); transition: border-color .15s ease-out; }
+.mes-do-cartao:hover::after { border-color: var(--text); }
