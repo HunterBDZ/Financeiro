@@ -50,8 +50,9 @@ na máquina .164 (publicado em 10/10/2026) é o primeiro commit daqui; trabalhe 
   Ajustes.
 - **Testes:** 101. A seção 15 cobre a fatura da compra, fechamento e vencimento, centavos, compra
   antiga, situação das faturas, limite e ordem dos parcelamentos. Numa transação: o plano ligado,
-  o Mês, a aba, a importação única, o "+" com Pagou com e a barra. E2E e axe passaram sem falhas
-  nas telas novas.
+  o Mês, a aba, a importação única, o "+" com Pagou com e a barra. Esse teste desativa o cartão de
+  verdade dentro da transação; sem isso ele falha quando já há cartão cadastrado e trava a
+  publicação (os testes rodam na produção). E2E e axe passaram sem falhas nas telas novas.
 
 ## 2026-10-16 — "e se" no Anual
 
