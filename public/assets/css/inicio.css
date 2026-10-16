@@ -92,3 +92,11 @@
     .dash-conf { grid-area: conf; }
     .dash-ult { grid-area: ult; }
 }
+
+/* tela larga: três colunas (saldo e últimos | o mês e conferir | para onde foi) */
+@media (min-width: 1600px) {
+    .dash-grade {
+        grid-template-columns: minmax(0, 5fr) minmax(0, 4fr) minmax(0, 4fr);
+        grid-template-areas: "saldo resumo gastos" "ult conf gastos" "ult . .";
+    }
+}

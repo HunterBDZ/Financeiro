@@ -693,3 +693,8 @@ a.lista-i:hover { background: var(--sel); }
 /* avisos vêm dos controladores em minúscula: a 1ª letra de cada aviso e o botão em maiúscula */
 .toast-seg:first-child::first-letter, .toast-acao button::first-letter { text-transform: uppercase; }
 .toast-acao button { display: inline-block; }
+
+/* tela larga: o conteúdo cresce até 1560 px e as telas ganham colunas (inicio.css, mes.css, lancar.css) */
+@media (min-width: 1600px) {
+    .page > * { max-width: 1560px; }
+}

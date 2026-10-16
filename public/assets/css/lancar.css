@@ -184,3 +184,11 @@
     .lg-card-t { display: block; }
     .lg-spitz { width: 120px; right: 24px; }
 }
+
+/* tela larga: o extrato vira tabela (descrição | categoria | valor e dia) */
+@media (min-width: 1600px) {
+    .ex { grid-template-columns: 380px minmax(0, 1fr); }
+    .ex-lista .lista-i { grid-template-columns: auto minmax(0, 2fr) minmax(0, 1.3fr) minmax(120px, auto); }
+    .ex-lista .lista-n { display: contents; }
+    .ex-lista .lista-n small { font-size: 14px; }
+}

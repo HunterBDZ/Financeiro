@@ -143,6 +143,8 @@ foreach ($linhas as $i => $l) {
                 <span class="fu-lbl">Entradas</span>
                 <span class="fu-lbl">Saídas</span>
                 <span class="fu-lbl">Balanço</span>
+                <span class="fu-lbl fu-largo">Conta no fim</span>
+                <span class="fu-lbl fu-largo">Dívida</span>
                 <span></span>
             </div>
             <?php foreach ($linhas as $l):
@@ -154,6 +156,8 @@ foreach ($linhas as $i => $l) {
                         <span class="fu-v"><span class="sr-only">entradas </span><?= e(num($l['entra'], 0)) ?></span>
                         <span class="fu-v"><span class="sr-only">saídas </span><?= e(num($l['sai'], 0)) ?></span>
                         <span class="fu-v fu-bal <?= e($balCls) ?>"><span class="sr-only">balanço </span><?= e(($l['bal'] > 0.004 ? '+' : '') . num($l['bal'], 0)) ?></span>
+                        <span class="fu-v fu-largo fu-fica <?= e($l['alerta']) ?>"><span class="sr-only">conta no fim </span><?= e(num((float) $l['fica'], 0)) ?></span>
+                        <span class="fu-v fu-largo"><span class="sr-only">dívida </span><?= e(num((float) $l['divida'], 0)) ?></span>
                     </summary>
                     <div class="fu-det num">
                         <?php if ($l['consignado'] > 0.004): ?>

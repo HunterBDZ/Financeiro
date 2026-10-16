@@ -407,3 +407,39 @@ details.mes-ed:target > summary { animation: mes-realce 1.6s ease-out 1; }   /* 
     .meta-grupo-res { grid-area: res; margin-left: 0; }
     .meta-grupo-cab::after { grid-area: seta; }
 }
+
+/* ---------------------------------------------------------------- 8. tela larga */
+
+/* anual: a tabela mostra também a conta no fim e a dívida (no celular ficam no detalhe) */
+.fu-largo { display: none; }
+@media (min-width: 1024px) {
+    .fu-largo { display: block; }
+    .fu-mes-head, .fu-mes > summary { grid-template-columns: minmax(8ch, 1.15fr) repeat(5, minmax(0, 1fr)) 12px; }
+    .fu-fica.neg { color: var(--neg); font-weight: 700; }
+    .fu-fica.warn { color: var(--warn); font-weight: 700; }
+}
+
+/* fechar mês e ajustes: duas colunas de cartões */
+@media (min-width: 1280px) {
+    .fe { max-width: 1200px; }
+    .fe-blocos { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
+    .aj:not(.meta-pg) { max-width: 1200px; display: block; column-count: 2; column-gap: 16px; }
+    .aj:not(.meta-pg) > * { break-inside: avoid; margin-bottom: 16px; }
+    .aj:not(.meta-pg) > .aj-titulo { column-span: all; margin-bottom: 18px; }
+}
+
+@media (min-width: 1600px) {
+    /* mês: essenciais e não essenciais lado a lado */
+    .mes-grade { grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); }
+    #saidas { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 28px; align-items: start; }
+    #saidas > .card-head, #saidas > .mes-incluir { grid-column: 1 / -1; }
+    #saidas > .mes-grupo + .mes-grupo { margin-top: 0; }
+    #saidas > .mes-ros { grid-column: 1 / -1; display: block; column-count: 2; column-gap: 28px; }
+    #saidas > .mes-ros > .mes-ro { break-inside: avoid; }
+
+    /* metas: à esquerda a renda e o adicionar; à direita os dois grupos */
+    .meta-pg { max-width: 1560px; display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); column-gap: 16px; row-gap: 16px; align-items: start; }
+    .meta-pg > .meta-cab { grid-column: 1 / -1; }
+    .meta-pg > .meta-top, .meta-pg > .meta-previsao, .meta-pg > .meta-add { grid-column: 1; }
+    .meta-pg > .meta-form { grid-column: 2; grid-row: 2 / span 3; }
+}
