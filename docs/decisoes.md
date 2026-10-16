@@ -30,7 +30,10 @@ na máquina .164 (publicado em 10/10/2026) é o primeiro commit daqui; trabalhe 
   Em tela larga (≥ 1600 px), cada linha mostra o que mudou em relação ao mês anterior
   (`AnualResumo::mudancas`, mudanças a partir de R$ 150; a seta diz se subiu ou caiu e a cor, se
   foi bom ou ruim). A linha aberta mostra a conta do mês: começou com + entradas − gastos −
-  adiantado = conta no fim.
+  adiantado = conta no fim. O casal desconfiou que "o que mudou" fosse fixo: não é, sai da previsão
+  e dos lançamentos a cada vez que a página abre (teste "acompanha a previsão gravada"; na staging,
+  Mercado de mar/27 1.000 → 1.500 fez aparecer "↑ Mercado 500" em mar/27 e "↓ Mercado 500" em
+  abr/27). O rótulo passou a dizer a comparação: "Mudou em relação ao mês anterior".
 - **Ficou para depois:** um "e se" (sem adiantar, +R$ 500/mês) e o previsto × realizado dos meses
   fechados, as duas ideias que sobraram da pesquisa.
 

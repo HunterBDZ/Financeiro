@@ -341,7 +341,7 @@ $alertaIc = static fn(string $a): string => $a !== '' ? svgIcon('alert', 13, 'fu
                 <span class="fu-lbl">Balanço</span>
                 <span class="fu-lbl">Conta no fim</span>
                 <span class="fu-lbl fu-largo">Dívida</span>
-                <span class="fu-lbl fu-lbl-m fu-xl">O que mudou</span>
+                <span class="fu-lbl fu-lbl-m fu-xl">Mudou em relação ao mês anterior</span>
                 <span></span>
             </div>
             <?php foreach ($anos as $ano => $doAno):
@@ -382,7 +382,7 @@ $alertaIc = static fn(string $a): string => $a !== '' ? svgIcon('alert', 13, 'fu
                                 <p class="fu-conta-div"><span>Dívida no fim</span> <?= $l['divida'] > 0.004 ? e(num($l['divida'])) : 'quitada' ?></p>
                             </div>
                             <div class="fu-det-lado">
-                                <?php if ($listaDet !== []): ?><div class="fu-det-mudou"><span>O que mudou</span><div class="fu-chips"><?= $chipsHtml($listaDet) ?></div></div><?php endif; ?>
+                                <?php if ($listaDet !== []): ?><div class="fu-det-mudou"><span>O que mudou em relação ao mês anterior</span><div class="fu-chips"><?= $chipsHtml($listaDet) ?></div></div><?php endif; ?>
                                 <a class="btn-link fu-abrir" href="/mes?mes=<?= e($l['mes']) ?>"><?= $l['estado'] === 'real' ? 'Ver' : 'Ver e ajustar' ?> <?= e(monthLabel($l['mes'])) ?></a>
                             </div>
                         </div>
