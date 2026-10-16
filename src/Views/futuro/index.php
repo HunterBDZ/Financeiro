@@ -12,7 +12,10 @@
  *    ao abrir a linha); no computador largo, "o que mudou" em relação ao mês anterior na linha. A
  *    linha aberta mostra a conta do mês: começou com + entradas − gastos − adiantado = conta no fim.
  * No computador (≥ 1280 px) o resumo fica numa coluna à direita, parado enquanto a tabela rola.
- * Variáveis: $hoje, $ref, $ultimo, $reserva, $meta, $linhas, $quita, $bate, $marcos, $ganho (AnualResumo::ganho).
+ * "E se" (FuturoController::simulacao): com a simulação ativa, tudo acima mostra o simulado; um aviso
+ *    diz o que foi simulado, o cartão "E se…?" compara com o plano e o gráfico mostra o plano apagado.
+ * Variáveis: $hoje, $ref, $ultimo, $reserva, $meta, $linhas, $quita, $bate, $marcos, $ganho (AnualResumo::ganho),
+ *            $se, $comparar (null sem simulação), $temDivida.
  */
 $n    = count($linhas);
 $vals = array_map(static fn($l) => (float) $l['fica'], $linhas);
@@ -39,6 +42,8 @@ $faixa  = static function (string $ini, string $fimM): string {
     return substr($ini, 0, 4) === substr($fimM, 0, 4) ? mesCurto($ini) . '–' . monthLabel($fimM) : monthLabel($ini) . '–' . monthLabel($fimM);
 };
 $seguinte = static fn(string $m): string => date('Y-m-01', strtotime($m . ' +1 month'));
+$sim = !empty($se['ativo']);
+$din = static fn(float $v): string => num($v, abs($v - round($v)) < 0.005 ? 0 : 2);   // 500 ou 1.250,50
 
 // ---- resumo: trechos seguidos abaixo da reserva (âmbar e vermelho juntos), volta, adiantamento, quitação
 $trechos = [];
@@ -134,10 +139,11 @@ if ($bate !== null) {
 
 // ---- gráfico: escala, grade "redonda" (2 a 4 linhas) e caminhos
 $divs = array_map(static fn($l) => (float) $l['divida'], $linhas);
+$valsBase = array_map(static fn($l) => (float) $l['base_fica'], $linhas);
 $comDivida = max($divs) > 0.004;
 $comMeta = $meta > 0.004 && $meta <= max($vals) * 1.25;
-$topo = max(max($vals), $comDivida ? max($divs) : 0.0, $reserva, $comMeta ? $meta : 0.0, 1.0);
-$piso = min(0.0, min($vals));
+$topo = max(max($vals), $comDivida ? max($divs) : 0.0, $sim ? max($valsBase) : 0.0, $reserva, $comMeta ? $meta : 0.0, 1.0);
+$piso = min(0.0, min($vals), $sim ? min($valsBase) : 0.0);
 $amp  = max(1e-9, $topo - $piso);
 $yMax = $topo + $amp * 0.16;
 $yMin = $piso - $amp * ($piso < -0.004 ? 0.16 : 0.04);
@@ -191,6 +197,12 @@ for ($i = $iRef; $i <= $iZera; $i++) {
         break;
     }
 }
+$baseCaminho = '';
+if ($sim) {
+    foreach ($valsBase as $i => $v) {
+        $baseCaminho .= ($i === 0 ? 'M' : ' L') . $f($x($i)) . ',' . $f($y($v));
+    }
+}
 $divSolida    = $comDivida && $iReal >= 1 ? $caminhoD(0, min($iReal, $iZera)) : '';
 $divTracejada = $comDivida && $iReal < $iZera ? $caminhoD(max(0, $iReal), $iZera) : '';
 $yRes  = $y($reserva);
@@ -213,6 +225,9 @@ $marca = static fn(string $estado): string => '<i class="fu-mk is-' . ($estado =
 // ---- tabela: "o que mudou" de cada mês (fluxos do empréstimo e da poupança antes das categorias)
 $chips = static function (array $l) use ($quita): array {
     $out = [];
+    if (abs($l['simulado']) > 0.004) {
+        $out[] = ['tipo' => 'sim', 'seta' => '', 'txt' => 'E se: ' . ($l['simulado'] > 0 ? '+' : MENOS) . num(abs($l['simulado']), 0), 'sr' => ''];
+    }
     if ($quita !== null && $l['mes'] === $quita) {
         $out[] = ['tipo' => 'ok', 'seta' => '', 'txt' => 'Empréstimo quitado', 'sr' => ''];
     }
@@ -248,8 +263,41 @@ foreach ($linhas as $l) {
 }
 $alertaIc = static fn(string $a): string => $a !== '' ? svgIcon('alert', 13, 'fu-al') : '';
 ?>
-<div class="fu">
+<?php
+// o que está sendo simulado, em palavras
+$oQue = [];
+if ($sim) {
+    if ($se['mensal'] > 0) {
+        $oQue[] = ($se['mensalTipo'] === 'economizar' ? 'economizar ' . $din($se['mensal']) . ' por mês' : 'gastar ' . $din($se['mensal']) . ' a mais por mês')
+                . ' a partir de ' . monthLabel($se['mensalDe']);
+    }
+    if ($se['uma'] > 0) {
+        $oQue[] = ($se['umaTipo'] === 'entrada' ? 'uma entrada de ' : 'um gasto de ') . $din($se['uma']) . ' em ' . monthLabel($se['umaMes']);
+    }
+    if ($temDivida && !$se['adiantar']) {
+        $oQue[] = 'sem adiantar o empréstimo';
+    } elseif ($temDivida && $se['adiantar'] && $se['extra'] === []) {
+        $oQue[] = 'adiantando o empréstimo';
+    }
+}
+$juntar = static fn(array $p): string => count($p) > 1 ? implode(', ', array_slice($p, 0, -1)) . ' e ' . end($p) : (string) ($p[0] ?? '');
+$opcoesMes = static function (string $sel) use ($se): string {
+    $h = '';
+    foreach ($se['meses'] as $m) {
+        $h .= '<option value="' . e($m) . '"' . ($m === $sel ? ' selected' : '') . '>' . e(monthLabel($m)) . '</option>';
+    }
+    return $h;
+};
+?>
+<div class="fu<?= $sim ? ' is-sim' : '' ?>">
     <h1 class="fu-titulo pg-titulo">Os próximos meses</h1>
+
+    <?php if ($sim): ?>
+        <p class="fu-sim" role="status">
+            <span><b>Simulação:</b> <?= e($juntar($oQue)) ?>. Nada foi salvo.</span>
+            <a class="btn-link" href="/futuro">Voltar ao plano</a>
+        </p>
+    <?php endif; ?>
 
     <!-- resumo: como termina e os marcos -->
     <section class="card fu-res" aria-labelledby="fu-res-t">
@@ -267,6 +315,59 @@ $alertaIc = static fn(string $a): string => $a !== '' ? svgIcon('alert', 13, 'fu
             </ol>
         <?php endif; ?>
     </section>
+
+    <!-- e se: simulação pela URL, nada é gravado -->
+    <details class="card fu-ese" id="e-se"<?= $sim || $se['erros'] !== [] ? ' open' : '' ?>>
+        <summary class="fu-ese-cab">
+            <span class="fu-ese-t">E se…?</span>
+            <span class="fu-ese-dica">Simule uma economia por mês, um gasto ou uma entrada. Nada é salvo.</span>
+        </summary>
+        <?php if ($se['erros'] !== []): ?><p class="fu-ese-erro" role="alert"><?= e(implode(' ', $se['erros'])) ?></p><?php endif; ?>
+        <?php if ($comparar !== null):
+            [$cp, $cs] = [$comparar['plano'], $comparar['se']];
+            $dFim = $cs['fim'] - $cp['fim'];
+            $apert = static fn(?array $a): string => $a === null ? '—' : monthLabel($a['mes']) . ': ' . (($a['fica'] < -0.004 ? MENOS : '') . num(abs($a['fica']), 0));
+            $quitaTxt = static fn(?string $q): string => $q === null ? 'não dá para dizer' : monthLabel($q);
+            ?>
+            <table class="fu-cmp num">
+                <caption class="sr-only">Plano comparado com a simulação</caption>
+                <thead><tr><th scope="col"><span class="sr-only">O quê</span></th><th scope="col">Plano</th><th scope="col">E se</th></tr></thead>
+                <tbody>
+                    <tr><th scope="row">Fim de <?= e(monthLabel($ultimo)) ?></th><td><?= e($valor($cp['fim'])) ?></td><td><b><?= e($valor($cs['fim'])) ?></b><?php if (abs($dFim) >= 0.5): ?> <small class="<?= $dFim > 0 ? 'pos' : 'neg' ?>"><?= e($sinal($dFim)) ?></small><?php endif; ?></td></tr>
+                    <tr><th scope="row">Mês mais apertado</th><td><?= e($apert($cp['apertado'])) ?></td><td><b><?= e($apert($cs['apertado'])) ?></b></td></tr>
+                    <tr><th scope="row">Meses abaixo da reserva</th><td><?= (int) $cp['abaixo'] ?></td><td><b><?= (int) $cs['abaixo'] ?></b></td></tr>
+                    <?php if ($temDivida): ?>
+                        <tr><th scope="row">Empréstimo acaba</th><td><?= e($quitaTxt($cp['quita'])) ?></td><td><b><?= e($quitaTxt($cs['quita'])) ?></b></td></tr>
+                        <tr><th scope="row">Juros até quitar</th><td><?= $cp['juros'] === null ? '—' : e(num($cp['juros'], 0)) ?></td><td><b><?= $cs['juros'] === null ? '—' : e(num($cs['juros'], 0)) ?></b></td></tr>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        <?php endif; ?>
+        <form class="fu-ese-form" method="get" action="/futuro#e-se">
+            <input type="hidden" name="se" value="1">
+            <div class="fu-ese-l" role="group" aria-labelledby="fu-ese-mensal">
+                <span class="fu-ese-rot" id="fu-ese-mensal">Todo mês</span>
+                <select name="mensal_tipo" aria-label="Economizar ou gastar a mais"><option value="economizar"<?= $se['mensalTipo'] === 'economizar' ? ' selected' : '' ?>>Economizar</option><option value="gastar"<?= $se['mensalTipo'] === 'gastar' ? ' selected' : '' ?>>Gastar a mais</option></select>
+                <input name="mensal" inputmode="decimal" autocomplete="off" placeholder="0,00" aria-label="Valor todo mês" value="<?= $se['mensal'] > 0 ? e(numInput($se['mensal'])) : '' ?>">
+                <label class="fu-ese-mes">a partir de <select name="mensal_de"><?= $opcoesMes($se['mensalDe']) ?></select></label>
+            </div>
+            <div class="fu-ese-l" role="group" aria-labelledby="fu-ese-uma">
+                <span class="fu-ese-rot" id="fu-ese-uma">Uma vez</span>
+                <select name="uma_tipo" aria-label="Gasto ou entrada"><option value="gasto"<?= $se['umaTipo'] === 'gasto' ? ' selected' : '' ?>>Um gasto</option><option value="entrada"<?= $se['umaTipo'] === 'entrada' ? ' selected' : '' ?>>Uma entrada</option></select>
+                <input name="uma" inputmode="decimal" autocomplete="off" placeholder="0,00" aria-label="Valor uma vez" value="<?= $se['uma'] > 0 ? e(numInput($se['uma'])) : '' ?>">
+                <label class="fu-ese-mes">em <select name="uma_mes"><?= $opcoesMes($se['umaMes']) ?></select></label>
+            </div>
+            <?php if ($temDivida): ?>
+                <label class="fu-ese-adi"><input type="checkbox" name="adiantar" value="1"<?= $se['adiantar'] ? ' checked' : '' ?>> Usar a sobra para adiantar o empréstimo</label>
+            <?php elseif ($se['adiantar']): ?>
+                <input type="hidden" name="adiantar" value="1">
+            <?php endif; ?>
+            <div class="fu-ese-acoes">
+                <button type="submit" class="btn fu-ese-btn">Simular</button>
+                <?php if ($sim): ?><a class="btn-link" href="/futuro">Voltar ao plano</a><?php endif; ?>
+            </div>
+        </form>
+    </details>
 
     <!-- conta no fim de cada mês -->
     <section class="card fu-graf" aria-labelledby="fu-graf-t">
@@ -291,6 +392,7 @@ $alertaIc = static fn(string $a): string => $a !== '' ? svgIcon('alert', 13, 'fu
                         <line class="fu-meta-l" x1="0" x2="<?= $VW ?>" y1="<?= $f($y($meta)) ?>" y2="<?= $f($y($meta)) ?>"/>
                     <?php endif; ?>
                     <line class="fu-hoje-l" x1="<?= $f($x($iRef)) ?>" x2="<?= $f($x($iRef)) ?>" y1="0" y2="<?= $VH ?>"/>
+                    <?php if ($baseCaminho !== ''): ?><path class="fu-base-l" d="<?= $baseCaminho ?>"/><?php endif; ?>
                     <?php if ($divSolida !== ''): ?><path class="fu-div-l" d="<?= $divSolida ?>"/><?php endif; ?>
                     <?php if ($divTracejada !== ''): ?><path class="fu-div-l is-prev" d="<?= $divTracejada ?>"/><?php endif; ?>
                     <?php if ($solida !== ''): ?><path class="fu-linha" d="<?= $solida ?>"/><?php endif; ?>
@@ -316,6 +418,9 @@ $alertaIc = static fn(string $a): string => $a !== '' ? svgIcon('alert', 13, 'fu
                     <span class="fu-nota is-baixo <?= $vals[$iAp] < -0.004 ? 'neg' : 'warn' ?> num" style="left:<?= $pc($x($iAp), $VW) ?>;top:<?= $pc($y($vals[$iAp]), $VH) ?>"><?= e($valor($vals[$iAp])) ?></span>
                 <?php endif; ?>
                 <span class="fu-nota is-fim num" style="left:<?= $pc($x($n - 1), $VW) ?>;top:<?= $pc($y($vals[$n - 1]), $VH) ?>"><?= e($valor($vals[$n - 1])) ?></span>
+                <?php if ($sim): ?>
+                    <span class="fu-nota is-plano num" style="left:<?= $pc($x($n - 1), $VW) ?>;top:<?= $pc($y($valsBase[$n - 1]), $VH) ?>">plano <?= e($valor($valsBase[$n - 1])) ?></span>
+                <?php endif; ?>
             </div>
             <div class="fu-eixo" aria-hidden="true">
                 <?php foreach ($linhas as $i => $l): ?>
@@ -373,9 +478,11 @@ $alertaIc = static fn(string $a): string => $a !== '' ? svgIcon('alert', 13, 'fu
                                 <p><span>Começou o mês com</span> <?= e($valor2((float) $l['antes'])) ?></p>
                                 <p><span>+ Entradas</span> <?= e(num($l['entra_op'])) ?></p>
                                 <?php if ($l['consignado'] > 0.004): ?><p class="fu-conta-sub"><span>soldo de <?= e(num($l['entra_bruto'])) ?> menos <?= e(num($l['consignado'])) ?> do consignado</span></p><?php endif; ?>
+                                <?php if ($l['simulado'] > 0.004): ?><p class="fu-conta-sub"><span>inclui <?= e(num($l['simulado'])) ?> do "e se"</span></p><?php endif; ?>
                                 <?php if ($l['cred'] > 0.004): ?><p><span>+ Crédito do empréstimo</span> <?= e(num($l['cred'])) ?></p><?php endif; ?>
                                 <?php if ($l['poup'] > 0.004): ?><p><span>+ Tirado da poupança</span> <?= e(num($l['poup'])) ?></p><?php endif; ?>
                                 <p><span><?= MENOS ?> Gastos</span> <?= e(num($l['gastos'])) ?></p>
+                                <?php if ($l['simulado'] < -0.004): ?><p class="fu-conta-sub"><span>inclui <?= e(num(abs($l['simulado']))) ?> do "e se"</span></p><?php endif; ?>
                                 <?php if ($l['amort'] > 0.004): ?><p><span><?= MENOS ?> Adiantado do empréstimo</span> <?= e(num($l['amort'])) ?></p><?php endif; ?>
                                 <?php if ($l['poup'] < -0.004): ?><p><span><?= MENOS ?> Guardado na poupança</span> <?= e(num(abs($l['poup']))) ?></p><?php endif; ?>
                                 <p class="fu-conta-fim<?= $l['alerta'] !== '' ? ' ' . e($l['alerta']) : '' ?>"><span>= Conta no fim</span> <?= e($valor2((float) $l['fica'])) ?></p>

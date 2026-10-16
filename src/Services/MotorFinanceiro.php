@@ -120,7 +120,9 @@ final class MotorFinanceiro
      * A cascata mês a mês, aritmética pura sobre dados().
      * opts: override [mes=>[cat=>valor]] (só meses PREVISAO), v2 (bool, padrão MOTOR_V2),
      *       aberto (bool, padrão true: regra D5), objetivo (1 os dois · 2 só quitar · 3 só a meta;
-     *       padrão ajustes.objetivo; ignorado sem v2), hoje ('Y-m-d'), tratarComoReal (string[]).
+     *       padrão ajustes.objetivo; ignorado sem v2), hoje ('Y-m-d'), tratarComoReal (string[]),
+     *       extra [mes=>valor] (o "e se" do Anual: fora de mês REAL, + entra e − sai no mês, como uma
+     *       categoria operacional a mais; nada é gravado).
      */
     public static function calcular(array $dados, array $opts = []): array
     {
@@ -137,6 +139,7 @@ final class MotorFinanceiro
         $mesHoje  = substr($hoje, 0, 7) . '-01';
         $tcr      = array_flip($opts['tratarComoReal'] ?? []);
         $override = $opts['override'] ?? [];
+        $extra    = $opts['extra'] ?? [];
 
         $reserva  = (float) ($aj['reserva_minima'] ?? 0.0);
         $meta     = (float) ($aj['meta_final'] ?? 0.0);
@@ -197,6 +200,14 @@ final class MotorFinanceiro
                         }
                     }
                     $cred = self::em($p, $esp['cred']);
+                }
+            }
+            if (!$ehReal && isset($extra[$mes])) {
+                $x = (float) $extra[$mes];
+                if ($x > 0) {
+                    $entra += $x;
+                } else {
+                    $sai -= $x;
                 }
             }
             // somas de dinheiro em centavos: arredondar reproduz o SUM() do banco ao centavo

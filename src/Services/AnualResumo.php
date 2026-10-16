@@ -107,52 +107,84 @@ final class AnualResumo
 
     /**
      * O que adiantar a sobra rende, comparando o plano com o mesmo plano sem adiantamento (só as
-     * parcelas): quando o empréstimo acaba em cada um e quantos juros se deixa de pagar. Depois do
-     * último mês do plano, o "só as parcelas" segue com a parcela e os juros do mês até zerar.
+     * parcelas): quando o empréstimo acaba em cada um e quantos juros se deixa de pagar.
      * Null quando o plano não adianta nada ou não quita dentro do horizonte.
      * @param array<string, array> $com plano atual; $sem plano com objetivo 3 (sem adiantamento automático)
      * @return ?array{quitaCom:string, quitaSem:string, meses:int, juros:float}
      */
     public static function ganho(array $com, array $sem, float $parcela, float $jurosMes): ?array
     {
-        $quitaCom = null;
         $adiantou = false;
-        $jurosCom = $jurosSem = 0.0;
-        foreach ($com as $mes => $l) {
-            $jurosCom += (float) $l['juros'];
+        foreach ($com as $l) {
             $adiantou = $adiantou || ($l['estado'] !== 'real' && (float) $l['amortizacao_extra'] > 0.004);
-            if ($quitaCom === null && !empty($l['quitado'])) {
-                $quitaCom = (string) $mes;
-            }
         }
-        if ($quitaCom === null || !$adiantou || $sem === []) {
+        $qc = self::quitacao($com, $parcela, $jurosMes);
+        if (!$adiantou || $qc === null || !$qc['noPlano'] || $sem === []) {
             return null;
         }
-        $quitaSem = null;
-        foreach ($sem as $mes => $l) {
-            $jurosSem += (float) $l['juros'];
-            if ($quitaSem === null && !empty($l['quitado'])) {
-                $quitaSem = (string) $mes;
+        $qs = self::quitacao($sem, $parcela, $jurosMes);
+        if ($qs === null) {
+            return null;
+        }
+        return ['quitaCom' => $qc['mes'], 'quitaSem' => $qs['mes'], 'meses' => self::mesesEntre($qc['mes'], $qs['mes']),
+                'juros' => max(0.0, $qs['juros'] - $qc['juros'])];
+    }
+
+    /**
+     * Quando o empréstimo acaba e quanto se paga de juros até lá. Dentro do plano, o 1º mês
+     * quitado; depois do último mês, segue só com a parcela e os juros do mês até zerar.
+     * Null quando a parcela não cobre os juros (não dá para dizer quando acabaria).
+     * @return ?array{mes:string, juros:float, noPlano:bool}
+     */
+    public static function quitacao(array $plano, float $parcela, float $jurosMes): ?array
+    {
+        if ($plano === []) {
+            return null;
+        }
+        $juros = 0.0;
+        foreach ($plano as $mes => $l) {
+            $juros += (float) $l['juros'];
+            if (!empty($l['quitado'])) {
+                return ['mes' => (string) $mes, 'juros' => $juros, 'noPlano' => true];
             }
         }
-        if ($quitaSem === null) {
-            $ult = end($sem);
-            $div = (float) $ult['falta_pagar'];
-            $k = 0;
-            while ($div > 0.01 && $k < 600 && $parcela > 0.004) {
-                $j = $div * $jurosMes;
-                $jurosSem += $j;
-                $div = max(0.0, $div + $j - $parcela);
-                $k++;
-            }
-            if ($div > 0.01) {
-                return null;   // a parcela não cobre os juros: não dá para dizer quando acabaria
-            }
-            $quitaSem = date('Y-m-01', strtotime((string) $ult['mes'] . " +{$k} month"));
+        $ult = end($plano);
+        $div = (float) $ult['falta_pagar'];
+        $k = 0;
+        while ($div > 0.01 && $k < 600 && $parcela > 0.004) {
+            $j = $div * $jurosMes;
+            $juros += $j;
+            $div = max(0.0, $div + $j - $parcela);
+            $k++;
         }
-        $meses = ((int) substr($quitaSem, 0, 4) - (int) substr($quitaCom, 0, 4)) * 12
-               + (int) substr($quitaSem, 5, 2) - (int) substr($quitaCom, 5, 2);
-        return ['quitaCom' => $quitaCom, 'quitaSem' => $quitaSem, 'meses' => $meses, 'juros' => max(0.0, $jurosSem - $jurosCom)];
+        if ($div > 0.01) {
+            return null;
+        }
+        return ['mes' => date('Y-m-01', strtotime((string) $ult['mes'] . " +{$k} month")), 'juros' => $juros, 'noPlano' => false];
+    }
+
+    /**
+     * Os números que o "e se" compara com o plano, contados a partir do mês de referência.
+     * @return array{fim:float, apertado:?array{mes:string, fica:float}, abaixo:int, quita:?string, juros:?float}
+     */
+    public static function numeros(array $plano, float $reserva, string $ref, float $parcela, float $jurosMes): array
+    {
+        $mk = self::marcos($plano, $reserva, $ref);
+        $abaixo = 0;
+        foreach ($plano as $l) {
+            if ((string) $l['mes'] >= $ref && (float) $l['fica_na_conta'] < $reserva - 0.004) {
+                $abaixo++;
+            }
+        }
+        $q = self::quitacao($plano, $parcela, $jurosMes);
+        return ['fim' => (float) ($mk['fim']['fica'] ?? 0.0), 'apertado' => $mk['apertado'], 'abaixo' => $abaixo,
+                'quita' => $q['mes'] ?? null, 'juros' => $q['juros'] ?? null];
+    }
+
+    /** Meses de $a até $b ('Y-m-01'); negativo se $b vem antes. */
+    public static function mesesEntre(string $a, string $b): int
+    {
+        return ((int) substr($b, 0, 4) - (int) substr($a, 0, 4)) * 12 + (int) substr($b, 5, 2) - (int) substr($a, 5, 2);
     }
 
     /**

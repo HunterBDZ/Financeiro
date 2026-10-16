@@ -11,16 +11,16 @@
 .aj-titulo, .fu-titulo, .fe-titulo { font-size: 24px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.15; }
 
 /* seta de abrir (linhas e grupos) */
-details.mes-ed > summary::after, .mes-sub-titulo::after, .meta-grupo-cab::after, .fu-mes > summary::after {
+details.mes-ed > summary::after, .mes-sub-titulo::after, .meta-grupo-cab::after, .fu-mes > summary::after, .fu-ese > summary::after {
     content: ""; flex: none; width: 8px; height: 8px;
     border-right: 2px solid var(--text-3); border-bottom: 2px solid var(--text-3);
     transform: rotate(45deg) translateY(-2px);
     transition: transform .2s cubic-bezier(.16, 1, .3, 1), border-color .15s ease-out;
 }
 details.mes-ed[open] > summary::after, .mes-grupo[open] > .mes-sub-titulo::after,
-.meta-grupo[open] > .meta-grupo-cab::after, .fu-mes[open] > summary::after { transform: rotate(-135deg) translateY(-1px); }
+.meta-grupo[open] > .meta-grupo-cab::after, .fu-mes[open] > summary::after, .fu-ese[open] > summary::after { transform: rotate(-135deg) translateY(-1px); }
 details.mes-ed > summary:hover::after, .mes-sub-titulo:hover::after,
-.meta-grupo-cab:hover::after, .fu-mes > summary:hover::after { border-color: var(--text); }
+.meta-grupo-cab:hover::after, .fu-mes > summary:hover::after, .fu-ese > summary:hover::after { border-color: var(--text); }
 
 /* ---------------------------------------------------------------- 2. mês */
 
@@ -373,6 +373,40 @@ details.mes-ed:target > summary { animation: mes-realce 1.6s ease-out 1; }   /* 
 .fu-total .fu-v { color: var(--text); font-weight: 750; }
 .fu-largo, .fu-cols > .fu-xl { display: none; }
 
+/* e se: aviso no topo, cartão com a comparação e o formulário (GET; nada é gravado) */
+.fu-sim {
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 16px;
+    padding: 12px 16px; border-radius: 16px; border: 1px dashed var(--line-2); background: var(--card);
+    color: var(--text-2); font-size: 14px; line-height: 1.45;
+}
+.fu-sim b { color: var(--text); font-weight: 800; }
+.fu-sim > .btn-link { flex: none; }
+.fu-ese > summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; min-height: 28px; list-style: none; cursor: pointer; }
+.fu-ese > summary::after { margin-left: auto; align-self: center; }
+.fu-ese-t { font-size: 16px; font-weight: 800; }
+.fu-ese-dica { color: var(--text-2); font-size: 13px; }
+.fu-ese[open] > summary { margin-bottom: 14px; }
+.fu-ese-erro { margin: 0 0 12px; padding: 8px 12px; border-radius: 12px; background: var(--neg-bg); color: var(--neg); font-size: 13.5px; font-weight: 650; }
+.fu-cmp { width: 100%; margin: 0 0 16px; border-collapse: collapse; font-size: 14px; }
+.fu-cmp th, .fu-cmp td { padding: 8px 0; border-bottom: 1px solid var(--line); text-align: right; vertical-align: baseline; }
+.fu-cmp thead th { padding-top: 0; color: var(--text-3); font-size: 12px; font-weight: 700; }
+.fu-cmp tbody th { padding-right: 12px; text-align: left; color: var(--text-2); font-weight: 600; }
+.fu-cmp td { padding-left: 14px; color: var(--text-2); font-weight: 650; }
+.fu-cmp td b { color: var(--text); font-weight: 800; }
+.fu-cmp small { margin-left: 6px; font-size: 12.5px; font-weight: 750; }
+.fu-ese-form { display: flex; flex-direction: column; gap: 12px; --campo: var(--card-2); }
+.fu-ese-l { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "rot rot" "tipo valor" "mes mes"; gap: 8px; align-items: center; }
+.fu-ese-rot { grid-area: rot; font-size: 14px; font-weight: 750; }
+.fu-ese-l > select { grid-area: tipo; }
+.fu-ese-l > input { grid-area: valor; text-align: right; }
+.fu-ese-mes { grid-area: mes; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 10px; color: var(--text-2); font-size: 14px; }
+.fu-ese-adi { display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: 14px; font-weight: 600; }
+.fu-ese-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-top: 2px; }
+.fu-ese-btn { min-width: 150px; }
+.fu-base-l { fill: none; stroke: var(--text-3); stroke-width: 1.5; opacity: .6; vector-effect: non-scaling-stroke; }
+.fu-nota.is-plano { transform: translate(calc(-100% - 10px), -50%); color: var(--text-3); font-weight: 750; }
+.fu-chip.is-sim { background: transparent; box-shadow: inset 0 0 0 1px var(--line-2); color: var(--text); }
+
 /* o que mudou em relação ao mês anterior: a seta diz se subiu ou caiu; a cor, se foi bom ou ruim */
 .fu-chips { display: flex; flex-wrap: wrap; gap: 4px 6px; min-width: 0; }
 .fu-chip {
@@ -459,6 +493,8 @@ details.mes-ed:target > summary { animation: mes-realce 1.6s ease-out 1; }   /* 
     .fu-res-v b { font-size: 36px; }
     .fu-mes > summary, .fu-total { font-size: 15px; }
     .fu-det { grid-template-columns: minmax(0, 380px) minmax(0, 1fr); column-gap: 40px; align-items: start; }
+    .fu-ese-l { grid-template-columns: 88px minmax(0, 170px) minmax(0, 150px) minmax(0, 1fr); grid-template-areas: "rot tipo valor mes"; }
+    .fu-ese-mes { max-width: 300px; }
     .aj-input { width: 180px; }
     .aj-input.aj-input-mes { width: 220px; }
     .aj-nova { grid-template-columns: minmax(0, 1fr) 112px auto; }
@@ -493,8 +529,11 @@ details.mes-ed:target > summary { animation: mes-realce 1.6s ease-out 1; }   /* 
 @media (min-width: 1280px) {
     .fu {
         display: grid; grid-template-columns: minmax(0, 1fr) 340px; align-items: start; column-gap: 18px;
-        grid-template-areas: "tit tit" "graf res" "meses res";
+        grid-template-areas: "tit tit" "ese res" "graf res" "meses res";
     }
+    .fu.is-sim { grid-template-areas: "tit tit" "sim sim" "ese res" "graf res" "meses res"; }
+    .fu > .fu-sim { grid-area: sim; }
+    .fu > .fu-ese { grid-area: ese; }
     .fu > .fu-titulo { grid-area: tit; }
     .fu > .fu-graf { grid-area: graf; }
     .fu > .fu-meses { grid-area: meses; }
