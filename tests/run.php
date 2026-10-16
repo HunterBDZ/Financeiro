@@ -580,6 +580,7 @@ if ($catFat !== null && $catGasto > 0 && count($prevMeses) >= 3) {
         $vieram = CartaoModel::importarAntigas($idC);
         $deNovo = CartaoModel::importarAntigas($idC);
         $check('cartão: as compras da versão antiga do app vêm junto, uma vez só', $vieram === $antigas && $deNovo === 0, json_encode([$antigas, $vieram, $deNovo]));
+        LancarForm::limparCache();    // os dados do + ficam em cache na requisição; o cartão de teste acabou de nascer
         $htmlLanc = $render(LancamentosController::class, 'lancarForm', ['pagou' => 'cartao']);
         $check('cartão: o + tem "Pagou com", as vezes e a prévia, já em Cartão', str_contains($htmlLanc, 'name="pagou" value="cartao" checked')
             && str_contains($htmlLanc, 'data-ct-bloco') && str_contains($htmlLanc, 'name="parcelas"'));
