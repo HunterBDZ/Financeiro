@@ -85,6 +85,7 @@ $temAdd = $addEss !== [] || $addNao !== [];
         <span class="meta-mes num"><?= e(monthLabel($mesAtual)) ?></span>
     </div>
 
+    <div class="meta-lado">
     <!-- orçamento do mês: dê função a cada real -->
     <section class="card meta-top">
         <div class="meta-top-head">
@@ -133,6 +134,7 @@ $temAdd = $addEss !== [] || $addNao !== [];
             <button type="submit" class="btn btn-ghost meta-add-btn"<?= $temAdd ? '' : ' disabled' ?>>Adicionar</button>
         </div>
     </form>
+    </div>
 
     <form class="meta-form" method="post" action="/meta/salvar">
         <?= csrfField() ?>
