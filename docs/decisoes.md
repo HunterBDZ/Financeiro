@@ -4,6 +4,22 @@ Repositório canônico: `~/financeiro` no servidor 192.168.0.154 (git, branch `m
 Produção: `/var/www/financeiro`, publicada a partir deste repositório. O código que estava
 na máquina .164 (publicado em 10/10/2026) é o primeiro commit daqui; trabalhe sempre neste.
 
+## 2026-10-16 — emojis da Apple e barra do celular com o "+" no meio
+
+- **Emojis da Apple no lugar da pixel art:** o casal achou a pixel art feia e pediu "os emojis do
+  iPhone". O sprite agora é `public/assets/img/icones.webp` (~400 KB, 1680×1344): os mesmos 77
+  ícones, desenhos da Apple em 160 px (`img-apple-160` do iamcal/emoji-data), cada célula com 8 px
+  transparentes de respiro (vários emojis encostam na borda e vazavam para o vizinho quando o
+  navegador reduzia a imagem). `Icones::html` desenha o emoji a 66% dentro de um círculo
+  (`--card-2`); no tema escuro um contorno claro de 1 px (`--ic-halo`) impede que emojis escuros
+  (nota musical, estetoscópio, controle) sumam no fundo. Na grade de escolha o emoji vai sem
+  círculo e maior. As imagens são © Apple: servem ao uso pessoal deste app, não publicar
+  (`tools/icones/CREDITOS.md`); o cache das imagens fica fora do git.
+- **Barra do celular:** com 5 abas o "+" ficava fora do meio. Agora são Início, Extrato, +, Mês,
+  Metas (duas de cada lado). O Anual abre por "Visão anual", no fim do seletor de meses do Mês, e
+  pelo menu do avatar (ao lado de Ajustes), opção escolhida pelo casal; no Anual a aba Mês fica
+  acesa. No computador nada muda: o menu lateral continua com todas as telas.
+
 ## 2026-10-16 — ícones de categoria, seletor de meses e ajustes pedidos
 
 - **Ícones de categoria (pixel art):** cada categoria tem um ícone (Farmácia = pílula, Mercado =
