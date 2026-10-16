@@ -454,6 +454,22 @@ $check('anual: adiantar o empréstimo — quando acabaria só com as parcelas e 
     && $gT['quitaCom'] === '2027-02-01' && $gT['quitaSem'] === '2027-12-01' && $gT['meses'] === 10 && $gT['juros'] > 40 && $gT['juros'] < 60,
     json_encode($gT));
 $check('anual: sem adiantamento no plano, não há ganho a mostrar', AnualResumo::ganho($semT, $semT, 100.0, 0.01) === null);
+// o "o que mudou" sai da previsão gravada no banco a cada requisição: mudar um mês aparece nele e no seguinte
+if ($catDia > 0 && count($prevMeses) >= 3) {
+    $mA = $prevMeses[count($prevMeses) - 3];
+    $mB = date('Y-m-01', strtotime($mA . ' +1 month'));
+    $emTransacao('o que mudou acompanha a previsão', static function () use ($check, $catDia, $mA, $mB): void {
+        MotorFinanceiro::limparCache();
+        PrevisaoModel::setValor($catDia, $mA, PrevisaoModel::valor($catDia, $mA) + 6543.0);
+        MotorFinanceiro::limparCache();
+        $mu = AnualResumo::mudancas(MotorFinanceiro::calcularPlano(), MotorFinanceiro::dados());
+        $acha = static fn(array $l): int => count(array_filter($l, static fn($x) => abs(abs($x['valor'] - $x['antes']) - 6543.0) < 0.01));
+        $check('anual: "o que mudou" acompanha a previsão gravada (sobe no mês, volta no seguinte)',
+            $acha($mu[$mA] ?? []) === 1 && $acha($mu[$mB] ?? []) === 1 && ($mu[$mA][0]['efeito'] ?? 0) < 0 && ($mu[$mB][0]['efeito'] ?? 0) > 0,
+            json_encode([$mu[$mA] ?? null, $mu[$mB] ?? null], JSON_UNESCAPED_UNICODE));
+    });
+    MotorFinanceiro::limparCache();
+}
 $htmlFu = $render(FuturoController::class, 'index', []);
 $check('anual: resumo, conclusão no título do gráfico, previsão tracejada e total por ano', str_contains($htmlFu, 'class="card fu-res"')
     && str_contains($htmlFu, 'id="fu-graf-t">A conta fica') && str_contains($htmlFu, 'class="fu-linha is-prev"')
