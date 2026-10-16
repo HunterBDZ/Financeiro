@@ -387,7 +387,7 @@ details.mes-ed:target > summary { animation: mes-realce 1.6s ease-out 1; }   /* 
 .fu-ese-dica { color: var(--text-2); font-size: 13px; }
 .fu-ese[open] > summary { margin-bottom: 14px; }
 .fu-ese-erro { margin: 0 0 12px; padding: 8px 12px; border-radius: 12px; background: var(--neg-bg); color: var(--neg); font-size: 13.5px; font-weight: 650; }
-.fu-cmp { width: 100%; margin: 0 0 16px; border-collapse: collapse; font-size: 14px; }
+.fu-cmp { width: 100%; max-width: 620px; margin: 0 0 16px; border-collapse: collapse; font-size: 14px; }   /* sem esticar: os números perto do nome */
 .fu-cmp th, .fu-cmp td { padding: 8px 0; border-bottom: 1px solid var(--line); text-align: right; vertical-align: baseline; }
 .fu-cmp thead th { padding-top: 0; color: var(--text-3); font-size: 12px; font-weight: 700; }
 .fu-cmp tbody th { padding-right: 12px; text-align: left; color: var(--text-2); font-weight: 600; }
