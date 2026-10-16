@@ -19,7 +19,9 @@ $_SERVER['HTTPS']          = 'on';
 
 require __DIR__ . '/../src/bootstrap.php';
 
+use Financeiro\Auth;
 use Financeiro\Controllers\AjustesController;
+use Financeiro\Controllers\CartaoController;
 use Financeiro\Controllers\CategoriaController;
 use Financeiro\Controllers\DashboardController;
 use Financeiro\Controllers\FuturoController;
@@ -29,6 +31,7 @@ use Financeiro\Controllers\MetaController;
 use Financeiro\Database;
 use Financeiro\Icones;
 use Financeiro\Models\AjusteModel;
+use Financeiro\Models\CartaoModel;
 use Financeiro\Models\CategoriaModel;
 use Financeiro\Models\LancamentoModel;
 use Financeiro\Models\MesModel;
@@ -36,6 +39,8 @@ use Financeiro\Models\MetaModel;
 use Financeiro\Models\PrevisaoModel;
 use Financeiro\Models\UsuarioModel;
 use Financeiro\Services\AnualResumo;
+use Financeiro\Services\CartaoFatura;
+use Financeiro\Services\LancarForm;
 use Financeiro\Services\MotorFinanceiro;
 use Financeiro\Services\PrevisaoEdicao;
 use Financeiro\Services\PrevisaoLote;
@@ -510,6 +515,79 @@ if (count($mesesPrevE) >= 2) {
         && str_contains($htmlFu, 'id="e-se"'));
     $_GET = [];
 }
+
+// ---- 15. cartão: fatura de uma compra, parcelas, compra antiga, plano, Mês e a barra
+$check('cartão: compra antes, no dia e depois do fechamento (fecha 25, vence 5)',
+    CartaoFatura::faturaDe('2026-10-16', 25, 5) === '2026-11-01' && CartaoFatura::faturaDe('2026-10-25', 25, 5) === '2026-12-01'
+    && CartaoFatura::faturaDe('2026-10-26', 25, 5) === '2026-12-01' && CartaoFatura::faturaDe('2026-12-31', 25, 5) === '2027-02-01');
+$check('cartão: vencimento depois do fechamento no mesmo mês (fecha 3, vence 10) e mês curto',
+    CartaoFatura::faturaDe('2026-10-02', 3, 10) === '2026-10-01' && CartaoFatura::faturaDe('2026-10-03', 3, 10) === '2026-11-01'
+    && CartaoFatura::faturaDe('2027-02-28', 31, 8) === '2027-04-01'
+    && CartaoFatura::fechamento('2026-11-01', 25, 5) === '2026-10-25' && CartaoFatura::vencimento('2026-11-01', 5) === '2026-11-05');
+$pT = CartaoFatura::parcelas(100.0, 3, '2026-11-01');
+$check('cartão: os centavos que sobram vão na 1ª parcela', array_map(static fn($x) => $x[0] . ' ' . $x[1] . ' ' . number_format($x[2], 2), $pT)
+    === ['2026-11-01 1 33.34', '2026-12-01 2 33.33', '2027-01-01 3 33.33'], json_encode($pT));
+$check('cartão: compra antiga (parcela 4 na fatura aberta de nov/26) começou em ago/26', CartaoFatura::primeiraDaAntiga('2026-11-01', 4) === '2026-08-01'
+    && CartaoFatura::primeiraDaAntiga('2026-11-01', 1) === '2026-11-01');
+$compT = [
+    ['id' => 1, 'valor_total' => 3200.0, 'parcelas' => 10, 'primeira_fatura' => '2026-11-01', 'descricao' => 'Máquina', 'data' => '2026-10-16'],
+    ['id' => 2, 'valor_total' => 600.0, 'parcelas' => 6, 'primeira_fatura' => '2026-08-01', 'descricao' => 'Fone', 'data' => '2026-07-20'],
+    ['id' => 3, 'valor_total' => 50.0, 'parcelas' => 1, 'primeira_fatura' => '2026-11-01', 'descricao' => 'Farmácia', 'data' => '2026-10-10'],
+];
+$pnT = CartaoFatura::painel(['fecha' => 25, 'vence' => 5, 'limite' => 10000.0], $compT, '2026-10-16', ['2026-10-01' => 5751.52]);
+$fNov = $pnT['faturas'][1];
+$check('cartão: painel — fatura aberta, a anterior paga, o total e o limite livre', $pnT['aberta'] === '2026-11-01'
+    && $pnT['faturas'][0]['status'] === 'paga' && $fNov['status'] === 'aberta' && abs($fNov['total'] - 470.0) < 0.01
+    && abs($pnT['comprometido'] - (3200.0 + 300.0 + 50.0)) < 0.01 && abs($pnT['livre'] - (10000.0 - 3550.0)) < 0.01, json_encode([$fNov['total'], $pnT['comprometido']]));
+$check('cartão: parcelamentos do que acaba antes para o que acaba depois', array_map(static fn($x) => $x['compra']['id'] . ':' . $x['agora'] . '/' . $x['n'], $pnT['parcelamentos'])
+    === ['2:4/6', '1:1/10'], json_encode(array_map(static fn($x) => [$x['compra']['id'], $x['agora']], $pnT['parcelamentos'])));
+$catFat = CartaoModel::categoriaFatura();
+$catGasto = (int) $pdo->query("SELECT id FROM categorias WHERE grupo = 'Dia a dia' AND ativo = 1 AND sinal = -1 ORDER BY id LIMIT 1")->fetchColumn();
+if ($catFat !== null && $catGasto > 0 && count($prevMeses) >= 3) {
+    $emTransacao('cartão alimentando o plano', static function () use ($pdo, $check, $catFat, $catGasto, $render): void {
+        $hojeT = date('Y-m-d');
+        $idC = CartaoModel::salvar(null, 'Cartão teste', 25, 5, null);
+        $aberta = CartaoFatura::faturaDe($hojeT, 25, 5);
+        $antes = PrevisaoModel::valor($catFat, $aberta);
+        $r = CartaoController::criarCompraDe(['valor' => '1.000,00', 'categoria_id' => (string) $catGasto, 'data' => $hojeT,
+                                              'parcelas' => '4', 'descricao' => 'TV teste'], $hojeT);
+        MotorFinanceiro::limparCache();
+        $check('cartão: a compra entra no cartão e, desligado do plano, a previsão da fatura não muda', $r['erro'] === null && $r['id'] > 0
+            && abs(PrevisaoModel::valor($catFat, $aberta) - $antes) < 0.01 && str_contains($r['aviso'], '4 × 250,00'), json_encode($r));
+        $erroCat = CartaoController::criarCompraDe(['valor' => '10', 'categoria_id' => (string) $catFat, 'data' => $hojeT, 'parcelas' => '1'], $hojeT);
+        $check('cartão: a categoria da compra não pode ser a própria fatura', $erroCat['erro'] !== null);
+        CartaoModel::setAlimentaPlano($idC, true);
+        $lote = CartaoFatura::sincronizarPlano((int) Auth::id(), $hojeT);
+        MotorFinanceiro::limparCache();
+        $mesSeg = CartaoFatura::somaMeses($aberta, 3);
+        $mesFim = CartaoFatura::somaMeses($aberta, 4);
+        $sit = static fn(string $m): ?string => ($v = $pdo->query("SELECT situacao FROM meses WHERE mes = '" . $m . "'")->fetchColumn()) === false ? null : (string) $v;
+        $okMeses = ($sit($aberta) !== 'PREVISAO' || abs(PrevisaoModel::valor($catFat, $aberta) - 250.0) < 0.01)
+            && ($sit($mesSeg) !== 'PREVISAO' || abs(PrevisaoModel::valor($catFat, $mesSeg) - 250.0) < 0.01)
+            && ($sit($mesFim) !== 'PREVISAO' || abs(PrevisaoModel::valor($catFat, $mesFim)) < 0.01);
+        $origem = $lote !== null ? $pdo->query("SELECT origem FROM previsao_lotes WHERE lote = '" . $lote . "'")->fetchColumn() : null;
+        $check('cartão: ligado ao plano, a Fatura do cartão de cada mês vira a soma das parcelas (lote cartao, fora do desfazer do Mês)',
+            $lote !== null && $origem === 'cartao' && $okMeses && (PrevisaoLote::ultimoDesfazivel()['lote'] ?? '') !== $lote,
+            json_encode([$lote, $origem, PrevisaoModel::valor($catFat, $aberta)]));
+        $htmlMesC = $sit($mesSeg) === 'PREVISAO' ? $render(MesController::class, 'index', ['mes' => $mesSeg]) : 'mes-do-cartao';
+        $check('cartão: no Mês, a Fatura do cartão vem do cartão (só leitura, leva à fatura)', str_contains($htmlMesC, 'mes-do-cartao'));
+        $htmlCt = $render(CartaoController::class, 'index', []);
+        $check('cartão: a aba mostra o cartão, a escada, a fatura e o parcelamento', str_contains($htmlCt, 'class="ct-plastico"')
+            && str_contains($htmlCt, 'class="ct-escada"') && str_contains($htmlCt, 'TV teste') && str_contains($htmlCt, 'class="ct-parc"')
+            && !str_contains($htmlCt, 'ct-conf-tab'));
+        $htmlLanc = $render(LancamentosController::class, 'lancarForm', ['pagou' => 'cartao']);
+        $check('cartão: o + tem "Pagou com", as vezes e a prévia, já em Cartão', str_contains($htmlLanc, 'name="pagou" value="cartao" checked')
+            && str_contains($htmlLanc, 'data-ct-bloco') && str_contains($htmlLanc, 'name="parcelas"'));
+    });
+    MotorFinanceiro::limparCache();
+    LancarForm::limparCache();
+}
+$check('cartão: sem cartão cadastrado, a aba pede o cadastro', CartaoModel::ativo() !== null
+    || str_contains($render(CartaoController::class, 'index', []), 'Cadastre o cartão'));
+$htmlBar = $render(MesController::class, 'index', []);
+preg_match('#<nav class="tabbar".*?</nav>#s', $htmlBar, $mB);
+$check('barra do celular: Início, Extrato, +, Mês, Cartão; Metas e Anual no menu do M', str_contains($mB[0] ?? '', 'href="/cartao"')
+    && !str_contains($mB[0] ?? '', 'href="/meta"') && str_contains($htmlBar, 'class="menu-item" href="/meta"') && str_contains($htmlBar, 'class="lat-i" href="/cartao"'));
 
 echo "\n{$ok} ok, {$falhas} falha(s)\n";
 exit($falhas > 0 ? 1 : 0);
