@@ -1,11 +1,11 @@
 <?php
 /**
- * Layout (P1). Variáveis: $content, $pageTitle, $active (inicio|extrato|meta|mes|futuro|ajustes),
+ * Layout (P1). Variáveis: $content, $pageTitle, $active (inicio|extrato|meta|mes|cartao|futuro|ajustes),
  * $semDialogoLancar (true = não renderiza o <dialog id="lancar">).
  * Computador: menu lateral (marca, Lançar, abas, Claro/Escuro, quem está e sair).
  * Celular: barra de cima (marca, sol/lua, menu do avatar) e barra flutuante embaixo com o "+" no
- * meio de 4 abas; o Anual sai dela e abre pelo seletor de meses do Mês ("Visão anual") e pelo
- * menu do avatar, ao lado de Ajustes.
+ * meio de 4 abas (Início, Extrato, +, Mês, Cartão). O Anual abre pelo seletor de meses do Mês
+ * ("Visão anual") e pelo menu do avatar; as Metas, pelo menu do avatar (ao lado de Ajustes).
  * CSS/JS dos pacotes entram só se o arquivo existir (D19): nenhum 404 durante o build.
  */
 use Financeiro\Auth;
@@ -18,14 +18,15 @@ $abas = [
     'inicio'  => ['/', 'Início', 'home'],
     'extrato' => ['/lancamentos', 'Extrato', 'list'],
     'mes'     => ['/mes', 'Mês', 'calendar'],
+    'cartao'  => ['/cartao', 'Cartão', 'cartao'],
     'futuro'  => ['/futuro', 'Anual', 'trend'],
     'meta'    => ['/meta', 'Metas', 'target'],
 ];
 
 $publico = __DIR__ . '/../../../public';
 $existe  = static fn(string $p): bool => is_file($publico . $p);
-$estilos = array_filter(['/assets/css/style.css', '/assets/css/inicio.css', '/assets/css/lancar.css', '/assets/css/mes.css'], $existe);
-$scripts = array_filter(['/assets/js/app.js', '/assets/js/lancar.js', '/assets/js/mes.js'], $existe);
+$estilos = array_filter(['/assets/css/style.css', '/assets/css/inicio.css', '/assets/css/lancar.css', '/assets/css/mes.css', '/assets/css/cartao.css'], $existe);
+$scripts = array_filter(['/assets/js/app.js', '/assets/js/lancar.js', '/assets/js/mes.js', '/assets/js/cartao.js'], $existe);
 
 $uri     = (string) ($_SERVER['REQUEST_URI'] ?? '/');
 $volta   = voltaSegura($uri, '/');
@@ -50,8 +51,8 @@ $aba = static function (string $chave) use ($activePage): string {
 $atual = static function (string $chave) use ($activePage): string {
     return $activePage === $chave ? ' aria-current="page"' : '';
 };
-// barra do celular: Início, Extrato, +, Mês, Metas; no Anual quem fica acesa é a do Mês
-$barra = array_diff_key($abas, ['futuro' => true]);
+// barra do celular: Início, Extrato, +, Mês, Cartão; no Anual quem fica acesa é a do Mês
+$barra = array_diff_key($abas, ['futuro' => true, 'meta' => true]);
 $acesaNaBarra = $activePage === 'futuro' ? 'mes' : $activePage;
 $marca = '<span class="marca"><img src="/assets/img/spitz.png" alt="" width="216" height="181"></span>';
 ?>
@@ -105,10 +106,11 @@ $marca = '<span class="marca"><img src="/assets/img/spitz.png" alt="" width="216
     <a class="topbar-marca" href="/"><?= $marca ?><b translate="no">financeiro</b></a>
     <button type="button" class="ic" data-theme-toggle aria-label="trocar tema"><?= svgIcon('sun', 19, 'so-escuro') ?><?= svgIcon('moon', 19, 'so-claro') ?></button>
     <details class="menu menu-avatar">
-        <summary aria-label="menu"><span class="avatar<?= $activePage === 'ajustes' ? ' is-active' : '' ?>"><?= e($inicial) ?></span></summary>
+        <summary aria-label="menu"><span class="avatar<?= in_array($activePage, ['ajustes', 'meta'], true) ? ' is-active' : '' ?>"><?= e($inicial) ?></span></summary>
         <div class="menu-painel">
             <?php if ($nome): ?><div class="menu-quem"><?= e($nome) ?></div><?php endif; ?>
             <a class="menu-item<?= $activePage === 'futuro' ? ' is-active' : '' ?>" href="/futuro"<?= $atual('futuro') ?>><?= svgIcon('trend', 18) ?>Anual</a>
+            <a class="menu-item<?= $activePage === 'meta' ? ' is-active' : '' ?>" href="/meta"<?= $atual('meta') ?>><?= svgIcon('target', 18) ?>Metas</a>
             <a class="menu-item<?= $activePage === 'ajustes' ? ' is-active' : '' ?>" href="/ajustes"><?= svgIcon('settings', 18) ?>Ajustes</a>
             <form method="post" action="/logout">
                 <?= csrfField() ?>

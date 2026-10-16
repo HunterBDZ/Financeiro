@@ -18,6 +18,7 @@ use Financeiro\Controllers\MetaController;
 use Financeiro\Controllers\CategoriaController;
 use Financeiro\Controllers\FuturoController;
 use Financeiro\Controllers\AjustesController;
+use Financeiro\Controllers\CartaoController;
 
 $router = new Router();
 
@@ -56,6 +57,15 @@ $router->post('/mes/fechar', [MesController::class, 'fechar']);
 $router->post('/mes/reabrir', [MesController::class, 'reabrir']);
 
 // ---- futuro
+// ---- cartão (a compra entra pelo POST /lancamentos com pagou=cartao)
+$router->get('/cartao', [CartaoController::class, 'index']);
+$router->post('/cartao/config', [CartaoController::class, 'salvarConfig']);
+$router->post('/cartao/plano', [CartaoController::class, 'plano']);
+$router->post('/cartao/compras/desfazer', [CartaoController::class, 'desfazer']);
+$router->get('/cartao/compras/{id}/editar', [CartaoController::class, 'editarForm']);
+$router->post('/cartao/compras/{id}/excluir', [CartaoController::class, 'excluir']);
+$router->post('/cartao/compras/{id}', [CartaoController::class, 'atualizar']);
+
 $router->get('/futuro', [FuturoController::class, 'index']);
 
 // ---- ajustes (menu do avatar)

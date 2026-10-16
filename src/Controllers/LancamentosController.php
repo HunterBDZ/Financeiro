@@ -117,6 +117,7 @@ final class LancamentosController
         if ($antigo === null) {
             // PAGAR sem JS: /lancar?categoria=9&valor=340,00&descricao=Faxineira&volta=/
             $pre = array_filter([
+                'pagou'        => self::get('pagou') === 'cartao' ? 'cartao' : null,
                 'categoria_id' => (int) (self::get('categoria') ?? 0) ?: null,
                 'valor'        => self::get('valor'),
                 'descricao'    => self::get('descricao'),
@@ -143,6 +144,18 @@ final class LancamentosController
         csrfCheck();
 
         $volta = voltaSegura(self::post('volta'), '');
+        if (self::post('pagou') === 'cartao') {
+            // "Pagou com: Cartão": vira uma compra no cartão (não é lançamento da conta; no plano só a fatura conta)
+            $r = CartaoController::criarCompraDe($_POST);
+            if ($r['erro'] !== null) {
+                $_SESSION['lanc_antigo'] = self::antigoDe($_POST) + ['erro' => $r['erro']];
+                redirecionar('/lancar?volta=' . rawurlencode($volta !== '' ? $volta : '/cartao'), 303);
+            }
+            $destino = $volta !== '' ? $volta : '/cartao';
+            flash('success', $r['aviso'], ['url' => '/cartao/compras/' . $r['id'] . '/excluir', 'label' => 'desfazer',
+                                           'campos' => ['volta' => $destino]]);
+            redirecionar($destino);
+        }
         [$erro, $d] = self::validar($_POST);
         if ($erro !== null) {
             $_SESSION['lanc_antigo'] = self::antigoDe($_POST) + ['erro' => $erro];
@@ -411,6 +424,10 @@ final class LancamentosController
         $s = static fn(string $k, int $max): string => is_string($in[$k] ?? null) ? mb_substr($in[$k], 0, $max) : '';
         $quando = $s('quando', 8);
         return [
+            'pagou'        => $s('pagou', 8) === 'cartao' ? 'cartao' : 'conta',
+            'parcelas'     => (string) (int) $s('parcelas', 3),
+            'parcelas_outro' => (string) (int) $s('parcelas_outro', 3),
+            'parcela_atual'  => (string) (int) $s('parcela_atual', 3),
             'valor'        => $s('valor', 40),
             'categoria_id' => (int) $s('categoria_id', 12),
             'descricao'    => $s('descricao', 255),

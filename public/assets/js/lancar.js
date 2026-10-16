@@ -84,6 +84,12 @@
                 d.value = desc;
             }
         }
+        // [data-pagou="cartao"]: abre com "Pagou com: Cartão" (do botão da aba Cartão); sem ele, volta a Conta
+        var pagou = form.querySelector('input[name="pagou"][value="' + (origem.getAttribute('data-pagou') === 'cartao' ? 'cartao' : 'conta') + '"]');
+        if (pagou && !pagou.checked) {
+            pagou.checked = true;
+            pagou.dispatchEvent(new Event('change', { bubbles: true }));
+        }
         // [data-data="AAAA-MM-DD"]: "outro dia" com essa data (ex.: conta de um mês que ainda não começou)
         var dt = origem.getAttribute('data-data');
         if (dt && /^\d{4}-\d{2}-\d{2}$/.test(dt)) {

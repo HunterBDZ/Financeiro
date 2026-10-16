@@ -170,7 +170,16 @@ $linhaDia = static function (array $l) use ($estado, $valorDia, $metaBarra, $met
     </details>
 <?php };
 
-$linhaConta = static function (array $l) use ($estado, $valorConta, $fmt, $metaBarra, $metaValCls, $origem, $painel, $abreLinha): void {
+$linhaConta = static function (array $l) use ($estado, $valorConta, $fmt, $metaBarra, $metaValCls, $origem, $painel, $abreLinha, $mes): void {
+    if (!empty($l['do_cartao'])) {          // vem das compras do Cartão: só leitura, leva à fatura
+        $v = $valorConta($l); ?>
+        <a class="mes-linha mes-ro mes-do-cartao" href="/cartao?fatura=<?= e($mes) ?>#fatura">
+            <?= iconeCategoria((int) $l['id'], (string) ($l['nome_completo'] ?? $l['nome']), (string) ($l['grupo'] ?? ''), 40, 'mes-ic') ?>
+            <span class="mes-sum"><span class="mes-l1"><span class="mes-nome"><?= e($l['nome_completo']) ?></span><span class="mes-val num"><?= e(num($v, fmod(abs($v), 1) > 0.004 ? 2 : 0)) ?></span></span>
+            <span class="mes-l2"><span class="mes-status mes-status-previsto">Vem do Cartão · ver a fatura</span></span></span>
+        </a>
+        <?php return;
+    }
     $st = $l['status'];
     // Situação da conta na 2ª linha, em texto com um ponto de cor: pago, parcial, vence, venceu, previsto.
     $selo = '';

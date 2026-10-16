@@ -14,7 +14,7 @@ use Financeiro\Models\PrevisaoModel;
  */
 final class PrevisaoLote
 {
-    public const ORIGENS = ['manual', 'propagar', 'sugestao', 'fechar', 'migracao', 'congelar'];
+    public const ORIGENS = ['manual', 'propagar', 'sugestao', 'fechar', 'migracao', 'congelar', 'cartao'];
 
     /**
      * @param list<array{0:int,1:string,2:?float}> $celulas [categoria_id, mes 'Y-m-01', valor | null]
@@ -193,7 +193,8 @@ final class PrevisaoLote
     }
 
     /**
-     * O lote mais recente ainda não desfeito, dos últimos 7 dias.
+     * O lote mais recente ainda não desfeito, dos últimos 7 dias (fora congelar e cartão: o cartão é
+     * dono da Fatura do cartão enquanto alimenta o plano, e se ajeita sozinho a cada compra).
      * @return ?array{lote:string, origem:string, criado_em:string, n:int, mes_inicio:string, usuario_id:int}
      */
     public static function ultimoDesfazivel(): ?array
@@ -203,7 +204,7 @@ final class PrevisaoLote
             'SELECT l.lote, l.origem, l.criado_em, l.mes_inicio, l.usuario_id,
                     (SELECT COUNT(*) FROM previsao_log g WHERE g.lote = l.lote) AS n
              FROM previsao_lotes l
-             WHERE l.desfeito_em IS NULL AND l.origem <> \'congelar\' AND l.criado_em >= (NOW() - INTERVAL 7 DAY)
+             WHERE l.desfeito_em IS NULL AND l.origem NOT IN (\'congelar\', \'cartao\') AND l.criado_em >= (NOW() - INTERVAL 7 DAY)
              ORDER BY l.criado_em DESC,
                       (SELECT COALESCE(MAX(g2.id), 0) FROM previsao_log g2 WHERE g2.lote = l.lote) DESC
              LIMIT 1'

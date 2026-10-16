@@ -3,10 +3,12 @@ namespace Financeiro\Controllers;
 
 use Financeiro\Auth;
 use Financeiro\Database;
+use Financeiro\Models\CartaoModel;
 use Financeiro\Models\LancamentoModel;
 use Financeiro\Models\MesModel;
 use Financeiro\Models\MetaModel;
 use Financeiro\Models\SaldoConferenciaModel;
+use Financeiro\Services\CartaoFatura;
 use Financeiro\Services\ChecklistContas;
 use Financeiro\Services\MotorFinanceiro;
 use Financeiro\Services\PrevisaoEdicao;
@@ -63,6 +65,11 @@ final class MesController
             $status[(int) $s['categoria_id']] = $s;
         }
 
+        // com o cartão ligado ao plano, a Fatura do cartão da fatura aberta em diante vem dele (só leitura aqui)
+        $doCartaoDesde = CartaoFatura::mesesDoCartao($hoje);
+        $catFatura = $doCartaoDesde !== null ? CartaoModel::categoriaFatura() : null;
+        $faturaDoCartao = $editavel && $catFatura !== null && $mes >= $doCartaoDesde;
+
         $excecao = $d['excecao'][$mes] ?? [];
         $dia = $diaZeradas = $contasLinhas = $entradas = $incluir = [];
         foreach ($cats as $id => $c) {
@@ -74,6 +81,7 @@ final class MesController
                 'meta' => $metas[$id] ?? null,
                 // previsão: a meta vale para todo mês; 'ajuste' = este mês tem valor próprio
                 'meta_padrao' => PrevisaoEdicao::meta($d, $id), 'ajuste' => isset($excecao[$id]),
+                'do_cartao' => $faturaDoCartao && $id === $catFatura,
             ];
             $temValor = $p > 0.004 || $r > 0.004;
             if (!$temValor && !$l['ativo']) {
@@ -91,7 +99,7 @@ final class MesController
                 case 'Cartao':
                 case 'Ano':
                     if (!$temValor) {
-                        if ($editavel && $l['ativo']) {
+                        if ($editavel && $l['ativo'] && !$l['do_cartao']) {
                             $incluir[] = $l;                     // conta sem previsão no mês: "+ incluir"
                         }
                         break;
@@ -175,6 +183,11 @@ final class MesController
         $incluindo = ($_POST['ancora'] ?? '') === 'incluir';     // veio do "+ incluir conta"
 
         $d = MotorFinanceiro::dados();
+        $doCartaoDesde = CartaoFatura::mesesDoCartao();
+        if ($doCartaoDesde !== null && $cat === CartaoModel::categoriaFatura() && $mes >= $doCartaoDesde) {
+            flash('warn', 'A Fatura do cartão deste mês vem das compras lançadas no Cartão');
+            redirecionar('/cartao?fatura=' . $mes . '#fatura', 303);
+        }
         try {
             $celulas = PrevisaoEdicao::celulas($d, $cat, $mes, $acao, $acao === 'salvar' ? parseMoedaBr($bruto) : null, $propagar);
         } catch (\InvalidArgumentException $e) {

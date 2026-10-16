@@ -1,0 +1,199 @@
+/* ==========================================================================
+   cartao.css — aba Cartão (prefixo .ct-*), o bloco do cartão no "+" e a linha da fatura no Mês.
+   Ideia: as parcelas que faltam viram a escada das próximas faturas, que também é como se anda
+   entre faturas. A coisa viva: ao lançar uma compra parcelada, a prévia mostra os degraus que sobem.
+   Só tokens de style.css; a escolhida é invertida (como nos chips do resto do app).
+   ========================================================================== */
+
+.ct { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.ct > * { min-width: 0; }
+.ct-topo { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+.ct-topo h1 { font-size: 24px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.15; }
+.ct-topo p { margin-top: 2px; color: var(--text-2); font-size: 14px; }
+
+/* o cartão, como objeto: proporção de cartão de verdade (85,6 × 54 mm) */
+.ct-plastico {
+    position: relative; display: flex; flex-direction: column; justify-content: space-between;
+    aspect-ratio: 1.586; width: 100%; max-width: 440px; padding: 20px 22px; border-radius: 22px;
+    background: var(--cofre) url('/assets/img/linhas-cartao.svg') center / cover no-repeat; color: var(--cofre-txt);
+    box-shadow: 0 18px 40px -24px rgba(0, 0, 0, .55);
+}
+.ct-plastico-topo { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.ct-plastico-t { font-size: 14px; font-weight: 700; }
+.ct-plastico-t small { display: block; margin-top: 2px; color: var(--cofre-txt-2); font-size: 12.5px; font-weight: 600; }
+.ct-chip { flex: none; width: 38px; height: 28px; border-radius: 7px; background: #c8b27a; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .18); position: relative; }
+.ct-chip::before, .ct-chip::after { content: ""; position: absolute; left: 0; right: 0; height: 1px; background: rgba(0, 0, 0, .22); }
+.ct-chip::before { top: 9px; } .ct-chip::after { bottom: 9px; }
+.ct-plastico-v { font-family: var(--fn); font-size: 34px; font-weight: 600; letter-spacing: -0.03em; line-height: 1; }
+.ct-plastico-v small { margin-right: 2px; font-size: .5em; font-weight: 500; color: var(--cofre-txt-2); }
+.ct-plastico-pe { display: flex; justify-content: space-between; gap: 12px; }
+.ct-plastico-pe dt { color: var(--cofre-txt-2); font-size: 12px; font-weight: 600; }
+.ct-plastico-pe dd { font-size: 14px; font-weight: 750; }
+.ct-plastico-pe div:last-child { text-align: right; }
+.ct-status { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 99px; background: rgba(255, 255, 255, .09); color: var(--cofre-txt); font-size: 12px; font-weight: 750; white-space: nowrap; }
+.ct-status i { width: 7px; height: 7px; border-radius: 50%; background: #79d68e; }
+
+.ct-lancar { display: flex; }
+.ct-lancar .btn { width: 100%; }
+
+/* a escada das próximas faturas: cada degrau é uma fatura e leva a ela */
+.ct-escada-cab { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.ct-escada-cab h2 { font-size: 16px; font-weight: 750; }
+.ct-escada-sub { margin-top: 2px; color: var(--text-2); font-size: 13px; line-height: 1.4; }
+.ct-escada { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); align-items: end; gap: 4px; height: 164px; margin-top: 16px; }
+.ct-degrau small { margin-top: -4px; color: var(--text-3); font-size: 10.5px; font-weight: 650; line-height: 1; }
+.ct-degrau {
+    position: relative; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 6px;
+    height: 100%; padding: 0; border: 0; background: none; color: var(--text-3); cursor: pointer;
+    font-size: 11.5px; font-weight: 650;
+}
+.ct-degrau-barra { display: flex; flex-direction: column; justify-content: flex-start; width: 100%; max-width: 30px; height: var(--h); border-radius: 6px 6px 3px 3px; background: var(--card-3); overflow: hidden; transition: background-color .15s ease-out; }
+.ct-degrau-novo { display: block; width: 100%; height: var(--n, 0%); background: var(--text); }
+.ct-degrau:hover .ct-degrau-barra { background: var(--line-2); }
+.ct-degrau.is-paga .ct-degrau-barra { background: transparent; box-shadow: inset 0 0 0 1.5px var(--line-2); }
+.ct-degrau.is-aberta .ct-degrau-barra { background: var(--text-2); }
+.ct-degrau[aria-current="true"] { color: var(--text); font-weight: 800; }
+.ct-degrau[aria-current="true"] .ct-degrau-barra { background: var(--text); }
+.ct-degrau:focus-visible { outline: 2px solid var(--foco); outline-offset: 3px; border-radius: 8px; }
+.ct-escada-leg { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; margin-top: 12px; }
+.ct-escada-leg output { font-size: 15px; font-weight: 750; }
+.ct-escada-mini { pointer-events: none; }
+.ct-escada-leg output b { font-family: var(--fn); font-weight: 600; }
+.ct-escada-leg span { color: var(--text-2); font-size: 13px; }
+
+/* a fatura escolhida */
+.ct-fat-cab { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 4px; }
+.ct-fat-cab h2 { font-size: 16px; font-weight: 750; }
+.ct-fat-cab b { font-family: var(--fn); font-size: 18px; font-weight: 600; }
+.ct-grupo { margin: 14px 0 2px; color: var(--text-3); font-size: 12.5px; font-weight: 750; }
+.ct-linha { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; min-height: 58px;
+            margin: 0 -10px; padding: 7px 10px; border-radius: 14px; color: var(--text); transition: background-color .12s ease-out; }
+.ct-linha:hover { background: var(--sel); }
+.ct-linha + .ct-linha { border-top: 1px solid var(--line); }
+.ct-linha-n { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.ct-linha-n b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+.ct-linha-n small { color: var(--text-2); font-size: 13px; }
+.ct-linha-v { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; font-weight: 750; }
+.ct-linha-v small { color: var(--text-3); font-size: 12.5px; font-weight: 650; }
+.ct-vez { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 99px; background: var(--card-2); color: var(--text-2); font-size: 12px; font-weight: 750; vertical-align: 1px; }
+.ct-fat-total { display: flex; justify-content: space-between; gap: 12px; margin-top: 6px; padding-top: 10px; border-top: 1px solid var(--line-2); font-weight: 800; }
+.ct-fat-total span { color: var(--text-2); font-weight: 650; }
+
+/* parcelamentos em andamento, do que acaba antes para o que acaba depois */
+.ct-parc-cab h2 { font-size: 16px; font-weight: 750; }
+.ct-parc-cab p { margin-top: 2px; color: var(--text-2); font-size: 13px; }
+.ct-parc { display: flex; flex-direction: column; margin-top: 6px; }
+.ct-parc li + li { border-top: 1px solid var(--line); }
+.ct-parc-i { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 12px; align-items: center;
+             margin: 0 -10px; padding: 10px; border-radius: 14px; color: var(--text); transition: background-color .12s ease-out; }
+.ct-parc-i:hover { background: var(--sel); }
+.ct-parc-i > .ci { grid-row: 1 / span 3; }
+.ct-parc-i > .trilho { display: block; }
+.ct-parc-l1, .ct-parc-l3 { display: flex; justify-content: space-between; gap: 10px; }
+.ct-parc-l1 { font-weight: 700; }
+.ct-parc-l1 span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ct-parc .trilho { margin: 4px 0 2px; }
+.ct-parc-l3 { color: var(--text-2); font-size: 12.5px; }
+.ct-dados { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; margin-top: 4px; }
+.ct-dados dt { color: var(--text-2); font-size: 12.5px; font-weight: 600; }
+.ct-dados dd { font-weight: 750; }
+
+/* lançar no cartão: "Pagou com" e as vezes */
+.ct-pagou { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: 14px; background: var(--card-2); margin-bottom: 6px; }
+.ct-pagou label { position: relative; display: grid; place-items: center; min-height: 40px; border-radius: 10px; color: var(--text-2); font-weight: 750; cursor: pointer; }
+.ct-pagou input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.ct-pagou label:has(input:checked) { background: var(--text); color: var(--bg); }   /* como nas vezes: a escolhida invertida */
+.ct-pagou label:has(input:focus-visible) { outline: 2px solid var(--foco); outline-offset: 2px; }
+.ct-vezes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.ct-vezes label { position: relative; display: grid; place-items: center; min-height: 44px; border-radius: 12px; background: var(--card-2); font-weight: 750; cursor: pointer; }
+.ct-vezes input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.ct-vezes label:has(input:checked) { background: var(--text); color: var(--bg); }
+.ct-vezes label:has(input:focus-visible) { outline: 2px solid var(--foco); outline-offset: 2px; }
+.ct-previa { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border-radius: 14px; background: var(--card-2); }
+.ct-previa output { font-size: 14.5px; font-weight: 650; line-height: 1.45; }
+.ct-previa output b { font-weight: 800; }
+.ct-previa .ct-escada { height: 74px; margin-top: 8px; gap: 3px; }
+.ct-previa .ct-degrau { font-size: 10.5px; gap: 4px; }
+.ct-previa .ct-degrau-barra { border-radius: 4px 4px 2px 2px; background: var(--card-3); }
+.ct-previa small { color: var(--text-2); font-size: 12.5px; }
+.ct-antiga > summary { display: inline-flex; align-items: center; min-height: 40px; color: var(--text-2); font-size: 14px; font-weight: 700; list-style: none; cursor: pointer; }
+.ct-antiga > summary::-webkit-details-marker { display: none; }
+.ct-antiga-l { display: flex; align-items: center; gap: 10px; color: var(--text-2); font-size: 14px; }
+.ct-antiga-l input { width: 80px; text-align: center; }
+
+/* primeira vez */
+.ct-vazio-plastico { background: transparent; box-shadow: inset 0 0 0 2px var(--line-2); color: var(--text-2); }
+.ct-vazio-plastico .ct-plastico-v { color: var(--text-3); }
+.ct-form { display: grid; gap: 12px; }
+.ct-form .ct-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.ct-form label > span { display: block; margin-bottom: 6px; color: var(--text-2); font-size: 13px; font-weight: 650; }
+.ct-form p { color: var(--text-2); font-size: 13.5px; line-height: 1.5; }
+
+@media (min-width: 1024px) {
+    .ct { gap: 18px; }
+    .ct-topo h1 { font-size: 26px; }
+    .ct-cima { display: grid; grid-template-columns: minmax(320px, 400px) minmax(0, 1fr); gap: 16px; align-items: stretch; }
+    .ct-cima > .card { display: flex; flex-direction: column; justify-content: flex-end; }
+    .ct-escada { height: 170px; }
+}
+@media (min-width: 1280px) {
+    .ct { display: grid; grid-template-columns: minmax(0, 1fr) 360px; column-gap: 18px; align-items: start;
+          grid-template-areas: "aviso aviso" "topo topo" "cima lado" "fatura lado"; }
+    .ct > .ct-aviso { grid-area: aviso; }
+    .ct > .ct-topo { grid-area: topo; }
+    .ct > .ct-cima { grid-area: cima; }
+    .ct > .ct-fatura { grid-area: fatura; }
+    .ct > .ct-lado { grid-area: lado; position: sticky; top: 24px; display: flex; flex-direction: column; gap: 16px; }
+}
+/* ordem no celular: o cartão, o botão, a escada, a fatura, os parcelamentos, os dados */
+@media (max-width: 1279px) {
+    .ct-lado { display: contents; }
+    .ct-cima { order: 1; } .ct-lancar { order: 2; } .ct-fatura { order: 3; } .ct-parc-card { order: 4; } .ct-dados-card { order: 5; }
+}
+@media (max-width: 1023px) {
+    .ct-cima { display: contents; }
+    .ct-plastico { order: 1; } .ct-lancar { order: 2; } .ct-escada-card { order: 3; }
+}
+
+/* quadro de conferência: previsão digitada × parcelas lançadas, até ligar o cartão ao plano */
+.ct-conf { display: flex; flex-direction: column; gap: 4px; }
+.ct-conf-t { font-size: 16px; font-weight: 750; line-height: 1.35; }
+.ct-conf-tab { width: 100%; max-width: 560px; margin-top: 10px; border-collapse: collapse; font-size: 14px; }
+.ct-conf-tab th, .ct-conf-tab td { padding: 7px 0; border-bottom: 1px solid var(--line); text-align: right; }
+.ct-conf-tab thead th { padding-top: 0; color: var(--text-3); font-size: 12px; font-weight: 700; }
+.ct-conf-tab tbody th { text-align: left; font-weight: 750; }
+.ct-conf-tab td { padding-left: 14px; color: var(--text-2); font-weight: 650; }
+.ct-conf-tab td.ct-dif { color: var(--warn); }
+.ct-conf-tab td.ct-ok { color: var(--pos); }
+.ct-conf-acao { margin-top: 12px; }
+.ct-conf-acao .btn[disabled] { opacity: .5; cursor: not-allowed; }
+
+/* dados do cartão: o nome abre o configurar */
+.ct-config > summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 32px; list-style: none; cursor: pointer; }
+.ct-config > summary::-webkit-details-marker { display: none; }
+.ct-config > summary::after { content: "Configurar"; color: var(--text-2); font-size: 13px; font-weight: 700; }
+.ct-config[open] > summary::after { content: "Fechar"; }
+.ct-config[open] > .ct-form { margin: 10px 0 14px; }
+.ct-fat-ano { color: var(--text-3); font-weight: 650; }
+.ct-vazio-fat { margin: 14px 0 4px; color: var(--text-2); font-size: 14px; }
+
+/* editar uma compra */
+.ct-editar { max-width: 640px; }
+.ct-ed-topo { justify-content: flex-start; }
+.ct-editar > .ct-form { padding: 16px; }
+.ct-excluir { margin-top: 4px; }
+
+/* no "+": "Pagou com", as vezes, a prévia; o bloco some quando é Conta (sem JS também) */
+fieldset.ct-pagou { border: 0; margin: 0 0 6px; min-width: 0; }
+.lf:has(.ct-pagou input[value="conta"]:checked) .ct-bloco { display: none; }
+.ct-bloco { display: flex; flex-direction: column; gap: 10px; margin-bottom: 4px; }
+.ct-bloco > .lf-rot { margin: 0; }
+.ct-antiga-c { display: grid; gap: 6px; padding: 4px 0 6px; }
+.ct-antiga-c label { color: var(--text-2); font-size: 13px; font-weight: 650; }
+.ct-antiga-c input { max-width: 160px; }
+.ct-antiga-c small { color: var(--text-3); font-size: 12.5px; line-height: 1.4; }
+
+/* Mês: a Fatura do cartão que vem do cartão (só leitura, leva à fatura) */
+.mes-do-cartao { color: var(--text); border-radius: 14px; transition: background-color .12s ease-out; }
+.mes-do-cartao:hover { background: var(--sel); }
+.mes-do-cartao .mes-sum { flex: 1 1 auto; min-width: 0; }

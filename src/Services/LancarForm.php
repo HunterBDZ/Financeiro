@@ -3,12 +3,14 @@ namespace Financeiro\Services;
 
 use Financeiro\Auth;
 use Financeiro\Database;
+use Financeiro\Models\CartaoModel;
 use Financeiro\Models\CategoriaModel;
 use Financeiro\Models\LancamentoModel;
 
 /**
  * Dados do formulário de lançar (P4, SPEC §2.2). O layout chama dados() em toda página
- * (o <dialog id="lancar">), então: no máximo 4 consultas, todas limitadas, e cache por requisição.
+ * (o <dialog id="lancar">), então: no máximo 4 consultas (6 com o cartão cadastrado), todas limitadas,
+ * e cache por requisição.
  */
 final class LancarForm
 {
@@ -17,8 +19,10 @@ final class LancarForm
     /**
      * @return array{
      *   outras: array<string, list<array{id:int,nome:string,curto:string,grupo:string}>>,
-     *   descricoes: string[], hoje:string, ontem:string, data_min:string, data_max:string
+     *   descricoes: string[], hoje:string, ontem:string, data_min:string, data_max:string,
+     *   cartao: ?array{nome:string, fecha:int, vence:int, aberta:string, serie:list<array{0:string,1:float}>}
      * }
+     * cartao = para o "Pagou com: Cartão" e a prévia (as próximas 14 faturas, da aberta em diante).
      * outras = as categorias do select por classe; em cada grupo, o dia a dia primeiro, pela
      * frequência do usuário logado nos últimos 90 dias, depois a da casa, depois categorias.ordem.
      */
@@ -71,7 +75,23 @@ final class LancarForm
         }
         unset($g);
 
+        // 5–6) o cartão, se cadastrado: fechamento, vencimento e o que já está em cada fatura (para a prévia)
+        $cartao = CartaoModel::ativo();
+        $cartaoInfo = null;
+        if ($cartao !== null) {
+            $aberta = CartaoFatura::faturaDe($hoje, $cartao['fecha'], $cartao['vence']);
+            $totais = CartaoFatura::totais(CartaoModel::compras($cartao['id']));
+            $serie = [];
+            for ($i = 0; $i < 14; $i++) {
+                $m = CartaoFatura::somaMeses($aberta, $i);
+                $serie[] = [$m, (float) ($totais[$m] ?? 0.0)];
+            }
+            $cartaoInfo = ['nome' => $cartao['nome'], 'fecha' => $cartao['fecha'], 'vence' => $cartao['vence'],
+                           'aberta' => $aberta, 'serie' => $serie];
+        }
+
         return self::$cache[$chave] = [
+            'cartao'     => $cartaoInfo,
             'outras'     => array_filter($outras),
             'descricoes' => $descricoes,
             'hoje'       => $hoje,
