@@ -333,6 +333,7 @@ details.mes-ed:target > summary { animation: mes-realce 1.6s ease-out 1; }   /* 
 .fu-evento { color: var(--pos); font-weight: 750; font-variant-numeric: normal; }
 @media (max-width: 560px) {
     .fu-fig.is-denso .fu-mx.is-salta { visibility: hidden; }
+    .fu-pt:not(.is-chave) { display: none; }   /* no celular, os 16 pontos embolam: só hoje, o mais apertado e o fim */
 }
 
 /* mês a mês: tabela por ano. Celular: Mês | Balanço | Conta no fim; o resto ao abrir a linha */

@@ -6,6 +6,7 @@
  *  · Gráfico da conta no fim de cada mês: linha reta com um ponto por mês (● fechado, ◐ aberto,
  *    ○ previsto), sólida no que já fechou e tracejada na previsão; faixa âmbar abaixo da reserva,
  *    vermelha abaixo de zero; "hoje" marcado e poucos números anotados. O título diz a conclusão.
+ *    No celular só ficam os pontos de hoje, do mês mais apertado e do fim (o casal achou os 16 ruins).
  *    A dívida vai junto, em cinza: enquanto a conta fica parada na reserva, é ela que cai.
  *  · Mês a mês: tabela por ano com o total do ano. No celular só Balanço e Conta no fim (o resto
  *    ao abrir a linha); no computador largo, "o que mudou" em relação ao mês anterior na linha. A
@@ -309,7 +310,7 @@ $alertaIc = static fn(string $a): string => $a !== '' ? svgIcon('alert', 13, 'fu
                     <span class="fu-serie<?= $iDivRot === null ? ' is-inicio' : '' ?>" style="left:<?= $pc($x($iDivRot ?? 0), $VW) ?>;top:<?= $pc($y($divs[$iDivRot ?? 0]), $VH) ?>">Dívida</span>
                 <?php endif; ?>
                 <?php foreach ($linhas as $i => $l): ?>
-                    <i class="fu-pt is-<?= $l['estado'] === 'real' ? 'real' : ($l['estado'] === 'aberto' ? 'aberto' : 'prev') ?><?= $l['alerta'] !== '' ? ' is-' . e($l['alerta']) : '' ?>" style="left:<?= $pc($x($i), $VW) ?>;top:<?= $pc($y($vals[$i]), $VH) ?>"></i>
+                    <i class="fu-pt is-<?= $l['estado'] === 'real' ? 'real' : ($l['estado'] === 'aberto' ? 'aberto' : 'prev') ?><?= $l['alerta'] !== '' ? ' is-' . e($l['alerta']) : '' ?><?= $i === $iRef || $i === $iAp || $i === $n - 1 ? ' is-chave' : '' ?>" style="left:<?= $pc($x($i), $VW) ?>;top:<?= $pc($y($vals[$i]), $VH) ?>"></i>
                 <?php endforeach; ?>
                 <?php if ($iAp !== false): ?>
                     <span class="fu-nota is-baixo <?= $vals[$iAp] < -0.004 ? 'neg' : 'warn' ?> num" style="left:<?= $pc($x($iAp), $VW) ?>;top:<?= $pc($y($vals[$iAp]), $VH) ?>"><?= e($valor($vals[$iAp])) ?></span>
