@@ -24,7 +24,7 @@
 .lf-valor { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 0 0 6px; }
 .lf-rs { flex: none; color: var(--text-3); font-family: var(--fn); font-size: 22px; font-weight: 600; transform: translateY(-10px); }
 .lf-valor-in.input-grande {
-    flex: 0 1 auto; width: 7ch; min-width: 3ch; max-width: 100%; field-sizing: content; min-height: 64px; padding: 0;
+    flex: 0 1 auto; width: 4.4ch; min-width: 3ch; max-width: calc(100% - 40px); min-height: 64px; padding: 0;
     background: transparent; box-shadow: none; border-radius: 0;
     font-family: var(--fn); font-size: 50px; font-weight: 600; letter-spacing: -0.04em; text-align: left;
     caret-color: var(--acc);

@@ -307,23 +307,24 @@ $linhaLeitura = static function (array $l, float $v): void { ?>
 
     <?php View::partial('partials/mes_fita', ['mes' => $mes, 'meses' => $meses, 'hoje' => $hoje]); ?>
 
-    <!-- resumo: o saldo em destaque; entradas e saídas como linhas de recibo -->
-    <div class="mes-resumo">
-        <p class="mes-resumo-total <?= $nivel ?>">
-            <span class="mes-resumo-rot"><?= $projetado ? 'Conta no fim do mês' : 'Em conta hoje' ?></span>
-            <span class="mes-resumo-val num <?= e($contaCls) ?>"><?= e(num($emConta)) ?></span>
-            <span class="mes-resumo-nota num"><?= $emConta < $reserva - 0.004
-                ? e(num($reserva - $emConta)) . ' abaixo da reserva de ' . e(num($reserva, 0)) . '.'
-                : e(num($emConta - $reserva)) . ' acima da reserva de ' . e(num($reserva, 0)) . '.' ?></span>
-        </p>
-        <dl class="mes-resumo-linhas num">
-            <div><dt>Entradas</dt><dd class="pos"><?= e(num($totalEntrou)) ?></dd></div>
-            <div><dt>Saídas</dt><dd><?= e(num($totalSaidas)) ?></dd></div>
-        </dl>
-    </div>
-
     <div class="mes-grade">
     <div class="mes-col mes-esq">
+
+        <!-- resumo: o saldo no cartão escuro (o estado vem na etiqueta), entradas e saídas embaixo -->
+        <?php
+        $txtConta  = num($emConta);
+        $virgula   = strrpos($txtConta, ',');
+        $estadoTxt = $emConta < -0.004 ? 'No vermelho'
+            : ($emConta < $reserva - 0.004 ? num($reserva - $emConta, 0) . ' abaixo da reserva' : num($emConta - $reserva, 0) . ' acima da reserva');
+        ?>
+        <section class="saldo mes-resumo <?= $emConta < -0.004 ? 'is-vermelho' : $nivel ?>" aria-labelledby="mes-res-t">
+            <div class="saldo-l1"><h2 id="mes-res-t"><?= $projetado ? 'Conta no fim do mês' : 'Em conta hoje' ?></h2><span class="saldo-estado num"><?= e($estadoTxt) ?></span></div>
+            <p class="saldo-v num"><small>R$</small><?= e($virgula === false ? $txtConta : substr($txtConta, 0, $virgula)) ?><span><?= e($virgula === false ? '' : substr($txtConta, $virgula)) ?></span></p>
+            <div class="saldo-duas num">
+                <div><small>Entradas</small><b><?= e(num($totalEntrou)) ?></b></div>
+                <div><small>Saídas</small><b><?= e(num($totalSaidas)) ?></b></div>
+            </div>
+        </section>
 
         <!-- entradas -->
         <section class="card mes-sec" id="entradas">

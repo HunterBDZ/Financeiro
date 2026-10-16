@@ -314,6 +314,10 @@
         var digits = txt.replace(/\D/g, '');
         return parseInt(digits, 10) || 0;
     }
+    // o campo do valor acompanha a largura do número: "R$" e o valor ficam juntos e centralizados
+    function ajustarLargura(input) {
+        input.style.width = (Math.max(4, input.value.length) + 0.4) + 'ch';
+    }
     document.querySelectorAll('[data-lf-valor]').forEach(function (input) {
         var centavos = centavosDeValor(input.value);
         if (input.value === '' || input.value === '0,00') {
@@ -321,6 +325,7 @@
         }
         input.value = formatarValor(centavos);
         input.dataset.centavos = String(centavos);
+        ajustarLargura(input);
 
         input.addEventListener('keydown', function (ev) {
             if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
@@ -335,11 +340,13 @@
             }
             input.dataset.centavos = String(c);
             input.value = formatarValor(c);
+            ajustarLargura(input);
         });
         input.addEventListener('input', function () {
             var c = centavosDeValor(input.value);
             input.dataset.centavos = String(c);
             input.value = formatarValor(c);
+            ajustarLargura(input);
         });
         input.addEventListener('focus', function () {
             var len = input.value.length;
