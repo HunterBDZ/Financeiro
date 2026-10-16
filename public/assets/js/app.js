@@ -1,5 +1,6 @@
 // app.js (P1): comportamento da casca. Sem nada inline (CSP script-src 'self').
-// - alterna o tema ([data-theme-toggle]);
+// - alterna o tema ([data-theme-toggle]) ou escolhe um ([data-tema="light|dark"], o seletor do menu lateral);
+// - esconde/mostra os valores ([data-ocultar], o olho do cartão do saldo; só nesta aba);
 // - fecha details.menu ao clicar fora (e com Esc);
 // - [data-quando]: o radio value="outro" revela .quando-data (fallback para navegador sem :has);
 // - fecha o toast ([data-toast-fechar]);
@@ -17,14 +18,34 @@
         }
         return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     }
-    function trocarTema() {
-        var novo = temaAtual() === 'light' ? 'dark' : 'light';
+    function usarTema(novo) {
         root.setAttribute('data-theme', novo);
         try { localStorage.setItem('tema', novo); } catch (e) {}
         document.querySelectorAll('meta[name="theme-color"]').forEach(function (meta) {
-            meta.setAttribute('content', novo === 'light' ? '#ffffff' : '#000000');
+            meta.setAttribute('content', novo === 'light' ? '#f4f5f7' : '#0a0b0f');
+        });
+        marcarTema();
+    }
+    function trocarTema() {
+        usarTema(temaAtual() === 'light' ? 'dark' : 'light');
+    }
+    function marcarTema() {                       // aria-pressed no seletor Claro/Escuro
+        var t = temaAtual();
+        document.querySelectorAll('[data-tema]').forEach(function (b) {
+            b.setAttribute('aria-pressed', b.getAttribute('data-tema') === t ? 'true' : 'false');
         });
     }
+    marcarTema();
+
+    // o olho do saldo: esconde os números da página (só nesta aba)
+    function marcarOlho() {
+        var oculto = root.classList.contains('valores-ocultos');
+        document.querySelectorAll('[data-ocultar]').forEach(function (b) {
+            b.setAttribute('aria-pressed', oculto ? 'true' : 'false');
+            b.setAttribute('aria-label', oculto ? 'mostrar valores' : 'esconder valores');
+        });
+    }
+    marcarOlho();
 
     function fecharMenus(excetoDentroDe) {
         var abertos = document.querySelectorAll('details.menu[open]');
@@ -45,6 +66,24 @@
         if (alvo.closest('[data-theme-toggle]')) {
             trocarTema();
             fecharMenus(null);
+            return;
+        }
+
+        var escolha = alvo.closest('[data-tema]');
+        if (escolha) {
+            var tema = escolha.getAttribute('data-tema');
+            if (tema === 'light' || tema === 'dark') {
+                usarTema(tema);
+            }
+            return;
+        }
+
+        if (alvo.closest('[data-ocultar]')) {
+            var oculto = root.classList.toggle('valores-ocultos');
+            try {
+                if (oculto) { sessionStorage.setItem('ocultar', '1'); } else { sessionStorage.removeItem('ocultar'); }
+            } catch (e) {}
+            marcarOlho();
             return;
         }
 

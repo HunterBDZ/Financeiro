@@ -91,7 +91,7 @@ $check("entradasDoMes({$mesRef}) = Σ entradas", abs($somaEnt - (float) $st->fet
 
 // ---- 3. telas renderizam sem erro e com o bloco principal
 $telas = [
-    ['/',           DashboardController::class,   'index',      'agua-valor'],
+    ['/',           DashboardController::class,   'index',      'saldo-v'],
     ['/lancamentos', LancamentosController::class, 'index',      'ex-main'],
     ['/lancar',     LancamentosController::class, 'lancarForm', 'data-lf'],
     ['/meta',       MetaController::class,         'index',      'meta-form'],

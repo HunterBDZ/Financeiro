@@ -369,6 +369,13 @@ function svgIcon(string $name, int $size = 14, string $class = ''): string
         'logout'   => '<path d="M9.5 20.5H6A2.5 2.5 0 0 1 3.5 18V6A2.5 2.5 0 0 1 6 3.5h3.5"/><path d="M15.5 16.5 20 12l-4.5-4.5"/><path d="M20 12H9.5"/>',
         'search'   => '<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>',
         'target'   => '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.4"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3"/>',
+        'eye'      => '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3"/>',
+        'eye-off'  => '<path d="M3.5 3.5l17 17"/><path d="M10.6 5.6c.5-.1.9-.1 1.4-.1 6 0 9.5 6.5 9.5 6.5a16.7 16.7 0 0 1-3.2 3.9"/><path d="M6.6 6.6C3.9 8.4 2.5 12 2.5 12S6 18.5 12 18.5c1.6 0 3-.4 4.3-1"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>',
+        'arrow-up'   => '<path d="M12 19V5"/><path d="M6 11l6-6 6 6"/>',
+        'arrow-down' => '<path d="M12 5v14"/><path d="M6 13l6 6 6-6"/>',
+        'lock'     => '<rect x="5" y="11" width="14" height="9.5" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+        'tag'      => '<path d="M3.5 12V4.5h7.5l9 9-7.5 7.5-9-9Z"/><circle cx="7.8" cy="8.8" r="1.1"/>',
+        'pen'      => '<path d="M4 20h4L19 9l-4-4L4 16v4Z"/>',
     ];
     $inner = $icons[$name] ?? '';
     $cls = $class !== '' ? ' class="' . e($class) . '"' : '';
@@ -388,19 +395,21 @@ function renderErro(int $codigo, string $titulo, string $mensagem): never
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f4f5f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0a0b0f" media="(prefers-color-scheme: dark)">
 <title><?= e((string) $codigo) ?> · financeiro</title>
-<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/img/icone-32.png">
+<link rel="preload" href="/assets/fonts/manrope-var-latin.woff2" as="font" type="font/woff2" crossorigin>
 <script src="<?= e(asset('/assets/js/theme.js')) ?>"></script>
 <link rel="stylesheet" href="<?= e(asset($css)) ?>">
 </head>
 <body class="tela-erro">
-<main class="vazio erro">
+<main class="erro">
+    <img class="erro-spitz" src="/assets/img/spitz.png" alt="" width="108" height="91">
     <p class="erro-codigo num" aria-hidden="true"><?= e((string) $codigo) ?></p>
     <h1 class="erro-titulo"><?= e(mb_strtoupper(mb_substr($titulo, 0, 1)) . mb_substr($titulo, 1)) ?></h1>
-    <p class="dim"><?= e(mb_strtoupper(mb_substr($mensagem, 0, 1)) . mb_substr($mensagem, 1)) ?>.</p>
-    <a class="btn btn-primary btn-sm" href="/">Voltar ao início</a>
+    <p class="erro-msg"><?= e(mb_strtoupper(mb_substr($mensagem, 0, 1)) . mb_substr($mensagem, 1)) ?>.</p>
+    <a class="btn btn-primary" href="/">Voltar ao início</a>
 </main>
 </body>
 </html>

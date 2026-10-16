@@ -2,6 +2,8 @@
 /**
  * Layout (P1). Variáveis: $content, $pageTitle, $active (inicio|extrato|meta|mes|futuro|ajustes),
  * $semDialogoLancar (true = não renderiza o <dialog id="lancar">).
+ * Computador: menu lateral (marca, Lançar, abas, Claro/Escuro, quem está e sair).
+ * Celular: barra de cima (marca, sol/lua, menu do avatar) e barra flutuante embaixo com o "+".
  * CSS/JS dos pacotes entram só se o arquivo existir (D19): nenhum 404 durante o build.
  */
 use Financeiro\Auth;
@@ -9,12 +11,13 @@ use Financeiro\View;
 
 $activePage = (string) ($active ?? '');
 
+// chave => [href, rótulo, ícone]; a ordem é a da barra de baixo (o "+" entra depois da 2ª)
 $abas = [
-    'inicio'  => ['/', 'início', 'home'],
-    'extrato' => ['/lancamentos', 'extrato', 'list'],
-    'meta'    => ['/meta', 'meta', 'target'],
-    'mes'     => ['/mes', 'mês', 'calendar'],
-    'futuro'  => ['/futuro', 'anual', 'trend'],
+    'inicio'  => ['/', 'Início', 'home'],
+    'extrato' => ['/lancamentos', 'Extrato', 'list'],
+    'mes'     => ['/mes', 'Mês', 'calendar'],
+    'futuro'  => ['/futuro', 'Anual', 'trend'],
+    'meta'    => ['/meta', 'Metas', 'target'],
 ];
 
 $publico = __DIR__ . '/../../../public';
@@ -45,53 +48,68 @@ $aba = static function (string $chave) use ($activePage): string {
 $atual = static function (string $chave) use ($activePage): string {
     return $activePage === $chave ? ' aria-current="page"' : '';
 };
+$marca = '<span class="marca"><img src="/assets/img/spitz.png" alt="" width="216" height="181"></span>';
 ?>
 <!doctype html>
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
-<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f4f5f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0a0b0f" media="(prefers-color-scheme: dark)">
 <meta name="format-detection" content="telephone=no">
 <title><?= e($pageTitle ?? 'financeiro') ?></title>
-<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
-<link rel="preload" href="/assets/fonts/archivo-var-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/img/icone-32.png">
+<link rel="icon" type="image/png" sizes="64x64" href="/assets/img/icone-64.png">
+<link rel="apple-touch-icon" href="/assets/img/icone-180.png">
+<link rel="preload" href="/assets/fonts/manrope-var-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/assets/fonts/sora-var-latin.woff2" as="font" type="font/woff2" crossorigin>
 <script src="<?= e(asset('/assets/js/theme.js')) ?>"></script>
 <?php foreach ($estilos as $css): ?>
 <link rel="stylesheet" href="<?= e(asset($css)) ?>">
 <?php endforeach; ?>
 </head>
 <body>
-<a class="pular" href="#conteudo">pular para o conteúdo</a>
-<header class="topbar">
-    <div class="topbar-in">
-        <a class="marca" href="/" translate="no">financeiro</a>
+<a class="pular" href="#conteudo">Pular para o conteúdo</a>
 
-        <nav class="topnav" aria-label="principal">
-            <?php foreach ($abas as $chave => [$href, $rotulo]): ?>
-                <a class="topnav-item<?= $aba($chave) ?>" href="<?= e($href) ?>"<?= $atual($chave) ?>><?= e($rotulo) ?></a>
-            <?php endforeach; ?>
-        </nav>
-
-        <a class="btn btn-primary btn-sm topbar-lancar" href="<?= e($hrefLancar) ?>" data-lancar><?= svgIcon('plus', 16) ?>Lançar</a>
-
-        <details class="menu menu-avatar">
-            <summary aria-label="menu"><span class="avatar<?= $activePage === 'ajustes' ? ' is-active' : '' ?>"><?= e($inicial) ?></span></summary>
-            <div class="menu-painel">
-                <?php if ($nome): ?><div class="menu-quem"><?= e($nome) ?></div><?php endif; ?>
-                <a class="menu-item<?= $activePage === 'ajustes' ? ' is-active' : '' ?>" href="/ajustes"><?= svgIcon('settings', 18) ?>ajustes</a>
-                <button type="button" class="menu-item" data-theme-toggle>
-                    <span class="so-escuro"><?= svgIcon('sun', 18) ?>tema claro</span>
-                    <span class="so-claro"><?= svgIcon('moon', 18) ?>tema escuro</span>
-                </button>
-                <form method="post" action="/logout">
-                    <?= csrfField() ?>
-                    <button type="submit" class="menu-item"><?= svgIcon('logout', 18) ?>sair</button>
-                </form>
-            </div>
-        </details>
+<aside class="lateral" aria-label="menu">
+    <a class="lat-marca" href="/"><?= $marca ?><b translate="no">financeiro</b></a>
+    <a class="lat-lancar" href="<?= e($hrefLancar) ?>" data-lancar><?= svgIcon('plus', 18) ?>Lançar</a>
+    <nav class="lat-nav" aria-label="principal">
+        <?php foreach ($abas + ['ajustes' => ['/ajustes', 'Ajustes', 'settings']] as $chave => [$href, $rotulo, $icone]): ?>
+            <a class="lat-i<?= $aba($chave) ?>" href="<?= e($href) ?>"<?= $atual($chave) ?>><?= svgIcon($icone, 20) ?><span><?= e($rotulo) ?></span></a>
+        <?php endforeach; ?>
+    </nav>
+    <div class="lat-fim">
+        <div class="tema-seg" role="group" aria-label="tema">
+            <button type="button" class="t-claro" data-tema="light"><?= svgIcon('sun', 16) ?>Claro</button>
+            <button type="button" class="t-escuro" data-tema="dark"><?= svgIcon('moon', 16) ?>Escuro</button>
+        </div>
+        <div class="lat-user">
+            <span class="avatar"><?= e($inicial) ?></span>
+            <b><?= e((string) ($nome ?? '')) ?></b>
+            <form method="post" action="/logout">
+                <?= csrfField() ?>
+                <button type="submit" class="lat-sair" aria-label="sair"><?= svgIcon('logout', 18) ?></button>
+            </form>
+        </div>
     </div>
+</aside>
+
+<header class="topbar">
+    <a class="topbar-marca" href="/"><?= $marca ?><b translate="no">financeiro</b></a>
+    <button type="button" class="ic" data-theme-toggle aria-label="trocar tema"><?= svgIcon('sun', 19, 'so-escuro') ?><?= svgIcon('moon', 19, 'so-claro') ?></button>
+    <details class="menu menu-avatar">
+        <summary aria-label="menu"><span class="avatar<?= $activePage === 'ajustes' ? ' is-active' : '' ?>"><?= e($inicial) ?></span></summary>
+        <div class="menu-painel">
+            <?php if ($nome): ?><div class="menu-quem"><?= e($nome) ?></div><?php endif; ?>
+            <a class="menu-item<?= $activePage === 'ajustes' ? ' is-active' : '' ?>" href="/ajustes"><?= svgIcon('settings', 18) ?>Ajustes</a>
+            <form method="post" action="/logout">
+                <?= csrfField() ?>
+                <button type="submit" class="menu-item"><?= svgIcon('logout', 18) ?>Sair</button>
+            </form>
+        </div>
+    </details>
 </header>
 
 <?php if (is_array($flash) && ($flash['message'] ?? '') !== ''): ?>
@@ -118,10 +136,10 @@ $atual = static function (string $chave) use ($activePage): string {
 
 <nav class="tabbar" aria-label="principal">
     <?php $i = 0; foreach ($abas as $chave => [$href, $rotulo, $icone]): ?>
-        <?php if ($i++ === 3): ?>
+        <?php if ($i++ === 2): ?>
             <a class="tab-add" href="<?= e($hrefLancar) ?>" data-lancar aria-label="lançar"><?= svgIcon('plus', 24) ?></a>
         <?php endif; ?>
-        <a class="tab<?= $aba($chave) ?>" href="<?= e($href) ?>"<?= $atual($chave) ?>><?= svgIcon($icone, 20) ?><span><?= e($rotulo) ?></span></a>
+        <a class="tab<?= $aba($chave) ?>" href="<?= e($href) ?>"<?= $atual($chave) ?>><?= svgIcon($icone, 21) ?><span><?= e($rotulo) ?></span></a>
     <?php endforeach; ?>
 </nav>
 
