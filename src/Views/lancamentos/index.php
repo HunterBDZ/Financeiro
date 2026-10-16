@@ -195,23 +195,25 @@ $catAtual = $categoria !== null ? (int) $categoria['id'] : 0;
             <div class="card ex-lista">
                 <?php $agrupado = $ordem === '' || $ordem === 'dia-asc'; $i = 0; foreach ($dias as $data => $rows): ?>
                     <?php if ($agrupado): ?><h3 class="ex-dia"><?= e($rotuloDia((string) $data)) ?></h3><?php endif; ?>
-                    <div class="linhas">
+                    <ul class="lista">
                         <?php foreach ($rows as $r): ?>
                             <?php
                             $mov = (int) $r['operacional'] !== 1;
                             $ent = !$mov && (int) $r['sinal'] > 0;
                             $v   = (float) $r['valor'];
-                            $txt = $mov ? '⇄ ' . num($v) : ($ent ? '+' . num($v) : num(-$v));
+                            $txt = $mov ? '⇄ ' . num($v) : ($ent ? '+' . num($v) : MENOS . num($v));
                             $cls = $mov ? 'ex-v-mov' : ($ent ? 'ex-v-ent' : 'ex-v-gasto');
                             $cat = ['nome' => $r['categoria_nome'], 'apelido' => $r['apelido']];
                             ?>
-                            <a class="linha ex-linha" href="/lancamentos/<?= (int) $r['id'] ?>/editar?volta=<?= e($voltaEnc) ?>"<?= $i === $limite - 60 && $i > 0 ? ' id="ex-r' . $i . '"' : '' ?>>
-                                <span class="linha-a"><span class="linha-txt"><?= e((string) $r['descricao']) ?></span><span class="linha-val <?= $cls ?>"><?= e($txt) ?></span></span>
-                                <span class="linha-b"><i class="dot-g <?= e(corClasse($r)) ?>"></i><span class="ex-cat"><?= e(nomeCurto($cat)) ?></span><?php if (!$agrupado): ?><span class="ex-data"><?= e($semana[(int) date('w', strtotime($r['data']))] . ' ' . diaMes($r['data'])) ?></span><?php if ($r['data'] > $hoje): ?><span class="ex-agendado">agendado</span><?php endif; ?><?php endif; ?></span>
-                            </a>
+                            <?php $desc = trim((string) $r['descricao']); $rot = $desc !== '' ? $desc : nomeCurto($cat); ?>
+                            <li><a class="lista-i ex-linha" href="/lancamentos/<?= (int) $r['id'] ?>/editar?volta=<?= e($voltaEnc) ?>"<?= $i === $limite - 60 && $i > 0 ? ' id="ex-r' . $i . '"' : '' ?>>
+                                <span class="ini" aria-hidden="true"><?= e(mb_strtoupper(mb_substr($rot, 0, 1))) ?></span>
+                                <span class="lista-n"><b><?= e($rot) ?></b><small><?= e(nomeCurto($cat)) ?><?php if (!$agrupado): ?>, <?= e($semana[(int) date('w', strtotime($r['data']))] . ' ' . diaMes($r['data'])) ?><?php endif; ?></small></span>
+                                <span class="lista-v"><b class="num <?= $cls ?>"><?= e($txt) ?></b><?php if ($r['data'] > $hoje): ?><small class="ex-agendado">agendado</small><?php endif; ?></span>
+                            </a></li>
                             <?php $i++; ?>
                         <?php endforeach; ?>
-                    </div>
+                    </ul>
                 <?php endforeach; ?>
 
                 <?php if ($faltam > 0): ?>

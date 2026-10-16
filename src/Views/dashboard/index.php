@@ -103,7 +103,7 @@ $quandoFoi   = static function (string $data) use ($hoje): string {
             <ul class="resumo">
                 <li><span class="ri pos"><?= svgIcon('arrow-up', 16) ?></span><span class="resumo-n">Entrou</span><b class="num pos"><?= e(num($p['entradas'])) ?></b></li>
                 <li><span class="ri neg"><?= svgIcon('arrow-down', 16) ?></span><span class="resumo-n">Saiu</span><b class="num"><?= e(num($p['saidas'])) ?></b></li>
-                <li class="resumo-total"><span class="resumo-n"><?= $balanco < -0.004 ? 'Déficit do mês' : 'Sobra do mês' ?></span><b class="num <?= $balanco < -0.004 ? 'neg' : 'pos' ?>"><?= e(($balanco < -0.004 ? '−' : '') . num(abs($balanco))) ?></b></li>
+                <li class="resumo-total"><span class="resumo-n"><?= $balanco < -0.004 ? 'Déficit do mês' : 'Sobra do mês' ?></span><b class="num <?= $balanco < -0.004 ? 'neg' : 'pos' ?>"><?= e(($balanco < -0.004 ? MENOS : '') . num(abs($balanco))) ?></b></li>
             </ul>
             <details class="resumo-det">
                 <summary>Ver o detalhe</summary>
@@ -198,7 +198,7 @@ $quandoFoi   = static function (string $data) use ($hoje): string {
                         $mov = (int) $r['operacional'] !== 1;
                         $ent = !$mov && (int) $r['sinal'] > 0;
                         $v   = (float) $r['valor'];
-                        $txt = $mov ? '⇄ ' . num($v) : ($ent ? '+' . num($v) : '−' . num($v));
+                        $txt = $mov ? '⇄ ' . num($v) : ($ent ? '+' . num($v) : MENOS . num($v));
                         $cls = $mov ? 'dim' : ($ent ? 'pos' : '');
                         $cat = ['nome' => $r['categoria_nome'], 'apelido' => $r['apelido']];
                         $desc = trim((string) $r['descricao']);

@@ -56,6 +56,7 @@ $foco   = $modo === 'pagina' && $topo !== false;
         </div>
     <?php endif; ?>
 
+    <p class="lf-quanto" aria-hidden="true"><?= $editar ? 'Valor' : 'Quanto foi?' ?></p>
     <div class="lf-valor">
         <label class="lf-rs" for="<?= e($pref) ?>-valor">R$</label>
         <input id="<?= e($pref) ?>-valor" class="input-grande lf-valor-in" name="valor" type="text"
@@ -63,6 +64,7 @@ $foco   = $modo === 'pagina' && $topo !== false;
                value="<?= e($valorTxt) ?>" data-lf-valor<?= $foco ? ' data-autofocus' : '' ?>>
     </div>
 
+    <p class="lf-rot" aria-hidden="true">Categoria</p>
     <?php if ($chips !== [] && !$editar): ?>
         <div class="lf-atalhos" role="group" aria-label="categorias mais usadas">
             <?php foreach (array_slice($chips, 0, 6) as $c): ?>
