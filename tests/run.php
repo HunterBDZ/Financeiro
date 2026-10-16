@@ -35,6 +35,7 @@ use Financeiro\Models\MesModel;
 use Financeiro\Models\MetaModel;
 use Financeiro\Models\PrevisaoModel;
 use Financeiro\Models\UsuarioModel;
+use Financeiro\Services\AnualResumo;
 use Financeiro\Services\MotorFinanceiro;
 use Financeiro\Services\PrevisaoEdicao;
 use Financeiro\Services\PrevisaoLote;
@@ -423,6 +424,31 @@ $check('seletor de meses do Mês leva ao Anual; o do Extrato não', str_contains
     && !str_contains($htmlEx, 'mes-picker-anual'));
 $check('menu do avatar (celular) também leva ao Anual', str_contains($htmlMes, 'class="menu-item" href="/futuro"'));
 $check('no Anual, a aba Mês da barra fica acesa', str_contains($render(FuturoController::class, 'index', []), 'class="tab is-active" href="/mes"'));
+
+// ---- 13. Anual: marcos do plano e o que mudou em cada mês (AnualResumo, dados de mentira)
+$pl = static fn(string $m, float $fica, bool $quit = false, float $parc = 0.0): array => ['mes' => $m, 'estado' => 'previsto',
+    'fica_na_conta' => $fica, 'quitado' => $quit, 'bateu_meta' => false, 'parcela_consignado' => $parc];
+$planoT = [];
+foreach ([['2027-01-01', 5000], ['2027-02-01', 2000], ['2027-03-01', -100], ['2027-04-01', -50], ['2027-05-01', 2500],
+          ['2027-06-01', 3500, true], ['2027-07-01', 4000, true]] as $r) {
+    $planoT[$r[0]] = $pl($r[0], (float) $r[1], $r[2] ?? false);
+}
+$mk = AnualResumo::marcos($planoT, 3000.0, '2027-02-01');
+$check('anual: mês mais apertado e faixas no vermelho / abaixo da reserva', ($mk['apertado']['mes'] ?? '') === '2027-03-01'
+    && array_map(static fn($f) => $f['tipo'] . ' ' . substr($f['ini'], 0, 7) . '..' . substr($f['fim'], 0, 7), $mk['faixas'])
+       === ['warn 2027-02..2027-02', 'neg 2027-03..2027-04', 'warn 2027-05..2027-05'], json_encode($mk['faixas']));
+$check('anual: volta à reserva, quitação e fim contados da referência', $mk['volta'] === '2027-06-01' && $mk['quita'] === '2027-06-01'
+    && $mk['quitaAntes'] === false && ($mk['fim']['mes'] ?? '') === '2027-07-01' && abs($mk['fim']['desde'] - 2000.0) < 0.01);
+$dadosT = ['real' => [], 'cats' => [
+    1 => ['id' => 1, 'nome' => 'Salário', 'apelido' => null, 'grupo' => 'Entradas', 'sinal' => 1, 'operacional' => 1],
+    2 => ['id' => 2, 'nome' => 'IPVA (carro)', 'apelido' => null, 'grupo' => 'Ano', 'sinal' => -1, 'operacional' => 1],
+], 'prev' => ['2027-01-01' => [1 => 10000.0], '2027-02-01' => [1 => 10000.0, 2 => 1200.0], '2027-03-01' => [1 => 15000.0, 2 => 100.0]]];
+$planoM = ['2027-01-01' => $pl('2027-01-01', 0.0), '2027-02-01' => $pl('2027-02-01', 0.0), '2027-03-01' => $pl('2027-03-01', 0.0, false, 300.0)];
+$mu = AnualResumo::mudancas($planoM, $dadosT);
+$check('anual: o que mudou no mês, do maior efeito para o menor', $mu['2027-01-01'] === []
+    && ($mu['2027-02-01'][0]['nome'] ?? '') === 'IPVA' && abs($mu['2027-02-01'][0]['efeito'] + 1200.0) < 0.01
+    && array_map(static fn($x) => $x['nome'] . ' ' . (int) $x['efeito'], $mu['2027-03-01'])
+       === ['Salário 5000', 'IPVA 1100', 'Desconto do consignado -300'], json_encode($mu['2027-03-01']));
 
 echo "\n{$ok} ok, {$falhas} falha(s)\n";
 exit($falhas > 0 ? 1 : 0);
