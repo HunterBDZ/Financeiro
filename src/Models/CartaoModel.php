@@ -31,6 +31,30 @@ final class CartaoModel
         return $id;
     }
 
+    /**
+     * Traz as compras da tabela da versão antiga do app (cartao_compras_v1) para o cartão recém-cadastrado:
+     * valor_total = valor_parcela × n_parcelas, e a 1ª fatura é o mês da 1ª parcela. Sem categoria (a
+     * versão antiga não guardava). Só importa uma vez: as que já vieram ficam marcadas pelo id antigo.
+     * @return int quantas vieram
+     */
+    public static function importarAntigas(int $cartaoId): int
+    {
+        $pdo = Database::connection();
+        $existe = $pdo->query("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'cartao_compras_v1'")->fetchColumn();
+        if ((int) $existe === 0) {
+            return 0;
+        }
+        $st = $pdo->prepare(
+            "INSERT INTO cartao_compras (cartao_id, data, descricao, categoria_id, valor_total, parcelas, primeira_fatura, usuario_id, criado_em)
+             SELECT :c, DATE(v.criado_em), v.descricao, NULL, ROUND(v.valor_parcela * v.n_parcelas, 2), LEAST(GREATEST(v.n_parcelas, 1), 48),
+                    DATE_FORMAT(v.data_primeira_parcela, '%Y-%m-01'), v.usuario_id, v.criado_em
+             FROM cartao_compras_v1 v
+             WHERE NOT EXISTS (SELECT 1 FROM cartao_compras n WHERE n.descricao = v.descricao AND n.criado_em = v.criado_em)"
+        );
+        $st->execute(['c' => $cartaoId]);
+        return $st->rowCount();
+    }
+
     public static function setAlimentaPlano(int $id, bool $sim): void
     {
         Database::connection()->prepare('UPDATE cartoes SET alimenta_plano = :s WHERE id = :id')->execute(['s' => $sim ? 1 : 0, 'id' => $id]);

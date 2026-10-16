@@ -3,6 +3,12 @@
 -- vence a fatura da 1ª parcela). Com alimenta_plano = 1, a soma das parcelas de cada fatura vira a
 -- previsão da categoria "Fatura do cartão" no mês em que ela vence (lote de previsão de origem 'cartao').
 -- As compras NÃO contam nas categorias: no plano só a fatura conta (regime de caixa).
+--
+-- Já existia uma cartao_compras de uma versão antiga do app (descricao, valor_parcela, n_parcelas,
+-- data_primeira_parcela; nenhum código a usa desde a reescrita). Ela vira cartao_compras_v1 e as
+-- compras dela são importadas quando o cartão for cadastrado (CartaoModel::importarAntigas).
+
+RENAME TABLE cartao_compras TO cartao_compras_v1;
 
 CREATE TABLE IF NOT EXISTS cartoes (
   id int unsigned NOT NULL AUTO_INCREMENT,

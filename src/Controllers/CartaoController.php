@@ -62,9 +62,11 @@ final class CartaoController
             redirecionar('/cartao#cartao-config', 303);
         }
         $atual = CartaoModel::ativo();
-        CartaoModel::salvar($atual['id'] ?? null, $nome, $fecha, $vence, $limite !== null ? round($limite, 2) : null);
+        $id = CartaoModel::salvar($atual['id'] ?? null, $nome, $fecha, $vence, $limite !== null ? round($limite, 2) : null);
+        $vieram = $atual === null ? CartaoModel::importarAntigas($id) : 0;   // compras da versão antiga do app
         CartaoFatura::sincronizarPlano((int) Auth::id());
-        flash('success', ($atual === null ? 'Cartão cadastrado · ' : 'Cartão salvo · ') . $nome);
+        flash('success', ($atual === null ? 'Cartão cadastrado · ' : 'Cartão salvo · ') . $nome
+            . ($vieram > 0 ? ' · ' . $vieram . ($vieram === 1 ? ' compra antiga veio junto' : ' compras antigas vieram junto') : ''));
         redirecionar('/cartao', 303);
     }
 

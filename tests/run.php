@@ -575,6 +575,11 @@ if ($catFat !== null && $catGasto > 0 && count($prevMeses) >= 3) {
         $check('cartão: a aba mostra o cartão, a escada, a fatura e o parcelamento', str_contains($htmlCt, 'class="ct-plastico"')
             && str_contains($htmlCt, 'class="ct-escada"') && str_contains($htmlCt, 'TV teste') && str_contains($htmlCt, 'class="ct-parc"')
             && !str_contains($htmlCt, 'ct-conf-tab'));
+        $antigas = (int) $pdo->query("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'cartao_compras_v1'")->fetchColumn() > 0
+            ? (int) $pdo->query('SELECT COUNT(*) FROM cartao_compras_v1')->fetchColumn() : 0;
+        $vieram = CartaoModel::importarAntigas($idC);
+        $deNovo = CartaoModel::importarAntigas($idC);
+        $check('cartão: as compras da versão antiga do app vêm junto, uma vez só', $vieram === $antigas && $deNovo === 0, json_encode([$antigas, $vieram, $deNovo]));
         $htmlLanc = $render(LancamentosController::class, 'lancarForm', ['pagou' => 'cartao']);
         $check('cartão: o + tem "Pagou com", as vezes e a prévia, já em Cartão', str_contains($htmlLanc, 'name="pagou" value="cartao" checked')
             && str_contains($htmlLanc, 'data-ct-bloco') && str_contains($htmlLanc, 'name="parcelas"'));
