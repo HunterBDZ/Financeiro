@@ -106,6 +106,56 @@ final class AnualResumo
     }
 
     /**
+     * O que adiantar a sobra rende, comparando o plano com o mesmo plano sem adiantamento (só as
+     * parcelas): quando o empréstimo acaba em cada um e quantos juros se deixa de pagar. Depois do
+     * último mês do plano, o "só as parcelas" segue com a parcela e os juros do mês até zerar.
+     * Null quando o plano não adianta nada ou não quita dentro do horizonte.
+     * @param array<string, array> $com plano atual; $sem plano com objetivo 3 (sem adiantamento automático)
+     * @return ?array{quitaCom:string, quitaSem:string, meses:int, juros:float}
+     */
+    public static function ganho(array $com, array $sem, float $parcela, float $jurosMes): ?array
+    {
+        $quitaCom = null;
+        $adiantou = false;
+        $jurosCom = $jurosSem = 0.0;
+        foreach ($com as $mes => $l) {
+            $jurosCom += (float) $l['juros'];
+            $adiantou = $adiantou || ($l['estado'] !== 'real' && (float) $l['amortizacao_extra'] > 0.004);
+            if ($quitaCom === null && !empty($l['quitado'])) {
+                $quitaCom = (string) $mes;
+            }
+        }
+        if ($quitaCom === null || !$adiantou || $sem === []) {
+            return null;
+        }
+        $quitaSem = null;
+        foreach ($sem as $mes => $l) {
+            $jurosSem += (float) $l['juros'];
+            if ($quitaSem === null && !empty($l['quitado'])) {
+                $quitaSem = (string) $mes;
+            }
+        }
+        if ($quitaSem === null) {
+            $ult = end($sem);
+            $div = (float) $ult['falta_pagar'];
+            $k = 0;
+            while ($div > 0.01 && $k < 600 && $parcela > 0.004) {
+                $j = $div * $jurosMes;
+                $jurosSem += $j;
+                $div = max(0.0, $div + $j - $parcela);
+                $k++;
+            }
+            if ($div > 0.01) {
+                return null;   // a parcela não cobre os juros: não dá para dizer quando acabaria
+            }
+            $quitaSem = date('Y-m-01', strtotime((string) $ult['mes'] . " +{$k} month"));
+        }
+        $meses = ((int) substr($quitaSem, 0, 4) - (int) substr($quitaCom, 0, 4)) * 12
+               + (int) substr($quitaSem, 5, 2) - (int) substr($quitaCom, 5, 2);
+        return ['quitaCom' => $quitaCom, 'quitaSem' => $quitaSem, 'meses' => $meses, 'juros' => max(0.0, $jurosSem - $jurosCom)];
+    }
+
+    /**
      * Valor de cada categoria operacional no mês, pela mesma regra do motor: fechado = lançado;
      * aberto = o maior entre lançado e previsto; seguinte = previsto.
      * @return array<int, float>

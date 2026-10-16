@@ -30,6 +30,9 @@ final class FuturoController
         $meses   = array_keys($plano);
         $ref     = MesModel::referencia($hoje);
         $mudou   = AnualResumo::mudancas($plano, $dados);
+        // o mesmo plano sem adiantar o empréstimo (só as parcelas), para mostrar o que o adiantamento rende
+        $semAdiantar = (int) round((float) ($aj['objetivo'] ?? 1)) === 3 ? [] : MotorFinanceiro::calcular($dados, ['objetivo' => 3]);
+        $ganho   = AnualResumo::ganho($plano, $semAdiantar, (float) ($aj['parcela_mensal'] ?? 0.0), (float) ($aj['juros_mes'] ?? 0.0));
 
         $linhas = [];
         foreach ($plano as $m => $l) {
@@ -37,6 +40,7 @@ final class FuturoController
             $fica = (float) $l['fica_na_conta'];
             $linhas[] = [
                 'mes' => $m, 'estado' => $l['estado'] ?? estadoMes($m, $l['situacao'], $hoje),
+                'antes' => (float) $l['sobrou_mes_anterior'], 'entra_op' => (float) $l['entra'],
                 'entra' => round($entradas, 2), 'entra_bruto' => (float) $l['entra_bruto'],
                 'consignado' => (float) $l['parcela_consignado'],
                 'sai' => round($saidas, 2), 'gastos' => (float) $l['sai'], 'amort' => (float) $l['amortizacao_extra'],
@@ -50,7 +54,7 @@ final class FuturoController
         View::render('futuro/index', [
             'pageTitle' => 'anual · financeiro',
             'hoje' => $hoje, 'ref' => $ref, 'ultimo' => (string) end($meses),
-            'marcos' => AnualResumo::marcos($plano, $reserva, $ref),
+            'marcos' => AnualResumo::marcos($plano, $reserva, $ref), 'ganho' => $ganho,
             'reserva' => $reserva, 'meta' => $meta, 'linhas' => $linhas,
             'quita' => MotorFinanceiro::mesQueEmprestimoQuita(), 'bate' => MotorFinanceiro::mesQueBateMeta(),
         ], 'futuro');

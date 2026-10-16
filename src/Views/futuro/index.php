@@ -6,10 +6,12 @@
  *  · Gráfico da conta no fim de cada mês: linha reta com um ponto por mês (● fechado, ◐ aberto,
  *    ○ previsto), sólida no que já fechou e tracejada na previsão; faixa âmbar abaixo da reserva,
  *    vermelha abaixo de zero; "hoje" marcado e poucos números anotados. O título diz a conclusão.
+ *    A dívida vai junto, em cinza: enquanto a conta fica parada na reserva, é ela que cai.
  *  · Mês a mês: tabela por ano com o total do ano. No celular só Balanço e Conta no fim (o resto
- *    ao abrir a linha); no computador largo, "o que mudou" em relação ao mês anterior na linha.
+ *    ao abrir a linha); no computador largo, "o que mudou" em relação ao mês anterior na linha. A
+ *    linha aberta mostra a conta do mês: começou com + entradas − gastos − adiantado = conta no fim.
  * No computador (≥ 1280 px) o resumo fica numa coluna à direita, parado enquanto a tabela rola.
- * Variáveis: $hoje, $ref, $ultimo, $reserva, $meta, $linhas, $quita, $bate, $marcos.
+ * Variáveis: $hoje, $ref, $ultimo, $reserva, $meta, $linhas, $quita, $bate, $marcos, $ganho (AnualResumo::ganho).
  */
 $n    = count($linhas);
 $vals = array_map(static fn($l) => (float) $l['fica'], $linhas);
@@ -80,8 +82,15 @@ if ($adi !== []) {
                 'html' => 'A sobra do mês adianta <b>' . e(num($soma, 0)) . '</b> do empréstimo', 'mes' => $adi[0]['mes']];
 }
 if ($quita !== null && $quita >= $ref) {
-    $itens[] = ['ord' => $quita . '4', 'quando' => monthLabel($quita), 'tipo' => 'pos',
-                'html' => 'Empréstimo quitado (hoje faltam <b>' . e(num((float) $linhas[$iRef]['divida'], 0)) . '</b>)', 'mes' => $quita];
+    if (!empty($ganho)) {
+        // o que adiantar rende: o "só as parcelas" iria até quitaSem, com mais juros
+        $antes = $ganho['meses'] >= 24 ? intdiv($ganho['meses'], 12) . ' anos' : $ganho['meses'] . ($ganho['meses'] === 1 ? ' mês' : ' meses');
+        $html = 'Empréstimo quitado, ' . e($antes) . ' antes do que só com as parcelas (' . e(monthLabel($ganho['quitaSem']))
+              . '). Adiantar evita cerca de <b class="pos">' . e(num(round($ganho['juros'], -2), 0)) . '</b> de juros';
+    } else {
+        $html = 'Empréstimo quitado (hoje faltam <b>' . e(num((float) $linhas[$iRef]['divida'], 0)) . '</b>)';
+    }
+    $itens[] = ['ord' => $quita . '4', 'quando' => monthLabel($quita), 'tipo' => 'pos', 'html' => $html, 'mes' => $quita];
 }
 usort($itens, static fn($a, $b) => strcmp($a['ord'], $b['ord']));
 
@@ -122,8 +131,10 @@ if ($bate !== null) {
 }
 
 // ---- gráfico: escala, grade "redonda" (2 a 4 linhas) e caminhos
+$divs = array_map(static fn($l) => (float) $l['divida'], $linhas);
+$comDivida = max($divs) > 0.004;
 $comMeta = $meta > 0.004 && $meta <= max($vals) * 1.25;
-$topo = max(max($vals), $reserva, $comMeta ? $meta : 0.0, 1.0);
+$topo = max(max($vals), $comDivida ? max($divs) : 0.0, $reserva, $comMeta ? $meta : 0.0, 1.0);
 $piso = min(0.0, min($vals));
 $amp  = max(1e-9, $topo - $piso);
 $yMax = $topo + $amp * 0.16;
@@ -154,6 +165,24 @@ $caminho = static function (int $de, int $ate) use ($pts, $f): string {
 };
 $solida    = $iReal >= 1 ? $caminho(0, $iReal) : '';
 $tracejada = $iReal < $n - 1 ? $caminho(max(0, $iReal), $n - 1) : '';
+// a dívida: até o mês em que zera (o ponto no zero entra, o resto some)
+$iZera = $n - 1;
+foreach ($divs as $i => $d) {
+    if ($d <= 0.004) {
+        $iZera = $i;
+        break;
+    }
+}
+$ptsD = array_map(static fn(int $i): array => [$x($i), $y($divs[$i])], array_keys($divs));
+$caminhoD = static function (int $de, int $ate) use ($ptsD, $f): string {
+    $s = '';
+    for ($i = $de; $i <= $ate; $i++) {
+        $s .= ($i === $de ? 'M' : ' L') . $f($ptsD[$i][0]) . ',' . $f($ptsD[$i][1]);
+    }
+    return $s;
+};
+$divSolida    = $comDivida && $iReal >= 1 ? $caminhoD(0, min($iReal, $iZera)) : '';
+$divTracejada = $comDivida && $iReal < $iZera ? $caminhoD(max(0, $iReal), $iZera) : '';
 $yRes  = $y($reserva);
 $yZero = $y(0.0);
 // números anotados: o mês mais apertado (se abaixo da reserva), a quitação e o fim
@@ -232,8 +261,8 @@ $alertaIc = static fn(string $a): string => $a !== '' ? svgIcon('alert', 13, 'fu
     <!-- conta no fim de cada mês -->
     <section class="card fu-graf" aria-labelledby="fu-graf-t">
         <h2 class="fu-graf-t" id="fu-graf-t"><?= e($titulo) ?></h2>
-        <p class="fu-graf-sub">Conta no fim de cada mês, em R$</p>
-        <figure class="fu-fig is-denso" role="img" aria-label="<?= e($titulo . ' Conta no fim de cada mês, de ' . monthLabel($linhas[0]['mes']) . ' a ' . monthLabel($ultimo) . '. Os valores estão na tabela mês a mês.') ?>">
+        <p class="fu-graf-sub">Conta no fim de cada mês<?= $comDivida ? ' e a dívida do empréstimo' : '' ?>, em R$</p>
+        <figure class="fu-fig is-denso" role="img" aria-label="<?= e($titulo . ' Conta no fim de cada mês' . ($comDivida ? ' e dívida do empréstimo' : '') . ', de ' . monthLabel($linhas[0]['mes']) . ' a ' . monthLabel($ultimo) . '. Os valores estão na tabela mês a mês.') ?>">
             <div class="fu-plot" aria-hidden="true">
                 <svg class="fu-svg" viewBox="0 0 <?= $VW ?> <?= $VH ?>" preserveAspectRatio="none" focusable="false">
                     <?php if ($reserva > 0.004 && $yRes < $VH): ?>
@@ -252,6 +281,8 @@ $alertaIc = static fn(string $a): string => $a !== '' ? svgIcon('alert', 13, 'fu
                         <line class="fu-meta-l" x1="0" x2="<?= $VW ?>" y1="<?= $f($y($meta)) ?>" y2="<?= $f($y($meta)) ?>"/>
                     <?php endif; ?>
                     <line class="fu-hoje-l" x1="<?= $f($x($iRef)) ?>" x2="<?= $f($x($iRef)) ?>" y1="0" y2="<?= $VH ?>"/>
+                    <?php if ($divSolida !== ''): ?><path class="fu-div-l" d="<?= $divSolida ?>"/><?php endif; ?>
+                    <?php if ($divTracejada !== ''): ?><path class="fu-div-l is-prev" d="<?= $divTracejada ?>"/><?php endif; ?>
                     <?php if ($solida !== ''): ?><path class="fu-linha" d="<?= $solida ?>"/><?php endif; ?>
                     <?php if ($tracejada !== ''): ?><path class="fu-linha is-prev" d="<?= $tracejada ?>"/><?php endif; ?>
                 </svg>
@@ -265,6 +296,10 @@ $alertaIc = static fn(string $a): string => $a !== '' ? svgIcon('alert', 13, 'fu
                     <span class="fu-ref fu-meta-rot num" style="top:<?= $pc($y($meta), $VH) ?>">Meta <?= e(num($meta, 0)) ?></span>
                 <?php endif; ?>
                 <span class="fu-hoje" style="left:<?= $pc($x($iRef), $VW) ?>">hoje</span>
+                <?php if ($comDivida): ?>
+                    <span class="fu-serie fu-serie-div" style="left:<?= $pc($x(0), $VW) ?>;top:<?= $pc($y($divs[0]), $VH) ?>">Dívida</span>
+                    <span class="fu-serie" style="left:<?= $pc($x(0), $VW) ?>;top:<?= $pc($y($vals[0]), $VH) ?>">Conta</span>
+                <?php endif; ?>
                 <?php foreach ($linhas as $i => $l): ?>
                     <i class="fu-pt is-<?= $l['estado'] === 'real' ? 'real' : ($l['estado'] === 'aberto' ? 'aberto' : 'prev') ?><?= $l['alerta'] !== '' ? ' is-' . e($l['alerta']) : '' ?>" style="left:<?= $pc($x($i), $VW) ?>;top:<?= $pc($y($vals[$i]), $VH) ?>"></i>
                 <?php endforeach; ?>
@@ -324,20 +359,23 @@ $alertaIc = static fn(string $a): string => $a !== '' ? svgIcon('alert', 13, 'fu
                             <span class="fu-v fu-largo fu-div"><span class="sr-only">dívida </span><?= $l['divida'] > 0.004 ? e(num((float) $l['divida'], 0)) : '<span aria-hidden="true">—</span><span class="sr-only">quitada</span>' ?></span>
                             <span class="fu-xl fu-chips"><?= $chipsHtml($lista) ?></span>
                         </summary>
-                        <div class="fu-det num">
-                            <p class="fu-so-cel"><span>Entradas</span> <?= e(num($l['entra'])) ?></p>
-                            <p class="fu-so-cel"><span>Saídas</span> <?= e(num($l['sai'])) ?></p>
-                            <?php if (abs($l['gastos'] - $l['sai']) > 0.004): ?><p><span>Gastos do mês</span> <?= e(num($l['gastos'])) ?></p><?php endif; ?>
-                            <?php if ($l['consignado'] > 0.004): ?>
-                                <p><span>Soldo bruto</span> <?= e(num($l['entra_bruto'])) ?></p>
-                                <p><span>Consignado</span> <?= MENOS ?><?= e(num($l['consignado'])) ?></p>
-                            <?php endif; ?>
-                            <?php if (abs($l['cred']) > 0.004): ?><p><span>Crédito do empréstimo</span> <?= e(($l['cred'] > 0 ? '+' : '') . num($l['cred'])) ?></p><?php endif; ?>
-                            <?php if (abs($l['poup']) > 0.004): ?><p><span>Poupança</span> <?= e(($l['poup'] > 0 ? '+' : '') . num($l['poup'])) ?></p><?php endif; ?>
-                            <?php if ($l['amort'] > 0.004): ?><p><span>Adiantado do empréstimo</span> <?= e(num($l['amort'])) ?></p><?php endif; ?>
-                            <p class="fu-so-cel"><span>Dívida no fim</span> <?= $l['divida'] > 0.004 ? e(num($l['divida'])) : 'quitada' ?></p>
-                            <?php if ($listaDet !== []): ?><div class="fu-det-mudou"><span>O que mudou</span><div class="fu-chips"><?= $chipsHtml($listaDet) ?></div></div><?php endif; ?>
-                            <a class="btn-link fu-abrir" href="/mes?mes=<?= e($l['mes']) ?>"><?= $l['estado'] === 'real' ? 'Ver' : 'Ver e ajustar' ?> <?= e(monthLabel($l['mes'])) ?></a>
+                        <div class="fu-det">
+                            <div class="fu-conta num">
+                                <p><span>Começou o mês com</span> <?= e($valor((float) $l['antes'])) ?></p>
+                                <p><span>+ Entradas</span> <?= e(num($l['entra_op'])) ?></p>
+                                <?php if ($l['consignado'] > 0.004): ?><p class="fu-conta-sub"><span>soldo de <?= e(num($l['entra_bruto'])) ?> menos <?= e(num($l['consignado'])) ?> do consignado</span></p><?php endif; ?>
+                                <?php if ($l['cred'] > 0.004): ?><p><span>+ Crédito do empréstimo</span> <?= e(num($l['cred'])) ?></p><?php endif; ?>
+                                <?php if ($l['poup'] > 0.004): ?><p><span>+ Tirado da poupança</span> <?= e(num($l['poup'])) ?></p><?php endif; ?>
+                                <p><span><?= MENOS ?> Gastos</span> <?= e(num($l['gastos'])) ?></p>
+                                <?php if ($l['amort'] > 0.004): ?><p><span><?= MENOS ?> Adiantado do empréstimo</span> <?= e(num($l['amort'])) ?></p><?php endif; ?>
+                                <?php if ($l['poup'] < -0.004): ?><p><span><?= MENOS ?> Guardado na poupança</span> <?= e(num(abs($l['poup']))) ?></p><?php endif; ?>
+                                <p class="fu-conta-fim<?= $l['alerta'] !== '' ? ' ' . e($l['alerta']) : '' ?>"><span>= Conta no fim</span> <?= e($valor((float) $l['fica'])) ?></p>
+                                <p class="fu-conta-div"><span>Dívida no fim</span> <?= $l['divida'] > 0.004 ? e(num($l['divida'])) : 'quitada' ?></p>
+                            </div>
+                            <div class="fu-det-lado">
+                                <?php if ($listaDet !== []): ?><div class="fu-det-mudou"><span>O que mudou</span><div class="fu-chips"><?= $chipsHtml($listaDet) ?></div></div><?php endif; ?>
+                                <a class="btn-link fu-abrir" href="/mes?mes=<?= e($l['mes']) ?>"><?= $l['estado'] === 'real' ? 'Ver' : 'Ver e ajustar' ?> <?= e(monthLabel($l['mes'])) ?></a>
+                            </div>
                         </div>
                     </details>
                 <?php endforeach; ?>
