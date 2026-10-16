@@ -689,3 +689,7 @@ a.lista-i:hover { background: var(--sel); }
     .saldo { padding: 24px 24px 20px; }
     .saldo-v { font-size: 52px; margin: 18px 0 22px; }
 }
+
+/* avisos vêm dos controladores em minúscula: a 1ª letra de cada aviso e o botão em maiúscula */
+.toast-seg:first-child::first-letter, .toast-acao button::first-letter { text-transform: uppercase; }
+.toast-acao button { display: inline-block; }
