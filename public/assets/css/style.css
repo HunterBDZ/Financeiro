@@ -590,7 +590,7 @@ details.dobra > summary:hover::after { border-color: var(--text); }
     .lat-sair:hover { background: var(--card-2); color: var(--text); }
 
     .page { max-width: none; margin: 0 0 0 var(--lat); padding: 28px 40px 56px; }
-    .page > * { max-width: 1140px; }
+    .page > * { max-width: 1140px; margin-inline: auto; }   /* centraliza na área ao lado do menu, em tela grande */
     .card { padding: 20px; }
     .toast { left: auto; right: 28px; bottom: 28px; width: auto; min-width: 360px; max-width: 520px; }
     dialog.sheet {
