@@ -191,7 +191,7 @@ final class MesController
         try {
             $lote = PrevisaoLote::gravar($propagar ? 'propagar' : 'manual', $celulas, (int) Auth::id());
         } catch (\InvalidArgumentException) {
-            flash('error', 'não salvou · ' . monthLabel($mes) . ' ' . estadoLabel('real'));   // fechado no meio do caminho
+            flash('error', 'Não salvou · ' . monthLabel($mes) . ' está ' . mb_strtolower(estadoLabel('real')));   // fechado no meio do caminho
             redirecionar($volta, 303);
         } catch (\Throwable $e) {
             error_log('mes/previsao: ' . $e->getMessage());

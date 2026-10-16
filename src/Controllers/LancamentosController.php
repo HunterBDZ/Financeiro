@@ -383,7 +383,7 @@ final class LancamentosController
         $txt = self::valorTexto($cat, $valor, true);
         $mes = substr($data, 0, 8) . '01';
         if (MesModel::situacao($mes) === 'REAL') {
-            return $txt . ' · ' . monthLabel($mes) . ' ' . estadoLabel('real');
+            return $txt . ' · ' . monthLabel($mes) . ' ' . mb_strtolower(estadoLabel('real'));
         }
         if ((int) $cat['operacional'] === 1 && (int) $cat['sinal'] < 0) {
             $previsto = PrevisaoModel::valor((int) $cat['id'], $mes);
