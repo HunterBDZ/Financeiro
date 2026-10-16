@@ -26,6 +26,14 @@ na máquina .164 (publicado em 10/10/2026) é o primeiro commit daqui; trabalhe 
   ("desde out/26"), não com "hoje".
 - Nenhuma mudança de banco nem de regra de cálculo; os 57 testes seguem iguais (só o marcador
   da tela inicial mudou de `agua-valor` para `saldo-v`).
+- **Tela grande:** o conteúdo fica centralizado ao lado do menu. A partir de 1600 px ele cresce até
+  1560 px e as telas ganham colunas:
+  - Início em 3 colunas;
+  - Mês com essenciais e não essenciais lado a lado;
+  - Extrato em tabela;
+  - Anual com "Conta no fim" e "Dívida" na tabela, que no celular ficam no detalhe do mês;
+  - Metas com a renda à esquerda e os grupos à direita.
+  A partir de 1280 px, Fechar mês e Ajustes ficam em 2 colunas.
 
 ## 2026-10-15/17 — aba Mês editável; a meta é a previsão padrão (opção B)
 
