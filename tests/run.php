@@ -546,6 +546,7 @@ $catGasto = (int) $pdo->query("SELECT id FROM categorias WHERE grupo = 'Dia a di
 if ($catFat !== null && $catGasto > 0 && count($prevMeses) >= 3) {
     $emTransacao('cartão alimentando o plano', static function () use ($pdo, $check, $catFat, $catGasto, $render): void {
         $hojeT = date('Y-m-d');
+        $pdo->exec('UPDATE cartoes SET ativo = 0');    // o cartão de verdade (se já houver) sai de cena até o rollback
         $idC = CartaoModel::salvar(null, 'Cartão teste', 25, 5, null);
         $aberta = CartaoFatura::faturaDe($hojeT, 25, 5);
         $antes = PrevisaoModel::valor($catFat, $aberta);
@@ -576,7 +577,8 @@ if ($catFat !== null && $catGasto > 0 && count($prevMeses) >= 3) {
             && str_contains($htmlCt, 'class="ct-escada"') && str_contains($htmlCt, 'TV teste') && str_contains($htmlCt, 'class="ct-parc"')
             && !str_contains($htmlCt, 'ct-conf-tab'));
         $antigas = (int) $pdo->query("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'cartao_compras_v1'")->fetchColumn() > 0
-            ? (int) $pdo->query('SELECT COUNT(*) FROM cartao_compras_v1')->fetchColumn() : 0;
+            ? (int) $pdo->query('SELECT COUNT(*) FROM cartao_compras_v1 v WHERE NOT EXISTS (SELECT 1 FROM cartao_compras n
+                                 WHERE n.descricao = v.descricao AND n.criado_em = v.criado_em)')->fetchColumn() : 0;   // as que ainda não vieram
         $vieram = CartaoModel::importarAntigas($idC);
         $deNovo = CartaoModel::importarAntigas($idC);
         $check('cartão: as compras da versão antiga do app vêm junto, uma vez só', $vieram === $antigas && $deNovo === 0, json_encode([$antigas, $vieram, $deNovo]));

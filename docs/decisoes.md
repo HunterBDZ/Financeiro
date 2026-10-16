@@ -4,6 +4,55 @@ Repositório canônico: `~/financeiro` no servidor 192.168.0.154 (git, branch `m
 Produção: `/var/www/financeiro`, publicada a partir deste repositório. O código que estava
 na máquina .164 (publicado em 10/10/2026) é o primeiro commit daqui; trabalhe sempre neste.
 
+## 2026-10-16 — aba Cartão: compras à vista e parceladas
+
+- **Por quê:** o casal queria um lugar para lançar as compras no cartão e as parcelas; a previsão
+  da "Fatura do cartão" era digitada à mão, mês a mês. Decidido com o casal em 16/10: um cartão
+  (Ourocard); a previsão da fatura é só a soma das parcelas lançadas (sem estimar o à vista que
+  ainda vai ser gasto); Cartão na barra do celular no lugar de Metas.
+- **Regra (regime de caixa):** "fatura de M" é a que vence no mês M. É o dinheiro que sai da conta,
+  e é nesse mês que ela conta no plano, como a categoria "Fatura do cartão" (grupo Cartao). A compra
+  no cartão **não** conta de novo na categoria dela nem na meta: no plano só a fatura conta.
+- **Em que fatura cai:** compra no dia do fechamento ou depois vai para a fatura seguinte; se o
+  vencimento é no dia do fechamento ou antes, a fatura vence no mês depois do fechamento
+  (`CartaoFatura::faturaDe`; `cartao.js` repete a conta na prévia). Parcela = total ÷ n arredondado
+  para baixo no centavo, a sobra na 1ª. Compra antiga: a "parcela atual" k cai na fatura aberta,
+  então a 1ª foi k − 1 faturas antes. As parcelas não têm tabela: saem de `valor_total`,
+  `parcelas` e `primeira_fatura` (que a edição da compra deixa trocar).
+- **Banco:** migração `2026_10_19_cartao.sql`: tabelas `cartoes` (fechamento, vencimento, limite,
+  `alimenta_plano`) e `cartao_compras`, e a origem de lote `cartao`. A `cartao_compras` da versão
+  antiga do app (sem uso desde a reescrita) virou `cartao_compras_v1`; as compras dela entram uma
+  vez, quando o cartão é cadastrado (`CartaoModel::importarAntigas`: total = parcela × nº de
+  parcelas, 1ª fatura = mês da 1ª parcela, sem categoria).
+- **Aba Cartão:**
+  - a fatura aberta em forma de cartão: total, fecha e vence, limite livre (limite menos as
+    parcelas da aberta em diante);
+  - "Próximas faturas" em degraus, que escolhem a fatura mostrada (link `?fatura=`; funciona sem JS);
+  - a fatura com Parcelas (k/N) e Compras à vista: cada linha abre a edição; excluir tem desfazer;
+  - Parcelamentos, com quanto falta;
+  - os dados do cartão e o menu ⋯ (Configurar, Ligar ao plano ou Tirar do plano).
+- **Lançar:** no "+", "Pagou com: Conta | Cartão". No cartão:
+  - vezes 1 a 6, 10 ou 12, ou outro número até 48;
+  - prévia ao vivo ("Cai na fatura de novembro, que vence em 5/11. 10 × 320,00, de nov/26 a
+    ago/27") e a escada das faturas com o que a compra soma em destaque;
+  - "Outras vezes ou compra antiga" para informar a parcela atual;
+  - a categoria tem de ser um gasto operacional, e não a própria Fatura do cartão;
+  - o aviso de compra lançada tem desfazer.
+- **Ligar ao plano (`alimenta_plano`):** começa desligado. Antes de ligar, a aba mostra a
+  conferência: 6 faturas, previsão de hoje × lançado no cartão, com a diferença. Ligado:
+  - toda mudança no cartão reescreve a previsão da Fatura do cartão de cada mês em PREVISAO, da
+    fatura aberta em diante (`CartaoFatura::sincronizarPlano`, lote `cartao`, com log). Esse lote
+    fica fora do "desfazer última alteração" do Mês;
+  - os meses antes da aberta não mudam: a fatura já fechou e vale o valor do banco;
+  - no Mês, a linha fica só para ler ("Vem do Cartão · ver a fatura") e salvar nela é recusado.
+  Desligar devolve a edição ao Mês, e os valores ficam como estavam.
+- **Barra do celular:** Início, Extrato, +, Mês, Cartão. Metas foi para o menu do M, com Anual e
+  Ajustes.
+- **Testes:** 101. A seção 15 cobre a fatura da compra, fechamento e vencimento, centavos, compra
+  antiga, situação das faturas, limite e ordem dos parcelamentos. Numa transação: o plano ligado,
+  o Mês, a aba, a importação única, o "+" com Pagou com e a barra. E2E e axe passaram sem falhas
+  nas telas novas.
+
 ## 2026-10-16 — "e se" no Anual
 
 - **O que faz:** no cartão "E se…?" do Anual (fechado por padrão) dá para simular economizar ou
@@ -176,4 +225,5 @@ na máquina .164 (publicado em 10/10/2026) é o primeiro commit daqui; trabalhe 
   os lotes `migracao`. Código: `git archive <commit> | tar -x -C /tmp/fin-volta && sudo financeiro-publish /tmp/fin-volta`.
 - `database/schema.sql` é gerado da staging com
   `mysqldump --no-data --skip-comments --skip-dump-date --skip-add-drop-table --routines --triggers`
-  (sem `DROP TABLE`, de propósito).
+  (sem `DROP TABLE`, de propósito) e `sed -E 's/ AUTO_INCREMENT=[0-9]+//'`, para os contadores da
+  staging não entrarem no diff.

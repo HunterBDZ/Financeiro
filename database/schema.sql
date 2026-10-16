@@ -24,6 +24,32 @@ CREATE TABLE `ajustes` (
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `cartao_compras` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `cartao_id` int unsigned NOT NULL,
+  `data` date NOT NULL,
+  `descricao` varchar(255) NOT NULL,
+  `categoria_id` int unsigned DEFAULT NULL,
+  `valor_total` decimal(12,2) NOT NULL,
+  `parcelas` tinyint unsigned NOT NULL DEFAULT '1',
+  `primeira_fatura` date NOT NULL,
+  `usuario_id` int unsigned NOT NULL,
+  `criado_em` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `atualizado_em` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_cc_cartao_fatura` (`cartao_id`,`primeira_fatura`),
+  KEY `cc_categoria` (`categoria_id`),
+  KEY `cc_usuario` (`usuario_id`),
+  CONSTRAINT `cc_fk_cartao` FOREIGN KEY (`cartao_id`) REFERENCES `cartoes` (`id`),
+  CONSTRAINT `cc_fk_categoria` FOREIGN KEY (`categoria_id`) REFERENCES `categorias` (`id`),
+  CONSTRAINT `cc_fk_usuario` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`),
+  CONSTRAINT `chk_cc_parcelas` CHECK ((`parcelas` between 1 and 48)),
+  CONSTRAINT `chk_cc_primeira` CHECK ((dayofmonth(`primeira_fatura`) = 1)),
+  CONSTRAINT `chk_cc_valor` CHECK ((`valor_total` > 0))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `cartao_compras_v1` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
   `descricao` varchar(255) NOT NULL,
   `valor_parcela` decimal(12,2) NOT NULL,
   `n_parcelas` smallint unsigned NOT NULL,
@@ -32,8 +58,25 @@ CREATE TABLE `cartao_compras` (
   `criado_em` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `usuario_id` (`usuario_id`),
-  CONSTRAINT `cartao_compras_ibfk_1` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+  CONSTRAINT `cartao_compras_v1_ibfk_1` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `cartoes` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `nome` varchar(60) NOT NULL,
+  `dia_fechamento` tinyint unsigned NOT NULL,
+  `dia_vencimento` tinyint unsigned NOT NULL,
+  `limite` decimal(12,2) DEFAULT NULL,
+  `alimenta_plano` tinyint(1) NOT NULL DEFAULT '0',
+  `ativo` tinyint(1) NOT NULL DEFAULT '1',
+  `criado_em` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `atualizado_em` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  CONSTRAINT `chk_cartao_dias` CHECK (((`dia_fechamento` between 1 and 31) and (`dia_vencimento` between 1 and 31))),
+  CONSTRAINT `chk_cartao_limite` CHECK (((`limite` is null) or (`limite` > 0)))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
@@ -51,7 +94,7 @@ CREATE TABLE `categorias` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `nome` (`nome`),
   CONSTRAINT `chk_sinal` CHECK ((`sinal` in (-(1),1)))
-) ENGINE=InnoDB AUTO_INCREMENT=79 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
@@ -64,7 +107,7 @@ CREATE TABLE `contas_recorrentes` (
   UNIQUE KEY `categoria_id` (`categoria_id`),
   CONSTRAINT `contas_recorrentes_ibfk_1` FOREIGN KEY (`categoria_id`) REFERENCES `categorias` (`id`),
   CONSTRAINT `chk_dia` CHECK ((`dia_vencimento` between 1 and 31))
-) ENGINE=InnoDB AUTO_INCREMENT=28 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
@@ -84,7 +127,7 @@ CREATE TABLE `lancamentos` (
   CONSTRAINT `lancamentos_ibfk_1` FOREIGN KEY (`categoria_id`) REFERENCES `categorias` (`id`),
   CONSTRAINT `lancamentos_ibfk_2` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`),
   CONSTRAINT `chk_valor_positivo` CHECK ((`valor` > 0))
-) ENGINE=InnoDB AUTO_INCREMENT=168 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
@@ -127,7 +170,7 @@ CREATE TABLE `previsao` (
   KEY `mes` (`mes`),
   CONSTRAINT `previsao_ibfk_1` FOREIGN KEY (`categoria_id`) REFERENCES `categorias` (`id`),
   CONSTRAINT `previsao_ibfk_2` FOREIGN KEY (`mes`) REFERENCES `meses` (`mes`)
-) ENGINE=InnoDB AUTO_INCREMENT=693 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 SET @saved_cs_client     = @@character_set_client;
 /*!50503 SET character_set_client = utf8mb4 */;
@@ -153,13 +196,13 @@ CREATE TABLE `previsao_log` (
   CONSTRAINT `fk_log_categoria` FOREIGN KEY (`categoria_id`) REFERENCES `categorias` (`id`),
   CONSTRAINT `fk_log_lote` FOREIGN KEY (`lote`) REFERENCES `previsao_lotes` (`lote`) ON DELETE CASCADE,
   CONSTRAINT `fk_log_mes` FOREIGN KEY (`mes`) REFERENCES `meses` (`mes`)
-) ENGINE=InnoDB AUTO_INCREMENT=239 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `previsao_lotes` (
   `lote` char(16) NOT NULL,
-  `origem` enum('manual','propagar','sugestao','fechar','migracao','congelar') NOT NULL,
+  `origem` enum('manual','propagar','sugestao','fechar','migracao','congelar','cartao') NOT NULL,
   `mes_inicio` date NOT NULL,
   `usuario_id` int unsigned NOT NULL,
   `objetivo_antes` decimal(14,4) DEFAULT NULL,
@@ -183,7 +226,7 @@ CREATE TABLE `saldo_conferencias` (
   PRIMARY KEY (`id`),
   KEY `usuario_id` (`usuario_id`),
   CONSTRAINT `saldo_conferencias_ibfk_1` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
@@ -213,7 +256,7 @@ CREATE TABLE `usuarios` (
   `sessao_versao` int unsigned NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `login` (`login`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!50001 DROP VIEW IF EXISTS `previsao_efetiva`*/;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
