@@ -99,7 +99,7 @@ foreach ($linhas as $i => $l) {
     <section class="card fu-graf" aria-labelledby="fu-graf-t">
         <div class="fu-graf-head">
             <h2 class="fu-graf-t" id="fu-graf-t">Conta no fim de <?= e(monthLabel($ultimo)) ?></h2>
-            <p class="fu-graf-v"><b class="num">R$ <?= e(num($fimFica, 0)) ?></b><span class="num <?= $delta >= 0 ? 'pos' : 'neg' ?>"><?= e(($delta >= 0 ? '+' : MENOS) . num(abs($delta), 0)) ?> desde hoje</span></p>
+            <p class="fu-graf-v"><b class="num">R$ <?= e(num($fimFica, 0)) ?></b><span class="num <?= $delta >= 0 ? 'pos' : 'neg' ?>"><?= e(($delta >= 0 ? '+' : MENOS) . num(abs($delta), 0)) ?> desde <?= e(monthLabel($linhas[$iRef]['mes'])) ?></span></p>
             <?php if ($resumo !== ''): ?><p class="fu-resumo num"><?= e($resumo) ?></p><?php endif; ?>
         </div>
         <figure class="fu-fig<?= $denso ?>" role="img" aria-label="Conta no fim de cada mês, de <?= e(monthLabel($linhas[0]['mes'])) ?> a <?= e(monthLabel($ultimo)) ?>. Os valores estão na lista mês a mês.">
@@ -121,7 +121,7 @@ foreach ($linhas as $i => $l) {
                     <span class="fu-ref fu-meta-rot num" style="top:<?= $pc($y($meta), $VH) ?>">Meta <?= e(num($meta, 0)) ?></span>
                 <?php endif; ?>
                 <i class="fu-pt fu-pt-hoje" style="left:<?= $pc($x($iRef), $VW) ?>;top:<?= $pc($y($vals[$iRef]), $VH) ?>"></i>
-                <span class="fu-hoje" style="left:<?= $pc($x($iRef), $VW) ?>;top:<?= $pc($y($vals[$iRef]), $VH) ?>">Hoje</span>
+                <span class="fu-hoje" style="left:<?= $pc($x($iRef), $VW) ?>;top:<?= $pc($y($vals[$iRef]), $VH) ?>"><?= e(monthLabel($linhas[$iRef]['mes'])) ?></span>
                 <i class="fu-pt fu-pt-fim" style="left:<?= $pc($x($n - 1), $VW) ?>;top:<?= $pc($y($fimFica), $VH) ?>"></i>
             </div>
             <div class="fu-eixo" aria-hidden="true">

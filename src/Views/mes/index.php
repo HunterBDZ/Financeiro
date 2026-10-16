@@ -179,19 +179,19 @@ $linhaConta = static function (array $l) use ($estado, $valorConta, $fmt, $metaB
     if ($estado === 'aberto') {
         $pagoTotal = $l['pago'] > 0.004 && $l['pago'] >= $l['prev'] - 0.004;
         if (in_array($st, ['pago', 'pago_atrasado'], true) || ($st === null && $pagoTotal)) {
-            $selo = 'pago';
+            $selo = 'Pago';
             $seloCls = 'pago';
         } elseif ($st === 'pago_parcial') {
-            $selo = 'pago em parte';
+            $selo = 'Pago em parte';
             $seloCls = 'parcial';
         } elseif ($st === 'atrasado') {
-            $selo = 'venceu ' . diaMes((string) $l['vencimento']);
+            $selo = 'Venceu ' . diaMes((string) $l['vencimento']);
             $seloCls = 'venceu';
         } elseif ($st === 'pendente') {
-            $selo = 'vence ' . diaMes((string) $l['vencimento']);
+            $selo = 'Vence ' . diaMes((string) $l['vencimento']);
             $seloCls = 'vence';
         } else {
-            $selo = 'previsto';
+            $selo = 'Previsto';
         }
     }
     $abreLinha($l); ?>

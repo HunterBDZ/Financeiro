@@ -198,9 +198,9 @@ function estadoMes(string $mes, string $situacao, ?string $hoje = null): string
 function estadoLabel(string $estado): string
 {
     return match ($estado) {
-        'real'   => 'fechado',
-        'aberto' => 'aberto',
-        default  => 'previsto',
+        'real'   => 'Fechado',
+        'aberto' => 'Aberto',
+        default  => 'Previsto',
     };
 }
 
