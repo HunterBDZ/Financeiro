@@ -24,7 +24,7 @@ $difContrato = $feitos === [] && $sit['contrato'] !== null && $sit['quita'] !== 
                 </div>
                 <p class="saldo-v num"><small>R$</small><?= e($inteiro) ?><span>,<?= e($centavos) ?></span></p>
                 <?php if (!$sit['quitado']): ?>
-                    <p class="emp-saldo-sub num">Parcela de <?= e(num((float) $sit['parcela'])) ?> por mês<?php if ($informado !== null): ?><br>POUPEX: <?= e(num((float) $informado['valor'])) ?> antes da parcela de <?= e(monthLabel($informado['mes'])) ?><?php endif; ?></p>
+                    <p class="emp-saldo-sub num">Parcela de <?= e(num((float) $sit['parcela'])) ?> por mês<?php if ($informado !== null): ?><br>Extrato: <?= e(num((float) $informado['valor'])) ?> antes da parcela de <?= e(monthLabel($informado['mes'])) ?><?php endif; ?></p>
                     <div class="saldo-duas">
                         <div><small>Termina em</small><b class="num"><?= $sit['quita'] !== null ? e(monthLabel($sit['quita'])) : 'não dá para dizer' ?></b>
                             <?php if ($sit['restantes'] !== null): ?><small class="num"><?= (int) $sit['restantes'] ?> parcelas</small><?php endif; ?></div>
@@ -35,9 +35,9 @@ $difContrato = $feitos === [] && $sit['contrato'] !== null && $sit['quita'] !== 
             </section>
 
             <?php if ($difContrato && $informado !== null): ?>
-                <p class="aviso aviso-warn">Com o saldo informado, o cálculo termina em <?= e(monthLabel($sit['quita'])) ?>, e o contrato em <?= e(monthLabel($sit['contrato'])) ?>. Se a POUPEX confirmar o fim do contrato, confira os juros e a parcela. <a class="aj-link" href="/emprestimo?dados=1#emp-dados">Ver os dados</a></p>
+                <p class="aviso aviso-warn">Com o saldo informado, o cálculo termina em <?= e(monthLabel($sit['quita'])) ?>, e o contrato em <?= e(monthLabel($sit['contrato'])) ?>. Se o fim do contrato estiver certo, confira os juros e a parcela. <a class="aj-link" href="/emprestimo?dados=1#emp-dados">Ver os dados</a></p>
             <?php elseif ($difContrato): ?>
-                <p class="aviso aviso-warn">Pelo contrato, as <?= (int) $sit['nParcelas'] ?> parcelas acabam em <?= e(monthLabel($sit['contrato'])) ?>, mas este cálculo chega a <?= e(monthLabel($sit['quita'])) ?>. Até informar o saldo da POUPEX, os números são estimativa. <a class="aj-link" href="/emprestimo?dados=1#emp-dados">Informar o saldo</a></p>
+                <p class="aviso aviso-warn">Pelo contrato, as <?= (int) $sit['nParcelas'] ?> parcelas acabam em <?= e(monthLabel($sit['contrato'])) ?>, mas este cálculo chega a <?= e(monthLabel($sit['quita'])) ?>. Até informar o saldo do extrato, os números são estimativa. <a class="aj-link" href="/emprestimo?dados=1#emp-dados">Informar o saldo</a></p>
             <?php endif; ?>
 
             <?php if ($sit['quitado']): ?>
@@ -79,7 +79,7 @@ $difContrato = $feitos === [] && $sit['contrato'] !== null && $sit['quita'] !== 
                     <?= csrfField() ?>
                     <div class="emp-consolidar-cab">
                         <h2 class="titulo">Consolidar adiantamento</h2>
-                        <p class="emp-ajuda">Depois de pagar na POUPEX, lance aqui: o valor entra no Extrato, sai da conta e abate a dívida.</p>
+                        <p class="emp-ajuda">Depois de pagar o adiantamento, lance aqui: o valor entra no Extrato, sai da conta e abate a dívida.</p>
                     </div>
                     <?php if ($erroForm !== null): ?><p class="aviso aviso-error emp-inteira" role="alert"><?= e((string) $erroForm) ?></p><?php endif; ?>
                     <?php if ($dup): ?><p class="aviso aviso-warn emp-inteira" role="alert">Já existe um adiantamento com esse valor nessa data. Se foi outro pagamento, confirme abaixo.</p><?php endif; ?>
@@ -147,7 +147,7 @@ $difContrato = $feitos === [] && $sit['contrato'] !== null && $sit['quita'] !== 
                     <?= csrfField() ?>
                     <p class="aj-ajuda">Mudar estes dados recalcula o plano inteiro: Início, Mês, Anual e esta aba.</p>
                     <div class="aj-campo">
-                        <label for="emp-d-saldo_devedor">Saldo devedor na POUPEX</label>
+                        <label for="emp-d-saldo_devedor">Saldo devedor do extrato</label>
                         <span class="aj-input"><input id="emp-d-saldo_devedor" type="text" name="valores[saldo_devedor]" inputmode="decimal" autocomplete="off" placeholder="0,00" value="<?= e($saldoTxt) ?>"<?= $invalido('saldo_devedor') ?>></span>
                     </div>
                     <div class="aj-campo">
@@ -181,7 +181,7 @@ $difContrato = $feitos === [] && $sit['contrato'] !== null && $sit['quita'] !== 
                         <li>Juros de <?= e(num((float) $sit['jurosMes'] * 100)) ?>% ao mês sobre o saldo e parcela fixa, como em <a href="/emprestimo?dados=1#emp-dados">Dados do empréstimo</a>.</li>
                         <li>O adiantamento abate o saldo no mês escolhido, depois da parcela, e o prazo encurta.</li>
                         <li>A comparação é com pagar só as parcelas, sem os adiantamentos automáticos do plano.</li>
-                        <li>O valor que vale é o da POUPEX: peça o saldo atualizado antes de pagar.</li>
+                        <li>O valor que vale é o da instituição: peça o saldo atualizado antes de pagar.</li>
                     </ul>
                 </details>
             <?php endif; ?>

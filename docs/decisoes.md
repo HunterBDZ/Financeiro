@@ -5,6 +5,13 @@ com a staging. Produção: `/var/www/financeiro`, atualizada por versões com `f
 1/11/2026 (remoto `github`, chave só de leitura). O código que estava
 na máquina .164 (publicado em 10/10/2026) é o primeiro commit daqui; trabalhe sempre neste.
 
+## 2026-11-01 — empréstimo sem nome de instituição
+
+- **Regra:** o app e o repositório são genéricos: nada de nome de instituição financeira em telas, código,
+  documentos, prints ou commits. Nas telas, usar "a instituição" ou "o extrato". Um teste varre os arquivos.
+- **Dados:** a migração `2026_11_01_descricao_emprestimo.sql` deixa o lançamento do crédito só como "Crédito do
+  empréstimo". O nome dado a um cartão ou digitado num lançamento é escolha de quem usa, e o app não altera.
+
 ## 2026-11-01 — versões e atualização pelo GitHub
 
 - **Por quê:** o projeto vai abrir ao público, e cada dono de site precisa atualizar sem saber as migrações.
@@ -19,8 +26,8 @@ na máquina .164 (publicado em 10/10/2026) é o primeiro commit daqui; trabalhe 
   entre o backup e a falha; o site não entra em manutenção nesse intervalo.
 - **Antes de abrir ao público:** criar um repositório novo, sem o histórico (nomes, valores e o IP da casa);
   trocar `icones.webp` por ícones de licença livre; definir a licença; apagar `database/seed.php`,
-  que traz nomes e senha fixa, e tirar o IP de `deploy.sh` e `tools/backup-pull.sh`; deixar o nome do banco do
-  empréstimo configurável (hoje os textos citam a POUPEX); e rever as menções pessoais em `docs/decisoes.md`.
+  que traz nomes e senha fixa, e tirar o IP de `deploy.sh` e `tools/backup-pull.sh`; e rever as menções pessoais
+  em `docs/decisoes.md`.
 
 ## 2026-11-01 — aba Empréstimo: simular um adiantamento
 
@@ -49,7 +56,7 @@ na máquina .164 (publicado em 10/10/2026) é o primeiro commit daqui; trabalhe 
   (`AjustesController::lerValores`). Parcela zero passou a ser recusada, porque zeraria a dívida.
 - **Saldo devedor informado:** o saldo era só o valor presente da parcela, então baixar os juros aumentava
   a dívida (1,97% → 1,91% levou nov/26 de 14.000,90 a 14.268,95). Agora os ajustes `saldo_devedor` e
-  `saldo_devedor_mes` (AAAAMM; criados na 1ª gravação, sem migração) dizem quanto a POUPEX cobra antes
+  `saldo_devedor_mes` (AAAAMM; criados na 1ª gravação, sem migração) dizem quanto o extrato cobra antes
   da parcela do mês: no início desse mês a dívida passa a esse valor (`MotorFinanceiro::saldoInformado`), e
   vale em todas as telas. Adiantamentos de meses anteriores já estão no extrato; os lançados no próprio mês
   ou depois abatem do saldo. Antes do mês informado o motor não supõe adiantamento automático. Os meses
@@ -63,8 +70,8 @@ na máquina .164 (publicado em 10/10/2026) é o primeiro commit daqui; trabalhe 
 ## 2026-10-16 — aba Cartão: compras à vista e parceladas
 
 - **Por quê:** o casal queria um lugar para lançar as compras no cartão e as parcelas; a previsão
-  da "Fatura do cartão" era digitada à mão, mês a mês. Decidido com o casal em 16/10: um cartão
-  (Ourocard); a previsão da fatura é só a soma das parcelas lançadas (sem estimar o à vista que
+  da "Fatura do cartão" era digitada à mão, mês a mês. Decidido com o casal em 16/10: um cartão;
+  a previsão da fatura é só a soma das parcelas lançadas (sem estimar o à vista que
   ainda vai ser gasto); Cartão na barra do celular no lugar de Metas.
 - **Regra (regime de caixa):** "fatura de M" é a que vence no mês M. É o dinheiro que sai da conta,
   e é nesse mês que ela conta no plano, como a categoria "Fatura do cartão" (grupo Cartao). A compra

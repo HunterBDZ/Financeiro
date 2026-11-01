@@ -716,7 +716,31 @@ if ($catAmortT !== null && $faltaAntesT > 100.0 && $refT === substr($hojeReal, 0
     }
 }
 
-// ---- 17. o selo do README acompanha o VERSION (o README do repositório é privado: o selo é fixo)
+// ---- 17. nome de instituição financeira não entra no projeto (a palavra fica dividida para este arquivo passar)
+$proibidas = ['pou' . 'pex', 'ouro' . 'card'];
+$raiz = dirname(__DIR__);
+$achados = [];
+$arquivos = [$raiz . '/README.md', $raiz . '/CHANGELOG.md'];
+foreach (['src', 'public/assets/js', 'public/assets/css', 'docs', 'database/migrations', 'tools', 'tests'] as $pasta) {
+    if (is_dir($raiz . '/' . $pasta)) {
+        foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($raiz . '/' . $pasta, FilesystemIterator::SKIP_DOTS)) as $f) {
+            if (preg_match('/\.(php|md|sql|js|css|sh)$/', $f->getFilename())) {
+                $arquivos[] = $f->getPathname();
+            }
+        }
+    }
+}
+foreach ($arquivos as $arq) {
+    $conteudo = is_file($arq) ? (string) file_get_contents($arq) : '';
+    foreach ($proibidas as $termo) {
+        if (stripos($conteudo, $termo) !== false) {
+            $achados[] = substr($arq, strlen($raiz) + 1);
+        }
+    }
+}
+$check('nenhum arquivo cita instituição financeira', $achados === [], implode(', ', $achados));
+
+// ---- 18. o selo do README acompanha o VERSION (o README do repositório é privado: o selo é fixo)
 $arqVersao = __DIR__ . '/../VERSION';
 $arqReadme = __DIR__ . '/../README.md';
 if (is_file($arqVersao) && is_file($arqReadme)) {

@@ -253,6 +253,5 @@ sudo sh -c 'gunzip -c /var/backups/financeiro/ARQUIVO.sql.gz | mysql financeiro'
 ## Personalizar
 
 - **Fuso horário:** o app usa o horário de Brasília (`src/bootstrap.php` e `src/Database.php`).
-- **Banco do empréstimo:** os textos da aba citam a POUPEX (`src/Views/emprestimo/`).
 - **Categorias:** crie novas no Extrato. Não renomeie as de empréstimo e poupança, `Salário` e `Fatura do cartão`: o cálculo as encontra pelo nome.
 - **Mais meses no plano:** o instalador cria 16. Não há tela para acrescentar outros.

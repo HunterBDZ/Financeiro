@@ -33,7 +33,7 @@ $formConfig = static function (?array $cfg, ?array $erro, callable $campo, bool 
     <form class="ct-form" method="post" action="/cartao/config" id="cartao-config">
         <?= csrfField() ?>
         <?php if ($erro !== null && isset($erro['msg'])): ?><p class="aviso aviso-error" role="alert"><?= e((string) $erro['msg']) ?></p><?php endif; ?>
-        <label><span>Nome</span><input type="text" name="nome" maxlength="60" required value="<?= e($campo('nome', (string) ($cfg['nome'] ?? 'Ourocard'))) ?>"></label>
+        <label><span>Nome</span><input type="text" name="nome" maxlength="60" required placeholder="Meu cartão" value="<?= e($campo('nome', (string) ($cfg['nome'] ?? ''))) ?>"></label>
         <div class="ct-2">
             <label><span>Fecha no dia</span><input type="text" name="dia_fechamento" inputmode="numeric" maxlength="2" required placeholder="25" value="<?= e($campo('fecha', isset($cfg['fecha']) ? (string) $cfg['fecha'] : '')) ?>"></label>
             <label><span>Vence no dia</span><input type="text" name="dia_vencimento" inputmode="numeric" maxlength="2" required placeholder="5" value="<?= e($campo('vence', isset($cfg['vence']) ? (string) $cfg['vence'] : '')) ?>"></label>

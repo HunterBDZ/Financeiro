@@ -129,7 +129,7 @@ final class EmprestimoController
         }
         $iso = sprintf('%04d-%02d-01', intdiv($mes, 100), $mes % 100);
         if ($iso > substr($hoje, 0, 8) . '01') {
-            return ['saldo_devedor_mes', 'O mês do saldo não pode ser futuro: use o mês do extrato da POUPEX.'];
+            return ['saldo_devedor_mes', 'O mês do saldo não pode ser futuro: use o mês do extrato do empréstimo.'];
         }
         if ($iso < $primeiro || $iso > $ultimo) {
             return ['saldo_devedor_mes', 'O mês do saldo precisa estar dentro do plano (a partir de ' . monthLabel($primeiro) . ').'];
@@ -172,7 +172,7 @@ final class EmprestimoController
         $sit = EmprestimoSimulacao::situacao(MotorFinanceiro::dados(), MesModel::referencia($hoje), $hoje);
         $passou = $valor > $divida + 0.004;
         $aviso = 'Adiantamento de ' . money($valor) . ' lançado no Extrato. '
-            . ($passou ? 'Ele passa da dívida estimada (' . money($divida) . '): confira o saldo com a POUPEX.'
+            . ($passou ? 'Ele passa da dívida estimada (' . money($divida) . '): confira o saldo com a instituição.'
                        : ($sit['quitado'] ? 'Empréstimo quitado.' : 'Falta cerca de ' . money((float) $sit['falta']) . '.'));
         flash($passou ? 'warn' : 'success', $aviso, ['url' => '/lancamentos/' . $id . '/excluir', 'label' => 'desfazer', 'campos' => ['volta' => '/emprestimo']]);
         redirecionar('/emprestimo', 303);

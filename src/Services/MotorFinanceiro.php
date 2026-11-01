@@ -342,7 +342,7 @@ final class MotorFinanceiro
     }
 
     /**
-     * O saldo devedor informado (o que a POUPEX diz que falta antes da parcela do mês), ou null.
+     * O saldo devedor informado (o que o extrato diz que falta antes da parcela do mês), ou null.
      * @return ?array{mes:string, valor:float}
      */
     public static function saldoInformado(array $aj): ?array

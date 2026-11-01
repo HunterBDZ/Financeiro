@@ -92,7 +92,7 @@ foreach ($curva as $i => $c) {
 
     <?php if ($sim['menorParcela'] !== null): ?>
         <details class="dobra emp-anos">
-            <summary>Se a POUPEX baixar a parcela em vez do prazo</summary>
+            <summary>Se a instituição baixar a parcela em vez do prazo</summary>
             <p class="emp-parc">A parcela vai a cerca de <b><?= e(money((float) $sim['menorParcela']['parcela'])) ?></b>, termina em <?= e(monthLabel($sim['menorParcela']['quita'])) ?> e os juros caem cerca de <?= 'R$' . NBSP . e(num((float) $sim['menorParcela']['jurosMenos'], 0)) ?>. Encurtar o prazo economiza mais; aliviar a parcela sobra mais por mês.</p>
         </details>
     <?php endif; ?>
