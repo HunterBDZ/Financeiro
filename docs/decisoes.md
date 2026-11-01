@@ -64,6 +64,10 @@ na máquina .164 (publicado em 10/10/2026) é o primeiro commit daqui; trabalhe 
   aplicado; o `instalar.php` registra as que o `schema.sql` já contém.
 - **Limite conhecido:** se a volta automática restaurar o banco, perde o que foi lançado nos segundos
   entre o backup e a falha; o site não entra em manutenção nesse intervalo.
+- **Instalação (`instalar.sh`):** não faz perguntas e só cuida do app, sem firewall. A primeira conta nasce em
+  `/criar-conta`, que só existe enquanto o banco não tem conta; quem chegar primeiro na rede cria, e o risco é aceito
+  porque o site é de rede local e essa janela é curta. O Apache não fixa IP, para o site sobreviver a uma troca de IP.
+  Quando o repositório for público, dá para instalar sem clone: `curl -fsSL <instalar.sh> | sudo bash`.
 - **Antes de abrir ao público:** criar um repositório novo, sem o histórico (nomes, valores e o IP da casa);
   trocar `icones.webp` por ícones de licença livre; definir a licença; 
   que traz nomes e senha fixa, e tirar o IP de `deploy.sh` e `tools/backup-pull.sh`; e rever as menções pessoais

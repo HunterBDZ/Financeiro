@@ -8,7 +8,7 @@
 
 Sem assinatura, sem nuvem e sem pedir a senha do seu banco.
 
-[![Versão 1.5.1](https://img.shields.io/badge/vers%C3%A3o-1.5.1-blue)](CHANGELOG.md) ![PHP 8.4+](https://img.shields.io/badge/PHP-8.4%2B-777BB4?logo=php&logoColor=white) ![MySQL 8](https://img.shields.io/badge/MySQL-8-4479A1?logo=mysql&logoColor=white) ![Sem dependências](https://img.shields.io/badge/depend%C3%AAncias-nenhuma-success)
+[![Versão 1.6.0](https://img.shields.io/badge/vers%C3%A3o-1.6.0-blue)](CHANGELOG.md) ![PHP 8.4+](https://img.shields.io/badge/PHP-8.4%2B-777BB4?logo=php&logoColor=white) ![MySQL 8](https://img.shields.io/badge/MySQL-8-4479A1?logo=mysql&logoColor=white) ![Sem dependências](https://img.shields.io/badge/depend%C3%AAncias-nenhuma-success)
 
 [Diferenciais](#diferenciais) · [Telas](#telas) · [Como funciona](#como-funciona) · [Instalar](#instalar) · [Atualizar](#atualizar) · [Documentação](#documentação)
 
@@ -98,30 +98,23 @@ Funciona no computador e no celular.
 
 ## Como funciona
 
-1. **Comece.** Na primeira entrada, informe a data de início e quanto você tem hoje.
+1. **Comece.** Crie a sua conta e informe a data de início e quanto você tem hoje.
 2. **Lance.** Aperte **Lançar**, digite o valor e escolha a categoria.
 3. **Acompanhe.** Abra **Mês** para ver como ele deve terminar.
 4. **Feche.** No fim do mês, confira o saldo com o banco e feche o mês.
 
 ## Instalar
 
-**Para experimentar**, com dados fictícios, em cerca de 10 minutos ([passo a passo](docs/INSTALACAO.md#caminho-rápido-para-experimentar)). Requer PHP 8.4+ e MySQL 8:
+Em um computador com Ubuntu 24.04 ou mais novo, rode:
 
 ```sh
-git clone git@github.com:HunterBDZ/Financeiro.git financeiro && cd financeiro
-sudo mysql -e "CREATE DATABASE financeiro_demo CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
-  CREATE USER 'financeiro_demo'@'localhost' IDENTIFIED BY 'demo1234';
-  GRANT SELECT, INSERT, UPDATE, DELETE ON financeiro_demo.* TO 'financeiro_demo'@'localhost';"
-sudo mysql financeiro_demo < database/schema.sql
-cp config/.env.example config/.env
-sed -i 's/^DB_NAME=.*/DB_NAME=financeiro_demo/; s/^DB_USER=.*/DB_USER=financeiro_demo/; s/^DB_PASS=.*/DB_PASS=demo1234/' config/.env
-php database/instalar.php --demo
-php -S 127.0.0.1:8099 -t public
+git clone git@github.com:HunterBDZ/Financeiro.git
+sudo bash Financeiro/instalar.sh
 ```
 
-Abra http://127.0.0.1:8099 e entre com `ana` / `demo1234`.
+Espere alguns minutos: nenhuma pergunta é feita. No fim, abra o endereço que aparecer e crie a sua conta no navegador.
 
-**Para usar de verdade**, siga o **[manual de instalação](docs/INSTALACAO.md)**: 10 passos com Apache, HTTPS, firewall e backup, além de como atualizar, restaurar e resolver problemas.
+Dúvidas? Veja o [manual de instalação](docs/INSTALACAO.md).
 
 ## Atualizar
 

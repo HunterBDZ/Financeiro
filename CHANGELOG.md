@@ -2,6 +2,13 @@
 
 Cada versão publicada é uma tag `vX.Y.Z` deste repositório. Sites instalados atualizam com `sudo financeiro-atualizar`.
 
+## 1.6.0
+
+- **Instalação com um comando:** `sudo bash instalar.sh` instala tudo sem fazer perguntas. Se parar no meio, é só rodar de novo.
+- **Primeira conta no navegador:** o site pede a conta na primeira visita, sem usar o terminal.
+- **Ajustes → Pessoas:** adicione outras pessoas pelo site.
+- Os testes não falham mais em sites sem cartão ou sem empréstimo, o que bloqueava a atualização deles.
+
 ## 1.5.1
 
 - O atalho claro/escuro não desfaz mais o tema escolhido: troca entre as duas versões do mesmo tema. Tema de um modo só mostra o nome dele, que leva à tela Temas.

@@ -78,6 +78,13 @@ $check = static function (string $nome, bool $cond, string $detalhe = '') use (&
 
 $pdo = Database::connection();
 
+// a barra e o menu mudam sem cartão ou sem empréstimo: esses testes só valem com os dois ligados
+$checkComTudo = static function (string $nome, bool $cond, string $detalhe = '') use ($check): void {
+    if (AjusteModel::usa('usa_cartao') && AjusteModel::usa('usa_emprestimo')) {
+        $check($nome, $cond, $detalhe);
+    }
+};
+
 // ---- sessão simulada (primeiro usuário)
 $uid = (int) $pdo->query('SELECT MIN(id) FROM usuarios')->fetchColumn();
 $_SESSION['usuario_id']    = $uid;
@@ -705,12 +712,12 @@ $htmlMes = $render(MesController::class, 'index', []);
 preg_match('#<nav class="tabbar".*?</nav>#s', $htmlMes, $m);
 $barra = $m[0] ?? '';
 preg_match_all('#<a class="(tab[^" ]*)#', $barra, $itens);
-$check('barra do celular: 2 abas, o +, 2 abas (sem o Relatório)', $itens[1] === ['tab', 'tab', 'tab-add', 'tab', 'tab']
+$checkComTudo('barra do celular: 2 abas, o +, 2 abas (sem o Relatório)', $itens[1] === ['tab', 'tab', 'tab-add', 'tab', 'tab']
     && !str_contains($barra, 'href="/relatorio"') && str_contains($htmlMes, 'class="lat-i" href="/relatorio"'), implode(',', $itens[1]));
 $check('seletor de meses do Mês leva ao Relatório e ao simulador; o do Extrato não', str_contains($htmlMes, 'class="mes-picker-anual" href="/relatorio"') && str_contains($htmlMes, 'class="mes-picker-anual" href="/futuro"')
     && !str_contains($htmlEx, 'mes-picker-anual'));
 $check('menu do avatar (celular) leva ao Relatório, e a aba Anual saiu', str_contains($htmlMes, 'class="menu-item" href="/relatorio"') && !str_contains($htmlMes, 'class="menu-item" href="/futuro"') && !str_contains($htmlMes, '>Anual<'));
-$check('no simulador, a aba Mês da barra fica acesa', str_contains($render(FuturoController::class, 'index', []), 'class="tab is-active" href="/mes"'));
+$checkComTudo('no simulador, a aba Mês da barra fica acesa', str_contains($render(FuturoController::class, 'index', []), 'class="tab is-active" href="/mes"'));
 
 // ---- 13. Anual: marcos do plano e o que mudou em cada mês (AnualResumo, dados de mentira)
 $pl = static fn(string $m, float $fica, bool $quit = false, float $parc = 0.0): array => ['mes' => $m, 'estado' => 'previsto',
@@ -876,7 +883,7 @@ $check('cartão: sem cartão cadastrado, a aba pede o cadastro', CartaoModel::at
     || str_contains($render(CartaoController::class, 'index', []), 'Cadastre o cartão'));
 $htmlBar = $render(MesController::class, 'index', []);
 preg_match('#<nav class="tabbar".*?</nav>#s', $htmlBar, $mB);
-$check('barra do celular: Início, Extrato, +, Mês, Cartão; Metas e Relatório no menu do M', str_contains($mB[0] ?? '', 'href="/cartao"')
+$checkComTudo('barra do celular: Início, Extrato, +, Mês, Cartão; Metas e Relatório no menu do M', str_contains($mB[0] ?? '', 'href="/cartao"')
     && !str_contains($mB[0] ?? '', 'href="/meta"') && str_contains($htmlBar, 'class="menu-item" href="/meta"') && str_contains($htmlBar, 'class="lat-i" href="/cartao"'));
 
 // ---- 16. aba Empréstimo: dados de mentira, para não depender da dívida de verdade
@@ -925,7 +932,7 @@ $check('empréstimo: mês real não recebe adiantamento simulado', abs(MotorFina
 $check('empréstimo: sem a opção, o motor segue igual', json_encode(MotorFinanceiro::calcular($dadosEmp, ['hoje' => $hojeEmp])) === json_encode(MotorFinanceiro::calcular($dadosEmp, ['hoje' => $hojeEmp, 'adiantar' => []])));
 $antesEmp = (int) $pdo->query('SELECT COUNT(*) FROM lancamentos')->fetchColumn();
 $htmlEmp = $render(EmprestimoController::class, 'index', []);
-$check('empréstimo: a aba abre, com o menu do M e fora da barra', str_contains($htmlEmp, '<h1>Empréstimo</h1>') && str_contains($htmlEmp, 'class="menu-item is-active" href="/emprestimo"')
+$checkComTudo('empréstimo: a aba abre, com o menu do M e fora da barra', str_contains($htmlEmp, '<h1>Empréstimo</h1>') && str_contains($htmlEmp, 'class="menu-item is-active" href="/emprestimo"')
     && !preg_match('#<nav class="tabbar".*?href="/emprestimo".*?</nav>#s', $htmlEmp));
 $htmlErro = $render(EmprestimoController::class, 'index', ['valor' => '12a', 'parcial' => '1']);
 $check('empréstimo: valor inválido diz como corrigir, ou a dívida já acabou', str_contains($htmlErro, 'Valor inválido') || str_contains($htmlEmp, 'Empréstimo quitado'));
@@ -1178,6 +1185,15 @@ try {
 } finally {
     $pdo->rollBack();
 }
+
+// ---- 18b. conta nova: as regras da primeira conta e de Ajustes
+$check('conta nova: nome vazio não passa', UsuarioModel::erroNovaConta('', 'alguem', 'senha-longa') !== null);
+$check('conta nova: login vazio não passa', UsuarioModel::erroNovaConta('Alguém', '', 'senha-longa') !== null);
+$check('conta nova: senha curta não passa', UsuarioModel::erroNovaConta('Alguém', 'alguem', 'curta') !== null);
+$loginT = (string) $pdo->query('SELECT login FROM usuarios ORDER BY id LIMIT 1')->fetchColumn();
+$check('conta nova: login repetido não passa', UsuarioModel::erroNovaConta('Alguém', $loginT, 'senha-longa') !== null);
+$check('conta nova: dados certos passam', UsuarioModel::erroNovaConta('Alguém', 'login-livre-' . bin2hex(random_bytes(3)), 'senha-longa') === null);
+$check('conta nova: com conta no banco, a tela de criar some', !UsuarioModel::nenhum());
 
 // ---- 19. nome de instituição financeira não entra no projeto (a palavra fica dividida para este arquivo passar)
 $proibidas = ['pou' . 'pex', 'ouro' . 'card'];

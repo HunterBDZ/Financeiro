@@ -42,6 +42,8 @@ $router = new Router();
 // ---- sessão
 $router->get('/login', [AuthController::class, 'form']);
 $router->post('/login', [AuthController::class, 'login']);
+$router->get('/criar-conta', [AuthController::class, 'criarContaForm']);
+$router->post('/criar-conta', [AuthController::class, 'criarConta']);
 $router->post('/logout', [AuthController::class, 'logout']);
 
 // ---- início
@@ -123,6 +125,7 @@ $router->post('/wishlist/{id}', [WishlistController::class, 'atualizar']);
 $router->get('/ajustes', [AjustesController::class, 'index']);
 $router->post('/ajustes/salvar', [AjustesController::class, 'salvar']);
 $router->post('/ajustes/senha', [AjustesController::class, 'trocarSenha']);
+$router->post('/ajustes/pessoas', [AjustesController::class, 'criarPessoa']);
 $router->post('/ajustes/contas', [AjustesController::class, 'salvarConta']);
 $router->post('/ajustes/contas/{id}/remover', [AjustesController::class, 'removerConta']);
 $router->post('/ajustes/essenciais', [AjustesController::class, 'salvarEssenciais']);

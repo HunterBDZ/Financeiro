@@ -21,6 +21,31 @@ final class UsuarioModel
         return $stmt->fetch() ?: null;
     }
 
+    /** Ainda não há conta: a primeira é criada no site, em /criar-conta. */
+    public static function nenhum(): bool
+    {
+        return (int) Database::connection()->query('SELECT COUNT(*) FROM usuarios')->fetchColumn() === 0;
+    }
+
+    public static function loginExiste(string $login): bool
+    {
+        $stmt = Database::connection()->prepare('SELECT 1 FROM usuarios WHERE login = ?');
+        $stmt->execute([$login]);
+        return (bool) $stmt->fetchColumn();
+    }
+
+    /** O que há de errado nos dados de uma conta nova; null = pode criar. */
+    public static function erroNovaConta(string $nome, string $login, string $senha): ?string
+    {
+        return match (true) {
+            $nome === '' => t('Informe o nome.'),
+            $login === '' => t('Informe o login.'),
+            mb_strlen($senha) < 8 => t('A senha precisa de pelo menos 8 caracteres.'),
+            self::loginExiste($login) => t('Esse login já existe.'),
+            default => null,
+        };
+    }
+
     public static function criar(string $nome, string $login, string $senha): int
     {
         $pdo = Database::connection();

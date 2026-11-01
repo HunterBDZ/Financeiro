@@ -20,7 +20,7 @@ use Financeiro\View;
 final class AjustesController
 {
     /** Grupos (<details class="dobra">) e se abrem por padrão. */
-    private const GRUPOS = ['parametros' => true, 'partida' => false, 'contas' => true, 'essenciais' => true, 'aparelhos' => true, 'senha' => false];
+    private const GRUPOS = ['parametros' => true, 'partida' => false, 'contas' => true, 'essenciais' => true, 'pessoas' => false, 'aparelhos' => true, 'senha' => false];
 
     public function index(): void
     {
@@ -274,6 +274,26 @@ final class AjustesController
         Auth::sairDeTodos((int) Auth::id());
         flash('success', t('saiu de todos os outros aparelhos'));
         redirecionar('/ajustes?aberto=aparelhos#aparelhos', 303);
+    }
+
+    public function criarPessoa(): void
+    {
+        Auth::requireLogin();
+        csrfCheck();
+
+        $str = static fn(string $k): string => is_string($_POST[$k] ?? null) ? trim($_POST[$k]) : '';
+        $nome = mb_substr($str('nome'), 0, 100);
+        $login = mb_substr($str('login'), 0, 100);
+        $senha = is_string($_POST['senha'] ?? null) ? $_POST['senha'] : '';
+
+        $erro = UsuarioModel::erroNovaConta($nome, $login, $senha);
+        if ($erro !== null) {
+            $_SESSION['aj_erro'] = ['grupo' => 'pessoas', 'msg' => $erro];
+            redirecionar('/ajustes?aberto=pessoas#pessoas', 303);
+        }
+        UsuarioModel::criar($nome, $login, $senha);
+        flash('success', t('Conta criada: {nome}', ['nome' => $nome]));
+        redirecionar('/ajustes?aberto=pessoas#pessoas', 303);
     }
 
     public function trocarSenha(): void

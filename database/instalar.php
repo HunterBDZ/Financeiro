@@ -1,9 +1,9 @@
 <?php
 /**
  * Prepara um banco recém-criado com database/schema.sql: categorias, 16 meses a partir do mês atual,
- * ajustes e os usuários. Não mexe num banco que já tem usuário.
+ * ajustes e, na demonstração, os usuários. Não mexe num banco já preparado.
  *
- * Uso: php database/instalar.php          pergunta o nome, o login e a senha (e um 2º usuário)
+ * Uso: php database/instalar.php          sem conta: a primeira é criada no site
  *      php database/instalar.php --demo   dados fictícios para conhecer o app, com logins ana e bruno
  */
 declare(strict_types=1);
@@ -25,50 +25,14 @@ $demo = in_array('--demo', $argv, true);
 if (!$pdo->query("SHOW TABLES LIKE 'usuarios'")->fetch()) {
     exit("O banco está sem as tabelas: importe database/schema.sql antes.\n");
 }
-if ((int) $pdo->query('SELECT COUNT(*) FROM usuarios')->fetchColumn() > 0) {
-    exit("Este banco já tem usuário: nada foi alterado.\n");
+if ((int) $pdo->query('SELECT COUNT(*) FROM categorias')->fetchColumn() > 0) {
+    exit("Este banco já foi preparado: nada foi alterado.\n");
 }
-
-$pergunta = static function (string $texto, bool $oculta = false): string {
-    echo $texto;
-    $tty = $oculta && function_exists('posix_isatty') && posix_isatty(STDIN);
-    if ($tty) {
-        shell_exec('stty -echo');
-    }
-    $linha = fgets(STDIN);
-    if ($tty) {
-        shell_exec('stty echo');
-        echo "\n";
-    }
-    return trim($linha === false ? '' : $linha);
-};
-$pedirUsuario = static function (bool $opcional) use ($pergunta): ?array {
-    $nome = $pergunta($opcional ? 'Nome do 2º usuário (Enter para pular): ' : 'Seu nome: ');
-    if ($nome === '') {
-        if ($opcional) {
-            return null;
-        }
-        exit("O nome é obrigatório: nada foi alterado.\n");
-    }
-    $login = $pergunta('Login: ');
-    $senha = $pergunta('Senha (mínimo 8 caracteres): ', true);
-    if ($login === '' || strlen($senha) < 8) {
-        exit("Login vazio ou senha curta: nada foi alterado.\n");
-    }
-    return ['nome' => $nome, 'login' => $login, 'senha' => $senha];
-};
 
 if ($demo) {
     $usuarios = [['nome' => 'Ana', 'login' => 'ana', 'senha' => 'demo1234'], ['nome' => 'Bruno', 'login' => 'bruno', 'senha' => 'demo1234']];
 } else {
-    $usuarios = [$pedirUsuario(false)];
-    $segundo = $pedirUsuario(true);
-    if ($segundo !== null) {
-        if ($segundo['login'] === $usuarios[0]['login']) {
-            exit("Os dois usuários têm o mesmo login: nada foi alterado.\n");
-        }
-        $usuarios[] = $segundo;
-    }
+    $usuarios = []; // a primeira conta nasce no site, em /criar-conta
 }
 
 // nome, apelido, grupo, sinal, essencial. O motor e o Cartão acham pelo nome as de Empréstimo,
@@ -259,5 +223,4 @@ $pdo->commit();
 
 echo $demo
     ? "Pronto, com dados fictícios. Entre com ana / demo1234 ou bruno / demo1234. Não use a demonstração para dados reais.\n"
-    : 'Pronto. ' . count($categorias) . ' categorias e ' . count($usuarios) . " usuário(s). Entre no site para fazer a primeira configuração.
-";
+    : 'Pronto. ' . count($categorias) . " categorias. Abra o site para criar a sua conta.\n";

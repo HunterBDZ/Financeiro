@@ -2,12 +2,16 @@
 namespace Financeiro\Controllers;
 
 use Financeiro\Auth;
+use Financeiro\Models\UsuarioModel;
 use Financeiro\View;
 
 final class AuthController
 {
     public function form(): void
     {
+        if (UsuarioModel::nenhum()) {
+            redirecionar('/criar-conta', 302);
+        }
         if (Auth::logado() || Auth::tentarLembrado()) {
             redirecionar(self::destino());
         }
@@ -17,6 +21,47 @@ final class AuthController
             'login'   => '',
             'lembrar' => false,
         ]);
+    }
+
+    /** A primeira conta do site. Existe só enquanto não há nenhuma; depois, novas contas nascem em Ajustes. */
+    public function criarContaForm(): void
+    {
+        if (!UsuarioModel::nenhum()) {
+            redirecionar('/login', 302);
+        }
+        View::renderAuth('auth/criar', ['erro' => null, 'nome' => '', 'login' => '']);
+    }
+
+    public function criarConta(): void
+    {
+        csrfCheck();
+
+        $nome = is_string($_POST['nome'] ?? null) ? mb_substr(trim($_POST['nome']), 0, 100) : '';
+        $login = is_string($_POST['login'] ?? null) ? mb_substr(trim($_POST['login']), 0, 100) : '';
+        $senha = is_string($_POST['senha'] ?? null) ? $_POST['senha'] : '';
+
+        // a trava impede duas primeiras contas ao mesmo tempo
+        if (!Auth::travarSenha()) {
+            renderErro(429, t('bloqueado'), t('Tente de novo em instantes.'));
+        }
+        try {
+            if (!UsuarioModel::nenhum()) {
+                redirecionar('/login', 303);
+            }
+            $erro = UsuarioModel::erroNovaConta($nome, $login, $senha);
+            if ($erro === null) {
+                UsuarioModel::criar($nome, $login, $senha);
+            }
+        } finally {
+            Auth::soltarSenha();
+        }
+        if ($erro !== null) {
+            http_response_code(422);
+            View::renderAuth('auth/criar', ['erro' => $erro, 'nome' => $nome, 'login' => $login]);
+            return;
+        }
+        Auth::attempt($login, $senha);
+        redirecionar('/comecar', 303);
     }
 
     public function login(): void

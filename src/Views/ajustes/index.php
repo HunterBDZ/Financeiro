@@ -165,6 +165,20 @@ $campo = static function (string $chave, string $rotulo, string $un = '', int $d
         </form>
     </details>
 
+    <!-- pessoas com conta -->
+    <details class="card dobra aj-grupo" id="pessoas"<?= $aberto('pessoas') ?>>
+        <summary><span class="titulo"><?= e(t('Pessoas')) ?></span></summary>
+        <p class="muted"><?= e(implode(', ', array_column(\Financeiro\Models\UsuarioModel::todos(), 'nome'))) ?></p>
+        <form class="aj-form" method="post" action="/ajustes/pessoas">
+            <?= $csrf ?>
+            <label class="campo"><span><?= e(t('Nome')) ?></span><input type="text" name="nome" maxlength="100" autocomplete="off" required></label>
+            <label class="campo"><span><?= e(t('Login')) ?></span><input type="text" name="login" maxlength="100" autocomplete="off" autocapitalize="none" spellcheck="false" required></label>
+            <label class="campo"><span><?= e(t('Senha')) ?></span><input type="password" name="senha" autocomplete="new-password" minlength="8" required></label>
+            <?php $erroDe('pessoas'); ?>
+            <button type="submit" class="btn btn-primary aj-salvar"><?= e(t('Adicionar pessoa')) ?></button>
+        </form>
+    </details>
+
     <!-- 5: aparelhos -->
     <details class="card dobra aj-grupo" id="aparelhos"<?= $aberto('aparelhos') ?>>
         <summary><span class="titulo"><?= e(t('Aparelhos')) ?></span></summary>
