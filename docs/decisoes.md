@@ -406,3 +406,7 @@ Passou por conselho (5 conselheiros, revisão anônima, síntese). A aba Anual s
 - **Fatura aberta por categoria só para ler.** O plano continua contando a fatura, e o que não tem compra registrada aparece como "Fatura sem detalhe".
 - **Nada de nome de usuário no PDF:** ele pode sair do app.
 
+## 2026-11-01 — atalho claro/escuro respeita o tema
+
+O atalho trocava qualquer tema por Claro ou Escuro, e um toque desfazia a escolha sem aviso. Agora `Temas::lados()` diz os dois lados de cada tema, e o atalho alterna entre eles. Tema de um modo só não tem atalho: aparece o nome dele, que leva à tela Temas. Automático continua indo para Claro ou Escuro.
+

@@ -2,6 +2,10 @@
 
 Cada versão publicada é uma tag `vX.Y.Z` deste repositório. Sites instalados atualizam com `sudo financeiro-atualizar`.
 
+## 1.5.1
+
+- O atalho claro/escuro não desfaz mais o tema escolhido: troca entre as duas versões do mesmo tema. Tema de um modo só mostra o nome dele, que leva à tela Temas.
+
 ## 1.5.0
 
 - **Aba Relatório no lugar da Anual:** escolha mensal ou anual, veja o resumo na tela e baixe o PDF, com gráficos, o que foi bom, o que foi ruim, o que pode melhorar e previsões.

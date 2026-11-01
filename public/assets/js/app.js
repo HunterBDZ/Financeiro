@@ -20,17 +20,19 @@
         }
         return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     }
-    // o atalho claro/escuro vai para os temas Claro e Escuro; logado, grava na conta
+    // o atalho claro/escuro vai para o outro lado do tema da conta (o layout diz quais são); logado, grava na conta
     function usarTema(novo) {
-        var id = novo === 'light' ? 'claro' : 'escuro';
+        var comToken = document.querySelector('[data-tema-csrf]');
+        var lado = novo === 'light' ? 'claro' : 'escuro';
+        var id = (comToken && comToken.getAttribute('data-lado-' + lado)) || lado;
+        var cor = (comToken && comToken.getAttribute('data-bg-' + lado)) || (novo === 'light' ? '#f4f5f7' : '#0a0b0f');
         root.setAttribute('data-theme', novo);
         root.setAttribute('data-tema', id);
-        try { localStorage.setItem('tema', novo); } catch (e) {}
+        try { localStorage.setItem('tema', id + ':' + novo); } catch (e) {}
         document.querySelectorAll('meta[name="theme-color"]').forEach(function (meta) {
-            meta.setAttribute('content', novo === 'light' ? '#f4f5f7' : '#0a0b0f');
+            meta.setAttribute('content', cor);
         });
         marcarTema();
-        var comToken = document.querySelector('[data-tema-csrf]');
         if (comToken && window.fetch) {
             var corpo = new FormData();
             corpo.append('csrf_token', comToken.getAttribute('data-tema-csrf'));

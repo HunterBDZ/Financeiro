@@ -14,6 +14,26 @@ final class Temas
         return self::$lista ??= require __DIR__ . '/temas_lista.php';
     }
 
+    /**
+     * Os dois lados do atalho claro/escuro para o tema da conta: [claro, escuro]. Null = o tema só existe
+     * de um jeito, e o atalho não aparece, para um toque não desfazer a escolha.
+     * @return ?array{0:string, 1:string}
+     */
+    public static function lados(?string $id): ?array
+    {
+        return match ($id) {
+            null, 'claro', 'escuro' => ['claro', 'escuro'],
+            'oled' => ['claro', 'oled'],
+            'latte', 'mocha' => ['latte', 'mocha'],
+            'dawn', 'rose' => ['dawn', 'rose'],
+            'gruvl', 'gruvd' => ['gruvl', 'gruvd'],
+            'soll', 'sold' => ['soll', 'sold'],
+            'everl', 'everd' => ['everl', 'everd'],
+            'accl', 'acesc' => ['accl', 'acesc'],
+            default => null,
+        };
+    }
+
     public static function existe(string $id): bool
     {
         return isset(self::todos()[$id]);

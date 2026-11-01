@@ -76,6 +76,14 @@ $acesaNaBarra = $usaCartao && $activePage === 'relatorio' ? 'mes' : $activePage;
 $temaConta = Temas::doUsuario();
 $dadosTema = $temaConta !== null ? Temas::todos()[$temaConta] : null;
 $csrfTema = e(csrfToken());
+// o atalho claro/escuro vai para o outro lado do tema escolhido; tema sem o outro lado mostra o nome dele e leva à tela Temas
+$ladosTema = Temas::lados($temaConta);
+$dadosAtalho = '';
+if ($ladosTema !== null) {
+    $todosTemas = Temas::todos();
+    $dadosAtalho = ' data-tema-csrf="' . $csrfTema . '" data-lado-claro="' . e($ladosTema[0]) . '" data-lado-escuro="' . e($ladosTema[1])
+        . '" data-bg-claro="' . e((string) $todosTemas[$ladosTema[0]]['bg']) . '" data-bg-escuro="' . e((string) $todosTemas[$ladosTema[1]]['bg']) . '"';
+}
 $marca = '<span class="marca"><img src="' . e(SiteIcone::url()) . '" alt="" width="96" height="96"></span>';
 ?>
 <!doctype html>
@@ -114,10 +122,16 @@ $marca = '<span class="marca"><img src="' . e(SiteIcone::url()) . '" alt="" widt
         <?php endforeach; ?>
     </nav>
     <div class="lat-fim">
-        <div class="tema-seg" role="group" aria-label="<?= e(t('tema')) ?>" data-tema-csrf="<?= $csrfTema ?>">
-            <button type="button" class="t-claro" data-tema="light"><?= svgIcon('sun', 16) ?><?= e(t('Claro')) ?></button>
-            <button type="button" class="t-escuro" data-tema="dark"><?= svgIcon('moon', 16) ?><?= e(t('Escuro')) ?></button>
-        </div>
+        <?php if ($ladosTema !== null): ?>
+            <div class="tema-seg" role="group" aria-label="<?= e(t('tema')) ?>"<?= $dadosAtalho ?>>
+                <button type="button" class="t-claro" data-tema="light"><?= svgIcon('sun', 16) ?><?= e(t('Claro')) ?></button>
+                <button type="button" class="t-escuro" data-tema="dark"><?= svgIcon('moon', 16) ?><?= e(t('Escuro')) ?></button>
+            </div>
+        <?php else: ?>
+            <?php // i18n: t('Terminal') t('Âmbar') t('Portátil') t('Janela 95') t('Papel') t('Caramelo') t('Calçadão') t('Azulejo') t('Tropical') t('Cordel') t('Festa Junina') t('Daltônico')
+            $nomeTema = (string) $dadosTema['nome']; ?>
+            <a class="tema-atual" href="/temas"><?= svgIcon('paleta', 16) ?><span><?= e(t($nomeTema)) ?></span><?= svgIcon('chevron', 14) ?></a>
+        <?php endif; ?>
         <div class="lat-user">
             <span class="avatar"><?= e($inicial) ?></span>
             <b><?= e((string) ($nome ?? '')) ?></b>
@@ -131,7 +145,7 @@ $marca = '<span class="marca"><img src="' . e(SiteIcone::url()) . '" alt="" widt
 
 <header class="topbar">
     <a class="topbar-marca" href="/"><?= $marca ?><b translate="no">financeiro</b></a>
-    <button type="button" class="ic" data-theme-toggle data-tema-csrf="<?= $csrfTema ?>" aria-label="<?= e(t('trocar tema')) ?>"><?= svgIcon('sun', 19, 'so-escuro') ?><?= svgIcon('moon', 19, 'so-claro') ?></button>
+    <?php if ($ladosTema !== null): ?><button type="button" class="ic" data-theme-toggle<?= $dadosAtalho ?> aria-label="<?= e(t('trocar tema')) ?>"><?= svgIcon('sun', 19, 'so-escuro') ?><?= svgIcon('moon', 19, 'so-claro') ?></button><?php else: ?><a class="ic" href="/temas" aria-label="<?= e(t('Temas')) ?>"><?= svgIcon('paleta', 19) ?></a><?php endif; ?>
     <details class="menu menu-avatar">
         <summary aria-label="<?= e(t('menu')) ?>"><span class="avatar<?= in_array($activePage, ['ajustes', 'meta', 'emprestimo', 'investimentos', 'wishlist', 'temas'], true) ? ' is-active' : '' ?>"><?= e($inicial) ?></span></summary>
         <div class="menu-painel">

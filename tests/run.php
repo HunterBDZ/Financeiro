@@ -1149,6 +1149,15 @@ foreach (Temas::todos() as $idT => $t) {
         $semCss[] = $idT;
     }
 }
+$paresErrados = [];
+foreach (Temas::todos() as $idT => $dT) {
+    $lados = Temas::lados($idT);
+    if ($lados !== null && (Temas::todos()[$lados[0]]['modo'] !== 'light' || Temas::todos()[$lados[1]]['modo'] !== 'dark' || !in_array($idT, $lados, true) && $idT !== 'oled')) {
+        $paresErrados[] = $idT;
+    }
+}
+$check('temas: o atalho claro/escuro sempre leva a um tema de cada modo, e o tema atual é um deles', $paresErrados === [] && Temas::lados(null) === ['claro', 'escuro'], implode(', ', $paresErrados));
+$check('temas: tema de um modo só não tem atalho', Temas::lados('nord') === null && Temas::lados('caramelo') === null);
 $check('temas: há os 32, e cada um tem CSS', count(Temas::todos()) === 32 && $semCss === [], implode(', ', $semCss));
 $check('temas: todo tema passa no contraste', $ruins === [], implode(', ', $ruins));
 $pdo->beginTransaction();
@@ -1161,6 +1170,7 @@ try {
         UsuarioModel::salvarTema($uTema, 'caramelo');
         $htmlT1 = $render(TemaController::class, 'index', []);
         $check('temas: o tema da conta vem no HTML, sem piscar', str_contains($htmlT1, 'data-theme="light" data-tema="caramelo"') && str_contains($htmlT1, 'temas.css'));
+        $check('temas: tema de um modo só mostra o nome em vez de claro/escuro', !str_contains($htmlT1, 'data-theme-toggle') && !str_contains($htmlT1, 'class="tema-seg"') && str_contains($htmlT1, 'class="tema-atual" href="/temas"'));
         $check('temas: fora da barra do celular e no menu', str_contains($htmlT1, 'href="/temas"') && !preg_match('#<nav class="tabbar".*?href="/temas".*?</nav>#s', $htmlT1));
         UsuarioModel::salvarTema($uTema, 'tema-que-saiu');
         $check('temas: um tema que saiu da lista vira automático', Temas::doUsuario() === null);
