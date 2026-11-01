@@ -10,7 +10,7 @@ $erro    = $erro ?? null;
 $expirou = !empty($expirou) && empty($erro);
 $login   = (string) ($login ?? '');
 $lembrar = $lembrar ?? false;
-$css = array_filter(['/assets/css/style.css', '/assets/css/lancar.css'], static fn(string $p): bool => is_file(__DIR__ . '/../../../public' . $p));
+$css = array_filter(['/assets/css/style.css', '/assets/css/lancar.css', '/assets/css/temas.css'], static fn(string $p): bool => is_file(__DIR__ . '/../../../public' . $p));
 ?>
 <!doctype html>
 <html lang="pt-BR">

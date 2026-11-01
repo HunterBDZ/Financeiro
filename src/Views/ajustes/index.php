@@ -37,6 +37,7 @@ $campo = static function (string $chave, string $rotulo, string $un = '', int $d
 ?>
 <div class="aj">
     <h1 class="aj-titulo">Ajustes</h1>
+    <a class="card aj-temas" href="/temas"><?= svgIcon('paleta', 20) ?><span>Temas</span><?= svgIcon('chevron', 16) ?></a>
 
     <!-- 1: parâmetros -->
     <details class="card dobra aj-grupo" id="parametros"<?= $aberto('parametros') ?>>

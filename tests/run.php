@@ -26,6 +26,8 @@ use Financeiro\Controllers\CategoriaController;
 use Financeiro\Controllers\DashboardController;
 use Financeiro\Controllers\EmprestimoController;
 use Financeiro\Controllers\WishlistController;
+use Financeiro\Controllers\TemaController;
+use Financeiro\Temas;
 use Financeiro\Controllers\FuturoController;
 use Financeiro\Controllers\LancamentosController;
 use Financeiro\Controllers\MesController;
@@ -849,7 +851,52 @@ try {
     $pdo->rollBack();
 }
 
-// ---- 18. nome de instituição financeira não entra no projeto (a palavra fica dividida para este arquivo passar)
+// ---- 18. temas: a lista gerada, o contraste de cada um e o tema da conta
+$lumT = static function (string $h): float {
+    $f = static function (string $x): float {
+        $c = hexdec($x) / 255;
+        return $c <= 0.03928 ? $c / 12.92 : (($c + 0.055) / 1.055) ** 2.4;
+    };
+    return 0.2126 * $f(substr($h, 1, 2)) + 0.7152 * $f(substr($h, 3, 2)) + 0.0722 * $f(substr($h, 5, 2));
+};
+$contrasteT = static function (string $a, string $b) use ($lumT): float {
+    [$x, $y] = [$lumT($a), $lumT($b)];
+    return (max($x, $y) + 0.05) / (min($x, $y) + 0.05);
+};
+$cssTemas = (string) file_get_contents(__DIR__ . '/../public/assets/css/temas.css');
+$ruins = [];
+$semCss = [];
+foreach (Temas::todos() as $idT => $t) {
+    foreach ([['text', 'bg'], ['text', 'card'], ['text2', 'card'], ['on', 'acc'], ['pos', 'card'], ['neg', 'card'], ['warn', 'card'], ['ct', 'cofre']] as [$fg, $fundo]) {
+        if ($contrasteT((string) $t[$fg], (string) $t[$fundo]) < 4.5) {
+            $ruins[] = "{$idT}: {$fg}/{$fundo}";
+        }
+    }
+    if (!in_array($idT, ['claro', 'escuro'], true) && !str_contains($cssTemas, ':root[data-tema="' . $idT . '"]')) {
+        $semCss[] = $idT;
+    }
+}
+$check('temas: há os 32, e cada um tem CSS', count(Temas::todos()) === 32 && $semCss === [], implode(', ', $semCss));
+$check('temas: todo tema passa no contraste', $ruins === [], implode(', ', $ruins));
+$pdo->beginTransaction();
+try {
+    $uTema = (int) Auth::id();
+    if ($uTema > 0) {
+        UsuarioModel::salvarTema($uTema, null);
+        $htmlT0 = $render(TemaController::class, 'index', []);
+        $check('temas: a tela mostra os cartões e o automático marcado', substr_count($htmlT0, 'class="tm') >= 33 && str_contains($htmlT0, 'data-tm-auto') && !preg_match('/<html[^>]*data-tema=/', $htmlT0));
+        UsuarioModel::salvarTema($uTema, 'caramelo');
+        $htmlT1 = $render(TemaController::class, 'index', []);
+        $check('temas: o tema da conta vem no HTML, sem piscar', str_contains($htmlT1, 'data-theme="light" data-tema="caramelo"') && str_contains($htmlT1, 'temas.css'));
+        $check('temas: fora da barra do celular e no menu', str_contains($htmlT1, 'href="/temas"') && !preg_match('#<nav class="tabbar".*?href="/temas".*?</nav>#s', $htmlT1));
+        UsuarioModel::salvarTema($uTema, 'tema-que-saiu');
+        $check('temas: um tema que saiu da lista vira automático', Temas::doUsuario() === null);
+    }
+} finally {
+    $pdo->rollBack();
+}
+
+// ---- 19. nome de instituição financeira não entra no projeto (a palavra fica dividida para este arquivo passar)
 $proibidas = ['pou' . 'pex', 'ouro' . 'card'];
 $raiz = dirname(__DIR__);
 $achados = [];
@@ -873,7 +920,7 @@ foreach ($arquivos as $arq) {
 }
 $check('nenhum arquivo cita instituição financeira', $achados === [], implode(', ', $achados));
 
-// ---- 19. o selo do README acompanha o VERSION (o README do repositório é privado: o selo é fixo)
+// ---- 20. o selo do README acompanha o VERSION (o README do repositório é privado: o selo é fixo)
 $arqVersao = __DIR__ . '/../VERSION';
 $arqReadme = __DIR__ . '/../README.md';
 if (is_file($arqVersao) && is_file($arqReadme)) {

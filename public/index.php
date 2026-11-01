@@ -21,6 +21,7 @@ use Financeiro\Controllers\AjustesController;
 use Financeiro\Controllers\CartaoController;
 use Financeiro\Controllers\EmprestimoController;
 use Financeiro\Controllers\WishlistController;
+use Financeiro\Controllers\TemaController;
 
 $router = new Router();
 
@@ -72,6 +73,10 @@ $router->get('/futuro', [FuturoController::class, 'index']);
 $router->get('/emprestimo', [EmprestimoController::class, 'index']);
 $router->post('/emprestimo/adiantamento', [EmprestimoController::class, 'registrar']);
 $router->post('/emprestimo/dados', [EmprestimoController::class, 'salvarDados']);
+
+// ---- temas
+$router->get('/temas', [TemaController::class, 'index']);
+$router->post('/temas', [TemaController::class, 'salvar']);
 
 // ---- wishlist
 $router->get('/wishlist', [WishlistController::class, 'index']);

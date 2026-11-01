@@ -1,6 +1,6 @@
 <?php
 /**
- * Layout (P1). Variáveis: $content, $pageTitle, $active (inicio|extrato|meta|mes|cartao|futuro|emprestimo|wishlist|ajustes),
+ * Layout (P1). Variáveis: $content, $pageTitle, $active (inicio|extrato|meta|mes|cartao|futuro|emprestimo|wishlist|temas|ajustes),
  * $semDialogoLancar (true = não renderiza o <dialog id="lancar">).
  * Computador: menu lateral (marca, Lançar, abas, Claro/Escuro, quem está e sair).
  * Celular: barra de cima (marca, sol/lua, menu do avatar) e barra flutuante embaixo com o "+" no
@@ -9,6 +9,7 @@
  * CSS/JS dos pacotes entram só se o arquivo existir (D19): nenhum 404 durante o build.
  */
 use Financeiro\Auth;
+use Financeiro\Temas;
 use Financeiro\View;
 
 $activePage = (string) ($active ?? '');
@@ -22,13 +23,14 @@ $abas = [
     'futuro'  => ['/futuro', 'Anual', 'trend'],
     'emprestimo' => ['/emprestimo', 'Empréstimo', 'emprestimo'],
     'wishlist' => ['/wishlist', 'Wishlist', 'gift'],
+    'temas'   => ['/temas', 'Temas', 'paleta'],
     'meta'    => ['/meta', 'Metas', 'target'],
 ];
 
 $publico = __DIR__ . '/../../../public';
 $existe  = static fn(string $p): bool => is_file($publico . $p);
-$estilos = array_filter(['/assets/css/style.css', '/assets/css/inicio.css', '/assets/css/lancar.css', '/assets/css/mes.css', '/assets/css/cartao.css', '/assets/css/emprestimo.css', '/assets/css/wishlist.css'], $existe);
-$scripts = array_filter(['/assets/js/app.js', '/assets/js/lancar.js', '/assets/js/mes.js', '/assets/js/cartao.js', '/assets/js/emprestimo.js', '/assets/js/wishlist.js'], $existe);
+$estilos = array_filter(['/assets/css/style.css', '/assets/css/inicio.css', '/assets/css/lancar.css', '/assets/css/mes.css', '/assets/css/cartao.css', '/assets/css/emprestimo.css', '/assets/css/wishlist.css', '/assets/css/temas-tela.css', '/assets/css/temas.css'], $existe);
+$scripts = array_filter(['/assets/js/app.js', '/assets/js/lancar.js', '/assets/js/mes.js', '/assets/js/cartao.js', '/assets/js/emprestimo.js', '/assets/js/wishlist.js', '/assets/js/temas.js'], $existe);
 
 $uri     = (string) ($_SERVER['REQUEST_URI'] ?? '/');
 $volta   = voltaSegura($uri, '/');
@@ -54,17 +56,25 @@ $atual = static function (string $chave) use ($activePage): string {
     return $activePage === $chave ? ' aria-current="page"' : '';
 };
 // barra do celular: Início, Extrato, +, Mês, Cartão; no Anual quem fica acesa é a do Mês
-$barra = array_diff_key($abas, ['futuro' => true, 'meta' => true, 'emprestimo' => true, 'wishlist' => true]);
+$barra = array_diff_key($abas, ['futuro' => true, 'meta' => true, 'emprestimo' => true, 'wishlist' => true, 'temas' => true]);
 $acesaNaBarra = $activePage === 'futuro' ? 'mes' : $activePage;
+// o tema da conta vem no HTML: nada de piscar, e vale em qualquer aparelho. Null = automático (theme.js)
+$temaConta = Temas::doUsuario();
+$dadosTema = $temaConta !== null ? Temas::todos()[$temaConta] : null;
+$csrfTema = e(csrfToken());
 $marca = '<span class="marca"><img src="/assets/img/spitz.png" alt="" width="216" height="181"></span>';
 ?>
 <!doctype html>
-<html lang="pt-BR">
+<html lang="pt-BR"<?= $dadosTema !== null ? ' data-theme="' . e((string) $dadosTema['modo']) . '" data-tema="' . e((string) $temaConta) . '"' : '' ?>>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<?php if ($dadosTema !== null): ?>
+<meta name="theme-color" content="<?= e((string) $dadosTema['bg']) ?>">
+<?php else: ?>
 <meta name="theme-color" content="#f4f5f7" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0a0b0f" media="(prefers-color-scheme: dark)">
+<?php endif; ?>
 <meta name="format-detection" content="telephone=no">
 <title><?= e($pageTitle ?? 'financeiro') ?></title>
 <link rel="icon" type="image/png" sizes="32x32" href="/assets/img/icone-32.png">
@@ -89,7 +99,7 @@ $marca = '<span class="marca"><img src="/assets/img/spitz.png" alt="" width="216
         <?php endforeach; ?>
     </nav>
     <div class="lat-fim">
-        <div class="tema-seg" role="group" aria-label="tema">
+        <div class="tema-seg" role="group" aria-label="tema" data-tema-csrf="<?= $csrfTema ?>">
             <button type="button" class="t-claro" data-tema="light"><?= svgIcon('sun', 16) ?>Claro</button>
             <button type="button" class="t-escuro" data-tema="dark"><?= svgIcon('moon', 16) ?>Escuro</button>
         </div>
@@ -106,15 +116,16 @@ $marca = '<span class="marca"><img src="/assets/img/spitz.png" alt="" width="216
 
 <header class="topbar">
     <a class="topbar-marca" href="/"><?= $marca ?><b translate="no">financeiro</b></a>
-    <button type="button" class="ic" data-theme-toggle aria-label="trocar tema"><?= svgIcon('sun', 19, 'so-escuro') ?><?= svgIcon('moon', 19, 'so-claro') ?></button>
+    <button type="button" class="ic" data-theme-toggle data-tema-csrf="<?= $csrfTema ?>" aria-label="trocar tema"><?= svgIcon('sun', 19, 'so-escuro') ?><?= svgIcon('moon', 19, 'so-claro') ?></button>
     <details class="menu menu-avatar">
-        <summary aria-label="menu"><span class="avatar<?= in_array($activePage, ['ajustes', 'meta', 'emprestimo', 'wishlist'], true) ? ' is-active' : '' ?>"><?= e($inicial) ?></span></summary>
+        <summary aria-label="menu"><span class="avatar<?= in_array($activePage, ['ajustes', 'meta', 'emprestimo', 'wishlist', 'temas'], true) ? ' is-active' : '' ?>"><?= e($inicial) ?></span></summary>
         <div class="menu-painel">
             <?php if ($nome): ?><div class="menu-quem"><?= e($nome) ?></div><?php endif; ?>
             <a class="menu-item<?= $activePage === 'futuro' ? ' is-active' : '' ?>" href="/futuro"<?= $atual('futuro') ?>><?= svgIcon('trend', 18) ?>Anual</a>
             <a class="menu-item<?= $activePage === 'meta' ? ' is-active' : '' ?>" href="/meta"<?= $atual('meta') ?>><?= svgIcon('target', 18) ?>Metas</a>
             <a class="menu-item<?= $activePage === 'emprestimo' ? ' is-active' : '' ?>" href="/emprestimo"<?= $atual('emprestimo') ?>><?= svgIcon('emprestimo', 18) ?>Empréstimo</a>
             <a class="menu-item<?= $activePage === 'wishlist' ? ' is-active' : '' ?>" href="/wishlist"<?= $atual('wishlist') ?>><?= svgIcon('gift', 18) ?>Wishlist</a>
+            <a class="menu-item<?= $activePage === 'temas' ? ' is-active' : '' ?>" href="/temas"<?= $atual('temas') ?>><?= svgIcon('paleta', 18) ?>Temas</a>
             <a class="menu-item<?= $activePage === 'ajustes' ? ' is-active' : '' ?>" href="/ajustes"><?= svgIcon('settings', 18) ?>Ajustes</a>
             <form method="post" action="/logout">
                 <?= csrfField() ?>

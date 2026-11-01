@@ -294,6 +294,7 @@ CREATE TABLE `usuarios` (
   `criado_em` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `ultimo_login` timestamp NULL DEFAULT NULL,
   `sessao_versao` int unsigned NOT NULL DEFAULT '0',
+  `tema` varchar(24) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `login` (`login`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;

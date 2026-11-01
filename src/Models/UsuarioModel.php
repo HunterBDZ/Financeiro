@@ -35,6 +35,20 @@ final class UsuarioModel
         return (int) $pdo->lastInsertId();
     }
 
+    /** O tema da conta; null = automático. */
+    public static function tema(int $id): ?string
+    {
+        $st = Database::connection()->prepare('SELECT tema FROM usuarios WHERE id = ?');
+        $st->execute([$id]);
+        $t = $st->fetchColumn();
+        return $t === false || $t === null ? null : (string) $t;
+    }
+
+    public static function salvarTema(int $id, ?string $tema): void
+    {
+        Database::connection()->prepare('UPDATE usuarios SET tema = ? WHERE id = ?')->execute([$tema, $id]);
+    }
+
     public static function senhaHash(int $id): ?string
     {
         $pdo = Database::connection();

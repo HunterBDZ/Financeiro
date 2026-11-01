@@ -6,7 +6,7 @@
 
 **O controle financeiro da casa, no seu servidor: lance em segundos, veja como o mês fecha e planeje a quitação do empréstimo.**
 
-[![Versão 1.1.0](https://img.shields.io/badge/vers%C3%A3o-1.1.0-blue)](CHANGELOG.md) ![PHP 8.4+](https://img.shields.io/badge/PHP-8.4%2B-777BB4?logo=php&logoColor=white) ![MySQL 8](https://img.shields.io/badge/MySQL-8-4479A1?logo=mysql&logoColor=white) ![Sem dependências](https://img.shields.io/badge/depend%C3%AAncias-nenhuma-success) ![Privado](https://img.shields.io/badge/uso-pessoal-lightgrey)
+[![Versão 1.2.0](https://img.shields.io/badge/vers%C3%A3o-1.2.0-blue)](CHANGELOG.md) ![PHP 8.4+](https://img.shields.io/badge/PHP-8.4%2B-777BB4?logo=php&logoColor=white) ![MySQL 8](https://img.shields.io/badge/MySQL-8-4479A1?logo=mysql&logoColor=white) ![Sem dependências](https://img.shields.io/badge/depend%C3%AAncias-nenhuma-success) ![Privado](https://img.shields.io/badge/uso-pessoal-lightgrey)
 
 [Diferenciais](#o-que-ele-tem-de-diferente) · [Telas](#telas) · [Como funciona](#como-funciona) · [Instalar](#instalar) · [Atualizar](#atualizar) · [Manual completo](docs/INSTALACAO.md)
 
@@ -39,6 +39,7 @@ Aqui, os dois lançam pelo celular, e o app responde o que importa: **quanto tem
 | **Cartão pelo que importa** | Compras e parcelas formam a escada das próximas faturas. No plano só conta a fatura, no mês em que vence, sem contar o gasto duas vezes. |
 | **Contas que não enganam** | Empréstimo e poupança nunca contam como renda ou gasto, e dá para conferir o saldo com o banco a qualquer momento. |
 | **Feito para duas pessoas** | Cada um tem seu login, e o app guarda quem lançou o quê, com aviso de lançamento duplicado e desfazer. |
+| **32 temas, cada um com o seu** | Do Nord ao Terminal, passando por paletas brasileiras e opções de acessibilidade. Cada card mostra a prévia, e o tema escolhido acompanha a conta em qualquer aparelho. |
 | **Seu servidor, seus dados** | Roda em PHP e MySQL, na sua rede. Não tem Composer, npm nem etapa de build: atualizar é copiar arquivos. |
 
 ## Telas
@@ -56,7 +57,22 @@ Aqui, os dois lançam pelo celular, e o app responde o que importa: **quanto tem
     <td align="center"><img src="docs/img/celular-emprestimo-claro.jpg" alt="Simulação de adiantamento do empréstimo" width="190"><br><b>Empréstimo</b><br><sub>Simular e consolidar</sub></td>
     <td align="center"><img src="docs/img/celular-extrato-claro.jpg" alt="Extrato com os lançamentos" width="190"><br><b>Extrato</b><br><sub>O que foi lançado, e por quem</sub></td>
   </tr>
+  <tr>
+    <td align="center"><img src="docs/img/celular-temas-claro.jpg" alt="Tela de temas com cards de prévia" width="190"><br><b>Temas</b><br><sub>Prévia em cada card</sub></td>
+    <td align="center"><img src="docs/img/celular-tema-nord.jpg" alt="Tela inicial no tema Nord" width="190"><br><b>Nord</b><br><sub>Um dos consagrados</sub></td>
+    <td align="center"><img src="docs/img/celular-tema-terminal.jpg" alt="Tela inicial no tema Terminal, verde sobre preto" width="190"><br><b>Terminal</b><br><sub>Retrô, com fonte própria</sub></td>
+    <td align="center"><img src="docs/img/celular-tema-azulejo.jpg" alt="Tela inicial no tema Azulejo, em azul" width="190"><br><b>Azulejo</b><br><sub>Brasil e da casa</sub></td>
+  </tr>
 </table>
+
+<details>
+<summary><b>Temas, no computador</b></summary>
+<br>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/pc-temas-escuro.jpg">
+  <img src="docs/img/pc-temas-claro.jpg" alt="Tela de temas no computador, com os cards de prévia agrupados" width="860">
+</picture>
+</details>
 
 <details>
 <summary><b>Wishlist, no computador</b></summary>
@@ -95,6 +111,7 @@ Aqui, os dois lançam pelo celular, e o app responde o que importa: **quanto tem
 | **Anual** | Vamos ficar bem nos próximos meses? E se algo mudar? | `/futuro` |
 | **Empréstimo** | Quanto falta? Vale adiantar? | `/emprestimo` |
 | **Wishlist** | O que queremos comprar? Quando fica melhor comprar o 1º? | `/wishlist` |
+| **Temas** | Com que cara quero o app? | `/temas` |
 | **Metas** | Quanto queremos gastar por categoria? | `/meta` |
 | **Ajustes** | Reserva, meta, contas recorrentes, aparelhos e senha | `/ajustes` |
 
@@ -234,7 +251,7 @@ Só a Wishlist usa a internet: o servidor abre os links que vocês colam e busca
 
 ### Acessibilidade
 
-Tema claro e escuro, e contraste AA. As telas passam por varredura do [axe](https://github.com/dequelabs/axe-core).
+32 temas com contraste AA, entre eles dois de alto contraste e um para daltonismo. As telas passam por varredura do [axe](https://github.com/dequelabs/axe-core) em cada tema, e os testes medem o contraste das cores. Créditos e licenças das paletas: [`tools/temas/CREDITOS.md`](tools/temas/CREDITOS.md).
 
 ## Limitações
 

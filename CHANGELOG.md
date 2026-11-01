@@ -2,6 +2,13 @@
 
 Cada versão publicada é uma tag `vX.Y.Z` deste repositório. Sites instalados atualizam com `sudo financeiro-atualizar`.
 
+## 1.2.0
+
+- Tela **Temas**, com 32 temas: consagrados, retrô, brasileiros e de acessibilidade. Cada card mostra a prévia, e tocar nele mostra o tema no app inteiro antes de salvar.
+- O tema fica salvo por conta e acompanha a pessoa em qualquer aparelho. A opção Automático segue o claro ou escuro do aparelho.
+- O botão rápido de claro e escuro continua e, ao ser usado, troca o tema escolhido por Claro ou Escuro.
+- Migração nova: coluna `usuarios.tema`, aplicada pelo atualizador.
+
 ## 1.1.0
 
 - Aba **Wishlist**: lista em ordem, com link, foto e valor. O link preenche nome, valor e foto quando a loja permite.

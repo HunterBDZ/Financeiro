@@ -450,6 +450,9 @@ details.mes-ed:target > summary { animation: mes-realce 1.6s ease-out 1; }   /* 
 /* ---------------------------------------------------------------- 6. ajustes */
 
 .aj { width: 100%; max-width: 760px; }
+.aj-temas { display: flex; align-items: center; gap: 10px; min-height: 56px; padding-top: 8px; padding-bottom: 8px; font-weight: 750; }
+.aj-temas span { flex: 1 1 auto; }
+.aj-temas:hover { background: var(--sel); }
 .aj-grupo { padding-top: 6px; padding-bottom: 6px; }
 .aj-grupo[open] { padding-bottom: 18px; }
 .aj-grupo > summary .titulo { font-size: 16px; }

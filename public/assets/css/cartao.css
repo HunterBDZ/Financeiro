@@ -31,7 +31,7 @@
 .ct-plastico-pe dd { font-size: 14px; font-weight: 750; }
 .ct-plastico-pe div:last-child { text-align: right; }
 .ct-status { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 99px; background: rgba(255, 255, 255, .09); color: var(--cofre-txt); font-size: 12px; font-weight: 750; white-space: nowrap; }
-.ct-status i { width: 7px; height: 7px; border-radius: 50%; background: #79d68e; }
+.ct-status i { width: 7px; height: 7px; border-radius: 50%; background: var(--cofre-pos); }
 
 .ct-lancar { display: flex; }
 .ct-lancar .btn { width: 100%; }

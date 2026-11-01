@@ -5,6 +5,18 @@ com a staging. Produção: `/var/www/financeiro`, atualizada por versões com `f
 1/11/2026 (remoto `github`, chave só de leitura). O código que estava
 na máquina .164 (publicado em 10/10/2026) é o primeiro commit daqui; trabalhe sempre neste.
 
+## 2026-11-01 — temas
+
+- **Por quê:** o casal quis um lugar para escolher o tema, com os 32 da pesquisa e cartões com a prévia de cada um.
+- **Tela `/temas`:** menu lateral e menu do M, além de um atalho em Ajustes. Tocar num cartão mostra o tema no app inteiro, e ele só
+  fica ao salvar; sem JS, o toque já salva. O atalho claro/escuro continua e leva aos temas Claro e Escuro, na conta.
+- **Onde fica:** `usuarios.tema`, na conta de cada um; NULL é automático. Ele vem no HTML, então não pisca. O `localStorage` guarda só
+  a cópia para a tela de login, e quem nunca escolheu segue com o que já tinha no aparelho.
+- **Como é feito:** `tools/temas/gerar.py` lê `tools/temas/temas.json`, confere o contraste e gera `public/assets/css/temas.css` e
+  `src/temas_lista.php`. Claro e Escuro continuam em `style.css`. As cores fixas do cartão de saldo e dos avisos viraram tokens. Um teste mede
+  o contraste de cada tema. Para criar um tema: acrescente no JSON e rode o gerador.
+- **Portátil** é mantido a pedido, mas entrada e saída têm a mesma cor: só o sinal + e − separa. Créditos em `tools/temas/CREDITOS.md`.
+
 ## 2026-11-01 — aba Wishlist
 
 - **Por quê:** o casal queria um lugar para guardar o que pretende comprar, com link, foto e valor, e saber quando
