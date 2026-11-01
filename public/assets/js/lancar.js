@@ -281,62 +281,31 @@
         });
     }
 
-    // valor estilo maquininha: só dígitos, vírgula automática
-    function formatarValor(centavos) {
-        if (centavos <= 0) return '0,00';
-        var s = String(centavos);
-        while (s.length < 3) s = '0' + s;
-        var inteiro = s.slice(0, -2).replace(/^0+(?=\d)/, '') || '0';
-        var dec = s.slice(-2);
-        inteiro = inteiro.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-        return inteiro + ',' + dec;
-    }
-    function centavosDeValor(txt) {
-        var digits = txt.replace(/\D/g, '');
-        return parseInt(digits, 10) || 0;
+    // o valor é digitado como se fala: 45 é 45,00. Ao sair do campo, só formata o que não tem dúvida; o resto o servidor confere
+    function formatarValor(txt) {
+        var m = /^(\d+)(?:,(\d{1,2}))?$/.exec(txt.trim());
+        if (!m) return txt;
+        var inteiro = m[1].replace(/^0+(?=\d)/, '').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        return inteiro + ',' + ((m[2] || '') + '00').slice(0, 2);
     }
     // o campo do valor acompanha a largura do número: "R$" e o valor ficam juntos e centralizados
     function ajustarLargura(input) {
         input.style.width = (Math.max(4, input.value.length) + 0.4) + 'ch';
     }
     document.querySelectorAll('[data-lf-valor]').forEach(function (input) {
-        var centavos = centavosDeValor(input.value);
-        if (input.value === '' || input.value === '0,00') {
-            centavos = 0;
-        }
-        input.value = formatarValor(centavos);
-        input.dataset.centavos = String(centavos);
+        if (input.value === '0,00') input.value = '';
         ajustarLargura(input);
-
-        input.addEventListener('keydown', function (ev) {
-            if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
-            if (ev.key === 'Tab' || ev.key === 'Enter' || ev.key === 'Escape') return;
-            ev.preventDefault();
-            var c = parseInt(input.dataset.centavos, 10) || 0;
-            if (ev.key === 'Backspace' || ev.key === 'Delete') {
-                c = Math.floor(c / 10);
-            } else if (/^\d$/.test(ev.key)) {
-                var novo = c * 10 + parseInt(ev.key, 10);
-                if (novo <= 99999999) c = novo;
-            }
-            input.dataset.centavos = String(c);
-            input.value = formatarValor(c);
+        input.addEventListener('input', function () {
+            input.value = input.value.replace(/[^\d.,]/g, '');
             ajustarLargura(input);
         });
-        input.addEventListener('input', function () {
-            var c = centavosDeValor(input.value);
-            input.dataset.centavos = String(c);
-            input.value = formatarValor(c);
+        input.addEventListener('blur', function () {
+            input.value = formatarValor(input.value);
             ajustarLargura(input);
+            input.dispatchEvent(new Event('change', { bubbles: true }));
         });
         input.addEventListener('focus', function () {
-            var len = input.value.length;
-            input.setSelectionRange(len, len);
-        });
-        input.addEventListener('mouseup', function (ev) {
-            ev.preventDefault();
-            var len = input.value.length;
-            input.setSelectionRange(len, len);
+            input.select();
         });
     });
 })();

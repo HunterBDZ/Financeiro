@@ -89,9 +89,10 @@ function moneyCompact(float $v): string
  * Sinal de menos no início: "-" (hífen), "−" (U+2212) ou "–" (U+2013); NBSP é ignorado.
  * NÃO aceita "1.500" sozinho com outro agrupamento (ex.: "1.5") — isso é ambíguo e
  * era exatamente o bug que fazia "1.500" virar "R$ 1,50" silenciosamente.
+ * Fora do português, "12.50" é decimal. Com $dinheiro = false (taxa de juros), "1,655" é decimal.
  * Retorna null se o formato for inválido, pra quem chama decidir a mensagem de erro.
  */
-function parseMoedaBr(?string $input): ?float
+function parseMoedaBr(?string $input, bool $dinheiro = true): ?float
 {
     $s = (string) $input;
     // espaços de todo tipo (inclusive NBSP e o fino U+202F) e o "R$" não contam
@@ -115,17 +116,34 @@ function parseMoedaBr(?string $input): ?float
         return null;
     }
 
-    if (str_contains($s, ',')) {
-        // vírgula é o separador decimal; qualquer ponto antes dela é separador de milhar
-        $s = str_replace('.', '', $s);
-        $s = str_replace(',', '.', $s);
-    } elseif (str_contains($s, '.')) {
-        // sem vírgula, só aceita ponto como separador de milhar em grupos de 3 dígitos
-        // (ex.: "1.500" = 1500). Qualquer outro uso de ponto é ambíguo — recusa.
-        if (!preg_match('/^\d{1,3}(\.\d{3})+$/', $s)) {
+    $idioma = \Financeiro\Idioma::atual();
+    $virgula = strrpos($s, ',');
+    $ponto = strrpos($s, '.');
+    if ($virgula !== false && $ponto !== false) {
+        // os dois: o último é o decimal ("1.500,50" ou "1,500.50")
+        $s = $virgula > $ponto
+            ? str_replace(',', '.', str_replace('.', '', $s))
+            : str_replace(',', '', $s);
+    } elseif ($virgula !== false) {
+        // "1,500" é mil e quinhentos em inglês e, nos outros idiomas, é ambíguo: recusa em vez de gravar 1,50
+        if ($dinheiro && preg_match('/^[1-9]\d{0,2}(,\d{3})+$/', $s)) {
+            if ($idioma !== 'en') {
+                return null;
+            }
+            $s = str_replace(',', '', $s);
+        } else {
+            $s = str_replace(',', '.', $s);
+        }
+    } elseif ($ponto !== false) {
+        if (preg_match('/^\d{1,3}(\.\d{3})+$/', $s)) {
+            // "1.500" em inglês pode ser 1,5: recusa; nos outros idiomas, é milhar
+            if ($dinheiro && $idioma === 'en') {
+                return null;
+            }
+            $s = str_replace('.', '', $s);
+        } elseif ($idioma === 'pt' || !preg_match('/^\d+\.\d{1,2}$/', $s)) {
             return null;
         }
-        $s = str_replace('.', '', $s);
     }
 
     if (!is_numeric($s)) {
@@ -372,10 +390,17 @@ function flash(string $type, string $message, ?array $acao = null): void
 /* ------------------------------------------------------------------ ícones */
 
 /** Ícone SVG de traço (24×24, currentColor). Decorativo: aria-hidden. */
+/** O "?" ao lado de um termo: leva direto à resposta na Ajuda. */
+function dica(string $id, string $termo): string
+{
+    return '<a class="dica" href="/ajuda#' . e($id) . '" aria-label="' . e(t('O que é {termo}?', ['termo' => $termo])) . '">?</a>';
+}
+
 function svgIcon(string $name, int $size = 14, string $class = ''): string
 {
     static $icons = [
         // navegação
+        'ajuda'    => '<circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.4a2.5 2.5 0 1 1 3.7 2.2c-.8.5-1.3 1-1.3 1.9"/><path d="M12 16.6h.01"/>',
         'home'     => '<path d="M3.5 10.2 12 3.5l8.5 6.7"/><path d="M5.5 8.8V19a1.5 1.5 0 0 0 1.5 1.5h3.2v-5.2h3.6v5.2H17a1.5 1.5 0 0 0 1.5-1.5V8.8"/>',
         'list'     => '<path d="M9 6.5h11"/><path d="M9 12h11"/><path d="M9 17.5h11"/><circle cx="4.5" cy="6.5" r=".9" fill="currentColor"/><circle cx="4.5" cy="12" r=".9" fill="currentColor"/><circle cx="4.5" cy="17.5" r=".9" fill="currentColor"/>',
         'calendar' => '<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17"/><path d="M8 3v4"/><path d="M16 3v4"/><path d="M7.5 14h2"/><path d="M11 14h2"/>',

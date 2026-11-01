@@ -56,6 +56,14 @@ Isto substitui os dados atuais pelos do backup:
 sudo sh -c 'gunzip -c /var/backups/financeiro/ARQUIVO.sql.gz | mysql financeiro'
 ```
 
+## Esqueci a senha
+
+Outra pessoa com conta pode definir uma senha nova em **Ajustes → Pessoas**. Se não houver outra pessoa, gere uma senha nova no servidor, trocando `LOGIN`:
+
+```sh
+sudo -u www-data php /var/www/financeiro/tools/redefinir-senha.php LOGIN
+```
+
 ## Quando algo dá errado
 
 | O que aparece | Causa provável | O que fazer |

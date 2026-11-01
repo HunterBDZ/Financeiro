@@ -64,7 +64,8 @@
 
         function noCartao() { var r = form.querySelector('input[name="pagou"]:checked'); return !!r && r.value === 'cartao'; }
         function lerValor() {
-            var s = (valor && valor.value || '').replace(/\./g, '').replace(',', '.');
+            var s = (valor && valor.value || '').trim();
+            s = !/,/.test(s) && /\.\d{1,2}$/.test(s) ? s : s.replace(/\./g, '').replace(',', '.');
             var v = parseFloat(s); return isFinite(v) && v > 0 ? v : 0;
         }
         function vezes() {

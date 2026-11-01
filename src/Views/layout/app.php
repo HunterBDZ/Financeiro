@@ -117,7 +117,7 @@ $marca = '<span class="marca"><img src="' . e(SiteIcone::url()) . '" alt="" widt
     <a class="lat-marca" href="/"><?= $marca ?><b translate="no">financeiro</b></a>
     <a class="lat-lancar" href="<?= e($hrefLancar) ?>" data-lancar><?= svgIcon('plus', 18) ?><?= e(t('Lançar')) ?></a>
     <nav class="lat-nav" aria-label="<?= e(t('principal')) ?>">
-        <?php foreach ($abas + ['ajustes' => ['/ajustes', t('Ajustes'), 'settings']] as $chave => [$href, $rotulo, $icone]): ?>
+        <?php foreach ($abas + ['ajuda' => ['/ajuda', t('Ajuda'), 'ajuda'], 'ajustes' => ['/ajustes', t('Ajustes'), 'settings']] as $chave => [$href, $rotulo, $icone]): ?>
             <a class="lat-i<?= $aba($chave) ?>" href="<?= e($href) ?>"<?= $atual($chave) ?>><?= svgIcon($icone, 20) ?><span><?= e($rotulo) ?></span></a>
         <?php endforeach; ?>
     </nav>
@@ -147,7 +147,7 @@ $marca = '<span class="marca"><img src="' . e(SiteIcone::url()) . '" alt="" widt
     <a class="topbar-marca" href="/"><?= $marca ?><b translate="no">financeiro</b></a>
     <?php if ($ladosTema !== null): ?><button type="button" class="ic" data-theme-toggle<?= $dadosAtalho ?> aria-label="<?= e(t('trocar tema')) ?>"><?= svgIcon('sun', 19, 'so-escuro') ?><?= svgIcon('moon', 19, 'so-claro') ?></button><?php else: ?><a class="ic" href="/temas" aria-label="<?= e(t('Temas')) ?>"><?= svgIcon('paleta', 19) ?></a><?php endif; ?>
     <details class="menu menu-avatar">
-        <summary aria-label="<?= e(t('menu')) ?>"><span class="avatar<?= in_array($activePage, ['ajustes', 'meta', 'emprestimo', 'investimentos', 'wishlist', 'temas'], true) ? ' is-active' : '' ?>"><?= e($inicial) ?></span></summary>
+        <summary aria-label="<?= e(t('menu')) ?>"><span class="avatar<?= in_array($activePage, ['ajuda', 'ajustes', 'meta', 'emprestimo', 'investimentos', 'wishlist', 'temas'], true) ? ' is-active' : '' ?>"><?= e($inicial) ?></span></summary>
         <div class="menu-painel">
             <?php if ($nome): ?><div class="menu-quem"><?= e($nome) ?></div><?php endif; ?>
             <a class="menu-item<?= $activePage === 'relatorio' ? ' is-active' : '' ?>" href="/relatorio"<?= $atual('relatorio') ?>><?= svgIcon('relatorio', 18) ?><?= e(t('Relatório')) ?></a>
@@ -156,6 +156,7 @@ $marca = '<span class="marca"><img src="' . e(SiteIcone::url()) . '" alt="" widt
             <a class="menu-item<?= $activePage === 'investimentos' ? ' is-active' : '' ?>" href="/investimentos"<?= $atual('investimentos') ?>><?= svgIcon('invest', 18) ?><?= e(t('Investimentos')) ?></a>
             <a class="menu-item<?= $activePage === 'wishlist' ? ' is-active' : '' ?>" href="/wishlist"<?= $atual('wishlist') ?>><?= svgIcon('gift', 18) ?><?= e(t('Wishlist')) ?></a>
             <a class="menu-item<?= $activePage === 'temas' ? ' is-active' : '' ?>" href="/temas"<?= $atual('temas') ?>><?= svgIcon('paleta', 18) ?><?= e(t('Temas')) ?></a>
+            <a class="menu-item<?= $activePage === 'ajuda' ? ' is-active' : '' ?>" href="/ajuda"><?= svgIcon('ajuda', 18) ?><?= e(t('Ajuda')) ?></a>
             <a class="menu-item<?= $activePage === 'ajustes' ? ' is-active' : '' ?>" href="/ajustes"><?= svgIcon('settings', 18) ?><?= e(t('Ajustes')) ?></a>
             <form method="post" action="/logout">
                 <?= csrfField() ?>

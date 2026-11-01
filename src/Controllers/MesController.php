@@ -396,6 +396,7 @@ final class MesController
             'pageTitle' => $real ? t('{mes} · fechado · financeiro', ['mes' => monthLabel($mes)]) : t('fechar {mes} · financeiro', ['mes' => monthLabel($mes)]),
             'mes' => $mes, 'meses' => $meses, 'hoje' => $hoje, 'bloqueado' => false, 'real' => $real,
             'entrou' => $entrou, 'saiu' => $saiu, 'saldoMes' => $balanco,
+            'guardado' => max(0.0, (float) $linha['poupanca_liquido']) + max(0.0, (float) ($linha['invest_liquido'] ?? 0.0)),
             'contaAntes' => (float) $linha['sobrou_mes_anterior'], 'contaDepois' => (float) $linha['fica_na_conta'],
             'desvios' => $desvios, 'avisoConsignado' => $avisoConsignado,
             'dataBanco' => $dataBanco, 'dataMin' => self::dataMinBanco($hoje), 'faltam' => max(0, $faltam),

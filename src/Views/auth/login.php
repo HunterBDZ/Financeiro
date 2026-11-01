@@ -74,6 +74,10 @@ $css = array_filter(['/assets/css/style.css', '/assets/css/lancar.css', '/assets
         <?php require __DIR__ . '/../partials/idioma_escolha.php'; ?>
 
         <details class="lg-cert">
+            <summary><?= e(t('Esqueci a senha')) ?></summary>
+            <p><?= e(t('Outra pessoa com conta pode definir uma senha nova em Ajustes, em Pessoas. Se não houver outra pessoa, peça a quem instalou o app.')) ?></p>
+        </details>
+        <details class="lg-cert">
             <summary><?= e(t('O navegador avisou “conexão não segura”?')) ?></summary>
             <p><?= e(t('Esse aviso é esperado: o app roda só na sua rede local, com certificado próprio.')) ?> <?= t('Toque em{avancado} (ou “Detalhes”) e depois em {continuar} ou {prosseguir}.', [
                 'avancado' => "\n            <strong>" . e(t('Avançado')) . '</strong>',

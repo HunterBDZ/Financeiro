@@ -30,7 +30,7 @@ $total = $real ? 2 : ($previa !== null ? 4 : 3);
 $contaTxt = num($contaAntes) . NBSP . '→' . NBSP . num($contaDepois);   // nunca quebra: a célula ocupa 2 colunas
 $sinal = static fn(float $v): string => ($v > 0.004 ? '+' : '') . num($v);
 ?>
-    <?php if (!$real): ?><form class="fe-form" method="post" action="/mes/fechar"><?= $csrf ?><input type="hidden" name="mes" value="<?= e($mes) ?>"><?php endif; ?>
+    <?php if (!$real): ?><form class="fe-form" method="post" action="/mes/fechar" data-confirm="<?= e(t('Fechar {mes}? Dá para reabrir depois.', ['mes' => $mesLbl])) ?>"><?= $csrf ?><input type="hidden" name="mes" value="<?= e($mes) ?>"><?php endif; ?>
 
     <div class="fe-blocos">
         <!-- 1: os números do mês -->
@@ -39,9 +39,10 @@ $sinal = static fn(float $v): string => ($v > 0.004 ? '+' : '') . num($v);
             <div class="fe-grade num">
                 <p class="fe-num"><span><?= e(t('Entrou')) ?></span> <?= e(num($entrou)) ?></p>
                 <p class="fe-num"><span><?= e(t('Saiu')) ?></span> <?= e(num($saiu)) ?></p>
-                <p class="fe-num <?= $saldoMes < -0.004 ? 'neg' : 'pos' ?>"><span><?= e(t('Balanço')) ?></span> <?= e($sinal($saldoMes)) ?></p>
+                <p class="fe-num <?= $saldoMes < -0.004 ? 'neg' : 'pos' ?>"><span><?= e(t('Balanço')) ?> <?= dica('numeros', t('Balanço')) ?></span> <?= e($sinal($saldoMes)) ?></p>
                 <p class="fe-num fe-conta <?= $contaDepois < 0 ? 'neg' : '' ?>"><span><?= e(t('Conta')) ?></span> <?= e($contaTxt) ?></p>
             </div>
+            <?php if (($guardado ?? 0.0) > 0.004): ?><p class="fe-ponte num"><?= e(t('Sobra {sobra} − guardado {guardado} = {balanco} na conta.', ['sobra' => num($saldoMes + $guardado), 'guardado' => num($guardado), 'balanco' => $sinal($saldoMes)])) ?></p><?php endif; ?>
             <?php if (!empty($avisoConsignado)): ?><p class="aviso aviso-warn" role="status"><?= e($avisoConsignado) ?></p><?php endif; ?>
         </section>
 

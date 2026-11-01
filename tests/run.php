@@ -90,6 +90,8 @@ $uid = (int) $pdo->query('SELECT MIN(id) FROM usuarios')->fetchColumn();
 $_SESSION['usuario_id']    = $uid;
 $_SESSION['usuario_nome']  = 'teste';
 $_SESSION['sessao_versao'] = (int) UsuarioModel::sessaoVersao($uid);
+// os testes comparam textos em português, seja qual for o idioma da conta
+Financeiro\Idioma::usar('pt');
 
 // ---- 1. motor: todo mês REAL fecha com o extrato
 $plano    = MotorFinanceiro::calcularPlano();
@@ -173,7 +175,10 @@ if ($linhaPrevT !== null && $linhaPrevT['situacao'] !== 'REAL') {
     $valPrevT = num((float) $linhaPrevT['fica_na_conta'], 0);
     $tagPrev = 'data-previsao-fim>Previsão para o fim de ' . mesExtenso($mesPrevT) . ': <b>' . $valPrevT . '</b>';
     $check('Início: previsão do fim do mês vem do mesmo plano do Anual', str_contains($htmlIni, $tagPrev) && str_contains($htmlAno, $valPrevT));
-    $check('Mês: previsão do fim do mês igual à do Início', str_contains($htmlMes, $tagPrev));
+    // com o mês atual já fechado, o Início olha para o próximo, e o Mês continua no atual
+    if ($mesPrevT === date('Y-m') . '-01') {
+        $check('Mês: previsão do fim do mês igual à do Início', str_contains($htmlMes, $tagPrev));
+    }
 }
 
 // ---- 3c. idiomas: tudo traduzido, marcadores certos e telas sem sobra em português
@@ -1185,6 +1190,31 @@ try {
 } finally {
     $pdo->rollBack();
 }
+
+// ---- 18a. valor digitado: número sem separador é inteiro; o que é ambíguo é recusado, nunca adivinhado
+$valoresPt = ['45' => 45.0, '45,9' => 45.9, '45,90' => 45.9, '1.500' => 1500.0, '1.500,50' => 1500.5, '1,500' => null, '12.50' => null, 'R$ 7' => 7.0];
+foreach ($valoresPt as $txt => $esperado) {
+    $check("valor em pt: {$txt}", parseMoedaBr((string) $txt) === $esperado);
+}
+Financeiro\Idioma::usar('en');
+foreach (['45' => 45.0, '12.50' => 12.5, '1,500' => 1500.0, '1,500.50' => 1500.5, '1.500' => null] as $txt => $esperado) {
+    $check("valor em en: {$txt}", parseMoedaBr((string) $txt) === $esperado);
+}
+Financeiro\Idioma::usar('es');
+$check('valor em es: 1,500 é recusado', parseMoedaBr('1,500') === null);
+$check('valor em es: 12.50 é decimal', parseMoedaBr('12.50') === 12.5);
+Financeiro\Idioma::usar('pt');
+$check('juros: 1,655 continua decimal', parseMoedaBr('1,655', false) === 1.655);
+
+// ---- 18a2. Ajuda: respostas únicas e os "?" das telas apontam para uma pergunta que existe
+$idsAjuda = array_column(array_merge(...array_column(Financeiro\Ajuda::grupos(), 'itens')), 'id');
+$check('ajuda: cada pergunta tem um id só', count($idsAjuda) === count(array_unique($idsAjuda)));
+$usoDica = '';
+foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator(__DIR__ . '/../src/Views', FilesystemIterator::SKIP_DOTS)) as $fDica) {
+    $usoDica .= (string) file_get_contents($fDica->getPathname());
+}
+preg_match_all("/dica\\('([a-z-]+)'/", $usoDica, $mDica);
+$check('ajuda: todo "?" tem resposta', array_diff($mDica[1], $idsAjuda) === [], implode(',', array_diff($mDica[1], $idsAjuda)));
 
 // ---- 18b. conta nova: as regras da primeira conta e de Ajustes
 $check('conta nova: nome vazio não passa', UsuarioModel::erroNovaConta('', 'alguem', 'senha-longa') !== null);

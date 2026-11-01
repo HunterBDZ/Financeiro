@@ -91,7 +91,7 @@ $ajustes = [   // chave, rótulo, valor; o saldo do empréstimo e os parâmetros
     ['usa_emprestimo', 'Usa a aba Empréstimo', 1.0],
     ['usa_cartao', 'Usa a aba Cartão', 1.0],
     ['parcela_modo', 'Parcela do empréstimo: 1 descontada do salário, 2 paga à parte', 1.0],
-    ['objetivo', 'Objetivo da sobra', 1.0],
+    ['objetivo', 'Objetivo da sobra', $demo ? 1.0 : 3.0],
 ];
 
 $pdo->beginTransaction();

@@ -71,6 +71,11 @@ $titulos = [1 => t('Quando começa?'), 2 => t('Quanto entra por mês?'), 3 => t(
                 <label class="cm-marcar"><input type="radio" name="parcela_modo" value="2" checked><span><?= e(t('Pago à parte, com o dinheiro da conta')) ?></span></label>
                 <label class="cm-marcar"><input type="radio" name="parcela_modo" value="1"><span><?= e(t('Já vem descontada do salário')) ?></span></label>
             </fieldset>
+            <fieldset class="cm-grupo">
+                <legend><?= e(t('Se tiver empréstimo, o que fazer com o que sobrar?')) ?></legend>
+                <label class="cm-marcar"><input type="radio" name="objetivo" value="3" checked><span><?= e(t('Deixar na conta')) ?></span></label>
+                <label class="cm-marcar"><input type="radio" name="objetivo" value="1"><span><?= e(t('Usar para adiantar o empréstimo')) ?></span></label>
+            </fieldset>
         <?php endif; ?>
 
         <div class="cm-acoes">

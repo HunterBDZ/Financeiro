@@ -298,7 +298,7 @@
         setTxt('[data-v-metaalvo]', fmtBR(totalMeta));
         setTxt('[data-v-gasto]', fmtBR(gastoSemMeta));
         setTxt('[data-v-conta]', fmtBR(Math.abs(emConta)));
-        setTxt('[data-conta-lbl]', noVermelho ? T('No vermelho') : T('Em conta'));
+        setTxt('[data-conta-lbl]', noVermelho ? T('No vermelho') : T('Sobra depois dos gastos'));
         var cbox = pg.querySelector('[data-conta-box]');
         if (cbox) {
             cbox.classList.remove('is-neg', 'is-pos');
@@ -487,6 +487,27 @@
             if (opt && opt.value) { metaAdiciona(pg, opt); } else if (sel) { sel.focus(); }
         });
     }
+
+    // ---- Ajuda: o "?" abre a resposta; a busca esconde o que não tem as palavras
+    (function () {
+        var alvo = location.hash.length > 1 ? document.getElementById(location.hash.slice(1)) : null;
+        if (alvo && alvo.matches('[data-ajuda-item]')) { alvo.open = true; alvo.scrollIntoView({ block: 'center' }); }
+        var busca = document.querySelector('[data-ajuda-busca]');
+        if (!busca) return;
+        var sem = function (t) { return t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); };
+        busca.addEventListener('input', function () {
+            var q = sem(busca.value.trim()), algum = false;
+            document.querySelectorAll('[data-ajuda-grupo]').forEach(function (g) {
+                var noGrupo = false;
+                g.querySelectorAll('[data-ajuda-item]').forEach(function (i) {
+                    var ok = sem(i.textContent).indexOf(q) !== -1;
+                    i.hidden = !ok; noGrupo = noGrupo || ok;
+                });
+                g.hidden = !noGrupo; algum = algum || noGrupo;
+            });
+            document.querySelector('[data-ajuda-vazio]').hidden = algum;
+        });
+    })();
 
     // ---- [data-confirm]: pede confirmação antes de enviar o form (ex.: remover categoria)
     document.addEventListener('submit', function (ev) {

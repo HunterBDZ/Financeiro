@@ -465,7 +465,7 @@ $opcoesMes = static function (string $sel) use ($se): string {
                 <span class="fu-lbl fu-lbl-m"><?= e(t('Mês')) ?></span>
                 <span class="fu-lbl fu-largo"><?= e(t('Entradas')) ?></span>
                 <span class="fu-lbl fu-largo"><?= e(t('Saídas')) ?></span>
-                <span class="fu-lbl"><?= e(t('Balanço')) ?></span>
+                <span class="fu-lbl"><?= e(t('Balanço')) ?> <?= dica('numeros', t('Balanço')) ?></span>
                 <span class="fu-lbl"><?= e(t('Conta no fim')) ?></span>
                 <span class="fu-lbl fu-largo"><?= e(t('Dívida')) ?></span>
                 <span class="fu-lbl fu-lbl-m fu-xl"><?= e(t('Mudou em relação ao mês anterior')) ?></span>

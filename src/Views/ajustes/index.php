@@ -61,6 +61,12 @@ $campo = static function (string $chave, string $rotulo, string $un = '', int $d
                 <label class="aj-marcar"><input type="radio" name="parcela_modo" value="1"<?= $aParte ? '' : ' checked' ?>><span><?= e(t('Já vem descontada do salário')) ?></span></label>
                 <label class="aj-marcar"><input type="radio" name="parcela_modo" value="2"<?= $aParte ? ' checked' : '' ?>><span><?= e(t('Pago à parte, com o dinheiro da conta')) ?></span></label>
             </fieldset>
+            <?php $naConta = (int) round((float) ($aj['objetivo']['valor'] ?? 1)) === 3; ?>
+            <fieldset class="aj-grupo-modo">
+                <legend><?= e(t('Se tiver empréstimo, o que fazer com o que sobrar?')) ?></legend>
+                <label class="aj-marcar"><input type="radio" name="objetivo" value="3"<?= $naConta ? ' checked' : '' ?>><span><?= e(t('Deixar na conta')) ?></span></label>
+                <label class="aj-marcar"><input type="radio" name="objetivo" value="1"<?= $naConta ? '' : ' checked' ?>><span><?= e(t('Usar para adiantar o empréstimo')) ?></span></label>
+            </fieldset>
             <button type="submit" class="btn btn-primary aj-salvar"><?= e(t('Salvar')) ?></button>
         </form>
     </section>
@@ -168,7 +174,8 @@ $campo = static function (string $chave, string $rotulo, string $un = '', int $d
     <!-- pessoas com conta -->
     <details class="card dobra aj-grupo" id="pessoas"<?= $aberto('pessoas') ?>>
         <summary><span class="titulo"><?= e(t('Pessoas')) ?></span></summary>
-        <p class="muted"><?= e(implode(', ', array_column(\Financeiro\Models\UsuarioModel::todos(), 'nome'))) ?></p>
+        <?php $todas = \Financeiro\Models\UsuarioModel::todos(); ?>
+        <p class="muted"><?= e(implode(', ', array_column($todas, 'nome'))) ?></p>
         <form class="aj-form" method="post" action="/ajustes/pessoas">
             <?= $csrf ?>
             <label class="campo"><span><?= e(t('Nome')) ?></span><input type="text" name="nome" maxlength="100" autocomplete="off" required></label>
@@ -177,6 +184,17 @@ $campo = static function (string $chave, string $rotulo, string $un = '', int $d
             <?php $erroDe('pessoas'); ?>
             <button type="submit" class="btn btn-primary aj-salvar"><?= e(t('Adicionar pessoa')) ?></button>
         </form>
+        <?php foreach ($todas as $pessoa): if ((int) $pessoa['id'] === (int) \Financeiro\Auth::id()) { continue; } ?>
+            <details class="aj-pessoa">
+                <summary><?= e(t('Definir nova senha para {nome}', ['nome' => $pessoa['nome']])) ?></summary>
+                <form class="aj-form" method="post" action="/ajustes/pessoas/<?= (int) $pessoa['id'] ?>/senha">
+                    <?= $csrf ?>
+                    <label class="campo"><span><?= e(t('A sua senha')) ?></span><input type="password" name="senha_atual" autocomplete="current-password" required></label>
+                    <label class="campo"><span><?= e(t('Nova senha de {nome}', ['nome' => $pessoa['nome']])) ?></span><input type="password" name="senha" autocomplete="new-password" minlength="8" required></label>
+                    <button type="submit" class="btn btn-primary aj-salvar"><?= e(t('Definir senha')) ?></button>
+                </form>
+            </details>
+        <?php endforeach; ?>
     </details>
 
     <!-- 5: aparelhos -->

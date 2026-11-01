@@ -84,7 +84,7 @@ $temAdd = $addEss !== [] || $addNao !== [];
 ?>
 <div class="aj meta-pg" data-renda="<?= e(number_format($renda, 2, '.', '')) ?>" data-gasto-total="<?= e(number_format($gastoTotal, 2, '.', '')) ?>">
     <div class="meta-cab">
-        <h1 class="aj-titulo"><?= e(t('Metas')) ?></h1>
+        <h1 class="aj-titulo"><?= e(t('Metas')) ?> <?= dica('metas', t('Metas')) ?></h1>
         <span class="meta-mes num"><?= e(monthLabel($mesAtual)) ?></span>
     </div>
 
@@ -114,7 +114,7 @@ $temAdd = $addEss !== [] || $addNao !== [];
                     <span class="meta-conta-val num" data-v-gasto><?= e(num($gastoSemMeta, 0)) ?></span>
                 </li>
                 <li class="meta-conta-l meta-conta-res <?= $noVermelho ? 'is-neg' : 'is-pos' ?>" data-conta-box>
-                    <span class="meta-conta-nome"><i class="dot dot-conta"></i><span data-conta-lbl><?= $noVermelho ? e(t('No vermelho')) : e(t('Em conta')) ?></span></span>
+                    <span class="meta-conta-nome"><i class="dot dot-conta"></i><span data-conta-lbl><?= $noVermelho ? e(t('No vermelho')) : e(t('Sobra depois dos gastos')) ?></span></span>
                     <span class="meta-conta-val num" data-v-conta><?= e(num(abs($emConta), 0)) ?></span>
                 </li>
             </ul>

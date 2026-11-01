@@ -17,6 +17,7 @@ use Financeiro\Controllers\MesController;
 use Financeiro\Controllers\MetaController;
 use Financeiro\Controllers\CategoriaController;
 use Financeiro\Controllers\FuturoController;
+use Financeiro\Controllers\AjudaController;
 use Financeiro\Controllers\AjustesController;
 use Financeiro\Controllers\CartaoController;
 use Financeiro\Controllers\EmprestimoController;
@@ -49,6 +50,8 @@ $router->post('/logout', [AuthController::class, 'logout']);
 // ---- início
 $router->get('/', [DashboardController::class, 'index']);
 $router->post('/conferir', [DashboardController::class, 'conferir']);
+$router->post('/roteiro/dispensar', [DashboardController::class, 'dispensarRoteiro']);
+$router->get('/ajuda', [AjudaController::class, 'index']);
 
 // ---- lançar e extrato
 $router->get('/lancar', [LancamentosController::class, 'lancarForm']);
@@ -126,6 +129,7 @@ $router->get('/ajustes', [AjustesController::class, 'index']);
 $router->post('/ajustes/salvar', [AjustesController::class, 'salvar']);
 $router->post('/ajustes/senha', [AjustesController::class, 'trocarSenha']);
 $router->post('/ajustes/pessoas', [AjustesController::class, 'criarPessoa']);
+$router->post('/ajustes/pessoas/{id}/senha', [AjustesController::class, 'senhaDePessoa']);
 $router->post('/ajustes/contas', [AjustesController::class, 'salvarConta']);
 $router->post('/ajustes/contas/{id}/remover', [AjustesController::class, 'removerConta']);
 $router->post('/ajustes/essenciais', [AjustesController::class, 'salvarEssenciais']);

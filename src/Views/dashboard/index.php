@@ -77,12 +77,27 @@ $quandoFoi   = static function (string $data) use ($hoje): string {
         </div>
     <?php endif; ?>
 
+    <?php if (!empty($roteiro)): ?>
+    <section class="card roteiro" aria-labelledby="roteiro-t">
+        <h2 class="titulo" id="roteiro-t"><?= e(t('Primeiros passos')) ?></h2>
+        <ul class="roteiro-lista">
+            <?php foreach ($roteiro as [$href, $texto, $feito]): ?>
+                <li class="<?= $feito ? 'is-feito' : '' ?>"><?= svgIcon($feito ? 'check' : 'plus', 16) ?><?= $feito ? '<span>' . e($texto) . '</span>' : '<a href="' . e($href) . '">' . e($texto) . '</a>' ?></li>
+            <?php endforeach; ?>
+        </ul>
+        <div class="roteiro-fim">
+            <a href="/ajuda"><?= e(t('Ver a ajuda')) ?></a>
+            <form method="post" action="/roteiro/dispensar"><?= csrfField() ?><button type="submit" class="btn btn-ghost"><?= e(t('Dispensar')) ?></button></form>
+        </div>
+    </section>
+    <?php endif; ?>
+
     <div class="dash-grade">
 
         <!-- o saldo de hoje contra a reserva -->
         <section class="saldo <?= $clsSaldo ?>" aria-labelledby="saldo-t">
             <div class="saldo-l1">
-                <h2 id="saldo-t"><?= e(t('Em conta hoje')) ?></h2>
+                <h2 id="saldo-t"><?= e(t('Em conta hoje')) ?> <?= dica('em-conta', t('Em conta hoje')) ?></h2>
                 <button type="button" class="saldo-olho" data-ocultar aria-pressed="false" aria-label="<?= e(t('esconder valores')) ?>"><?= svgIcon('eye', 18, 'olho-aberto') ?><?= svgIcon('eye-off', 18, 'olho-fechado') ?></button>
                 <?php if ($estadoSaldo !== ''): ?><span class="saldo-estado"><?= e($estadoSaldo) ?></span><?php endif; ?>
             </div>
@@ -95,7 +110,8 @@ $quandoFoi   = static function (string $data) use ($hoje): string {
             </p>
             <?php endif; ?>
             <?php if ($previsaoFim !== null): ?>
-                <p class="saldo-prev num" data-previsao-fim><?= t('Previsão para o fim de {mes}: {valor}', ['mes' => e(mesExtenso($mesPrevisao)), 'valor' => '<b>' . e(num($previsaoFim, 0)) . '</b>']) ?></p>
+                <p class="saldo-prev num" data-previsao-fim><?= t('Previsão para o fim de {mes}: {valor}', ['mes' => e(mesExtenso($mesPrevisao)), 'valor' => '<b>' . e(num($previsaoFim, 0)) . '</b>']) ?> <?= dica('previsao', t('previsão')) ?></p>
+                <?php if (!empty($previsaoSemAdiantar)): ?><p class="saldo-prev num"><?= t('Sem adiantar o empréstimo: {valor}', ['valor' => '<b>' . e(num($previsaoSemAdiantar, 0)) . '</b>']) ?></p><?php endif; ?>
             <?php endif; ?>
         </section>
 

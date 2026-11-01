@@ -3,6 +3,7 @@ namespace Financeiro\Controllers;
 
 use Financeiro\Auth;
 use Financeiro\Config;
+use Financeiro\Database;
 use Financeiro\Models\AjusteModel;
 use Financeiro\Models\LancamentoModel;
 use Financeiro\Models\MesModel;
@@ -80,7 +81,9 @@ final class DashboardController
             'estadoRef'      => $estadoRef,
             'reserva'        => $reserva,
             'previsaoFim'    => $linhaRef['situacao'] !== 'REAL' ? (float) $linhaRef['fica_na_conta'] : null,
+            'previsaoSemAdiantar' => self::previsaoSemAdiantar($linhaRef, $mesRef),
             'mesPrevisao'    => $mesRef,
+            'roteiro'        => self::roteiro(),
             'conta'          => $conta,
             'conf'           => $conf,
             'conferirAberto' => $conferirAberto || $conferirErro !== null,
@@ -228,5 +231,43 @@ final class DashboardController
     private static function dataIso(string $d): bool
     {
         return preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $d, $m) === 1 && checkdate((int) $m[2], (int) $m[3], (int) $m[1]);
+    }
+
+    /** Quem escolheu adiantar o empréstimo vê também como a conta fica sem isso: o adiantamento não sai sozinho. */
+    private static function previsaoSemAdiantar(array $linha, string $mes): ?float
+    {
+        if ($linha['situacao'] === 'REAL' || !AjusteModel::usa('usa_emprestimo') || (int) round(AjusteModel::valor('objetivo', 1.0)) === 3) {
+            return null;
+        }
+        foreach (MotorFinanceiro::calcular(MotorFinanceiro::dados(), ['objetivo' => 3]) as $l) {
+            if ($l['mes'] === $mes && abs((float) $l['fica_na_conta'] - (float) $linha['fica_na_conta']) >= 1.0) {
+                return (float) $l['fica_na_conta'];
+            }
+        }
+        return null;
+    }
+
+    /** O roteiro de quem está começando: some quando está tudo feito ou quando a pessoa dispensa. */
+    private static function roteiro(): ?array
+    {
+        if (AjusteModel::valor('roteiro_ok') >= 1.0) {
+            return null;
+        }
+        $pdo = Database::connection();
+        $tem = static fn(string $tabela): bool => (bool) $pdo->query("SELECT 1 FROM {$tabela} LIMIT 1")->fetchColumn();
+        $itens = [
+            ['/lancar', t('Registre o seu primeiro gasto'), $tem('lancamentos')],
+            ['/meta', t('Defina quanto quer gastar em uma categoria'), $tem('metas')],
+            ['/#conferir', t('Compare o saldo com o do banco'), $tem('saldo_conferencias')],
+        ];
+        return in_array(false, array_column($itens, 2), true) ? $itens : null;
+    }
+
+    public function dispensarRoteiro(): void
+    {
+        Auth::requireLogin();
+        csrfCheck();
+        AjusteModel::setValor('roteiro_ok', 1.0);
+        redirecionar('/', 303);
     }
 }

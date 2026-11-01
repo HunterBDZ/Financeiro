@@ -92,6 +92,11 @@ final class AjustesController
         AjusteModel::setValor('usa_cartao', ($_POST['usa_cartao'] ?? '') === '1' ? 1.0 : 0.0);
         AjusteModel::setValor('usa_emprestimo', ($_POST['usa_emprestimo'] ?? '') === '1' ? 1.0 : 0.0);
         AjusteModel::setValor('parcela_modo', ($_POST['parcela_modo'] ?? '') === '2' ? 2.0 : 1.0);
+        // "adiantar" não troca o objetivo 2 (só quitar) por 1: só muda quem escolheu outra coisa
+        $objetivo = ($_POST['objetivo'] ?? '') === '3' ? 3 : 1;
+        if ($objetivo === 3 || (int) round(AjusteModel::valor('objetivo', 1.0)) === 3) {
+            AjusteModel::setValor('objetivo', (float) $objetivo);
+        }
         flash('success', t('ajustes salvos'));
         redirecionar('/ajustes#recursos', 303);
     }
@@ -191,7 +196,7 @@ final class AjustesController
                 $valores[$chave] = 0.0;                         // em branco: volta a calcular o saldo pela parcela
                 continue;
             }
-            $v = parseMoedaBr(is_string($bruto) ? $bruto : '');
+            $v = parseMoedaBr(is_string($bruto) ? $bruto : '', $chave !== 'juros_mes');
             $ok = $v !== null && match ($chave) {
                 'saldo_ini'  => true,                           // a conta pode começar negativa
                 'n_parcelas' => $v >= 1 && abs($v - round($v)) < 1e-9,
@@ -293,6 +298,38 @@ final class AjustesController
         }
         UsuarioModel::criar($nome, $login, $senha);
         flash('success', t('Conta criada: {nome}', ['nome' => $nome]));
+        redirecionar('/ajustes?aberto=pessoas#pessoas', 303);
+    }
+
+    /** A senha de outra pessoa da casa, para quem esqueceu. Pede a senha de quem está fazendo. */
+    public function senhaDePessoa(string $id): void
+    {
+        Auth::requireLogin();
+        csrfCheck();
+
+        $alvo = (int) $id;
+        $atual = is_string($_POST['senha_atual'] ?? null) ? $_POST['senha_atual'] : '';
+        $nova = is_string($_POST['senha'] ?? null) ? $_POST['senha'] : '';
+        if (UsuarioModel::find($alvo) === null || $alvo === (int) Auth::id()) {
+            redirecionar('/ajustes?aberto=pessoas#pessoas', 303);
+        }
+        $conferida = Auth::conferirSenhaAtual((int) Auth::id(), $atual);
+        if ($conferida === 'bloqueado') {
+            Auth::logout();
+            renderErro(429, t('bloqueado'), t('senha atual errada demais · entre de novo em 10 min'));
+        }
+        $erro = match (true) {
+            $conferida !== 'ok'  => t('senha atual?'),
+            mb_strlen($nova) < 8 => t('A senha precisa de pelo menos 8 caracteres.'),
+            default              => null,
+        };
+        if ($erro !== null) {
+            $_SESSION['aj_erro'] = ['grupo' => 'pessoas', 'msg' => $erro];
+            redirecionar('/ajustes?aberto=pessoas#pessoas', 303);
+        }
+        UsuarioModel::trocarSenha($alvo, $nova);
+        Auth::sairDeTodos($alvo);
+        flash('success', t('senha trocada'));
         redirecionar('/ajustes?aberto=pessoas#pessoas', 303);
     }
 

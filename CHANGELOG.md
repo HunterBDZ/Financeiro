@@ -2,6 +2,18 @@
 
 Cada versão publicada é uma tag `vX.Y.Z` deste repositório. Sites instalados atualizam com `sudo financeiro-atualizar`.
 
+## 1.7.0
+
+- **Valor como se fala:** em Lançar, `45` agora é R$ 45,00, e não R$ 0,45. Centavos vão depois da vírgula: `45,90`.
+- **Número ambíguo não é adivinhado:** `1,500` é recusado em português e em espanhol, em vez de virar R$ 1,50. Em inglês, ele é mil e quinhentos, e `12.50` é aceito.
+- **O que fazer com a sobra:** agora é uma escolha, em Ajustes e na primeira configuração: deixar na conta ou adiantar o empréstimo. Instalações novas começam deixando na conta; quem já usa o site continua como está. Quem adianta vê também como a conta ficaria sem isso.
+- **Números explicados:** o que era "Em conta" em Metas virou "Sobra depois dos gastos", e Fechar mostra a conta entre a sobra e o balanço.
+- **Aba Ajuda:** perguntas em 3 idiomas, com busca, e um "?" ao lado dos termos principais.
+- **Primeiros passos:** uma lista na tela inicial para quem está começando.
+- **Esqueci a senha:** outra pessoa com conta redefine em Ajustes → Pessoas; sem outra pessoa, há um comando no manual.
+- **Fechar o mês** agora pede confirmação.
+- Os testes não falham mais em contas em inglês ou espanhol, nem com o mês atual já fechado, o que bloqueava a atualização desses sites.
+
 ## 1.6.0
 
 - **Instalação com um comando:** `sudo bash instalar.sh` instala tudo sem fazer perguntas. Se parar no meio, é só rodar de novo.

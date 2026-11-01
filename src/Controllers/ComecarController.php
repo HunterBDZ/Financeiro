@@ -123,6 +123,7 @@ final class ComecarController
         AjusteModel::setValor('usa_emprestimo', $emprestimo ? 1.0 : 0.0);
         AjusteModel::setValor('usa_cartao', ($_POST['usa_cartao'] ?? '') === '1' ? 1.0 : 0.0);
         AjusteModel::setValor('parcela_modo', ($_POST['parcela_modo'] ?? '') === '2' ? 2.0 : 1.0);
+        AjusteModel::setValor('objetivo', ($_POST['objetivo'] ?? '') === '1' ? 1.0 : 3.0);
         AjusteModel::setValor('configurado', 1.0);
         flash('success', t('Tudo pronto. O resto você ajusta quando quiser, em Ajustes.'));
         redirecionar($emprestimo ? '/emprestimo?dados=1#emp-dados' : '/', 303);
