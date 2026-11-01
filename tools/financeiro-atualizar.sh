@@ -225,7 +225,11 @@ aplicar() {
     aplicar_migracoes "$BANCO" "$TMP/novo" || return 1
     passo "copiando o código"
     rsync -a --delete --exclude .git --exclude config/.env --exclude database/data "$TMP/novo/" "$DEST/" || return 1
-    if [ "$(id -u)" = 0 ]; then chown -R "$SERVICO":"$SERVICO" "$DEST"; chmod 640 "$DEST/config/.env"; fi
+    if [ "$(id -u)" = 0 ]; then
+        chown -R "$SERVICO":"$SERVICO" "$DEST"
+        chmod 750 "$DEST" "$DEST/config" "$DEST/database"   # só o public/ precisa ficar aberto
+        chmod 640 "$DEST/config/.env"
+    fi
     recarregar
     passo "conferindo o site"
     ( cd "$DEST" && como_servico php tests/run.php ) > "$TMP/site.log" 2>&1 || {
