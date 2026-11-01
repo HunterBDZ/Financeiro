@@ -264,5 +264,8 @@ na máquina .164 (publicado em 10/10/2026) é o primeiro commit daqui; trabalhe 
   os lotes `migracao`. Código: `git archive <commit> | tar -x -C /tmp/fin-volta && sudo financeiro-publish /tmp/fin-volta`.
 - `database/schema.sql` é gerado da staging com
   `mysqldump --no-data --skip-comments --skip-dump-date --skip-add-drop-table --routines --triggers`
-  (sem `DROP TABLE`, de propósito) e `sed -E 's/ AUTO_INCREMENT=[0-9]+//'`, para os contadores da
-  staging não entrarem no diff.
+  (sem `DROP TABLE`, de propósito), `sed -E 's/ AUTO_INCREMENT=[0-9]+//'`, para os contadores da
+  staging não entrarem no diff, e `sed 's/DEFINER=`root`@`localhost` //'`, para qualquer usuário
+  conseguir importar a view.
+- Instalar do zero: [`INSTALACAO.md`](INSTALACAO.md) e `database/instalar.php`. O `database/seed.php`
+  só serve para a importação original da planilha, que fica fora do git.

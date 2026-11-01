@@ -266,7 +266,7 @@ CREATE TABLE `usuarios` (
 /*!50001 SET character_set_results     = utf8mb4 */;
 /*!50001 SET collation_connection      = utf8mb4_0900_ai_ci */;
 /*!50001 CREATE ALGORITHM=UNDEFINED */
-/*!50013 DEFINER=`root`@`localhost` SQL SECURITY INVOKER */
+/*!50013 SQL SECURITY INVOKER */
 /*!50001 VIEW `previsao_efetiva` AS select `c`.`id` AS `categoria_id`,`m`.`mes` AS `mes`,cast(coalesce(`p`.`valor`,(case when ((`m`.`situacao` = 'PREVISAO') and (`c`.`ativo` = 1) and (`c`.`operacional` = 1) and (`c`.`sinal` = -(1))) then `mt`.`valor` end),0) as decimal(12,2)) AS `valor`,(case when (`p`.`id` is not null) then 'mes' when ((`mt`.`valor` is not null) and (`m`.`situacao` = 'PREVISAO') and (`c`.`ativo` = 1) and (`c`.`operacional` = 1) and (`c`.`sinal` = -(1))) then 'meta' end) AS `fonte` from (((`categorias` `c` join `meses` `m`) left join `previsao` `p` on(((`p`.`categoria_id` = `c`.`id`) and (`p`.`mes` = `m`.`mes`)))) left join `metas` `mt` on((`mt`.`categoria_id` = `c`.`id`))) */;
 /*!50001 SET character_set_client      = @saved_cs_client */;
 /*!50001 SET character_set_results     = @saved_cs_results */;
