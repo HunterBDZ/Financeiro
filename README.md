@@ -150,6 +150,29 @@ Abra http://127.0.0.1:8099 e entre com `ana` / `demo1234`.
 
 **Para usar de verdade**, siga o **[manual de instalação](docs/INSTALACAO.md)**: 10 passos com Apache, HTTPS, firewall e backup, além de como atualizar, restaurar e resolver problemas.
 
+### Atualizar
+
+Os sites não se atualizam sozinhos: o dono decide quando. Um comando baixa a última versão publicada, testa numa cópia do banco, faz backup e aplica. Se algo falhar, o site volta para a versão anterior.
+
+```sh
+sudo financeiro-atualizar --verificar   # há versão nova? o que muda?
+sudo financeiro-atualizar               # atualiza
+```
+
+```mermaid
+flowchart LR
+    A["Versão publicada<br>(tag no GitHub)"] --> B["Baixa"]
+    B --> C["Ensaia numa<br>cópia do banco"]
+    C -->|"Falhou"| X["Site intacto"]
+    C -->|"Passou"| D["Backup"]
+    D --> E["Migrações e código"]
+    E --> F["Confere o site"]
+    F -->|"Falhou"| Y["Volta sozinho"]
+    F -->|"Passou"| G["Site atualizado"]
+```
+
+As mudanças de cada versão ficam no [`CHANGELOG.md`](CHANGELOG.md).
+
 ## Por dentro
 
 ```mermaid
@@ -203,6 +226,7 @@ Tema claro e escuro, e contraste AA. As telas passam por varredura do [axe](http
 ## Documentação
 
 - **[Manual de instalação](docs/INSTALACAO.md):** instalar, atualizar, restaurar e resolver problemas.
+- **[Como lançar uma versão](docs/LANCAR-VERSAO.md):** para quem desenvolve.
 - **[Decisões e operação](docs/decisoes.md):** o porquê de cada regra. Leia antes de mudar uma delas.
 
 ## Status e licença

@@ -4,6 +4,23 @@ Repositório canônico: `~/financeiro` no servidor 192.168.0.154 (git, branch `m
 Produção: `/var/www/financeiro`, publicada a partir deste repositório. O código que estava
 na máquina .164 (publicado em 10/10/2026) é o primeiro commit daqui; trabalhe sempre neste.
 
+## 2026-11-01 — versões e atualização pelo GitHub
+
+- **Por quê:** o projeto vai abrir ao público, e cada dono de site precisa atualizar sem saber as migrações.
+- **Versões:** a tag `vX.Y.Z` é o que chega aos sites; o `main` sem tag não chega. `VERSION` precisa
+  coincidir com a tag. Processo em [`LANCAR-VERSAO.md`](LANCAR-VERSAO.md).
+- **`financeiro-atualizar`:** ensaia migrações e testes numa cópia do banco, com o site intacto; só então faz o
+  backup, migra e copia. Se falhar depois disso, volta o código e o banco sozinho. Não há atualização
+  automática: é o dono quem decide, porque são dados financeiros.
+- **Migrações:** a tabela `migracoes` registra o que rodou. Em site anterior a ela, `.na-base` diz o que já está
+  aplicado; o `instalar.php` registra as que o `schema.sql` já contém.
+- **Limite conhecido:** se a volta automática restaurar o banco, perde o que foi lançado nos segundos
+  entre o backup e a falha; o site não entra em manutenção nesse intervalo.
+- **Antes de abrir ao público:** criar um repositório novo, sem o histórico (nomes, valores e o IP da casa);
+  trocar `icones.webp` por ícones de licença livre; definir a licença; apagar `database/seed.php`,
+  que traz nomes e senha fixa, e tirar o IP de `deploy.sh` e `tools/backup-pull.sh`; deixar o nome do banco do
+  empréstimo configurável (hoje os textos citam a POUPEX); e rever as menções pessoais em `docs/decisoes.md`.
+
 ## 2026-11-01 — aba Empréstimo: simular um adiantamento
 
 - **Por quê:** a Natalia sentia falta de um lugar para pôr um valor adiantado e ver quanto falta. O

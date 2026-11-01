@@ -141,4 +141,7 @@ $campo = static function (string $chave, string $rotulo, string $un = '', int $d
             <button type="submit" class="btn btn-primary aj-salvar">Trocar senha</button>
         </form>
     </details>
+
+    <?php $arqVersao = __DIR__ . '/../../../VERSION'; ?>
+    <?php if (is_file($arqVersao)): ?><p class="aj-versao num">Versão <?= e(trim((string) file_get_contents($arqVersao))) ?></p><?php endif; ?>
 </div>

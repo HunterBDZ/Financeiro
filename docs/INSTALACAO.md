@@ -203,15 +203,25 @@ Abra http://127.0.0.1:8099 e entre com `ana` / `demo1234`. O servidor embutido d
 
 ## Atualizar para uma versão nova
 
-1. Faça um backup: `sudo /usr/local/bin/financeiro-backup.sh`.
-2. Baixe a versão: `cd ~/financeiro && git pull`.
-3. Veja se chegou arquivo novo em `database/migrations/`. Se chegou, aplique: `sudo mysql financeiro < database/migrations/ARQUIVO.sql`.
-4. Copie o código, preservando sua configuração:
-   ```sh
-   sudo rsync -a --delete --exclude .git --exclude config/.env ~/financeiro/ /var/www/financeiro/
-   sudo chown -R www-data:www-data /var/www/financeiro
-   ```
-5. Confira: `cd /var/www/financeiro && sudo -u www-data php tests/run.php | tail -1`.
+Um comando faz tudo: baixa a última versão publicada, testa numa cópia do seu banco, faz backup, aplica as mudanças e confere o site. Se falhar antes de mexer no site, nada muda. Se falhar depois, ele volta o código e o banco sozinho.
+
+**Só na primeira vez**, instale o comando, trocando `SEU_USUARIO`:
+
+```sh
+sudo install -m 755 ~/financeiro/tools/financeiro-atualizar.sh /usr/local/bin/financeiro-atualizar
+echo 'REPO=/home/SEU_USUARIO/financeiro' | sudo tee /etc/financeiro-atualizar.conf
+```
+
+**Para atualizar:**
+
+```sh
+sudo financeiro-atualizar --verificar   # mostra se há versão nova e o que muda
+sudo financeiro-atualizar               # atualiza, depois de confirmar
+```
+
+✅ A última linha do resultado traz o backup, e **Ajustes** mostra a versão nova no fim da tela.
+
+O próprio comando não se atualiza: se uma versão mudar `tools/financeiro-atualizar.sh`, o `CHANGELOG.md` avisa para repetir o `sudo install` depois de `git -C ~/financeiro pull`.
 
 ## Restaurar um backup
 
@@ -233,6 +243,8 @@ sudo sh -c 'gunzip -c /var/backups/financeiro/ARQUIVO.sql.gz | mysql financeiro'
 | Página padrão do Apache | O site padrão continua ativo | `sudo a2dissite 000-default && sudo systemctl reload apache2` |
 | `Arquivo de configuração não encontrado` | Falta o `.env`, ou o dono está errado | Refaça o passo 4 |
 | `O banco está sem as tabelas` | O `schema.sql` não foi importado | Refaça o final do passo 3 |
+| `outra atualização está rodando` | Dois comandos ao mesmo tempo | Espere o outro terminar |
+| `os testes da versão … falharam no ensaio` | A versão nova não funciona no seu ambiente | O site não mudou. Não insista e avise quem mantém o projeto |
 | `Este banco já tem usuário` | O instalador já rodou | Nada a fazer: ele nunca altera um banco em uso |
 | Bloqueado no login | 5 tentativas erradas | Espere 10 minutos |
 | `Unknown collation: utf8mb4_0900_ai_ci` | O banco não é MySQL 8 | Use MySQL 8 |

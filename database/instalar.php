@@ -119,6 +119,11 @@ $ajustes = [   // chave, rótulo, valor; o saldo do empréstimo e os parâmetros
 ];
 
 $pdo->beginTransaction();
+// o schema.sql já contém todas as migrações desta versão
+$st = $pdo->prepare('INSERT INTO migracoes (arquivo) VALUES (?)');
+foreach (array_merge(glob(__DIR__ . '/migrations/*.sql') ?: [], glob(__DIR__ . '/migrations/*.php') ?: []) as $m) {
+    $st->execute([basename($m)]);
+}
 $st = $pdo->prepare('INSERT INTO categorias (nome, apelido, grupo, sinal, ordem, essencial) VALUES (?, ?, ?, ?, ?, ?)');
 foreach ($categorias as $i => [$nome, $apelido, $grupo, $sinal, $essencial]) {
     $st->execute([$nome, $apelido, $grupo, $sinal, $i, $essencial]);

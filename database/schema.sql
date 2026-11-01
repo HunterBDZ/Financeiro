@@ -141,6 +141,11 @@ CREATE TABLE `login_tentativas` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `migracoes` (
+  `arquivo` varchar(190) NOT NULL,
+  `aplicada_em` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`arquivo`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 CREATE TABLE `meses` (
   `mes` date NOT NULL,
   `situacao` enum('PREVISAO','REAL') NOT NULL DEFAULT 'PREVISAO',
