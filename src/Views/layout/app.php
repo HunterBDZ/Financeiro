@@ -10,6 +10,7 @@
  */
 use Financeiro\Auth;
 use Financeiro\Idioma;
+use Financeiro\SiteIcone;
 use Financeiro\Temas;
 use Financeiro\View;
 
@@ -64,7 +65,7 @@ $acesaNaBarra = $activePage === 'futuro' ? 'mes' : $activePage;
 $temaConta = Temas::doUsuario();
 $dadosTema = $temaConta !== null ? Temas::todos()[$temaConta] : null;
 $csrfTema = e(csrfToken());
-$marca = '<span class="marca"><img src="/assets/img/spitz.png" alt="" width="216" height="181"></span>';
+$marca = '<span class="marca"><img src="' . e(SiteIcone::url()) . '" alt="" width="96" height="96"></span>';
 ?>
 <!doctype html>
 <html lang="<?= e(Idioma::html()) ?>"<?= $dadosTema !== null ? ' data-theme="' . e((string) $dadosTema['modo']) . '" data-tema="' . e((string) $temaConta) . '"' : '' ?>>
@@ -79,10 +80,7 @@ $marca = '<span class="marca"><img src="/assets/img/spitz.png" alt="" width="216
 <?php endif; ?>
 <meta name="format-detection" content="telephone=no">
 <title><?= e($pageTitle ?? 'financeiro') ?></title>
-<link rel="icon" type="image/png" sizes="32x32" href="/assets/img/icone-32.png">
-<link rel="icon" type="image/png" sizes="64x64" href="/assets/img/icone-64.png">
-<link rel="apple-touch-icon" href="/assets/img/icone-180.png">
-<link rel="preload" href="/assets/fonts/manrope-var-latin.woff2" as="font" type="font/woff2" crossorigin>
+<?= SiteIcone::tags() ?><link rel="preload" href="/assets/fonts/manrope-var-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/assets/fonts/sora-var-latin.woff2" as="font" type="font/woff2" crossorigin>
 <script src="<?= e(asset('/assets/js/theme.js')) ?>"></script>
 <?php if (Idioma::atual() !== Idioma::PADRAO): ?>

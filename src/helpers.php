@@ -429,15 +429,14 @@ function renderErro(int $codigo, string $titulo, string $mensagem): never
 <meta name="theme-color" content="#f4f5f7" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0a0b0f" media="(prefers-color-scheme: dark)">
 <title><?= e((string) $codigo) ?> · financeiro</title>
-<link rel="icon" type="image/png" sizes="32x32" href="/assets/img/icone-32.png">
-<link rel="preload" href="/assets/fonts/manrope-var-latin.woff2" as="font" type="font/woff2" crossorigin>
+<?= \Financeiro\SiteIcone::tags() ?><link rel="preload" href="/assets/fonts/manrope-var-latin.woff2" as="font" type="font/woff2" crossorigin>
 <script src="<?= e(asset('/assets/js/theme.js')) ?>"></script>
 <link rel="stylesheet" href="<?= e(asset($css)) ?>">
 <link rel="stylesheet" href="<?= e(asset('/assets/css/temas.css')) ?>">
 </head>
 <body class="tela-erro">
 <main class="erro">
-    <img class="erro-spitz" src="/assets/img/spitz.png" alt="" width="108" height="91">
+    <img class="erro-marca" src="<?= e(\Financeiro\SiteIcone::url()) ?>" alt="" width="96" height="96">
     <p class="erro-codigo num" aria-hidden="true"><?= e((string) $codigo) ?></p>
     <h1 class="erro-titulo"><?= e(mb_strtoupper(mb_substr($titulo, 0, 1)) . mb_substr($titulo, 1)) ?></h1>
     <p class="erro-msg"><?= e(mb_strtoupper(mb_substr($mensagem, 0, 1)) . mb_substr($mensagem, 1)) ?>.</p>

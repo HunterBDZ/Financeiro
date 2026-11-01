@@ -276,6 +276,16 @@ CREATE TABLE `cotacoes` (
   `buscado_em` datetime NOT NULL,
   PRIMARY KEY (`moeda`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+CREATE TABLE `site_icone` (
+  `id` tinyint unsigned NOT NULL DEFAULT '1',
+  `tipo` varchar(32) NOT NULL,
+  `hash` char(40) NOT NULL,
+  `dados` mediumblob NOT NULL,
+  `atualizado_em` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  CONSTRAINT `chk_site_icone_unico` CHECK ((`id` = 1))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 CREATE TABLE `wishlist_fotos` (
   `item_id` int unsigned NOT NULL,
   `tipo` varchar(32) NOT NULL,

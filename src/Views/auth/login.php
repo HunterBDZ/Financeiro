@@ -3,8 +3,8 @@
  * Login (P4, SPEC §2.9). Página sem o layout. Variáveis: $erro (?string), $expirou (bool),
  * $login (string, o que foi digitado), $lembrar (bool; marcado por padrão — decisão pendente
  * do casal, PESQUISA §5: trocar o padrão é mudar o `checked`).
- * Visual: linhas abstratas na página inteira, a marca com o spitz da casa, o título à esquerda
- * (computador) e o cartão de entrar com o spitz espiando por cima da borda.
+ * Visual: linhas abstratas na página inteira, a marca com o ícone do site, o título à esquerda
+ * (computador) e o cartão de entrar, com o ícone escolhido espiando por cima da borda.
  */
 $erro    = $erro ?? null;
 $expirou = !empty($expirou) && empty($erro);
@@ -21,9 +21,7 @@ $css = array_filter(['/assets/css/style.css', '/assets/css/lancar.css', '/assets
 <meta name="theme-color" content="#0a0b0f" media="(prefers-color-scheme: dark)">
 <meta name="format-detection" content="telephone=no">
 <title><?= e(t('Entrar · financeiro')) ?></title>
-<link rel="icon" type="image/png" sizes="32x32" href="/assets/img/icone-32.png">
-<link rel="apple-touch-icon" href="/assets/img/icone-180.png">
-<link rel="preload" href="/assets/fonts/manrope-var-latin.woff2" as="font" type="font/woff2" crossorigin>
+<?= \Financeiro\SiteIcone::tags() ?><link rel="preload" href="/assets/fonts/manrope-var-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/assets/fonts/sora-var-latin.woff2" as="font" type="font/woff2" crossorigin>
 <script src="<?= e(asset('/assets/js/theme.js')) ?>"></script>
 <?php foreach ($css as $c): ?>
@@ -33,7 +31,7 @@ $css = array_filter(['/assets/css/style.css', '/assets/css/lancar.css', '/assets
 <body class="lg-body">
 <main class="lg">
     <div class="lg-topo">
-        <span class="marca"><img src="/assets/img/spitz.png" alt="" width="216" height="181"></span>
+        <span class="marca"><img src="<?= e(\Financeiro\SiteIcone::url()) ?>" alt="" width="96" height="96"></span>
         <b translate="no">financeiro</b>
         <button type="button" class="ic" data-theme-toggle aria-label="<?= e(t('trocar tema')) ?>"><?= svgIcon('sun', 19, 'so-escuro') ?><?= svgIcon('moon', 19, 'so-claro') ?></button>
     </div>
@@ -44,8 +42,8 @@ $css = array_filter(['/assets/css/style.css', '/assets/css/lancar.css', '/assets
     </div>
 
     <div class="lg-dir">
-        <form class="lg-card" method="post" action="/login">
-            <img class="lg-spitz" src="/assets/img/spitz.png" alt="" width="216" height="181">
+        <form class="lg-card<?= \Financeiro\SiteIcone::personalizado() === null ? ' lg-card-sem-espia' : '' ?>" method="post" action="/login">
+            <?php if (\Financeiro\SiteIcone::personalizado() !== null): ?><img class="lg-espia" src="<?= e(\Financeiro\SiteIcone::url()) ?>" alt="" width="216" height="181"><?php endif; ?>
             <h2 class="lg-card-t"><?= e(t('Entrar')) ?></h2>
             <?= csrfField() ?>
             <label class="lg-campo">

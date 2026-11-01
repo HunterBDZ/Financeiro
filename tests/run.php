@@ -30,6 +30,7 @@ use Financeiro\Controllers\TemaController;
 use Financeiro\Controllers\InvestimentosController;
 use Financeiro\Services\Investimentos;
 use Financeiro\Temas;
+use Financeiro\SiteIcone;
 use Financeiro\Idioma;
 use Financeiro\Controllers\FuturoController;
 use Financeiro\Controllers\LancamentosController;
@@ -210,6 +211,21 @@ if ($catAplic !== false && MotorFinanceiro::linhaDoMes($mesInv) !== null) {
     $check('investimentos: entra no balanço', abs($saiuCom - $saiuSem - 700) < 0.01);
     $check('investimentos: a tela mostra as duas partes', str_contains($htmlInv, 'Outros investimentos') && str_contains($htmlInv, 'Guardado e investido') && str_contains($htmlInv, 'teste'));
 }
+
+// ---- 3e. ícone do site: padrão neutro, opção em Ajustes, nada individual no código
+$pdo->beginTransaction();
+SiteIcone::remover();
+$check('ícone: sem escolha, vale a imagem padrão', str_contains(SiteIcone::url(), SiteIcone::PADRAO) && is_file(__DIR__ . '/../public' . SiteIcone::PADRAO));
+$htmlAjI = $pagina(AjustesController::class, 'index', '/ajustes');
+$check('ícone: Ajustes oferece a troca', str_contains($htmlAjI, 'action="/ajustes/icone"') && str_contains($htmlAjI, 'type="file" name="icone"') && !str_contains($htmlAjI, '/ajustes/icone/remover'));
+$pngT = (string) base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M/wHwAEBgIApD5fRAAAAABJRU5ErkJggg==');
+SiteIcone::salvar('image/png', $pngT);
+$check('ícone: o enviado passa a valer no endereço e pode ser desfeito', SiteIcone::url() === '/icone?v=' . sha1($pngT) && (SiteIcone::arquivo()['dados'] ?? '') === $pngT
+    && str_contains($pagina(AjustesController::class, 'index', '/ajustes'), '/ajustes/icone/remover'));
+SiteIcone::remover();
+$pdo->rollBack();
+$check('ícone: arquivo que não é imagem é recusado', LinkProduto::fotoValida('<?php echo 1;') === null);
+$check('ícone: a imagem individual não está no código', !is_file(__DIR__ . '/../public/assets/img/spitz.png') && !str_contains((string) file_get_contents(__DIR__ . '/../src/Views/layout/app.php'), 'spitz'));
 
 // ---- 4. meta: definir uma meta pinta a barra no mês (verde/vermelho), sem sujar o banco
 $mesMeta = null;

@@ -139,6 +139,7 @@
 }
 @media (min-width: 1280px) {
     .ct { display: grid; grid-template-columns: minmax(0, 1fr) 360px; column-gap: 18px; align-items: start;
+          grid-template-rows: auto auto auto 1fr;   /* a coluna de parcelamentos alta só estica a última linha */
           grid-template-areas: "aviso aviso" "topo topo" "cima lado" "fatura lado"; }
     .ct > .ct-aviso { grid-area: aviso; }
     .ct > .ct-topo { grid-area: topo; }

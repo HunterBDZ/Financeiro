@@ -168,7 +168,8 @@
     background: var(--card); border: 1px solid var(--line); box-shadow: var(--sombra);
     --campo: var(--card-2);
 }
-.lg-spitz { position: absolute; right: 16px; bottom: calc(100% - 1px); width: 108px; height: auto; }   /* espia por cima do cartão */
+.lg-card-sem-espia { margin-top: 24px; }
+.lg-espia { position: absolute; right: 16px; bottom: calc(100% - 1px); width: 108px; height: auto; }   /* espia por cima do cartão */
 .lg-card-t { display: none; font-size: 18px; font-weight: 800; }
 .lg-campo { position: relative; display: block; }
 .lg-campo > svg { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-3); pointer-events: none; }
@@ -191,7 +192,7 @@
     .lg-dir { grid-column: 2; }
     .lg-card { margin-top: 0; padding: 28px; }
     .lg-card-t { display: block; }
-    .lg-spitz { width: 120px; right: 24px; }
+    .lg-espia { width: 120px; right: 24px; }
 }
 
 /* tela larga: o extrato vira tabela (descrição | categoria | valor e dia) */

@@ -2,6 +2,12 @@
 
 Cada versão publicada é uma tag `vX.Y.Z` deste repositório. Sites instalados atualizam com `sudo financeiro-atualizar`.
 
+## 1.3.1
+
+- **Ícone do site:** em Ajustes, dá para enviar a própria imagem. Sem nenhuma, vale uma imagem neutra. Vale para todas as contas do site.
+- Cartão, no computador: a fatura não fica mais separada por um espaço quando a lista de parcelamentos é longa.
+- Migração nova: tabela `site_icone`, aplicada pelo atualizador.
+
 ## 1.3.0
 
 - Aba **Investimentos**: poupança e outros investimentos, com o saldo calculado do valor de partida e dos lançamentos do Extrato. Aplicar e resgatar não contam como renda nem gasto. Rendimentos não entram.

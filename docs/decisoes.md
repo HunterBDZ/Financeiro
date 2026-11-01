@@ -377,3 +377,7 @@ Poupança e outros investimentos, com o saldo = valor de partida (Ajustes) + lan
 - A meta final continua sendo conta + poupança, sem os investimentos.
 - As categorias ficam fixas por enquanto. O nome de cada aplicação vai na descrição do lançamento.
 
+## 2026-11-01 — ícone do site
+
+O ícone fica no banco, em `site_icone`, e vale para o site inteiro, porque a tela de login aparece antes de saber quem entrou. Sem ícone enviado, vale `public/assets/img/marca.svg`. Nenhuma imagem pessoal fica no código. O efeito de espiar por cima do cartão, no login, só aparece com ícone enviado.
+

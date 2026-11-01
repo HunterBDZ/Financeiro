@@ -2,6 +2,8 @@
 namespace Financeiro\Controllers;
 
 use Financeiro\Auth;
+use Financeiro\Services\LinkProduto;
+use Financeiro\SiteIcone;
 use Financeiro\Models\AjusteModel;
 use Financeiro\Models\CategoriaModel;
 use Financeiro\Models\ContaRecorrenteModel;
@@ -59,6 +61,53 @@ final class AjustesController
             'erro'        => is_array($erro) ? $erro : null,
             'login'       => (string) (\Financeiro\Models\UsuarioModel::find((int) Auth::id())['login'] ?? ''),
         ], 'ajustes');
+    }
+
+    /* -------------------------------------------------------------- ícone do site */
+
+    /** GET /icone: sem login, porque aparece também na tela de entrar. O endereço muda quando o ícone muda. */
+    public function icone(): void
+    {
+        $f = SiteIcone::arquivo();
+        if ($f === null) {
+            redirecionar(SiteIcone::PADRAO, 302);
+        }
+        $etag = '"' . $f['hash'] . '"';
+        header('Cache-Control: public, max-age=31536000, immutable');
+        header('ETag: ' . $etag);
+        if (($_SERVER['HTTP_IF_NONE_MATCH'] ?? '') === $etag) {
+            http_response_code(304);
+            return;
+        }
+        header('Content-Type: ' . $f['tipo']);
+        header('Content-Length: ' . strlen($f['dados']));
+        echo $f['dados'];
+    }
+
+    public function salvarIcone(): void
+    {
+        Auth::requireLogin();
+        csrfCheck();
+        $f = $_FILES['icone'] ?? null;
+        $img = is_array($f) && ($f['error'] ?? 1) === UPLOAD_ERR_OK && is_uploaded_file((string) $f['tmp_name'])
+            ? LinkProduto::fotoValida((string) file_get_contents((string) $f['tmp_name']))
+            : null;
+        if ($img === null) {
+            flash('error', t('Essa imagem não serve: use JPG, PNG ou WebP de até 3 MB.'));
+            redirecionar('/ajustes#icone', 303);
+        }
+        SiteIcone::salvar($img['tipo'], $img['dados']);
+        flash('success', t('Ícone salvo.'));
+        redirecionar('/ajustes#icone', 303);
+    }
+
+    public function removerIcone(): void
+    {
+        Auth::requireLogin();
+        csrfCheck();
+        SiteIcone::remover();
+        flash('success', t('Ícone padrão de volta.'));
+        redirecionar('/ajustes#icone', 303);
     }
 
     /* -------------------------------------------------------------- parâmetros e ponto de partida */

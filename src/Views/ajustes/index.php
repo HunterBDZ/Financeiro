@@ -38,6 +38,21 @@ $campo = static function (string $chave, string $rotulo, string $un = '', int $d
 <div class="aj">
     <h1 class="aj-titulo"><?= e(t('Ajustes')) ?></h1>
     <a class="card aj-temas" href="/temas"><?= svgIcon('paleta', 20) ?><span><?= e(t('Temas')) ?></span><?= svgIcon('chevron', 16) ?></a>
+    <section class="card aj-icone" id="icone" aria-labelledby="aj-icone-t">
+        <h2 class="titulo" id="aj-icone-t"><?= e(t('Ícone do site')) ?></h2>
+        <div class="aj-icone-l">
+            <img class="aj-icone-img" src="<?= e(\Financeiro\SiteIcone::url()) ?>" alt="<?= e(t('Ícone atual')) ?>" width="64" height="64">
+            <p class="aj-ajuda"><?= e(\Financeiro\SiteIcone::personalizado() !== null ? t('Vale para todas as contas deste site.') : t('Este é o ícone padrão. Envie uma imagem para trocar; vale para todas as contas deste site.')) ?></p>
+        </div>
+        <form class="aj-icone-form" method="post" action="/ajustes/icone" enctype="multipart/form-data">
+            <?= $csrf ?>
+            <label class="aj-icone-campo"><span><?= e(t('Imagem (JPG, PNG ou WebP, até 3 MB)')) ?></span><input type="file" name="icone" accept="image/jpeg,image/png,image/webp" required></label>
+            <button type="submit" class="btn btn-primary aj-salvar"><?= e(t('Salvar ícone')) ?></button>
+        </form>
+        <?php if (\Financeiro\SiteIcone::personalizado() !== null): ?>
+            <form method="post" action="/ajustes/icone/remover"><?= $csrf ?><button type="submit" class="btn-link"><?= e(t('Voltar ao ícone padrão')) ?></button></form>
+        <?php endif; ?>
+    </section>
     <section class="card aj-idioma" aria-labelledby="aj-idioma-t">
         <h2 class="titulo" id="aj-idioma-t"><?= e(t('Idioma')) ?></h2>
         <?php require __DIR__ . '/../partials/idioma_escolha.php'; ?>

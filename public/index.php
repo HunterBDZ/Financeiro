@@ -106,6 +106,9 @@ $router->post('/ajustes/senha', [AjustesController::class, 'trocarSenha']);
 $router->post('/ajustes/contas', [AjustesController::class, 'salvarConta']);
 $router->post('/ajustes/contas/{id}/remover', [AjustesController::class, 'removerConta']);
 $router->post('/ajustes/essenciais', [AjustesController::class, 'salvarEssenciais']);
+$router->post('/ajustes/icone', [AjustesController::class, 'salvarIcone']);
+$router->post('/ajustes/icone/remover', [AjustesController::class, 'removerIcone']);
+$router->get('/icone', [AjustesController::class, 'icone']);
 $router->post('/ajustes/aparelhos/sair', [AjustesController::class, 'sairAparelhos']);
 
 $router->dispatch($_SERVER['REQUEST_METHOD'], $_SERVER['REQUEST_URI']);
