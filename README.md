@@ -135,7 +135,7 @@ sequenceDiagram
 **Para experimentar**, com dados fictícios, em cerca de 10 minutos ([passo a passo](docs/INSTALACAO.md#caminho-rápido-para-experimentar)). Requer PHP 8.4+ e MySQL 8:
 
 ```sh
-git clone git@github.com:HunterBDZ/financeiro.git && cd financeiro
+git clone git@github.com:HunterBDZ/Financeiro.git && cd financeiro
 sudo mysql -e "CREATE DATABASE financeiro_demo CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
   CREATE USER 'financeiro_demo'@'localhost' IDENTIFIED BY 'demo1234';
   GRANT SELECT, INSERT, UPDATE, DELETE ON financeiro_demo.* TO 'financeiro_demo'@'localhost';"

@@ -32,7 +32,7 @@ php -v
 ### 2. Baixe o código
 
 ```sh
-git clone git@github.com:HunterBDZ/financeiro.git ~/financeiro
+git clone git@github.com:HunterBDZ/Financeiro.git ~/financeiro
 sudo mkdir -p /var/www/financeiro
 sudo rsync -a --exclude .git ~/financeiro/ /var/www/financeiro/
 ```
@@ -184,7 +184,7 @@ Sobe uma cópia descartável, com dados fictícios, só neste computador. Use um
 
 ```sh
 sudo apt install mysql-server php php-mysql php-mbstring git
-git clone git@github.com:HunterBDZ/financeiro.git ~/financeiro-demo
+git clone git@github.com:HunterBDZ/Financeiro.git ~/financeiro-demo
 cd ~/financeiro-demo
 
 sudo mysql -e "CREATE DATABASE financeiro_demo CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;

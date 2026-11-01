@@ -208,7 +208,8 @@ DUMP="$BACKUPS/antes-atualizacao-${ATUAL:-0}-para-$NOVA-$CARIMBO.sql.gz"
 CODIGO="$BACKUPS/codigo-antes-atualizacao-${ATUAL:-0}-para-$NOVA-$CARIMBO.tar.gz"
 mysqldump "${MYSQL_OPCOES[@]}" --single-transaction --routines --triggers --events "$BANCO" | gzip -9 > "$DUMP" \
     || morre "o backup do banco falhou. O site não mudou."
-gzip -t "$DUMP" && zcat "$DUMP" | grep -q 'CREATE TABLE `lancamentos`' || morre "o backup do banco está ruim. O site não mudou."
+# grep -c lê o arquivo inteiro: com -q, zcat morreria de SIGPIPE e o pipefail acusaria backup ruim
+gzip -t "$DUMP" && zcat "$DUMP" | grep -c 'CREATE TABLE `lancamentos`' >/dev/null || morre "o backup do banco está ruim. O site não mudou."
 chmod 600 "$DUMP"
 tar -czf "$CODIGO" -C "$DEST" --exclude=config/.env . || morre "o backup do código falhou. O site não mudou."
 chmod 600 "$CODIGO"
