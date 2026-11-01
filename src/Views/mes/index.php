@@ -75,6 +75,11 @@ $sortDesc($diaEss, $valorDia);
 $sortDesc($diaNaoEss, $valorDia);
 $diaZerEss    = array_values(array_filter($diaZeradas, static fn($l) => $l['essencial']));
 $diaZerNaoEss = array_values(array_filter($diaZeradas, static fn($l) => !$l['essencial']));
+// zeradas com meta continuam no grupo (mostram a meta); as sem meta ficam recolhidas em "Sem movimento"
+$temMeta       = static fn(array $l): bool => (float) ($l['meta'] ?? 0.0) > 0.004;
+$comMetaEss    = array_values(array_filter($diaZerEss, $temMeta));
+$comMetaNaoEss = array_values(array_filter($diaZerNaoEss, $temMeta));
+$semMov        = array_values(array_filter($diaZeradas, static fn($l) => !$temMeta($l)));
 
 $totalEss    = array_sum(array_map($valorConta, $essContas)) + array_sum(array_map($valorDia, $diaEss));
 $totalNaoEss = array_sum(array_map($valorConta, $naoEssContas)) + array_sum(array_map($valorDia, $diaNaoEss));
@@ -319,7 +324,7 @@ $linhaLeitura = static function (array $l, float $v): void { ?>
     <div class="mes-grade">
     <div class="mes-col mes-esq">
 
-        <!-- resumo: o saldo no cartão escuro (o estado vem na etiqueta), entradas e saídas embaixo -->
+        <!-- resumo: o saldo no cartão escuro (o estado vem na etiqueta) e a previsão para o fim do mês -->
         <?php
         $txtConta  = num($emConta);
         $virgula   = strrpos($txtConta, ',');
@@ -329,18 +334,18 @@ $linhaLeitura = static function (array $l, float $v): void { ?>
         <section class="saldo mes-resumo <?= $emConta < -0.004 ? 'is-vermelho' : $nivel ?>" aria-labelledby="mes-res-t">
             <div class="saldo-l1"><h2 id="mes-res-t"><?= substr((string) $hoje, 0, 7) === substr($mes, 0, 7) ? 'Em conta hoje' : 'Conta no fim do mês' ?></h2><span class="saldo-estado num"><?= e($estadoTxt) ?></span></div>
             <p class="saldo-v num"><small>R$</small><?= e($virgula === false ? $txtConta : substr($txtConta, 0, $virgula)) ?><span><?= e($virgula === false ? '' : substr($txtConta, $virgula)) ?></span></p>
-            <div class="saldo-duas num">
-                <div><small>Entradas</small><b class="saldo-pos"><?= e(num($totalEntrou)) ?></b></div>
-                <div><small>Saídas</small><b class="saldo-neg"><?= e(num($totalSaidas)) ?></b></div>
-            </div>
+            <?php if ($estado === 'aberto' && isset($linha['fica_na_conta'])): ?>
+                <p class="saldo-prev num" data-previsao-fim>Previsão para o fim de <?= e(mesExtenso($mes)) ?>: <b><?= e(num((float) $linha['fica_na_conta'], 0)) ?></b></p>
+            <?php endif; ?>
         </section>
 
         <!-- entradas -->
         <section class="card mes-sec" id="entradas">
             <div class="card-head">
-                <h2 class="titulo">Entradas</h2>
+                <h2 class="titulo"><?= $estado === 'real' ? 'Entradas' : 'Entradas previstas' ?></h2>
                 <span class="card-acao num pos"><?= e(num($totalEntrou)) ?></span>
             </div>
+            <?php if ($estado !== 'real' && $consignado > 0.004): ?><p class="mes-nota num"><?= e(num($consignado)) ?> descontados em folha</p><?php endif; ?>
             <?php if ($editavel): ?>
                 <div class="mes-linhas"><?php foreach ($entradas as $l) { $linhaEntrada($l); } ?></div>
             <?php else: ?>
@@ -365,19 +370,28 @@ $linhaLeitura = static function (array $l, float $v): void { ?>
                     <div class="mes-linhas">
                         <?php foreach ($essContas as $l) { $linhaConta($l); } ?>
                         <?php foreach ($diaEss as $l) { $linhaDia($l); } ?>
-                        <?php foreach ($diaZerEss as $l) { $linhaDia($l); } ?>
+                        <?php foreach ($comMetaEss as $l) { $linhaDia($l); } ?>
                     </div>
                 </details>
 
                 <?php
                 $naoEss = array_merge($naoEssContas, $diaNaoEss);
                 usort($naoEss, static fn($a, $b) => ($b['grupo'] === 'Dia a dia' ? $valorDia($b) : $valorConta($b)) <=> ($a['grupo'] === 'Dia a dia' ? $valorDia($a) : $valorConta($a)));
-                $naoEss = array_merge($naoEss, $diaZerNaoEss);
+                $naoEss = array_merge($naoEss, $comMetaNaoEss);
                 if ($naoEss !== []): ?>
                     <details class="mes-grupo" open>
                         <summary class="mes-sub-titulo">Não essenciais <span class="num"><?= e(num($totalNaoEss, 0)) ?></span></summary>
                         <div class="mes-linhas">
                             <?php foreach ($naoEss as $l) { $l['grupo'] === 'Dia a dia' ? $linhaDia($l) : $linhaConta($l); } ?>
+                        </div>
+                    </details>
+                <?php endif; ?>
+
+                <?php if ($semMov !== []): ?>
+                    <details class="mes-grupo mes-sem-mov"<?= array_filter($semMov, $erroDe) !== [] ? ' open' : '' ?>>
+                        <summary class="mes-sub-titulo">Sem movimento <span class="num">(<?= count($semMov) ?>)</span></summary>
+                        <div class="mes-linhas">
+                            <?php foreach ($semMov as $l) { $linhaDia($l); } ?>
                         </div>
                     </details>
                 <?php endif; ?>

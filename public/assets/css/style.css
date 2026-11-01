@@ -728,6 +728,8 @@ details.dobra > summary:hover::after { border-color: var(--text); }
 .saldo.is-acima .saldo-medidor i { background: var(--cofre-ok); }
 .saldo-rod { display: flex; justify-content: space-between; gap: 12px; margin-top: 9px; color: var(--cofre-txt-2); font-size: 13px; white-space: normal; }
 .saldo-rod b { color: var(--cofre-txt); font-weight: 700; }
+.saldo-prev { margin-top: 8px; color: var(--cofre-txt-2); font-size: 13px; }
+.saldo-prev b { color: var(--cofre-txt); font-weight: 700; }
 .saldo-duas { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .saldo-duas > div { padding: 10px 12px; border-radius: 14px; background: rgba(255, 255, 255, .06); }
 .saldo-duas small { display: block; color: var(--cofre-txt-2); font-size: 12.5px; font-weight: 650; }

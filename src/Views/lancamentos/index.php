@@ -210,7 +210,7 @@ $catAtual = $categoria !== null ? (int) $categoria['id'] : 0;
                             <?php $desc = trim((string) $r['descricao']); $rot = $desc !== '' ? $desc : nomeCurto($cat); ?>
                             <li><a class="lista-i ex-linha" href="/lancamentos/<?= (int) $r['id'] ?>/editar?volta=<?= e($voltaEnc) ?>"<?= $i === $limite - 60 && $i > 0 ? ' id="ex-r' . $i . '"' : '' ?>>
                                 <?= iconeCategoria((int) $r['categoria_id'], (string) $r['categoria_nome'], (string) $r['grupo'], 40) ?>
-                                <span class="lista-n"><b><?= e($rot) ?></b><small><?= e(nomeCurto($cat)) ?><?php if (!$agrupado): ?>, <?= e($semana[(int) date('w', strtotime($r['data']))] . ' ' . diaMes($r['data'])) ?><?php endif; ?></small></span>
+                                <span class="lista-n"><b><?= e($rot) ?></b><?php $mesmoNome = mb_strtolower($rot) === mb_strtolower(nomeCurto($cat)); $quando = $agrupado ? '' : $semana[(int) date('w', strtotime($r['data']))] . ' ' . diaMes($r['data']); $sub = implode(', ', array_filter([$mesmoNome ? '' : nomeCurto($cat), $quando])); ?><?php if ($sub !== ''): ?><small><?= e($sub) ?></small><?php endif; ?></span>
                                 <span class="lista-v"><b class="num <?= $cls ?>"><?= e($txt) ?></b><?php if ($r['data'] > $hoje): ?><small class="ex-agendado">agendado</small><?php endif; ?></span>
                             </a></li>
                             <?php $i++; ?>

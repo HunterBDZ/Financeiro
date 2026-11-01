@@ -513,10 +513,18 @@
             setTimeout(function () { toastMsg.innerHTML = html; }, 120);
         }
     }
+    // link para uma linha dentro de um grupo recolhido do Mês: abre o grupo
+    function abrirGrupoDoLink() {
+        var alvo = location.hash.length > 1 ? document.getElementById(location.hash.slice(1)) : null;
+        var grupo = alvo ? alvo.closest('details.mes-sem-mov') : null;
+        if (grupo) { grupo.open = true; alvo.scrollIntoView({ block: 'center' }); }
+    }
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', iniciar);
+        document.addEventListener('DOMContentLoaded', abrirGrupoDoLink);
     } else {
         iniciar();
+        abrirGrupoDoLink();
     }
     // voltar pelo histórico (bfcache) restaura o radio marcado sem disparar change
     window.addEventListener('pageshow', syncTodosQuando);

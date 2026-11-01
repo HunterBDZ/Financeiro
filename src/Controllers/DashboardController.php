@@ -53,7 +53,7 @@ final class DashboardController
             : LancamentoModel::saldoCalculado($saldoIni, $hoje);
 
         $painel = self::painel($matriz[$mesRef] ?? null, $mesRef, $estadoRef);
-        $ultimos = LancamentoModel::listar($mesRef, ['limite' => 6]);
+        $ultimos = LancamentoModel::listar($mesRef, ['limite' => 3]);
 
         // meses anteriores ao calendário ainda abertos: lembrete de fechar
         $alertas = [];
@@ -79,6 +79,8 @@ final class DashboardController
             'mesCal'         => $mesCal,
             'estadoRef'      => $estadoRef,
             'reserva'        => $reserva,
+            'previsaoFim'    => $linhaRef['situacao'] !== 'REAL' ? (float) $linhaRef['fica_na_conta'] : null,
+            'mesPrevisao'    => $mesRef,
             'conta'          => $conta,
             'conf'           => $conf,
             'conferirAberto' => $conferirAberto || $conferirErro !== null,

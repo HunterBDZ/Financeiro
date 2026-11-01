@@ -94,7 +94,7 @@
 .ct-parc-l1 { font-weight: 700; }
 .ct-parc-l1 span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ct-parc .trilho { margin: 4px 0 2px; }
-.ct-parc-l3 { color: var(--text-2); font-size: 12.5px; }
+.ct-parc-l3 { flex-wrap: wrap; color: var(--text-2); font-size: 12.5px; }
 .ct-dados { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; margin-top: 4px; }
 .ct-dados dt { color: var(--text-2); font-size: 12.5px; font-weight: 600; }
 .ct-dados dd { font-weight: 750; }

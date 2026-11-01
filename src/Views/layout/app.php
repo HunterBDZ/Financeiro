@@ -5,7 +5,7 @@
  * Computador: menu lateral (marca, Lançar, abas, Claro/Escuro, quem está e sair).
  * Celular: barra de cima (marca, sol/lua, menu do avatar) e barra flutuante embaixo com o "+" no
  * meio de 4 abas (Início, Extrato, +, Mês, Cartão). O Anual abre pelo seletor de meses do Mês
- * ("Visão anual") e pelo menu do avatar; as Metas, o Empréstimo e a Wishlist, pelo menu do avatar (ao lado de Ajustes).
+ * ("Anual") e pelo menu do avatar; as Metas, o Empréstimo e a Wishlist, pelo menu do avatar (ao lado de Ajustes).
  * CSS/JS dos pacotes entram só se o arquivo existir (D19): nenhum 404 durante o build.
  */
 use Financeiro\Auth;

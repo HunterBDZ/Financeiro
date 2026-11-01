@@ -127,7 +127,7 @@ if ($negMeses !== []) {
 } elseif ($nAbaixo > 0) {
     $titulo = 'A conta fica abaixo da reserva em ' . ($nAbaixo === 1 ? '1 mês' : $nAbaixo . ' meses') . $volta . '.';
 } else {
-    $titulo = 'A conta fica acima da reserva em todos os meses.';
+    $titulo = 'A conta não fica abaixo da reserva em nenhum mês.';
 }
 if ($bate !== null) {
     $metaTxt = 'Bate a meta de ' . num($meta, 0) . ' em ' . monthLabel($bate) . '.';
@@ -293,7 +293,7 @@ $opcoesMes = static function (string $sel) use ($se): string {
 };
 ?>
 <div class="fu<?= $sim ? ' is-sim' : '' ?>">
-    <h1 class="fu-titulo pg-titulo">Os próximos meses</h1>
+    <h1 class="fu-titulo pg-titulo">Anual</h1>
 
     <?php if ($sim): ?>
         <p class="fu-sim" role="status">

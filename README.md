@@ -6,7 +6,7 @@
 
 **O controle financeiro da casa, no seu servidor: lance em segundos, veja como o mês fecha e planeje a quitação do empréstimo.**
 
-[![Versão 1.2.0](https://img.shields.io/badge/vers%C3%A3o-1.2.0-blue)](CHANGELOG.md) ![PHP 8.4+](https://img.shields.io/badge/PHP-8.4%2B-777BB4?logo=php&logoColor=white) ![MySQL 8](https://img.shields.io/badge/MySQL-8-4479A1?logo=mysql&logoColor=white) ![Sem dependências](https://img.shields.io/badge/depend%C3%AAncias-nenhuma-success) ![Privado](https://img.shields.io/badge/uso-pessoal-lightgrey)
+[![Versão 1.2.1](https://img.shields.io/badge/vers%C3%A3o-1.2.1-blue)](CHANGELOG.md) ![PHP 8.4+](https://img.shields.io/badge/PHP-8.4%2B-777BB4?logo=php&logoColor=white) ![MySQL 8](https://img.shields.io/badge/MySQL-8-4479A1?logo=mysql&logoColor=white) ![Sem dependências](https://img.shields.io/badge/depend%C3%AAncias-nenhuma-success) ![Privado](https://img.shields.io/badge/uso-pessoal-lightgrey)
 
 [Diferenciais](#o-que-ele-tem-de-diferente) · [Telas](#telas) · [Como funciona](#como-funciona) · [Instalar](#instalar) · [Atualizar](#atualizar) · [Manual completo](docs/INSTALACAO.md)
 

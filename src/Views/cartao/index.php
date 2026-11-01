@@ -166,7 +166,7 @@ $hrefLancar = '/lancar?pagou=cartao&volta=' . rawurlencode('/cartao');
                             <?= iconeCategoria((int) ($c['categoria_id'] ?? 0), (string) ($c['categoria_nome'] ?? $c['descricao']), (string) ($c['categoria_grupo'] ?? ''), 40) ?>
                             <span class="ct-parc-l1"><span><?= e($c['descricao']) ?></span><span class="num"><?= e(num((float) $pc['valor'])) ?></span></span>
                             <span class="trilho" aria-hidden="true"><i style="--w:<?= (int) round(($pc['agora'] - 1) / $pc['n'] * 100) ?>%"></i></span>
-                            <span class="ct-parc-l3 num"><span><?= $pc['comeca'] > $aberta ? 'começa em ' . e(monthLabel($pc['comeca'])) : $pc['agora'] . ' de ' . $pc['n'] . ' · faltam ' . $pc['faltam'] ?></span><span>última em <?= e(monthLabel($pc['ultima'])) ?></span></span>
+                            <span class="ct-parc-l3 num"><span><?= $pc['comeca'] > $aberta ? 'começa em ' . e(monthLabel($pc['comeca'])) : $pc['agora'] . ' de ' . $pc['n'] . ' · ' . $pc['faltam'] . ' a pagar, contando a aberta' ?></span><span>última em <?= e(monthLabel($pc['ultima'])) ?></span></span>
                         </a></li>
                     <?php endforeach; ?>
                 </ul>

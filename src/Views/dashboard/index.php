@@ -40,7 +40,7 @@ $diaSem    = $diasSem[(int) date('w', $tsHoje)];
 $dataLonga = mb_strtoupper(mb_substr($diaSem, 0, 1)) . mb_substr($diaSem, 1) . ', ' . (int) date('j', $tsHoje) . ' de ' . mesExtenso($hoje);
 
 // cartão do saldo: estado e barra até a reserva
-$estadoSaldo = $vermelho ? 'No vermelho' : ($abaixo ? 'Abaixo da reserva' : 'Acima da reserva');
+$estadoSaldo = $vermelho ? 'No vermelho' : ($abaixo ? 'Abaixo da reserva' : '');
 $clsSaldo    = $vermelho ? 'is-vermelho' : ($abaixo ? 'is-abaixo' : 'is-acima');
 $pReserva    = $reserva > 0.004 ? max(0.0, min(1.0, $conta / $reserva)) * 100 : ($conta >= 0 ? 100.0 : 0.0);
 $txtConta    = num($conta);
@@ -84,7 +84,7 @@ $quandoFoi   = static function (string $data) use ($hoje): string {
             <div class="saldo-l1">
                 <h2 id="saldo-t">Em conta hoje</h2>
                 <button type="button" class="saldo-olho" data-ocultar aria-pressed="false" aria-label="esconder valores"><?= svgIcon('eye', 18, 'olho-aberto') ?><?= svgIcon('eye-off', 18, 'olho-fechado') ?></button>
-                <span class="saldo-estado"><?= e($estadoSaldo) ?></span>
+                <?php if ($estadoSaldo !== ''): ?><span class="saldo-estado"><?= e($estadoSaldo) ?></span><?php endif; ?>
             </div>
             <p class="saldo-v num"><small>R$</small><?= e($contaInt) ?><span><?= e($contaCent) ?></span></p>
             <div class="saldo-medidor" aria-hidden="true"><i style="--p:<?= e(number_format($pReserva, 1, '.', '')) ?>%"></i></div>
@@ -92,6 +92,9 @@ $quandoFoi   = static function (string $data) use ($hoje): string {
                 <span><?php if ($vermelho): ?>Faltam <b><?= e(num(abs($conta))) ?></b> para zerar<?php elseif ($abaixo): ?>Faltam <b><?= e(num(abs($dif))) ?></b> para a reserva<?php else: ?><b><?= e(num($dif)) ?></b> acima da reserva<?php endif; ?></span>
                 <span>Reserva <b><?= e(num($reserva, 0)) ?></b></span>
             </p>
+            <?php if ($previsaoFim !== null): ?>
+                <p class="saldo-prev num" data-previsao-fim>Previsão para o fim de <?= e(mesExtenso($mesPrevisao)) ?>: <b><?= e(num($previsaoFim, 0)) ?></b></p>
+            <?php endif; ?>
         </section>
 
         <!-- o mês em três linhas; o detalhe fica dobrado -->
@@ -207,7 +210,7 @@ $quandoFoi   = static function (string $data) use ($hoje): string {
                         <li>
                             <a class="lista-i" href="/lancamentos/<?= (int) $r['id'] ?>/editar?volta=%2F">
                                 <?= iconeCategoria((int) $r['categoria_id'], (string) $r['categoria_nome'], (string) ($r['grupo'] ?? ''), 40) ?>
-                                <span class="lista-n"><b><?= e($desc !== '' ? $desc : nomeCurto($cat)) ?></b><small><?= e(nomeCurto($cat)) ?></small></span>
+                                <span class="lista-n"><b><?= e($desc !== '' ? $desc : nomeCurto($cat)) ?></b><?php if ($desc !== '' && mb_strtolower($desc) !== mb_strtolower(nomeCurto($cat))): ?><small><?= e(nomeCurto($cat)) ?></small><?php endif; ?></span>
                                 <span class="lista-v"><b class="num <?= $cls ?>"><?= e($txt) ?></b><small><?= e($quandoFoi((string) $r['data'])) ?></small></span>
                             </a>
                         </li>

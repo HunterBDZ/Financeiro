@@ -221,7 +221,7 @@ na máquina .164 (publicado em 10/10/2026) é o primeiro commit daqui; trabalhe 
   círculo e maior. As imagens são © Apple: servem ao uso pessoal deste app, não publicar
   (`tools/icones/CREDITOS.md`); o cache das imagens fica fora do git.
 - **Barra do celular:** com 5 abas o "+" ficava fora do meio. Agora são Início, Extrato, +, Mês,
-  Metas (duas de cada lado). O Anual abre por "Visão anual", no fim do seletor de meses do Mês, e
+  Metas (duas de cada lado). O Anual abre por "Anual", no fim do seletor de meses do Mês, e
   pelo menu do avatar (ao lado de Ajustes), opção escolhida pelo casal; no Anual a aba Mês fica
   acesa. No computador nada muda: o menu lateral continua com todas as telas.
 
@@ -336,3 +336,12 @@ na máquina .164 (publicado em 10/10/2026) é o primeiro commit daqui; trabalhe 
   conseguir importar a view.
 - Instalar do zero: [`INSTALACAO.md`](INSTALACAO.md) e `database/instalar.php`. O `database/seed.php`
   só serve para a importação original da planilha, que fica fora do git.
+
+## 2026-11-01 — auditoria: rótulos antes de cortes
+
+Auditoria das telas e dos acessos de 17/10 a 01/11. O uso pesado é no computador, e a tela mais aberta é o Mês. O maior problema eram rótulos que levavam a uma leitura errada, não o excesso.
+
+- A previsão do fim do mês aparece no Início e no Mês porque "acima da reserva" parece dinheiro livre, e o plano já destinou esse valor. Vem de `fica_na_conta`, o mesmo número do Anual, e um teste confere.
+- O selo só aparece quando a conta está abaixo da reserva ou no vermelho.
+- Metas continua separada do Mês: uma muda todos os meses, a outra muda um. Juntar as duas arrisca alterar o plano inteiro sem querer.
+- O número "Livre até o fim do mês" não entrou: falta decidir se o adiantamento do empréstimo conta.

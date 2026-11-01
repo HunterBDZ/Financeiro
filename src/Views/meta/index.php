@@ -91,12 +91,12 @@ $temAdd = $addEss !== [] || $addNao !== [];
     <!-- orçamento do mês: dê função a cada real -->
     <section class="card meta-top">
         <div class="meta-top-head">
-            <span class="rotulo">Renda do mês</span>
+            <span class="rotulo">Disponível no mês <small class="meta-renda-nota">entradas + sobra anterior</small></span>
             <span class="meta-renda num"><?= e(num($renda, 0)) ?></span>
         </div>
 
         <?php if ($temBar): ?>
-            <button type="button" class="meta-aloc" data-meta-aloc aria-expanded="false" aria-label="Como a renda foi usada. Toque para ver cada meta.">
+            <button type="button" class="meta-aloc" data-meta-aloc aria-expanded="false" aria-label="Como o disponível foi usado. Toque para ver cada meta.">
                 <span class="meta-aloc-seg seg-metas" data-seg-metas style="--w:<?= $pct($pctMetas) ?>"></span>
                 <span class="meta-aloc-seg seg-gasto" data-seg-gasto style="--w:<?= $pct($pctGasto) ?>"></span>
                 <span class="meta-aloc-seg seg-conta" data-seg-conta style="--w:<?= $pct($pctConta) ?>"></span>

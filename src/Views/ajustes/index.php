@@ -42,7 +42,6 @@ $campo = static function (string $chave, string $rotulo, string $un = '', int $d
     <!-- 1: parâmetros -->
     <details class="card dobra aj-grupo" id="parametros"<?= $aberto('parametros') ?>>
         <summary><span class="titulo">Parâmetros</span></summary>
-        <p class="aj-ajuda">Juros, parcela e os outros dados do empréstimo agora ficam na <a class="aj-link" href="/emprestimo?dados=1#emp-dados">aba Empréstimo</a>.</p>
         <form class="aj-form" method="post" action="/ajustes/salvar">
             <?= $csrf ?><input type="hidden" name="grupo" value="parametros">
             <?php $campo('reserva_minima', 'Reserva mínima'); ?>

@@ -134,6 +134,30 @@ foreach ($telas as [$path, $cls, $metodo, $marcador]) {
     }
 }
 
+// ---- 3b. textos da auditoria: rótulos que não enganam e a previsão igual à do Anual
+$pagina = static function (string $cls, string $metodo, string $path): string {
+    $_SERVER['REQUEST_URI'] = $path;
+    $_GET = [];
+    ob_start();
+    (new $cls())->$metodo();
+    return (string) ob_get_clean();
+};
+$htmlIni = $pagina(DashboardController::class, 'index', '/');
+$htmlMes = $pagina(MesController::class, 'index', '/mes');
+$htmlAno = $pagina(FuturoController::class, 'index', '/futuro');
+$htmlMeta = $pagina(MetaController::class, 'index', '/meta');
+$check('Metas não chama o disponível de renda', !str_contains($htmlMeta, 'Renda do mês') && str_contains($htmlMeta, 'Disponível no mês'));
+$check('Anual não diz "acima da reserva em todos os meses"', !str_contains($htmlAno, 'acima da reserva em todos'));
+$check('Início sem o selo "Acima da reserva"', !str_contains($htmlIni, 'Acima da reserva'));
+$mesPrevT = MesModel::referencia(date('Y-m-d'));
+$linhaPrevT = MotorFinanceiro::linhaDoMes($mesPrevT);
+if ($linhaPrevT !== null && $linhaPrevT['situacao'] !== 'REAL') {
+    $valPrevT = num((float) $linhaPrevT['fica_na_conta'], 0);
+    $tagPrev = 'data-previsao-fim>Previsão para o fim de ' . mesExtenso($mesPrevT) . ': <b>' . $valPrevT . '</b>';
+    $check('Início: previsão do fim do mês vem do mesmo plano do Anual', str_contains($htmlIni, $tagPrev) && str_contains($htmlAno, $valPrevT));
+    $check('Mês: previsão do fim do mês igual à do Início', str_contains($htmlMes, $tagPrev));
+}
+
 // ---- 4. meta: definir uma meta pinta a barra no mês (verde/vermelho), sem sujar o banco
 $mesMeta = null;
 $catMeta = null;
@@ -486,7 +510,7 @@ if ($catDia > 0 && count($prevMeses) >= 3) {
 }
 $htmlFu = $render(FuturoController::class, 'index', []);
 $check('anual: resumo, conclusão no título do gráfico, previsão tracejada e total por ano', str_contains($htmlFu, 'class="card fu-res"')
-    && str_contains($htmlFu, 'id="fu-graf-t">A conta fica') && str_contains($htmlFu, 'class="fu-linha is-prev"')
+    && str_contains($htmlFu, 'id="fu-graf-t">A conta ') && str_contains($htmlFu, 'class="fu-linha is-prev"')
     && str_contains($htmlFu, 'class="fu-cols fu-total num"') && !str_contains($htmlFu, 'fu-area'));
 $check('anual: o que mudou no mês, do maior efeito para o menor', $mu['2027-01-01'] === []
     && ($mu['2027-02-01'][0]['nome'] ?? '') === 'IPVA' && abs($mu['2027-02-01'][0]['efeito'] + 1200.0) < 0.01
@@ -670,9 +694,9 @@ $check('dados do empréstimo: recusa parcela zero, número de parcelas quebrado 
 $check('dados do empréstimo: Ajustes não grava mais esses campos', array_diff(AjusteModel::DO_EMPRESTIMO, AjusteModel::EDITAVEIS) === []
     && AjustesController::lerValores(['juros_mes' => '5'], array_diff(AjusteModel::EDITAVEIS, AjusteModel::DO_EMPRESTIMO))['valores'] === []);
 $htmlAj = $render(AjustesController::class, 'index', []);
-$check('dados do empréstimo: saíram de Ajustes, que avisa onde estão', !str_contains($htmlAj, 'valores[juros_mes]') && !str_contains($htmlAj, 'valores[parcela_mensal]')
+$check('dados do empréstimo: saíram de Ajustes', !str_contains($htmlAj, 'valores[juros_mes]') && !str_contains($htmlAj, 'valores[parcela_mensal]')
     && !str_contains($htmlAj, 'valores[n_parcelas]') && !str_contains($htmlAj, 'valores[consignado_inicio]') && !str_contains($htmlAj, 'valores[recebido_emprestimo]')
-    && str_contains($htmlAj, 'valores[reserva_minima]') && str_contains($htmlAj, 'valores[saldo_ini]') && str_contains($htmlAj, '/emprestimo?dados=1#emp-dados'));
+    && str_contains($htmlAj, 'valores[reserva_minima]') && str_contains($htmlAj, 'valores[saldo_ini]') && !str_contains($htmlAj, 'agora ficam'));
 $check('dados do empréstimo: estão na aba, mesmo com a dívida quitada', str_contains($htmlEmp, 'action="/emprestimo/dados"') && str_contains($htmlEmp, 'valores[juros_mes]') && str_contains($htmlEmp, 'valores[saldo_devedor]') && str_contains($htmlEmp, 'valores[saldo_devedor_mes]')
     && str_contains($htmlEmp, 'valores[parcela_mensal]') && str_contains($htmlEmp, 'valores[n_parcelas]') && str_contains($htmlEmp, 'valores[consignado_inicio]') && str_contains($htmlEmp, 'valores[recebido_emprestimo]'));
 $dadosSaldo = array_replace_recursive($dadosEmp, ['aj' => ['saldo_devedor' => 500.0, 'saldo_devedor_mes' => 203002.0]]);
