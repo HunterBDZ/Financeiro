@@ -85,9 +85,9 @@ CREATE TABLE `categorias` (
   `nome` varchar(100) NOT NULL,
   `apelido` varchar(24) DEFAULT NULL,
   `icone` varchar(24) DEFAULT NULL,
-  `grupo` enum('Entradas','Fixos','Dia a dia','Cartao','Ano','Emprestimo','Poupanca') NOT NULL,
+  `grupo` enum('Entradas','Fixos','Dia a dia','Cartao','Ano','Emprestimo','Poupanca','Investimento') NOT NULL,
   `sinal` tinyint NOT NULL,
-  `operacional` tinyint(1) GENERATED ALWAYS AS ((case when (`grupo` in (_utf8mb4'Emprestimo',_utf8mb4'Poupanca')) then 0 else 1 end)) STORED,
+  `operacional` tinyint(1) GENERATED ALWAYS AS ((case when (`grupo` in (_utf8mb4'Emprestimo',_utf8mb4'Poupanca',_utf8mb4'Investimento')) then 0 else 1 end)) STORED,
   `ativo` tinyint(1) NOT NULL DEFAULT '1',
   `ordem` smallint NOT NULL DEFAULT '0',
   `essencial` tinyint(1) NOT NULL DEFAULT '0',
@@ -295,6 +295,7 @@ CREATE TABLE `usuarios` (
   `ultimo_login` timestamp NULL DEFAULT NULL,
   `sessao_versao` int unsigned NOT NULL DEFAULT '0',
   `tema` varchar(24) DEFAULT NULL,
+  `idioma` varchar(5) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `login` (`login`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;

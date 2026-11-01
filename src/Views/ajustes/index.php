@@ -14,7 +14,7 @@ $valorDe = static function (string $chave, int $dec = 2) use ($aj, $erro): strin
 };
 /** "Saldo da conta em 31/08/2026" → "31/08/2026" (a data mora no label do ajuste) */
 $dataDoLabel = static function (string $chave) use ($aj): string {
-    return preg_match('~\d{2}/\d{2}/\d{4}~', $aj[$chave]['label'] ?? '', $m) ? ' em ' . $m[0] : '';
+    return preg_match('~\d{2}/\d{2}/\d{4}~', $aj[$chave]['label'] ?? '', $m) ? $m[0] : '';
 };
 $aberto = static fn(string $g): string => !empty($abertos[$g]) ? ' open' : '';
 $erroDe = static function (string $g) use ($erro): void {
@@ -36,45 +36,50 @@ $campo = static function (string $chave, string $rotulo, string $un = '', int $d
 <?php };
 ?>
 <div class="aj">
-    <h1 class="aj-titulo">Ajustes</h1>
-    <a class="card aj-temas" href="/temas"><?= svgIcon('paleta', 20) ?><span>Temas</span><?= svgIcon('chevron', 16) ?></a>
+    <h1 class="aj-titulo"><?= e(t('Ajustes')) ?></h1>
+    <a class="card aj-temas" href="/temas"><?= svgIcon('paleta', 20) ?><span><?= e(t('Temas')) ?></span><?= svgIcon('chevron', 16) ?></a>
+    <section class="card aj-idioma" aria-labelledby="aj-idioma-t">
+        <h2 class="titulo" id="aj-idioma-t"><?= e(t('Idioma')) ?></h2>
+        <?php require __DIR__ . '/../partials/idioma_escolha.php'; ?>
+    </section>
 
     <!-- 1: parâmetros -->
     <details class="card dobra aj-grupo" id="parametros"<?= $aberto('parametros') ?>>
-        <summary><span class="titulo">Parâmetros</span></summary>
+        <summary><span class="titulo"><?= e(t('Parâmetros')) ?></span></summary>
         <form class="aj-form" method="post" action="/ajustes/salvar">
             <?= $csrf ?><input type="hidden" name="grupo" value="parametros">
-            <?php $campo('reserva_minima', 'Reserva mínima'); ?>
-            <?php $campo('meta_final', 'Meta de conta e poupança' . ($ultLbl !== '' ? ' até ' . $ultLbl : '')); ?>
+            <?php $campo('reserva_minima', t('Reserva mínima')); ?>
+            <?php $campo('meta_final', $ultLbl !== '' ? t('Meta de conta e poupança até {mes}', ['mes' => $ultLbl]) : t('Meta de conta e poupança')); ?>
             <?php $erroDe('parametros'); ?>
-            <button type="submit" class="btn btn-primary aj-salvar">Salvar</button>
+            <button type="submit" class="btn btn-primary aj-salvar"><?= e(t('Salvar')) ?></button>
         </form>
     </details>
 
     <!-- 2: ponto de partida -->
     <details class="card dobra aj-grupo" id="partida"<?= $aberto('partida') ?>>
-        <summary><span class="titulo">Ponto de partida</span></summary>
+        <summary><span class="titulo"><?= e(t('Ponto de partida')) ?></span></summary>
         <form class="aj-form" method="post" action="/ajustes/salvar">
             <?= $csrf ?><input type="hidden" name="grupo" value="partida">
-            <?php $campo('saldo_ini', 'Conta' . $dataDoLabel('saldo_ini')); ?>
-            <?php $campo('poupanca_ini', 'Poupança' . $dataDoLabel('poupanca_ini')); ?>
+            <?php $em = $dataDoLabel('saldo_ini'); $campo('saldo_ini', $em !== '' ? t('Conta em {data}', ['data' => $em]) : t('Conta')); ?>
+            <?php $em = $dataDoLabel('poupanca_ini'); $campo('poupanca_ini', $em !== '' ? t('Poupança em {data}', ['data' => $em]) : t('Poupança')); ?>
+            <?php $em = $dataDoLabel('investimentos_ini'); $campo('investimentos_ini', $em !== '' ? t('Investimentos em {data}', ['data' => $em]) : t('Investimentos')); ?>
             <?php $erroDe('partida'); ?>
-            <button type="submit" class="btn btn-primary aj-salvar">Salvar</button>
+            <button type="submit" class="btn btn-primary aj-salvar"><?= e(t('Salvar')) ?></button>
         </form>
     </details>
 
     <!-- 3: contas recorrentes -->
     <details class="card dobra aj-grupo" id="contas"<?= $aberto('contas') ?>>
-        <summary><span class="titulo">Contas recorrentes</span></summary>
+        <summary><span class="titulo"><?= e(t('Contas recorrentes')) ?></span></summary>
         <?php if ($recorrentes !== []): ?>
             <ul class="aj-contas">
                 <?php foreach ($recorrentes as $r): ?>
                     <li>
                         <span class="aj-conta-nome"><?= e((string) $r['categoria_nome']) ?></span>
-                        <span class="aj-conta-dia num">dia <?= e((string) (int) $r['dia_vencimento']) ?></span>
+                        <span class="aj-conta-dia num"><?= e(t('dia {dia}', ['dia' => (int) $r['dia_vencimento']])) ?></span>
                         <form method="post" action="/ajustes/contas/<?= e((string) (int) $r['id']) ?>/remover">
                             <?= $csrf ?>
-                            <button type="submit" class="aj-x" aria-label="remover <?= e((string) $r['categoria_nome']) ?>"><?= svgIcon('x', 16) ?></button>
+                            <button type="submit" class="aj-x" aria-label="<?= e(t('remover {nome}', ['nome' => (string) $r['categoria_nome']])) ?>"><?= svgIcon('x', 16) ?></button>
                         </form>
                     </li>
                 <?php endforeach; ?>
@@ -83,7 +88,7 @@ $campo = static function (string $chave, string $rotulo, string $un = '', int $d
         <?php if ($elegiveis !== []): ?>
         <form class="aj-nova" method="post" action="/ajustes/contas">
             <?= $csrf ?>
-            <select name="categoria_id" aria-label="conta" required>
+            <select name="categoria_id" aria-label="<?= e(t('conta')) ?>" required>
                 <?php $grupoAtual = null; foreach ($elegiveis as $c): ?>
                     <?php if ($c['grupo'] !== $grupoAtual): ?>
                         <?= $grupoAtual !== null ? '</optgroup>' : '' ?><optgroup label="<?= e(grupoLabel($c['grupo'])) ?>">
@@ -93,8 +98,8 @@ $campo = static function (string $chave, string $rotulo, string $un = '', int $d
                 <?php endforeach; ?>
                 <?= $grupoAtual !== null ? '</optgroup>' : '' ?>
             </select>
-            <label class="aj-dia"><span>dia</span><input type="text" name="dia_vencimento" inputmode="numeric" pattern="[0-9]*" maxlength="2" autocomplete="off" required aria-label="dia do vencimento"></label>
-            <button type="submit" class="btn btn-ghost">Adicionar</button>
+            <label class="aj-dia"><span><?= e(t('dia')) ?></span><input type="text" name="dia_vencimento" inputmode="numeric" pattern="[0-9]*" maxlength="2" autocomplete="off" required aria-label="<?= e(t('dia do vencimento')) ?>"></label>
+            <button type="submit" class="btn btn-ghost"><?= e(t('Adicionar')) ?></button>
         </form>
         <?php endif; ?>
         <?php $erroDe('contas'); ?>
@@ -102,7 +107,7 @@ $campo = static function (string $chave, string $rotulo, string $un = '', int $d
 
     <!-- 4: essenciais -->
     <details class="card dobra aj-grupo" id="essenciais"<?= $aberto('essenciais') ?>>
-        <summary><span class="titulo">Essenciais</span></summary>
+        <summary><span class="titulo"><?= e(t('Essenciais')) ?></span></summary>
         <form class="aj-form" method="post" action="/ajustes/essenciais">
             <?= $csrf ?>
             <?php $grupoAtual = null; foreach ($gastos as $c): ?>
@@ -115,33 +120,33 @@ $campo = static function (string $chave, string $rotulo, string $un = '', int $d
                 <label class="chip-r"><input type="checkbox" name="essencial[]" value="<?= e((string) $c['id']) ?>"<?= (int) $c['essencial'] === 1 ? ' checked' : '' ?>><span><?= e(nomeCurto($c)) ?></span></label>
             <?php endforeach; ?>
             <?= $grupoAtual !== null ? '</div>' : '' ?>
-            <button type="submit" class="btn btn-primary aj-salvar">Salvar</button>
+            <button type="submit" class="btn btn-primary aj-salvar"><?= e(t('Salvar')) ?></button>
         </form>
     </details>
 
     <!-- 5: aparelhos -->
     <details class="card dobra aj-grupo" id="aparelhos"<?= $aberto('aparelhos') ?>>
-        <summary><span class="titulo">Aparelhos</span></summary>
-        <form method="post" action="/ajustes/aparelhos/sair" class="aj-form" data-confirm="Sair de todos os aparelhos? Cada um vai pedir login de novo.">
+        <summary><span class="titulo"><?= e(t('Aparelhos')) ?></span></summary>
+        <form method="post" action="/ajustes/aparelhos/sair" class="aj-form" data-confirm="<?= e(t('Sair de todos os aparelhos? Cada um vai pedir login de novo.')) ?>">
             <?= $csrf ?>
-            <button type="submit" class="btn btn-ghost aj-sair"><?= svgIcon('logout', 16) ?>Sair de todos os aparelhos</button>
+            <button type="submit" class="btn btn-ghost aj-sair"><?= svgIcon('logout', 16) ?><?= e(t('Sair de todos os aparelhos')) ?></button>
         </form>
     </details>
 
     <!-- 6: senha -->
     <details class="card dobra aj-grupo" id="senha"<?= $aberto('senha') ?>>
-        <summary><span class="titulo">Senha</span></summary>
+        <summary><span class="titulo"><?= e(t('Senha')) ?></span></summary>
         <form class="aj-form" method="post" action="/ajustes/senha">
             <?= $csrf ?>
             <input type="text" name="username" value="<?= e((string) ($login ?? '')) ?>" autocomplete="username" hidden>
-            <label class="campo"><span>Senha atual</span><input type="password" name="senha_atual" autocomplete="current-password" required></label>
-            <label class="campo"><span>Nova senha</span><input type="password" name="senha_nova" autocomplete="new-password" minlength="6" required></label>
-            <label class="campo"><span>Repita a nova senha</span><input type="password" name="senha_repetir" autocomplete="new-password" minlength="6" required></label>
+            <label class="campo"><span><?= e(t('Senha atual')) ?></span><input type="password" name="senha_atual" autocomplete="current-password" required></label>
+            <label class="campo"><span><?= e(t('Nova senha')) ?></span><input type="password" name="senha_nova" autocomplete="new-password" minlength="6" required></label>
+            <label class="campo"><span><?= e(t('Repita a nova senha')) ?></span><input type="password" name="senha_repetir" autocomplete="new-password" minlength="6" required></label>
             <?php $erroDe('senha'); ?>
-            <button type="submit" class="btn btn-primary aj-salvar">Trocar senha</button>
+            <button type="submit" class="btn btn-primary aj-salvar"><?= e(t('Trocar senha')) ?></button>
         </form>
     </details>
 
     <?php $arqVersao = __DIR__ . '/../../../VERSION'; ?>
-    <?php if (is_file($arqVersao)): ?><p class="aj-versao num">Versão <?= e(trim((string) file_get_contents($arqVersao))) ?></p><?php endif; ?>
+    <?php if (is_file($arqVersao)): ?><p class="aj-versao num"><?= e(t('Versão {versao}', ['versao' => trim((string) file_get_contents($arqVersao))])) ?></p><?php endif; ?>
 </div>

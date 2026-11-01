@@ -36,10 +36,10 @@ final class PrevisaoEdicao
     public static function celulas(array $d, int $cat, string $mes, string $acao, ?float $valor, bool $propagar): array
     {
         if (!self::editavel($d['cats'][$cat] ?? null)) {
-            throw new \InvalidArgumentException('categoria?');
+            throw new \InvalidArgumentException(t('categoria?'));
         }
         if (!in_array($acao, self::ACOES, true)) {
-            throw new \InvalidArgumentException('ação?');
+            throw new \InvalidArgumentException(t('ação?'));
         }
 
         $situacao = null;
@@ -54,17 +54,18 @@ final class PrevisaoEdicao
             }
         }
         if ($situacao === null) {
-            throw new \InvalidArgumentException('mês?');
+            throw new \InvalidArgumentException(t('mês?'));
         }
         if ($situacao !== 'PREVISAO') {
-            throw new \InvalidArgumentException(monthLabel($mes) . ' está fechado');
+            throw new \InvalidArgumentException(t('{mes} está fechado', ['mes' => monthLabel($mes)]));
         }
 
         $meta = self::meta($d, $cat);
         switch ($acao) {
             case 'salvar':
                 if ($valor === null || $valor < 0 || $valor > self::VALOR_MAX) {
-                    throw new \InvalidArgumentException(self::ERRO_VALOR);
+                    // i18n: t('valor? ex.: 1.200 ou 1.200,50')
+                    throw new \InvalidArgumentException(t(self::ERRO_VALOR));
                 }
                 $v = round($valor, 2);
                 $novo = $meta !== null && abs($v - $meta) < 0.005 ? null : $v;
@@ -74,7 +75,7 @@ final class PrevisaoEdicao
                 break;
             default: // 'meta'
                 if ($meta === null) {
-                    throw new \InvalidArgumentException('sem meta');
+                    throw new \InvalidArgumentException(t('sem meta'));
                 }
                 $novo = null;
         }

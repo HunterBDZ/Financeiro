@@ -23,9 +23,9 @@ $acao = $novo ? '/wishlist' : '/wishlist/' . (int) $item['id'];
     <input type="hidden" name="foto_base64" value="" data-wl-foto64>
     <?php if (!empty($form['erro'])): ?><p class="aviso aviso-error" role="alert"><?= e((string) $form['erro']) ?></p><?php endif; ?>
     <div class="campo">
-        <label for="wl-url-<?= $novo ? 'n' : (int) $item['id'] ?>">Link do produto</label>
-        <input id="wl-url-<?= $novo ? 'n' : (int) $item['id'] ?>" name="url" type="text" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Cole aqui o link da loja" value="<?= e($vUrl) ?>" data-wl-url aria-describedby="wl-url-st-<?= $novo ? 'n' : (int) $item['id'] ?>">
-        <p class="wl-url-st" id="wl-url-st-<?= $novo ? 'n' : (int) $item['id'] ?>" role="status" data-wl-status>O nome, o valor e a foto vêm sozinhos quando a loja permite.</p>
+        <label for="wl-url-<?= $novo ? 'n' : (int) $item['id'] ?>"><?= e(t('Link do produto')) ?></label>
+        <input id="wl-url-<?= $novo ? 'n' : (int) $item['id'] ?>" name="url" type="text" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="<?= e(t('Cole aqui o link da loja')) ?>" value="<?= e($vUrl) ?>" data-wl-url aria-describedby="wl-url-st-<?= $novo ? 'n' : (int) $item['id'] ?>">
+        <p class="wl-url-st" id="wl-url-st-<?= $novo ? 'n' : (int) $item['id'] ?>" role="status" data-wl-status><?= e(t('O nome, o valor e a foto vêm sozinhos quando a loja permite.')) ?></p>
     </div>
     <div class="wl-form-cols">
         <div class="wl-form-foto">
@@ -38,21 +38,21 @@ $acao = $novo ? '/wishlist' : '/wishlist/' . (int) $item['id'];
             </div>
             <label class="btn btn-ghost btn-sm wl-foto-btn">
                 <input type="file" name="foto" accept="image/jpeg,image/png,image/webp" data-wl-arquivo>
-                <span><?= !$novo && $item['foto_hash'] !== null ? 'Trocar foto' : 'Escolher foto' ?></span>
+                <span><?= e(!$novo && $item['foto_hash'] !== null ? t('Trocar foto') : t('Escolher foto')) ?></span>
             </label>
             <?php if (!$novo && $item['foto_hash'] !== null): ?>
-                <label class="wl-tirar-foto"><input type="checkbox" name="remover_foto" value="1"> Tirar a foto</label>
+                <label class="wl-tirar-foto"><input type="checkbox" name="remover_foto" value="1"> <?= e(t('Tirar a foto')) ?></label>
             <?php endif; ?>
         </div>
         <div class="wl-form-dados">
             <div class="campo">
-                <label for="wl-nome-<?= $novo ? 'n' : (int) $item['id'] ?>">Nome</label>
+                <label for="wl-nome-<?= $novo ? 'n' : (int) $item['id'] ?>"><?= e(t('Nome')) ?></label>
                 <input id="wl-nome-<?= $novo ? 'n' : (int) $item['id'] ?>" name="nome" type="text" maxlength="160" autocomplete="off" value="<?= e($vNome) ?>" data-wl-nome>
             </div>
             <div class="campo">
-                <label for="wl-valor-<?= $novo ? 'n' : (int) $item['id'] ?>">Valor</label>
+                <label for="wl-valor-<?= $novo ? 'n' : (int) $item['id'] ?>"><?= e(t('Valor')) ?></label>
                 <span class="emp-valor wl-valor">
-                    <select name="moeda" aria-label="Moeda" data-wl-moeda>
+                    <select name="moeda" aria-label="<?= e(t('Moeda')) ?>" data-wl-moeda>
                         <?php foreach (Cotacao::MOEDAS as $cod => [$nomeMoeda, $simbolo]): ?>
                             <option value="<?= e($cod) ?>"<?= $cod === $vMoeda ? ' selected' : '' ?>><?= e($simbolo === $cod ? $cod : $simbolo . ' ' . $nomeMoeda) ?></option>
                         <?php endforeach; ?>
@@ -63,5 +63,5 @@ $acao = $novo ? '/wishlist' : '/wishlist/' . (int) $item['id'];
             </div>
         </div>
     </div>
-    <button class="btn btn-primary wl-salvar" type="submit" data-wl-salvar><?= $novo ? 'Adicionar à lista' : 'Salvar' ?></button>
+    <button class="btn btn-primary wl-salvar" type="submit" data-wl-salvar><?= e($novo ? t('Adicionar à lista') : t('Salvar')) ?></button>
 </form>

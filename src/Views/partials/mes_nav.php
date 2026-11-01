@@ -39,15 +39,15 @@ foreach ($lista as $k) {
     $porAno[substr($k, 0, 4)][] = $k;
 }
 ?>
-<nav class="mes-nav" aria-label="mês">
+<nav class="mes-nav" aria-label="<?= e(t('mês')) ?>">
     <?php if ($anterior !== null): ?>
         <a class="mes-nav-seta" href="<?= e($href . $anterior . $sufixo) ?>" rel="prev" aria-label="<?= e(monthLabel($anterior)) ?>">‹</a>
     <?php else: ?>
         <span class="mes-nav-seta is-off" aria-hidden="true">‹</span>
     <?php endif; ?>
-    <h1 class="sr-only"><?= e($extenso . ' de ' . $ano) ?></h1>
+    <h1 class="sr-only"><?= e(t('{mes} de {ano}', ['mes' => $extenso, 'ano' => $ano])) ?></h1>
     <details class="menu mes-picker" data-mes-picker>
-        <summary aria-label="<?= e($extenso . ' de ' . $ano . ', trocar o mês') ?>">
+        <summary aria-label="<?= e(t('{mes} de {ano}, trocar o mês', ['mes' => $extenso, 'ano' => $ano])) ?>">
             <span class="mes-nav-t" aria-hidden="true"><?= e($extenso) ?> <span class="mes-nav-ano num"><?= e($ano) ?></span></span>
             <?= svgIcon('chevron', 18, 'mes-picker-seta') ?>
         </summary>
@@ -59,18 +59,18 @@ foreach ($lista as $k) {
                         $est = estadoMes($k, $situacoes[$k], $hoje);
                         $atual = $k === $mes; ?>
                         <li><a class="mes-picker-m estado-<?= e($est) ?><?= $atual ? ' is-on' : '' ?>" href="<?= e($href . $k . $sufixo) ?>"<?= $atual ? ' aria-current="page"' : '' ?>>
-                            <span><?= e(mesCurto($k)) ?></span><i class="ponto-estado" aria-hidden="true"></i><span class="sr-only"> de <?= e($a) ?>, <?= e(mb_strtolower(estadoLabel($est))) ?></span>
+                            <span><?= e(mesCurto($k)) ?></span><i class="ponto-estado" aria-hidden="true"></i><span class="sr-only"> <?= e(t('de {ano}, {estado}', ['ano' => $a, 'estado' => mb_strtolower(estadoLabel($est))])) ?></span>
                         </a></li>
                     <?php endforeach; ?>
                 </ol>
             <?php endforeach; ?>
             <p class="mes-picker-leg" aria-hidden="true">
-                <span class="leg-real"><i class="ponto-estado"></i>Fechado</span>
-                <span class="leg-aberto"><i class="ponto-estado"></i>Aberto</span>
-                <span class="leg-previsto"><i class="ponto-estado"></i>Previsto</span>
+                <span class="leg-real"><i class="ponto-estado"></i><?= e(t('Fechado')) ?></span>
+                <span class="leg-aberto"><i class="ponto-estado"></i><?= e(t('Aberto')) ?></span>
+                <span class="leg-previsto"><i class="ponto-estado"></i><?= e(t('Previsto')) ?></span>
             </p>
             <?php if ($anual): ?>
-                <a class="mes-picker-anual" href="/futuro"><?= svgIcon('trend', 18) ?><span>Anual</span><?= svgIcon('chevron', 16) ?></a>
+                <a class="mes-picker-anual" href="/futuro"><?= svgIcon('trend', 18) ?><span><?= e(t('Anual')) ?></span><?= svgIcon('chevron', 16) ?></a>
             <?php endif; ?>
         </div>
     </details>

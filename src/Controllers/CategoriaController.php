@@ -27,22 +27,22 @@ final class CategoriaController
         $icone = is_string($_POST['icone'] ?? null) && Icones::existe($_POST['icone']) ? $_POST['icone'] : null;
 
         if ($nome === '') {
-            flash('error', 'nome da categoria?');
+            flash('error', t('nome da categoria?'));
             redirecionar($volta . '#nova-categoria', 303);
         }
         if (mb_strlen($nome) > 100) {
-            flash('error', 'nome longo');
+            flash('error', t('nome longo'));
             redirecionar($volta . '#nova-categoria', 303);
         }
 
         $id = CategoriaModel::criar($nome, $tipo, $essencial, $icone);
         if ($id === null) {
-            flash('error', 'já existe uma categoria "' . $nome . '"');
+            flash('error', t('já existe uma categoria "{nome}"', ['nome' => $nome]));
             redirecionar($volta . '#nova-categoria', 303);
         }
 
-        $rotulo = $tipo === 'entrada' ? 'entrada' : ($essencial ? 'gasto essencial' : 'gasto não essencial');
-        flash('success', $nome . ' criada · ' . $rotulo);
+        $rotulo = $tipo === 'entrada' ? t('entrada') : ($essencial ? t('gasto essencial') : t('gasto não essencial'));
+        flash('success', t('{nome} criada · {tipo}', ['tipo' => $rotulo, 'nome' => $nome]));
         redirecionar($volta, 303);
     }
 
@@ -52,11 +52,11 @@ final class CategoriaController
         Auth::requireLogin();
         $cat = CategoriaModel::find((int) $id);
         if ($cat === null) {
-            renderErro(404, 'categoria não encontrada', 'essa categoria não existe mais');
+            renderErro(404, t('categoria não encontrada'), t('essa categoria não existe mais'));
         }
         $volta = voltaSegura(is_string($_GET['volta'] ?? null) ? $_GET['volta'] : null, '/lancamentos#nova-categoria');
         View::render('categorias/icone', [
-            'pageTitle' => 'Ícone de ' . nomeCurto($cat) . ' · financeiro',
+            'pageTitle' => t('Ícone de {nome} · financeiro', ['nome' => nomeCurto($cat)]),
             'cat'       => $cat,
             'atual'     => Icones::daCategoria((int) $cat['id'], (string) $cat['nome'], (string) $cat['grupo']),
             'volta'     => $volta,
@@ -73,15 +73,15 @@ final class CategoriaController
         $cat   = CategoriaModel::find((int) $id);
         $icone = is_string($_POST['icone'] ?? null) ? $_POST['icone'] : '';
         if ($cat === null) {
-            flash('error', 'categoria não encontrada');
+            flash('error', t('categoria não encontrada'));
             redirecionar($volta, 303);
         }
         if (!Icones::existe($icone)) {
-            flash('error', 'escolha um ícone');
+            flash('error', t('escolha um ícone'));
             redirecionar('/categorias/' . (int) $id . '/icone?volta=' . rawurlencode($volta), 303);
         }
         CategoriaModel::setIcone((int) $id, $icone);
-        flash('success', 'Ícone de ' . nomeCurto($cat) . ' trocado · ' . Icones::rotulo($icone));
+        flash('success', t('Ícone de {nome} trocado · {icone}', ['icone' => Icones::rotulo($icone), 'nome' => nomeCurto($cat)]));
         redirecionar($volta, 303);
     }
 
@@ -97,9 +97,9 @@ final class CategoriaController
 
         $r = CategoriaModel::remover((int) $id);
         match ($r) {
-            'apagada'   => flash('success', $nome . ' apagada'),
-            'arquivada' => flash('success', $nome . ' arquivada · fora das listas, histórico mantido'),
-            default     => flash('error', 'categoria não encontrada'),
+            'apagada'   => flash('success', t('{nome} apagada', ['nome' => $nome])),
+            'arquivada' => flash('success', t('{nome} arquivada · fora das listas, histórico mantido', ['nome' => $nome])),
+            default     => flash('error', t('categoria não encontrada')),
         };
         redirecionar($volta . '#nova-categoria', 303);
     }

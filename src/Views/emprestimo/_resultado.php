@@ -11,15 +11,16 @@ if ($erro !== null): ?>
     <p class="aviso aviso-error" role="alert"><?= e($erro) ?></p>
 <?php return; endif;
 if ($sim === null): ?>
-    <section class="card emp-convite"><p>Digite um valor para ver quanto falta depois, quando o empréstimo acaba e quanto de juros vocês deixam de pagar.</p></section>
+    <section class="card emp-convite"><p><?= e(t('Digite um valor para ver quanto falta depois, quando o empréstimo acaba e quanto de juros deixa de pagar.')) ?></p></section>
 <?php return; endif;
 
 $rot = monthLabel($sim['mes']);
 $quitaAgora = $sim['falta'] <= 0.01;
 $antes = $sim['mesesAntes'];
-$antesTxt = $antes === null || $antes < 1 ? '' : ($antes === 1 ? '1 mês antes' : ($antes >= 24 && $antes % 12 === 0 ? ($antes / 12) . ' anos antes' : $antes . ' meses antes'));
-$anuncio = 'Com ' . money((float) $sim['aplicado']) . ' em ' . $rot . ', falta ' . money((float) $sim['falta'])
-    . ($sim['quita'] !== null ? ' e termina em ' . monthLabel($sim['quita']) : '') . '.';
+$antesTxt = $antes === null || $antes < 1 ? '' : ($antes >= 24 && $antes % 12 === 0 ? t('{n} anos antes', ['n' => $antes / 12]) : tn($antes, '1 mês antes', '{n} meses antes'));
+$anuncio = $sim['quita'] !== null
+    ? t('Com {valor} em {mes}, falta {falta} e termina em {fim}.', ['valor' => money((float) $sim['aplicado']), 'mes' => $rot, 'falta' => money((float) $sim['falta']), 'fim' => monthLabel($sim['quita'])])
+    : t('Com {valor} em {mes}, falta {falta}.', ['valor' => money((float) $sim['aplicado']), 'mes' => $rot, 'falta' => money((float) $sim['falta'])]);
 
 // gráfico: dívida de hoje até acabar, com e sem o adiantamento (linhas de estilos diferentes)
 $curva = $sim['curva'];
@@ -46,29 +47,29 @@ foreach ($curva as $i => $c) {
 }
 ?>
 <section class="card emp-res" aria-labelledby="emp-res-t" data-anuncio="<?= e($anuncio) ?>">
-    <h2 class="emp-res-t" id="emp-res-t">Adiantando <?= e(money((float) $sim['aplicado'])) ?> em <?= e($rot) ?></h2>
+    <h2 class="emp-res-t" id="emp-res-t"><?= e(t('Adiantando {valor} em {mes}', ['valor' => money((float) $sim['aplicado']), 'mes' => $rot])) ?></h2>
     <?php if ($sim['ajustado']): ?>
-        <p class="aviso">O valor passa da dívida de <?= e($rot) ?>: considerei <?= e(money((float) $sim['aplicado'])) ?>, que quita tudo.</p>
+        <p class="aviso"><?= e(t('O valor passa da dívida de {mes}: considerei {valor}, que quita tudo.', ['mes' => $rot, 'valor' => money((float) $sim['aplicado'])])) ?></p>
     <?php endif; ?>
 
-    <p class="emp-res-v num"><small>Falta depois</small><b><?= $quitaAgora ? 'Nada: quitado' : e(money((float) $sim['falta'])) ?></b></p>
+    <p class="emp-res-v num"><small><?= e(t('Falta depois')) ?></small><b><?= $quitaAgora ? e(t('Nada: quitado')) : e(money((float) $sim['falta'])) ?></b></p>
     <dl class="emp-dl num">
-        <div><dt>Termina em</dt><dd><?= $sim['quita'] !== null ? e(monthLabel($sim['quita'])) : 'não dá para dizer' ?><?php if ($antesTxt !== ''): ?><small class="pos"><?= e($antesTxt) ?></small><?php endif; ?></dd></div>
-        <div><dt>Juros a menos</dt><dd<?= $sim['jurosMenos'] !== null ? ' class="pos"' : '' ?>><?= $sim['jurosMenos'] !== null ? 'R$' . NBSP . e(num((float) $sim['jurosMenos'], 0)) : '—' ?></dd></div>
-        <div><dt>Conta no fim de <?= e($rot) ?></dt><dd<?= $sim['contaDepois'] < -0.004 ? ' class="neg"' : '' ?>><?= e(num((float) $sim['contaDepois'], 0)) ?><small>sem adiantar, <?= e(num((float) $sim['contaAntes'], 0)) ?></small></dd></div>
+        <div><dt><?= e(t('Termina em')) ?></dt><dd><?= $sim['quita'] !== null ? e(monthLabel($sim['quita'])) : e(t('não dá para dizer')) ?><?php if ($antesTxt !== ''): ?><small class="pos"><?= e($antesTxt) ?></small><?php endif; ?></dd></div>
+        <div><dt><?= e(t('Juros a menos')) ?></dt><dd<?= $sim['jurosMenos'] !== null ? ' class="pos"' : '' ?>><?= $sim['jurosMenos'] !== null ? 'R$' . NBSP . e(num((float) $sim['jurosMenos'], 0)) : '—' ?></dd></div>
+        <div><dt><?= e(t('Conta no fim de {mes}', ['mes' => $rot])) ?></dt><dd<?= $sim['contaDepois'] < -0.004 ? ' class="neg"' : '' ?>><?= e(num((float) $sim['contaDepois'], 0)) ?><small><?= e(t('sem adiantar, {valor}', ['valor' => num((float) $sim['contaAntes'], 0)])) ?></small></dd></div>
     </dl>
 
     <?php if ($sim['alerta'] !== null): ?>
-        <p class="aviso <?= $sim['alerta'] === 'neg' ? 'aviso-error' : 'aviso-warn' ?>"><?= $sim['alerta'] === 'neg' ? 'A conta fica no vermelho: ' : 'A conta fica abaixo da reserva: ' ?><?= e(money((float) $sim['pior']['fica'])) ?> em <?= e(monthLabel($sim['pior']['mes'])) ?>.</p>
+        <p class="aviso <?= $sim['alerta'] === 'neg' ? 'aviso-error' : 'aviso-warn' ?>"><?= e($sim['alerta'] === 'neg' ? t('A conta fica no vermelho: {valor} em {mes}.', ['valor' => money((float) $sim['pior']['fica']), 'mes' => monthLabel($sim['pior']['mes'])]) : t('A conta fica abaixo da reserva: {valor} em {mes}.', ['valor' => money((float) $sim['pior']['fica']), 'mes' => monthLabel($sim['pior']['mes'])])) ?></p>
     <?php endif; ?>
 
     <?php if ($nC > 1): ?>
         <figure class="emp-graf">
             <figcaption class="emp-leg">
-                <span><i class="emp-l-antes" aria-hidden="true"></i>Só com as parcelas</span>
-                <span><i class="emp-l-com" aria-hidden="true"></i>Com o adiantamento</span>
+                <span><i class="emp-l-antes" aria-hidden="true"></i><?= e(t('Só com as parcelas')) ?></span>
+                <span><i class="emp-l-com" aria-hidden="true"></i><?= e(t('Com o adiantamento')) ?></span>
             </figcaption>
-            <svg viewBox="0 0 <?= $VW ?> <?= $VH ?>" preserveAspectRatio="none" role="img" focusable="false" aria-label="<?= e('Dívida no fim de cada mês, de ' . monthLabel($curva[0]['mes']) . ' a ' . monthLabel($curva[$nC - 1]['mes']) . '. ' . $anuncio) ?>">
+            <svg viewBox="0 0 <?= $VW ?> <?= $VH ?>" preserveAspectRatio="none" role="img" focusable="false" aria-label="<?= e(t('Dívida no fim de cada mês, de {de} a {ate}. {anuncio}', ['de' => monthLabel($curva[0]['mes']), 'ate' => monthLabel($curva[$nC - 1]['mes']), 'anuncio' => $anuncio])) ?>">
                 <line class="emp-base" x1="0" x2="<?= $VW ?>" y1="<?= $VH ?>" y2="<?= $VH ?>"/>
                 <polyline class="emp-antes" points="<?= e($pts('antes')) ?>"/>
                 <polyline class="emp-com" points="<?= e($pts('com')) ?>"/>
@@ -76,13 +77,13 @@ foreach ($curva as $i => $c) {
             <div class="emp-eixo num"><span><?= e(monthLabel($curva[0]['mes'])) ?></span><span><?= e(monthLabel($curva[$nC - 1]['mes'])) ?></span></div>
         </figure>
         <details class="dobra emp-anos">
-            <summary>Ver ano a ano</summary>
+            <summary><?= e(t('Ver ano a ano')) ?></summary>
             <div class="emp-tab-rola">
                 <table class="num">
-                    <thead><tr><th scope="col">Fim de</th><th scope="col">Só parcelas</th><th scope="col">Com adiantamento</th></tr></thead>
+                    <thead><tr><th scope="col"><?= e(t('Fim de')) ?></th><th scope="col"><?= e(t('Só parcelas')) ?></th><th scope="col"><?= e(t('Com adiantamento')) ?></th></tr></thead>
                     <tbody>
                         <?php foreach ($anos as $c): ?>
-                            <tr><th scope="row"><?= e(monthLabel($c['mes'])) ?></th><td><?= e(num((float) $c['antes'], 0)) ?></td><td><?= (float) $c['com'] > 0.01 ? e(num((float) $c['com'], 0)) : 'quitado' ?></td></tr>
+                            <tr><th scope="row"><?= e(monthLabel($c['mes'])) ?></th><td><?= e(num((float) $c['antes'], 0)) ?></td><td><?= (float) $c['com'] > 0.01 ? e(num((float) $c['com'], 0)) : e(t('quitado')) ?></td></tr>
                         <?php endforeach; ?>
                     </tbody>
                 </table>
@@ -92,12 +93,12 @@ foreach ($curva as $i => $c) {
 
     <?php if ($sim['menorParcela'] !== null): ?>
         <details class="dobra emp-anos">
-            <summary>Se a instituição baixar a parcela em vez do prazo</summary>
-            <p class="emp-parc">A parcela vai a cerca de <b><?= e(money((float) $sim['menorParcela']['parcela'])) ?></b>, termina em <?= e(monthLabel($sim['menorParcela']['quita'])) ?> e os juros caem cerca de <?= 'R$' . NBSP . e(num((float) $sim['menorParcela']['jurosMenos'], 0)) ?>. Encurtar o prazo economiza mais; aliviar a parcela sobra mais por mês.</p>
+            <summary><?= e(t('Se a instituição baixar a parcela em vez do prazo')) ?></summary>
+            <p class="emp-parc"><?= t('A parcela vai a cerca de {parcela}, termina em {fim} e os juros caem cerca de {juros}. Encurtar o prazo economiza mais; aliviar a parcela sobra mais por mês.', ['parcela' => '<b>' . e(money((float) $sim['menorParcela']['parcela'])) . '</b>', 'fim' => e(monthLabel($sim['menorParcela']['quita'])), 'juros' => 'R$' . NBSP . e(num((float) $sim['menorParcela']['jurosMenos'], 0))]) ?></p>
         </details>
     <?php endif; ?>
 
     <?php if ($catAmort !== null): ?>
-        <a class="btn btn-ghost btn-block" href="#emp-consolidar">Já paguei: consolidar este adiantamento</a>
+        <a class="btn btn-ghost btn-block" href="#emp-consolidar"><?= e(t('Já paguei: consolidar este adiantamento')) ?></a>
     <?php endif; ?>
 </section>

@@ -9,6 +9,7 @@
 (function () {
     'use strict';
 
+    var T = window.T || function (s) { return s; };   // a tela de login usa este script sem i18n.js
     var root = document.documentElement;
 
     // o tema em vigor: o escolhido ou, sem escolha, o do aparelho
@@ -54,7 +55,7 @@
         var oculto = root.classList.contains('valores-ocultos');
         document.querySelectorAll('[data-ocultar]').forEach(function (b) {
             b.setAttribute('aria-pressed', oculto ? 'true' : 'false');
-            b.setAttribute('aria-label', oculto ? 'mostrar valores' : 'esconder valores');
+            b.setAttribute('aria-label', oculto ? T('mostrar valores') : T('esconder valores'));
         });
     }
     marcarOlho();
@@ -268,8 +269,9 @@
                 cat.classList.add(r > 1.0001 ? 'is-over' : (r >= 0.8 ? 'is-near' : 'is-ok'));
                 var resto = meta - gasto;
                 if (nums) {
-                    nums.textContent = fmtBR(gasto) + ' de ' + fmtBR(meta) +
-                        (resto >= -0.004 ? ', restam ' + fmtBR(Math.max(0, resto)) : ', passou ' + fmtBR(-resto));
+                    nums.textContent = resto >= -0.004
+                        ? T('{gasto} de {meta}, restam {resto}', { gasto: fmtBR(gasto), meta: fmtBR(meta), resto: fmtBR(Math.max(0, resto)) })
+                        : T('{gasto} de {meta}, passou {resto}', { gasto: fmtBR(gasto), meta: fmtBR(meta), resto: fmtBR(-resto) });
                 }
                 totalMeta += meta;
                 gastoComMeta += gasto;
@@ -277,7 +279,7 @@
             } else {
                 if (fill) { fill.style.setProperty('--pct', '0%'); }
                 cat.classList.add('is-none');
-                if (nums) { nums.textContent = gasto > 0.004 ? ('Gasto ' + fmtBR(gasto)) : 'Defina a meta'; }
+                if (nums) { nums.textContent = gasto > 0.004 ? T('Gasto {valor}', { valor: fmtBR(gasto) }) : T('Defina a meta'); }
             }
         }
 
@@ -294,7 +296,7 @@
         setTxt('[data-v-metaalvo]', fmtBR(totalMeta));
         setTxt('[data-v-gasto]', fmtBR(gastoSemMeta));
         setTxt('[data-v-conta]', fmtBR(Math.abs(emConta)));
-        setTxt('[data-conta-lbl]', noVermelho ? 'No vermelho' : 'Em conta');
+        setTxt('[data-conta-lbl]', noVermelho ? T('No vermelho') : T('Em conta'));
         var cbox = pg.querySelector('[data-conta-box]');
         if (cbox) {
             cbox.classList.remove('is-neg', 'is-pos');
@@ -334,7 +336,7 @@
         rows.sort(function (a, b) { return b.gasto - a.gasto; });
         if (rows.length === 0 || tot <= 0) {
             if (segM) { segM.innerHTML = ''; }
-            det.innerHTML = '<p class="aloc-det-vazio">Ainda não há gasto nas categorias com meta.</p>';
+            det.innerHTML = '<p class="aloc-det-vazio">' + T('Ainda não há gasto nas categorias com meta.') + '</p>';
             return;
         }
         var segHtml = '', detHtml = '';
@@ -388,7 +390,7 @@
     function metaOpcaoDeVolta(pg, id, nome, grupo, gasto, icone) {
         var sel = pg.querySelector('[data-meta-add]');
         if (!sel) { return; }
-        var rotulo = grupo === 'ess' ? 'Essenciais' : 'Não essenciais';
+        var rotulo = grupo === 'ess' ? T('Essenciais') : T('Não essenciais');
         var og = null, ogs = sel.querySelectorAll('optgroup');
         for (var i = 0; i < ogs.length; i++) { if (ogs[i].label === rotulo) { og = ogs[i]; break; } }
         if (!og) {
@@ -406,7 +408,7 @@
         sel.disabled = false;
         var btn = pg.querySelector('.meta-add-btn'); if (btn) { btn.disabled = false; }
         var first = sel.querySelector('option[value=""]');
-        if (first) { first.textContent = 'Escolher categoria…'; }
+        if (first) { first.textContent = T('Escolher categoria…'); }
     }
     function metaAdiciona(pg, opt) {
         var id = opt.value;
@@ -488,7 +490,7 @@
     document.addEventListener('submit', function (ev) {
         var form = ev.target;
         if (form instanceof Element && form.matches('[data-confirm]')) {
-            if (!window.confirm(form.getAttribute('data-confirm') || 'Confirmar?')) {
+            if (!window.confirm(form.getAttribute('data-confirm') || T('Confirmar?'))) {
                 ev.preventDefault();
             }
         }

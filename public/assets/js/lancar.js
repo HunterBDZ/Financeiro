@@ -232,10 +232,10 @@
         var erro = null;
         var foco = null;
         if (valor && !/[1-9]/.test(valor.value)) {
-            erro = 'Digite o valor.';
+            erro = T('Digite o valor.');
             foco = valor;
         } else if (!categoriaDe(form)) {
-            erro = 'Escolha a categoria.';
+            erro = T('Escolha a categoria.');
             foco = campoCategoria(form);
         }
         if (erro) {

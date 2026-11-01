@@ -20,7 +20,7 @@ final class PrevisaoModel
              FROM categorias c
              LEFT JOIN previsao_efetiva p ON p.categoria_id = c.id AND p.mes = :mes
              WHERE c.ativo = 1
-             ORDER BY FIELD(c.grupo, "Entradas","Fixos","Dia a dia","Cartao","Ano","Emprestimo","Poupanca"), c.ordem, c.nome'
+             ORDER BY FIELD(c.grupo, "Entradas","Fixos","Dia a dia","Cartao","Ano","Emprestimo","Poupanca","Investimento"), c.ordem, c.nome'
         );
         $stmt->execute(['mes' => $mes]);
         return $stmt->fetchAll();

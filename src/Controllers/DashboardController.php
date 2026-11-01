@@ -27,7 +27,7 @@ final class DashboardController
             ? MotorFinanceiro::calcularPlano()
             : MotorFinanceiro::calcular(MotorFinanceiro::dados(), ['hoje' => $hoje]);
         if ($plano === []) {
-            View::render('dashboard/vazio', ['pageTitle' => 'início · financeiro'], 'inicio');
+            View::render('dashboard/vazio', ['pageTitle' => t('início · financeiro')], 'inicio');
             return;
         }
 
@@ -73,7 +73,7 @@ final class DashboardController
         unset($_SESSION['conferir_erro']);
 
         View::render('dashboard/index', [
-            'pageTitle'      => 'início · financeiro',
+            'pageTitle'      => t('início · financeiro'),
             'hoje'           => $hoje,
             'mesRef'         => $mesRef,
             'mesCal'         => $mesCal,
@@ -115,9 +115,9 @@ final class DashboardController
         $saldo = parseMoedaBr($bruto);
         $erro = null;
         if ($saldo === null) {
-            $erro = 'valor?';
+            $erro = t('valor?');
         } elseif (!in_array($quando, ['hoje', 'outro'], true) || !self::dataIso($data) || $data > $hoje || $data < $minimo) {
-            $erro = 'data?';
+            $erro = t('data?');
         }
         if ($erro !== null) {
             $_SESSION['conferir_erro'] = [
@@ -128,7 +128,7 @@ final class DashboardController
         }
 
         SaldoConferenciaModel::registrar($data, $saldo, (int) Auth::id());
-        flash('success', 'banco conferido · ' . diaMes($data));
+        flash('success', t('banco conferido · {data}', ['data' => diaMes($data)]));
         redirecionar($volta, 303);
     }
 

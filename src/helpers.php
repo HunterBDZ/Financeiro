@@ -78,9 +78,9 @@ function moneyCompact(float $v): string
     }
     $mil = round($a / 1000, 1);
     if ($mil < 1000) {
-        return $sinal . $fmt($mil) . NBSP . 'mil';
+        return $sinal . $fmt($mil) . NBSP . t('mil');
     }
-    return $sinal . $fmt(round($a / 1000000, 1)) . NBSP . 'mi';
+    return $sinal . $fmt(round($a / 1000000, 1)) . NBSP . t('mi');
 }
 
 /**
@@ -136,6 +136,24 @@ function parseMoedaBr(?string $input): ?float
     return ($neg && $v != 0.0) ? -$v : $v;
 }
 
+/* ------------------------------------------------------------------ idioma */
+
+/** O texto em português traduzido para o idioma atual, com {nome} trocado por $vars. Sempre com literal: tools/idiomas/gerar.php lê daqui. */
+function t(string $texto, array $vars = []): string
+{
+    $saida = \Financeiro\Idioma::traduzir($texto);
+    foreach ($vars as $k => $v) {
+        $saida = str_replace('{' . $k . '}', (string) $v, $saida);
+    }
+    return $saida;
+}
+
+/** Singular ou plural pela quantidade; {n} é a quantidade. */
+function tn(int $n, string $um, string $varios, array $vars = []): string
+{
+    return t(abs($n) === 1 ? $um : $varios, ['n' => $n] + $vars);
+}
+
 /* ------------------------------------------------------------------ datas e meses */
 
 /** `set/26`. */
@@ -151,17 +169,15 @@ function monthLabel(string $isoDate): string
 /** `set`. */
 function mesCurto(string $mes): string
 {
-    static $meses = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
     $ts = strtotime($mes);
-    return $ts ? $meses[(int) date('n', $ts) - 1] : '';
+    return $ts ? \Financeiro\Idioma::mesCurto((int) date('n', $ts)) : '';
 }
 
 /** `outubro` (minúsculo; o título usa mb_convert_case). */
 function mesExtenso(string $mes): string
 {
-    static $meses = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
     $ts = strtotime($mes);
-    return $ts ? $meses[(int) date('n', $ts) - 1] : '';
+    return $ts ? \Financeiro\Idioma::mesExtenso((int) date('n', $ts)) : '';
 }
 
 /** `24/09`. */
@@ -198,9 +214,9 @@ function estadoMes(string $mes, string $situacao, ?string $hoje = null): string
 function estadoLabel(string $estado): string
 {
     return match ($estado) {
-        'real'   => 'Fechado',
-        'aberto' => 'Aberto',
-        default  => 'Previsto',
+        'real'   => t('Fechado'),
+        'aberto' => t('Aberto'),
+        default  => t('Previsto'),
     };
 }
 
@@ -224,7 +240,7 @@ function mesValido(?string $mes, array $mesesKeys, string $padrao): string
 
 /* ------------------------------------------------------------------ grupos e categorias */
 
-/** Entradas · Fixos · Dia a dia · Cartão · Pontuais · Empréstimo · Poupança. */
+/** Entradas · Fixos · Dia a dia · Cartão · Pontuais · Empréstimo · Poupança · Investimentos. */
 function grupoLabel(string $g): string
 {
     static $labels = [
@@ -235,8 +251,10 @@ function grupoLabel(string $g): string
         'Ano'        => 'Pontuais',
         'Emprestimo' => 'Empréstimo',
         'Poupanca'   => 'Poupança',
+        'Investimento' => 'Investimentos',
     ];
-    return $labels[$g] ?? $g;
+    // i18n: t('Entradas') t('Fixos') t('Dia a dia') t('Cartão') t('Pontuais') t('Empréstimo') t('Poupança') t('Investimentos')
+    return isset($labels[$g]) ? t($labels[$g]) : $g;
 }
 
 /** Classe de cor (define `--cor`) de um lançamento ou categoria: g-entradas · g-ess · g-naoess · g-mov (⇄). */
@@ -333,10 +351,10 @@ function csrfCheck(): bool
             $volta = is_string($refCaminho) && parse_url($ref, PHP_URL_HOST) === $meuHost
                 ? $refCaminho . (is_string($refQuery) && $refQuery !== '' ? '?' . $refQuery : '')
                 : null;
-            flash('warn', 'sessão renovada — refaça');
+            flash('warn', t('sessão renovada — refaça'));
             redirecionar(voltaSegura($volta, '/'), 303);
         }
-        renderErro(403, 'sessão expirada', 'volte e tente de novo');
+        renderErro(403, t('sessão expirada'), t('volte e tente de novo'));
     }
     return true;
 }
@@ -361,6 +379,7 @@ function svgIcon(string $name, int $size = 14, string $class = ''): string
         'home'     => '<path d="M3.5 10.2 12 3.5l8.5 6.7"/><path d="M5.5 8.8V19a1.5 1.5 0 0 0 1.5 1.5h3.2v-5.2h3.6v5.2H17a1.5 1.5 0 0 0 1.5-1.5V8.8"/>',
         'list'     => '<path d="M9 6.5h11"/><path d="M9 12h11"/><path d="M9 17.5h11"/><circle cx="4.5" cy="6.5" r=".9" fill="currentColor"/><circle cx="4.5" cy="12" r=".9" fill="currentColor"/><circle cx="4.5" cy="17.5" r=".9" fill="currentColor"/>',
         'calendar' => '<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17"/><path d="M8 3v4"/><path d="M16 3v4"/><path d="M7.5 14h2"/><path d="M11 14h2"/>',
+        'invest'   => '<path d="M4 20.5h16"/><path d="M6.5 20.5v-6h3v6"/><path d="M10.5 20.5v-10h3v10"/><path d="M14.5 20.5V6h3v14.5"/>',
         'trend'    => '<path d="M3.5 17.5 9 12l3.5 3.5 8-8"/><path d="M15 7.5h5.5V13"/>',
         'emprestimo' => '<circle cx="12" cy="12" r="8.5"/><path d="M12 6.8v10.4"/><path d="M14.9 9.4c-.5-.9-1.6-1.4-2.9-1.4-1.6 0-2.9.8-2.9 2s1.2 1.8 2.9 2 3 .8 3 2-1.3 2-3 2c-1.4 0-2.5-.5-3-1.4"/>',
         'gift'     => '<rect x="3.5" y="8" width="17" height="4" rx="1"/><path d="M5 12v8.5h14V12"/><path d="M12 8v12.5"/><path d="M12 8c-1-2.5-2.6-4.5-4.6-4.5a2.25 2.25 0 0 0 0 4.5H12Z"/><path d="M12 8c1-2.5 2.6-4.5 4.6-4.5a2.25 2.25 0 0 1 0 4.5H12Z"/>',
@@ -403,7 +422,7 @@ function renderErro(int $codigo, string $titulo, string $mensagem): never
     $css = '/assets/css/style.css';
     ?>
 <!doctype html>
-<html lang="pt-BR">
+<html lang="<?= e(\Financeiro\Idioma::html()) ?>">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -422,7 +441,7 @@ function renderErro(int $codigo, string $titulo, string $mensagem): never
     <p class="erro-codigo num" aria-hidden="true"><?= e((string) $codigo) ?></p>
     <h1 class="erro-titulo"><?= e(mb_strtoupper(mb_substr($titulo, 0, 1)) . mb_substr($titulo, 1)) ?></h1>
     <p class="erro-msg"><?= e(mb_strtoupper(mb_substr($mensagem, 0, 1)) . mb_substr($mensagem, 1)) ?>.</p>
-    <a class="btn btn-primary" href="/">Voltar ao início</a>
+    <a class="btn btn-primary" href="/"><?= e(t('Voltar ao início')) ?></a>
 </main>
 </body>
 </html>

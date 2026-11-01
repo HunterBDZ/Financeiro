@@ -228,7 +228,7 @@ na máquina .164 (publicado em 10/10/2026) é o primeiro commit daqui; trabalhe 
 ## 2026-10-16 — ícones de categoria, seletor de meses e ajustes pedidos
 
 - **Ícones de categoria (pixel art):** cada categoria tem um ícone (Farmácia = pílula, Mercado =
-  prato de comida, Soldo = saco de dinheiro…), mostrado no Início (últimos lançamentos, para onde
+  prato de comida, Salário = saco de dinheiro…), mostrado no Início (últimos lançamentos, para onde
   foi), no Extrato, no Mês, nas Metas e na lista de categorias. São 77 emojis do Twemoji (CC-BY 4.0)
   reduzidos a 20×20 num sprite só (`public/assets/img/icones.png`, ~35 KB), gerado por
   `tools/icones/gerar.py` a partir de `tools/icones/icones.json` (créditos em `tools/icones/CREDITOS.md`).
@@ -345,3 +345,35 @@ Auditoria das telas e dos acessos de 17/10 a 01/11. O uso pesado é no computado
 - O selo só aparece quando a conta está abaixo da reserva ou no vermelho.
 - Metas continua separada do Mês: uma muda todos os meses, a outra muda um. Juntar as duas arrisca alterar o plano inteiro sem querer.
 - O número "Livre até o fim do mês" não entrou: falta decidir se o adiantamento do empréstimo conta.
+
+## 2026-11-01 — idiomas
+
+Português, inglês e espanhol, escolhidos em Ajustes e no login.
+
+- O texto em português é a própria chave (`t('Salvar')`), e o que não tem tradução aparece em português. Assim o português não muda e um esquecimento não quebra a tela. Um teste falha se faltar tradução.
+- A escolha fica na conta, como o tema, e num cookie, para valer também na tela de login. Sem escolha, segue o navegador.
+- **Não se traduz** o que a pessoa digitou: nomes de categoria, descrições e itens da wishlist.
+- **Valores continuam em reais e no formato brasileiro** (1.234,56 e dd/mm) em todos os idiomas, porque a moeda é o real e os campos de valor leem esse formato. Trocar isso é outro trabalho.
+
+Para acrescentar um idioma: incluir em `Idioma::LISTA`, `MESES` e `SEMANA`, criar `src/idiomas/<id>.php`, acrescentar o id em `tools/idiomas/gerar.php` e rodar o gerador, que aponta o que falta e cria o `i18n-<id>.js`. Texto novo: sempre com `t()`, `tn()` ou `T()`, com literal na primeira posição.
+
+## 2026-11-01 — uso geral: nada individualizado na tela
+
+O app é para qualquer pessoa, então as telas não podem supor a situação de quem o criou: tipo de empréstimo, profissão, folha de pagamento ou um casal. Texto novo fala de "parcela do empréstimo" e "salário", no singular ou de forma impessoal.
+
+Ainda supõem um caso específico, e precisam de decisão antes do lançamento público:
+
+- **O motor desconta a parcela do salário previsto.** Quem paga a parcela à parte teria o aviso de "salário entrou bruto" e a previsão somando errado. Falta a opção "descontada do salário" ou "paga à parte".
+- **Nomes internos:** `consignado_inicio`, `parcela_consignado` e afins não aparecem na tela. Renomear exige migração.
+- **Repositório:** `database/seed.php` e os exemplos em `docs/decisoes.md` e `tests/run.php` citam nomes e o endereço da casa.
+
+## 2026-11-01 — aba Investimentos
+
+Poupança e outros investimentos, com o saldo = valor de partida (Ajustes) + lançamentos do Extrato até hoje.
+
+- Aplicar e resgatar são movimentações, como a poupança: saem da conta e entram no balanço, mas nunca contam como renda ou gasto. Por isso o grupo novo `Investimento` tem `operacional = 0`.
+- **No plano, aplicar reduz o dinheiro disponível**, e o adiantamento automático do empréstimo daquele mês diminui junto.
+- **Rendimento não entra:** a aba mostra o que foi aplicado, não o valor de mercado.
+- A meta final continua sendo conta + poupança, sem os investimentos.
+- As categorias ficam fixas por enquanto. O nome de cada aplicação vai na descrição do lançamento.
+

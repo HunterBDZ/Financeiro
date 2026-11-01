@@ -32,6 +32,8 @@ final class MotorFinanceiro
     public const CAT_AMORT   = 'Amortização extra do empréstimo';
     public const CAT_GUARDAR = 'Guardar na poupança';
     public const CAT_RESGATE = 'Resgate da poupança';
+    public const CAT_APLICAR = 'Aplicar em investimentos';
+    public const CAT_RESGATE_INV = 'Resgate de investimentos';
 
     private static ?array $planoCache = null;
     private static ?array $dadosCache = null;
@@ -73,7 +75,7 @@ final class MotorFinanceiro
 
         $cats = [];
         $esp  = ['cred' => null, 'amort' => null, 'guard' => null, 'resg' => null];
-        $nomesEsp = [self::CAT_CREDITO => 'cred', self::CAT_AMORT => 'amort', self::CAT_GUARDAR => 'guard', self::CAT_RESGATE => 'resg'];
+        $nomesEsp = [self::CAT_CREDITO => 'cred', self::CAT_AMORT => 'amort', self::CAT_GUARDAR => 'guard', self::CAT_RESGATE => 'resg', self::CAT_APLICAR => 'aplic', self::CAT_RESGATE_INV => 'resgInv'];
         foreach ($pdo->query('SELECT id, nome, apelido, grupo, sinal, operacional, essencial, ativo, ordem FROM categorias ORDER BY ordem, id') as $c) {
             $id = (int) $c['id'];
             $cats[$id] = [
@@ -164,7 +166,7 @@ final class MotorFinanceiro
             $real  = $dados['real'][$mes] ?? [];
 
             $entra = $sai = 0.0;
-            $cred = $amortReal = $guard = $resg = 0.0;
+            $cred = $amortReal = $guard = $resg = $aplic = $resgInv = 0.0;
             $usaMov = false;
             if ($ehReal) {
                 foreach ($real as $c => $v) {
@@ -177,6 +179,8 @@ final class MotorFinanceiro
                 $amortReal = self::em($real, $esp['amort']);
                 $guard     = self::em($real, $esp['guard']);
                 $resg      = self::em($real, $esp['resg']);
+                $aplic     = self::em($real, $esp['aplic'] ?? null);
+                $resgInv   = self::em($real, $esp['resgInv'] ?? null);
                 $usaMov    = true;
             } else {
                 $p = $dados['prev'][$mes] ?? [];
@@ -199,6 +203,8 @@ final class MotorFinanceiro
                     $amortReal = self::em($real, $esp['amort']);
                     $guard     = self::em($real, $esp['guard']);
                     $resg      = self::em($real, $esp['resg']);
+                    $aplic     = self::em($real, $esp['aplic'] ?? null);
+                    $resgInv   = self::em($real, $esp['resgInv'] ?? null);
                     $usaMov    = true;
                 } else {
                     foreach ($p as $c => $v) {
@@ -226,12 +232,14 @@ final class MotorFinanceiro
                 'mes' => $mes, 'situacao' => $m['situacao'], 'estado' => $estado, 'real' => $ehReal,
                 'entra' => round($entra, 2), 'sai' => round($sai, 2), 'cred' => round($cred, 2),
                 'amort' => round($amortReal, 2), 'mov' => $usaMov ? round($guard - $resg, 2) : 0.0,
+                'inv' => $usaMov ? round($aplic - $resgInv, 2) : 0.0,
             ];
         }
 
         // ---- passo 2: encadeamento
         $saldoIni    = (float) ($aj['saldo_ini'] ?? 0.0);
         $poupancaIni = (float) ($aj['poupanca_ini'] ?? 0.0);
+        $investIni   = (float) ($aj['investimentos_ini'] ?? 0.0);
         $loanIni     = (float) $dados['loanIni'];
         $n = count($comp);
         $linhas = [];
@@ -260,12 +268,13 @@ final class MotorFinanceiro
             $resultadoOp = $entra - $k['sai'];
             $fluxo = $resultadoOp + $k['cred'];
             $mov   = $k['mov'];
+            $inv   = $k['inv'];
 
             if ($k['real']) {
                 $adiantado = min($k['amort'], $la);
             } elseif (!$v2) {
                 $base  = min($k['amort'], $la);
-                $livre = $fluxo - $base - $mov;
+                $livre = $fluxo - $base - $mov - $inv;
                 $adiantado = $base + ($livre <= 0 || $antesDoSaldo
                     ? 0.0
                     : min($la - $base, max(0.0, $livre - max(0.0, $reserva - $saldoIni))));
@@ -274,7 +283,7 @@ final class MotorFinanceiro
                 $auto = 0.0;
                 if ($objetivo !== 3 && !$antesDoSaldo) {
                     // olha à frente: o menor saldo projetado (sem novos adiantamentos) acima da reserva
-                    $proj = $saldoIni + $fluxo - $base - $mov;
+                    $proj = $saldoIni + $fluxo - $base - $mov - $inv;
                     $melhor = $proj - $reserva;
                     $ll = $la - $base;
                     for ($q = $i + 1; $q < $n; $q++) {
@@ -284,7 +293,7 @@ final class MotorFinanceiro
                         $ll = max(0.0, $ll + $jq - $pq);
                         $bq = min($kq['amort'], $ll);
                         $ll -= $bq;
-                        $proj += ($kq['real'] ? $kq['entra'] : $kq['entra'] - $pq) - $kq['sai'] + $kq['cred'] - $bq - $kq['mov'];
+                        $proj += ($kq['real'] ? $kq['entra'] : $kq['entra'] - $pq) - $kq['sai'] + $kq['cred'] - $bq - $kq['mov'] - $kq['inv'];
                         if ($proj - $reserva < $melhor) {
                             $melhor = $proj - $reserva;
                         }
@@ -294,9 +303,10 @@ final class MotorFinanceiro
                 $adiantado = $base + $auto;
             }
 
-            $fica    = $saldoIni + $fluxo - $adiantado - $mov;
+            $fica    = $saldoIni + $fluxo - $adiantado - $mov - $inv;
             $loanFim = $la - $adiantado;
             $poupFim = $poupancaIni + $mov;
+            $investFim = $investIni + $inv;
             $total   = $fica + $poupFim;
 
             $linhas[$k['mes']] = [
@@ -313,9 +323,11 @@ final class MotorFinanceiro
                 'credito_emprestimo'  => $k['cred'],
                 'amortizacao_extra'   => $adiantado,
                 'poupanca_liquido'    => $mov,
+                'invest_liquido'      => $inv,
                 'fica_na_conta'       => $fica,
                 'falta_pagar'         => $loanFim,
                 'poupanca_saldo'      => $poupFim,
+                'invest_saldo'        => $investFim,
                 'total'               => $total,
                 'quitado'             => $loanFim <= 0.01,
                 'bateu_reserva'       => $fica >= $reserva,
@@ -325,6 +337,7 @@ final class MotorFinanceiro
             $saldoIni    = $fica;
             $loanIni     = $loanFim;
             $poupancaIni = $poupFim;
+            $investIni   = $investFim;
         }
 
         return $linhas;
@@ -381,14 +394,15 @@ final class MotorFinanceiro
 
     /**
      * Balanço "de verdade": tudo que entrou (salário/outras/empréstimo/resgates) menos tudo
-     * que saiu (gastos/amortização extra/guardado na poupança) — fluxo de caixa completo do
+     * que saiu (gastos/amortização extra/guardado na poupança/aplicado em investimentos) — fluxo de caixa completo do
      * mês. Único lugar onde essa conta é feita; toda tela que mostra "balanço" usa este método.
      * @return array{0:float,1:float,2:float} [entradas, saidas, balanco]
      */
     public static function balancoTotal(array $linha): array
     {
-        $entradas = $linha['entra'] + $linha['credito_emprestimo'] + max(0, -$linha['poupanca_liquido']);
-        $saidas   = $linha['sai'] + $linha['amortizacao_extra'] + max(0, $linha['poupanca_liquido']);
+        $inv = (float) ($linha['invest_liquido'] ?? 0.0);
+        $entradas = $linha['entra'] + $linha['credito_emprestimo'] + max(0, -$linha['poupanca_liquido']) + max(0, -$inv);
+        $saidas   = $linha['sai'] + $linha['amortizacao_extra'] + max(0, $linha['poupanca_liquido']) + max(0, $inv);
         return [$entradas, $saidas, $entradas - $saidas];
     }
 

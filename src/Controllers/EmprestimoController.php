@@ -19,7 +19,6 @@ use Financeiro\View;
 final class EmprestimoController
 {
     private const MAX = 1000000.0;
-    private const ERRO_VALOR = 'Valor inválido: use um número maior que zero, como 500 ou 1.250,00.';
     private const DESCRICAO = 'Adiantamento do empréstimo';
 
     public function index(): void
@@ -28,7 +27,7 @@ final class EmprestimoController
         $hoje  = date('Y-m-d');
         $dados = MotorFinanceiro::dados();
         if ($dados['meses'] === []) {
-            View::render('dashboard/vazio', ['pageTitle' => 'empréstimo · financeiro'], 'emprestimo');
+            View::render('dashboard/vazio', ['pageTitle' => t('empréstimo') . ' · financeiro'], 'emprestimo');
             return;
         }
         $ref = MesModel::referencia($hoje);
@@ -43,7 +42,7 @@ final class EmprestimoController
         } elseif ($campo !== '') {
             $v = self::valorDe($campo);
             if ($v === null) {
-                $erro = self::ERRO_VALOR;
+                $erro = self::erroValor();
             } else {
                 $valor = $v;
             }
@@ -56,7 +55,7 @@ final class EmprestimoController
         }
 
         $data = [
-            'pageTitle' => 'empréstimo · financeiro', 'sit' => $sit, 'sim' => $sim, 'erro' => $erro,
+            'pageTitle' => t('empréstimo') . ' · financeiro', 'sit' => $sit, 'sim' => $sim, 'erro' => $erro,
             'mes' => $mes, 'campo' => $campo, 'hoje' => $hoje, 'catAmort' => $dados['esp']['amort'],
         ];
         if (($_GET['parcial'] ?? '') === '1') {
@@ -87,7 +86,7 @@ final class EmprestimoController
         $ref  = MesModel::referencia($hoje);
         $brutos = (array) ($_POST['valores'] ?? []);
         ['valores' => $valores, 'erro' => $errado] = AjustesController::lerValores($brutos, AjusteModel::DO_EMPRESTIMO);
-        $msg = $errado !== null ? 'Confira o campo "' . AjustesController::rotulo($errado) . '": o valor não é válido.' : null;
+        $msg = $errado !== null ? t('Confira o campo "{campo}": o valor não é válido.', ['campo' => AjustesController::rotulo($errado)]) : null;
         if ($errado === null) {
             [$errado, $msg] = self::conferirSaldo($valores, $hoje, (string) MesModel::primeiro(), (string) MesModel::ultimo());
         }
@@ -104,9 +103,10 @@ final class EmprestimoController
         }
         MotorFinanceiro::limparCache();
         $depois = EmprestimoSimulacao::situacao(MotorFinanceiro::dados(), $ref, $hoje);
-        $fim = static fn(array $s): string => $s['quita'] !== null ? monthLabel($s['quita']) : 'sem data';
-        flash('success', 'Dados salvos. Falta ' . money((float) $antes['falta']) . ' → ' . money((float) $depois['falta'])
-            . '; termina em ' . $fim($antes) . ' → ' . $fim($depois) . '.');
+        $fim = static fn(array $s): string => $s['quita'] !== null ? monthLabel($s['quita']) : t('sem data');
+        flash('success', t('Dados salvos. Falta {antes} → {depois}; termina em {fim_antes} → {fim_depois}.', [
+            'antes' => money((float) $antes['falta']), 'depois' => money((float) $depois['falta']), 'fim_antes' => $fim($antes), 'fim_depois' => $fim($depois),
+        ]));
         redirecionar('/emprestimo', 303);
     }
 
@@ -122,17 +122,17 @@ final class EmprestimoController
             return [null, null];
         }
         if ($saldo <= 0) {
-            return ['saldo_devedor', 'Informe o saldo devedor, ou deixe o saldo e o mês em branco.'];
+            return ['saldo_devedor', t('Informe o saldo devedor, ou deixe o saldo e o mês em branco.')];
         }
         if ($mes === 0) {
-            return ['saldo_devedor_mes', 'Informe o mês do saldo, ou deixe o saldo e o mês em branco.'];
+            return ['saldo_devedor_mes', t('Informe o mês do saldo, ou deixe o saldo e o mês em branco.')];
         }
         $iso = sprintf('%04d-%02d-01', intdiv($mes, 100), $mes % 100);
         if ($iso > substr($hoje, 0, 8) . '01') {
-            return ['saldo_devedor_mes', 'O mês do saldo não pode ser futuro: use o mês do extrato do empréstimo.'];
+            return ['saldo_devedor_mes', t('O mês do saldo não pode ser futuro: use o mês do extrato do empréstimo.')];
         }
         if ($iso < $primeiro || $iso > $ultimo) {
-            return ['saldo_devedor_mes', 'O mês do saldo precisa estar dentro do plano (a partir de ' . monthLabel($primeiro) . ').'];
+            return ['saldo_devedor_mes', t('O mês do saldo precisa estar dentro do plano (a partir de {mes}).', ['mes' => monthLabel($primeiro)])];
         }
         return [null, null];
     }
@@ -149,7 +149,7 @@ final class EmprestimoController
         $campoData  = trim(is_string($_POST['data'] ?? null) ? $_POST['data'] : '');
         $volta = '/emprestimo#emp-consolidar';
         if ($cat === null) {
-            flash('error', 'A categoria Amortização extra não existe.');
+            flash('error', t('A categoria Amortização extra não existe.'));
             redirecionar($volta, 303);
         }
         [$erro, $valor] = self::validarAdiantamento($campoValor, $campoData, $hoje);
@@ -171,10 +171,10 @@ final class EmprestimoController
 
         $sit = EmprestimoSimulacao::situacao(MotorFinanceiro::dados(), MesModel::referencia($hoje), $hoje);
         $passou = $valor > $divida + 0.004;
-        $aviso = 'Adiantamento de ' . money($valor) . ' lançado no Extrato. '
-            . ($passou ? 'Ele passa da dívida estimada (' . money($divida) . '): confira o saldo com a instituição.'
-                       : ($sit['quitado'] ? 'Empréstimo quitado.' : 'Falta cerca de ' . money((float) $sit['falta']) . '.'));
-        flash($passou ? 'warn' : 'success', $aviso, ['url' => '/lancamentos/' . $id . '/excluir', 'label' => 'desfazer', 'campos' => ['volta' => '/emprestimo']]);
+        $aviso = t('Adiantamento de {valor} lançado no Extrato.', ['valor' => money($valor)]) . ' '
+            . ($passou ? t('Ele passa da dívida estimada ({divida}): confira o saldo com a instituição.', ['divida' => money($divida)])
+                       : ($sit['quitado'] ? t('Empréstimo quitado.') : t('Falta cerca de {valor}.', ['valor' => money((float) $sit['falta'])])));
+        flash($passou ? 'warn' : 'success', $aviso, ['url' => '/lancamentos/' . $id . '/excluir', 'label' => t('desfazer'), 'campos' => ['volta' => '/emprestimo']]);
         redirecionar('/emprestimo', 303);
     }
 
@@ -187,16 +187,21 @@ final class EmprestimoController
     {
         $valor = self::valorDe($campoValor);
         if ($valor === null) {
-            return [self::ERRO_VALOR, 0.0];
+            return [self::erroValor(), 0.0];
         }
         if (preg_match('/^\d{4}-\d{2}-\d{2}$/D', $data) && $data > $hoje) {
-            return ['A data não pode ser depois de hoje: lance o adiantamento depois de pagar.', 0.0];
+            return [t('A data não pode ser depois de hoje: lance o adiantamento depois de pagar.'), 0.0];
         }
         $erroData = LancamentosController::validarData($data);
         if ($erroData !== null) {
-            return ['Data inválida (' . $erroData . '): escolha o dia em que pagou.', 0.0];
+            return [t('Data inválida ({erro}): escolha o dia em que pagou.', ['erro' => $erroData]), 0.0];
         }
         return [null, $valor];
+    }
+
+    private static function erroValor(): string
+    {
+        return t('Valor inválido: use um número maior que zero, como 500 ou 1.250,00.');
     }
 
     /** O valor digitado, ou null. parseMoedaBr descarta letras ("12a" viraria 12): aqui o campo é só número. */

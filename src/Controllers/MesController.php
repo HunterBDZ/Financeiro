@@ -34,7 +34,7 @@ final class MesController
         $hoje  = date('Y-m-d');
         $meses = MesModel::todos();
         if ($meses === []) {
-            View::render('dashboard/vazio', ['pageTitle' => 'mês · financeiro'], 'mes');
+            View::render('dashboard/vazio', ['pageTitle' => t('mês · financeiro')], 'mes');
             return;
         }
         $mes      = mesValido($_GET['mes'] ?? null, $meses, MesModel::referencia($hoje));
@@ -149,7 +149,7 @@ final class MesController
         $erroLinha = is_array($erro) && ($erro['mes'] ?? '') === $mes ? $erro : null;
 
         View::render('mes/index', [
-            'pageTitle' => monthLabel($mes) . ' · mês · financeiro',
+            'pageTitle' => t('{mes} · mês · financeiro', ['mes' => monthLabel($mes)]),
             'mes' => $mes, 'meses' => $meses, 'hoje' => $hoje, 'situacao' => $situacao, 'estado' => $estado,
             'editavel' => $editavel, 'ultimo' => $ultimo,
             'emConta' => round($emConta, 2), 'projetado' => $projetado, 'reserva' => $reserva,
@@ -172,7 +172,7 @@ final class MesController
 
         $mes = self::mesPost();
         if ($mes === null) {
-            flash('error', 'mês?');
+            flash('error', t('mês?'));
             redirecionar('/mes', 303);
         }
         $cat   = (int) ($_POST['categoria_id'] ?? 0);
@@ -185,7 +185,7 @@ final class MesController
         $d = MotorFinanceiro::dados();
         $doCartaoDesde = CartaoFatura::mesesDoCartao();
         if ($doCartaoDesde !== null && $cat === CartaoModel::categoriaFatura() && $mes >= $doCartaoDesde) {
-            flash('warn', 'A Fatura do cartão deste mês vem das compras lançadas no Cartão');
+            flash('warn', t('A Fatura do cartão deste mês vem das compras lançadas no Cartão'));
             redirecionar('/cartao?fatura=' . $mes . '#fatura', 303);
         }
         try {
@@ -204,15 +204,15 @@ final class MesController
         try {
             $lote = PrevisaoLote::gravar($propagar ? 'propagar' : 'manual', $celulas, (int) Auth::id());
         } catch (\InvalidArgumentException) {
-            flash('error', 'Não salvou · ' . monthLabel($mes) . ' está ' . mb_strtolower(estadoLabel('real')));   // fechado no meio do caminho
+            flash('error', t('Não salvou · {mes} está fechado', ['mes' => monthLabel($mes)]));   // fechado no meio do caminho
             redirecionar($volta, 303);
         } catch (\Throwable $e) {
             error_log('mes/previsao: ' . $e->getMessage());
-            flash('error', 'não salvou · tente de novo');
+            flash('error', t('não salvou · tente de novo'));
             redirecionar($volta, 303);
         }
         if ($lote === null) {
-            flash('success', 'nada mudou');
+            flash('success', t('nada mudou'));
             redirecionar($volta, 303);
         }
         $depois = MotorFinanceiro::calcularPlano();
@@ -221,23 +221,22 @@ final class MesController
         $novo = $celulas[0][2];
         $meta = PrevisaoEdicao::meta($d, $cat);
         $oQue = match (true) {
-            $novo === null           => nomeCurto($c) . ' segue a meta ' . self::valorCurto((float) $meta),
-            $acao === 'tirar'        => nomeCurto($c) . ' tirado',
+            $novo === null           => t('{nome} segue a meta {valor}', ['valor' => self::valorCurto((float) $meta), 'nome' => nomeCurto($c)]),
+            $acao === 'tirar'        => t('{nome} tirado', ['nome' => nomeCurto($c)]),
             default                  => nomeCurto($c) . ' ' . self::valorCurto($novo),
         };
         $ultimoCel = (string) end($celulas)[1];
         $segs = [$oQue, monthLabel($mes) . ($ultimoCel !== $mes ? ' → ' . monthLabel($ultimoCel) : '')];
         if (isset($antes[$mes], $depois[$mes])) {
-            $segs[] = 'fim de ' . mesCurto($mes) . ' ' . num((float) $antes[$mes]['fica_na_conta'], 0)
-                . ' → ' . num((float) $depois[$mes]['fica_na_conta'], 0);
+            $segs[] = t('fim de {mes} {antes} → {depois}', ['mes' => mesCurto($mes), 'antes' => num((float) $antes[$mes]['fica_na_conta'], 0), 'depois' => num((float) $depois[$mes]['fica_na_conta'], 0)]);
         }
         $reserva = (float) ($d['aj']['reserva_minima'] ?? 0.0);
         $alerta  = PrevisaoEdicao::piorou($antes, $depois, $mes, $reserva);
         if ($alerta !== null) {
-            $segs[] = 'atenção: ' . monthLabel($alerta['mes']) . ($alerta['tipo'] === 'vermelho' ? ' no vermelho' : ' abaixo da reserva');
+            $segs[] = $alerta['tipo'] === 'vermelho' ? t('atenção: {mes} no vermelho', ['mes' => monthLabel($alerta['mes'])]) : t('atenção: {mes} abaixo da reserva', ['mes' => monthLabel($alerta['mes'])]);
         }
         flash($alerta !== null ? 'warn' : 'success', implode(' · ', $segs),
-            ['url' => '/mes/desfazer', 'label' => 'desfazer', 'campos' => ['lote' => $lote, 'mes' => $mes]]);
+            ['url' => '/mes/desfazer', 'label' => t('desfazer'), 'campos' => ['lote' => $lote, 'mes' => $mes]]);
         redirecionar($volta, 303);
     }
 
@@ -252,25 +251,25 @@ final class MesController
         $mes  = self::mesPost();
         $volta = voltaSegura(is_string($_POST['volta'] ?? null) ? $_POST['volta'] : null, '/mes' . ($mes !== null ? '?mes=' . $mes : ''));
         if (!preg_match('/^[0-9a-f]{16}$/', $lote)) {
-            flash('error', 'lote?');
+            flash('error', t('lote?'));
             redirecionar($volta, 303);
         }
         try {
             $r = PrevisaoLote::desfazer($lote, (int) Auth::id());
         } catch (\InvalidArgumentException) {
-            flash('error', 'lote?');
+            flash('error', t('lote?'));
             redirecionar($volta, 303);
         } catch (\Throwable $e) {
             error_log('mes/desfazer: ' . $e->getMessage());
-            flash('error', 'não desfez · tente de novo');
+            flash('error', t('não desfez · tente de novo'));
             redirecionar($volta, 303);
         }
         if (!empty($r['ja_desfeito'])) {
-            flash('warn', 'já desfeito');
+            flash('warn', t('já desfeito'));
         } else {
             $n = (int) $r['restauradas'];
             $t = (int) $r['total'];
-            flash($n === $t ? 'success' : 'warn', 'desfeito · ' . ($n === $t ? $n . ($n === 1 ? ' valor' : ' valores') : $n . ' de ' . $t));
+            flash($n === $t ? 'success' : 'warn', $n === $t ? tn($n, 'desfeito · 1 valor', 'desfeito · {n} valores') : t('desfeito · {n} de {total}', ['n' => $n, 'total' => $t]));
         }
         redirecionar($volta, 303);
     }
@@ -292,7 +291,7 @@ final class MesController
             }
         }
         if ($meses === []) {
-            View::render('dashboard/vazio', ['pageTitle' => 'fechar mês · financeiro'], 'mes');
+            View::render('dashboard/vazio', ['pageTitle' => t('fechar mês · financeiro')], 'mes');
             return;
         }
         $mes = mesValido($_GET['mes'] ?? null, $meses, $padrao);
@@ -304,7 +303,7 @@ final class MesController
         if ($mes > $mesCal) {
             http_response_code(400);
             View::render('mes/fechar', [
-                'pageTitle' => 'fechar ' . monthLabel($mes) . ' · financeiro',
+                'pageTitle' => t('fechar {mes} · financeiro', ['mes' => monthLabel($mes)]),
                 'mes' => $mes, 'meses' => $meses, 'hoje' => $hoje, 'bloqueado' => true,
             ], 'mes');
             return;
@@ -316,7 +315,7 @@ final class MesController
         $plano = $real ? MotorFinanceiro::calcularPlano()
                        : MotorFinanceiro::calcular($d, ['hoje' => $hoje, 'tratarComoReal' => [$mes]]);
         if (!isset($plano[$mes])) {
-            View::render('dashboard/vazio', ['pageTitle' => 'fechar mês · financeiro'], 'mes');
+            View::render('dashboard/vazio', ['pageTitle' => t('fechar mês · financeiro')], 'mes');
             return;
         }
         $linha = $plano[$mes];
@@ -345,8 +344,7 @@ final class MesController
                 // o soldo deveria chegar líquido da parcela; se chegou igual ao bruto previsto, avisa
                 $pLiq = round(max(0.0, $p - $consignado), 2);
                 if ($r > 0 && abs($r - $p) < 1.0) {
-                    $avisoConsignado = 'o soldo entrou bruto (' . num($r) . '): a parcela do consignado (' . num($consignado)
-                        . ') não foi descontada? Lance o soldo líquido ou ajuste a 1ª parcela em Ajustes.';
+                    $avisoConsignado = t('o salário entrou bruto ({bruto}): a parcela do empréstimo ({parcela}) não foi descontada? Lance o salário líquido ou ajuste a 1ª parcela na aba Empréstimo.', ['bruto' => num($r), 'parcela' => num($consignado)]);
                 }
                 if (abs($r - $pLiq) < abs($r - $p)) {
                     $p = $pLiq;
@@ -394,7 +392,7 @@ final class MesController
         unset($_SESSION['fe_erro']);
 
         View::render('mes/fechar', [
-            'pageTitle' => ($real ? monthLabel($mes) . ' · fechado' : 'fechar ' . monthLabel($mes)) . ' · financeiro',
+            'pageTitle' => $real ? t('{mes} · fechado · financeiro', ['mes' => monthLabel($mes)]) : t('fechar {mes} · financeiro', ['mes' => monthLabel($mes)]),
             'mes' => $mes, 'meses' => $meses, 'hoje' => $hoje, 'bloqueado' => false, 'real' => $real,
             'entrou' => $entrou, 'saiu' => $saiu, 'saldoMes' => $balanco,
             'contaAntes' => (float) $linha['sobrou_mes_anterior'], 'contaDepois' => (float) $linha['fica_na_conta'],
@@ -425,7 +423,7 @@ final class MesController
         $hoje = date('Y-m-d');
         $mes = self::mesPost();
         if ($mes === null) {
-            flash('error', 'mês?');
+            flash('error', t('mês?'));
             redirecionar('/mes', 303);
         }
         $meses = MesModel::todos();
@@ -434,7 +432,7 @@ final class MesController
             redirecionar($volta, 303);                           // já fechado: nada a gravar
         }
         if ($mes > substr($hoje, 0, 7) . '-01') {
-            flash('error', 'mês ainda não começou');
+            flash('error', t('mês ainda não começou'));
             redirecionar('/mes?mes=' . $mes, 303);
         }
 
@@ -446,12 +444,12 @@ final class MesController
             $saldo = parseMoedaBr($saldoBruto);
             $erro = null;
             if ($saldo === null) {
-                $erro = 'saldo?';
+                $erro = t('saldo?');
             } elseif (($_POST['quando'] ?? 'hoje') === 'outro') {
                 $data = (string) ($_POST['data'] ?? '');
                 $ts = preg_match('/^\d{4}-\d{2}-\d{2}$/', $data) ? strtotime($data) : false;
                 if ($ts === false || date('Y-m-d', $ts) !== $data || $data > $hoje || $data < self::dataMinBanco($hoje)) {
-                    $erro = 'data?';
+                    $erro = t('data?');
                 } else {
                     $dataSaldo = $data;
                 }
@@ -498,13 +496,13 @@ final class MesController
             }
             MotorFinanceiro::limparCache();
             error_log('mes/fechar: ' . $e->getMessage());
-            $_SESSION['fe_erro'] = ['mes' => $mes, 'msg' => 'não fechou · nada foi gravado', 'saldo' => $saldoBruto];
+            $_SESSION['fe_erro'] = ['mes' => $mes, 'msg' => t('não fechou · nada foi gravado'), 'saldo' => $saldoBruto];
             redirecionar($volta, 303);
         }
         MotorFinanceiro::limparCache();
 
-        flash('success', monthLabel($mes) . ' fechado' . ($lote !== null ? ' · ' . monthLabel($prox) . ' ajustado' : ''),
-            ['url' => '/mes/reabrir', 'label' => 'reabrir', 'campos' => ['mes' => $mes]]);
+        flash('success', $lote !== null ? t('{mes} fechado · {prox} ajustado', ['mes' => monthLabel($mes), 'prox' => monthLabel($prox)]) : t('{mes} fechado', ['mes' => monthLabel($mes)]),
+            ['url' => '/mes/reabrir', 'label' => t('reabrir'), 'campos' => ['mes' => $mes]]);
         redirecionar('/', 303);
     }
 
@@ -517,7 +515,7 @@ final class MesController
 
         $mes = self::mesPost();
         if ($mes === null) {
-            flash('error', 'mês?');
+            flash('error', t('mês?'));
             redirecionar('/mes', 303);
         }
         $volta = voltaSegura(is_string($_POST['volta'] ?? null) ? $_POST['volta'] : null, '/mes?mes=' . $mes);
@@ -535,13 +533,13 @@ final class MesController
                     $pdo->rollBack();
                 }
                 error_log('mes/reabrir: ' . $e->getMessage());
-                flash('error', 'não reabriu · tente de novo');
+                flash('error', t('não reabriu · tente de novo'));
                 redirecionar($volta, 303);
             }
             MotorFinanceiro::limparCache();
-            flash('success', monthLabel($mes) . ' reaberto');
+            flash('success', t('{mes} reaberto', ['mes' => monthLabel($mes)]));
         } else {
-            flash('warn', monthLabel($mes) . ' já está aberto');
+            flash('warn', t('{mes} já está aberto', ['mes' => monthLabel($mes)]));
         }
         redirecionar($volta, 303);
     }

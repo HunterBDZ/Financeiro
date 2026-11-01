@@ -43,7 +43,7 @@ final class Router
             $path = '/';
         }
         if (str_starts_with($path, '//') || !str_starts_with($path, '/')) {
-            renderErro(404, 'Página não encontrada', 'esse endereço não existe');
+            renderErro(404, t('Página não encontrada'), t('esse endereço não existe'));
         }
         $path = rtrim($path, '/');
         if ($path === '') {
@@ -59,14 +59,14 @@ final class Router
                 $handler = $this->resolve($route['handler']);
                 if ($handler === null) {
                     // rota registrada, mas o controller/método ainda não existe (build em paralelo)
-                    renderErro(404, 'Página não encontrada', 'esse endereço ainda não existe');
+                    renderErro(404, t('Página não encontrada'), t('esse endereço ainda não existe'));
                 }
                 call_user_func_array($handler, array_values($params));
                 return;
             }
         }
 
-        renderErro(404, 'Página não encontrada', 'esse endereço não existe');
+        renderErro(404, t('Página não encontrada'), t('esse endereço não existe'));
     }
 
     private function resolve(callable|array $handler): ?callable

@@ -2,6 +2,13 @@
 
 Cada versão publicada é uma tag `vX.Y.Z` deste repositório. Sites instalados atualizam com `sudo financeiro-atualizar`.
 
+## 1.3.0
+
+- Aba **Investimentos**: poupança e outros investimentos, com o saldo calculado do valor de partida e dos lançamentos do Extrato. Aplicar e resgatar não contam como renda nem gasto. Rendimentos não entram.
+- **Idiomas:** português, inglês e espanhol, escolhidos em Ajustes ou no login e salvos na conta. Sem escolha, segue o navegador. Valores continuam em reais e no formato brasileiro.
+- Textos gerais: as telas falam em "parcela do empréstimo" e "salário", sem supor um tipo de empréstimo ou de profissão.
+- Migrações novas: `usuarios.idioma`, o grupo `Investimento` com duas categorias e o valor de partida `investimentos_ini`, aplicadas pelo atualizador.
+
 ## 1.2.1
 
 Textos e telas mais claros, sem mudança nos cálculos nem no banco.

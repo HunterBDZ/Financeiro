@@ -94,7 +94,7 @@ final class AnualResumo
                 $p = (float) $l['parcela_consignado'];
                 $pa = (float) $antesLinha['parcela_consignado'];
                 if (abs($p - $pa) >= 0.005 && ($p < 0.005 || $pa < 0.005)) {   // começou ou acabou
-                    $lista[] = ['nome' => 'Desconto do consignado', 'valor' => $p, 'antes' => $pa, 'efeito' => $pa - $p];
+                    $lista[] = ['nome' => t('Parcela do empréstimo'), 'valor' => $p, 'antes' => $pa, 'efeito' => $pa - $p];
                 }
                 usort($lista, static fn($x, $y) => abs($y['efeito']) <=> abs($x['efeito']));
             }

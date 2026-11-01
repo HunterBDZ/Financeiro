@@ -95,6 +95,7 @@ final class Icones
         'Ano'        => 'calendario',
         'Emprestimo' => 'banco',
         'Poupanca'   => 'porquinho',
+        'Investimento' => 'grafico',
     ];
 
     private static ?array $lista = null;
@@ -114,7 +115,7 @@ final class Icones
 
     public static function rotulo(string $chave): string
     {
-        return (string) (self::lista()['icones'][$chave][0] ?? $chave);
+        return isset(self::lista()['icones'][$chave]) ? t((string) self::lista()['icones'][$chave][0]) : $chave;
     }
 
     /** @return array<string, array{rotulo:string, chaves:list<string>}> os ícones por grupo, na ordem do sprite */
@@ -123,7 +124,7 @@ final class Icones
         $l = self::lista();
         $out = [];
         foreach ($l['grupos'] as $g => $rotulo) {
-            $out[$g] = ['rotulo' => $rotulo, 'chaves' => []];
+            $out[$g] = ['rotulo' => t((string) $rotulo), 'chaves' => []];
         }
         foreach ($l['icones'] as $chave => [, , , $g]) {
             $out[$g]['chaves'][] = $chave;

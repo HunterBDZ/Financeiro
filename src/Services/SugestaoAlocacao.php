@@ -19,7 +19,6 @@ final class SugestaoAlocacao
 {
     public const CAT_PEDIDOS = 'Delivery / comer fora';
 
-    private const MESES_CURTOS = [1 => 'jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
     private const ITERACOES = 24;
 
     private static array $cache = [];
@@ -82,7 +81,7 @@ final class SugestaoAlocacao
                 $n[$c]      = 0;
                 $ticket[$c] = 0.0;
             }
-            $rotulo = 'sem histórico';
+            $rotulo = t('sem histórico');
         } else {
             foreach ($gasto as $c) {
                 $soma = 0.0;
@@ -106,9 +105,9 @@ final class SugestaoAlocacao
                 }
                 $diaUlt = (int) substr($ult, 8, 2);
                 $diasMes = (int) date('t', strtotime($m));
-                $rotulo = self::mesCurto($m) . ($diaUlt / $diasMes < 0.9 ? ' · ' . $diaUlt . ' dias' : '');
+                $rotulo = $diaUlt / $diasMes < 0.9 ? t('{mes} · {n} dias', ['mes' => mesCurto($m), 'n' => $diaUlt]) : mesCurto($m);
             } else {
-                $rotulo = 'média ' . count($R) . 'm';
+                $rotulo = t('média {n}m', ['n' => count($R)]);
             }
         }
 
@@ -589,11 +588,6 @@ final class SugestaoAlocacao
     private static function floor10(float $x): float
     {
         return floor(round($x, 6) / 10) * 10;
-    }
-
-    private static function mesCurto(string $mes): string
-    {
-        return self::MESES_CURTOS[(int) substr($mes, 5, 2)] ?? '';
     }
 
     /** @return array<int,true> categorias com conta recorrente ativa */

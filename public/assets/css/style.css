@@ -783,3 +783,11 @@ a.lista-i:hover { background: var(--sel); }
 @media (min-width: 1600px) {
     .page > * { max-width: 1560px; }
 }
+
+/* escolha de idioma: Ajustes e login */
+.idi { display: flex; flex-wrap: wrap; gap: 8px; }
+.idi-b { flex: 1 1 auto; min-height: 44px; padding: 0 14px; border: 1px solid var(--line-2); border-radius: 12px; background: var(--card); color: var(--text); font: inherit; font-weight: 650; cursor: pointer; }
+.idi-b:hover { background: var(--sel); }
+.idi-b:focus-visible { outline: 2px solid var(--foco); outline-offset: 2px; }
+.idi-b.is-on { border-color: var(--text); box-shadow: inset 0 0 0 1px var(--text); }
+.aj-idioma .titulo { margin-bottom: 10px; }

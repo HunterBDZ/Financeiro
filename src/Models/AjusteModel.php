@@ -7,7 +7,7 @@ final class AjusteModel
 {
     /** Chaves que a tela de Ajustes pode gravar (SPEC §2.8). `objetivo` só muda pela sugestão. */
     public const EDITAVEIS = [
-        'saldo_ini', 'poupanca_ini', 'recebido_emprestimo', 'parcela_mensal',
+        'saldo_ini', 'poupanca_ini', 'investimentos_ini', 'recebido_emprestimo', 'parcela_mensal',
         'n_parcelas', 'juros_mes', 'consignado_inicio', 'reserva_minima', 'meta_final',
         'saldo_devedor', 'saldo_devedor_mes',
     ];
@@ -49,7 +49,7 @@ final class AjusteModel
     {
         $pdo = Database::connection();
         $stmt = $pdo->query('SELECT chave, label, valor, confirmado FROM ajustes ORDER BY
-            FIELD(chave, "saldo_ini","poupanca_ini","recebido_emprestimo","parcela_mensal","n_parcelas","juros_mes","consignado_inicio","reserva_minima","meta_final","objetivo")');
+            FIELD(chave, "saldo_ini","poupanca_ini","investimentos_ini","recebido_emprestimo","parcela_mensal","n_parcelas","juros_mes","consignado_inicio","reserva_minima","meta_final","objetivo")');
         return $stmt->fetchAll();
     }
 

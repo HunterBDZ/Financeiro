@@ -49,6 +49,20 @@ final class UsuarioModel
         Database::connection()->prepare('UPDATE usuarios SET tema = ? WHERE id = ?')->execute([$tema, $id]);
     }
 
+    /** O idioma da conta; null = ainda não escolheu. */
+    public static function idioma(int $id): ?string
+    {
+        $st = Database::connection()->prepare('SELECT idioma FROM usuarios WHERE id = ?');
+        $st->execute([$id]);
+        $i = $st->fetchColumn();
+        return $i === false || $i === null ? null : (string) $i;
+    }
+
+    public static function salvarIdioma(int $id, string $idioma): void
+    {
+        Database::connection()->prepare('UPDATE usuarios SET idioma = ? WHERE id = ?')->execute([$idioma, $id]);
+    }
+
     public static function senhaHash(int $id): ?string
     {
         $pdo = Database::connection();

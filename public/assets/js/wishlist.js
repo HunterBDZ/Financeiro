@@ -65,11 +65,11 @@
             }
             conv.hidden = false;
             if (!taxas[m]) {
-                conv.textContent = 'Sem cotação de ' + m + ' agora.';
+                conv.textContent = T('Sem cotação de {moeda} agora.', { moeda: m });
             } else if (v === null || v <= 0) {
-                conv.textContent = '1 ' + m + ' = R$ ' + taxas[m].v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 }) + ', cotação de ' + taxas[m].d;
+                conv.textContent = T('1 {moeda} = R$ {valor}, cotação de {data}', { moeda: m, valor: taxas[m].v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 }), data: taxas[m].d });
             } else {
-                conv.textContent = '≈ R$ ' + (v * taxas[m].v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ', cotação de ' + taxas[m].d;
+                conv.textContent = T('≈ R$ {valor}, cotação de {data}', { valor: (v * taxas[m].v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), data: taxas[m].d });
             }
         }
         function mostrar(dados) {
@@ -91,13 +91,13 @@
         }
         function tratarArquivo(f) {
             if (!f || f.type.indexOf('image/') !== 0) {
-                aviso('Esse arquivo não é uma imagem: use JPG, PNG ou WebP.', true);
+                aviso(T('Esse arquivo não é uma imagem: use JPG, PNG ou WebP.'), true);
                 return;
             }
             reduzir(f, function (dados) {
                 if (dados === null || dados.length * 0.75 > LIMITE) {
                     arquivo.value = '';
-                    aviso('Não consegui abrir essa foto: tente outra em JPG ou PNG.', true);
+                    aviso(T('Não consegui abrir essa foto: tente outra em JPG ou PNG.'), true);
                     return;
                 }
                 usarFoto(dados);
@@ -114,7 +114,7 @@
             }
             pedido = new AbortController();
             lido.value = '';
-            aviso('Lendo o link…');
+            aviso(T('Lendo o link…'));
             var corpo = new FormData();
             corpo.append('csrf_token', token.value);
             corpo.append('url', texto);
@@ -125,7 +125,7 @@
                 return r.json();
             }).then(function (d) {
                 if (d.motivo === 'link') {
-                    aviso('Esse link não é válido: copie o endereço completo da página do produto.', true);
+                    aviso(T('Esse link não é válido: copie o endereço completo da página do produto.'), true);
                     return;
                 }
                 if (d.url) {
@@ -134,7 +134,7 @@
                 }
                 lido.value = '1';
                 if (!d.ok) {
-                    aviso('A loja não liberou os dados. Preencha o nome, o valor e a foto.', true);
+                    aviso(T('A loja não liberou os dados. Preencha o nome, o valor e a foto.'), true);
                     nome.focus();
                     return;
                 }
@@ -146,13 +146,13 @@
                 }
                 if (d.foto && !temFotoNova) { foto64.value = d.foto; mostrar(d.foto); }
                 var falta = [];
-                if (!d.nome && nome.value.trim() === '') { falta.push('o nome'); }
-                if (!d.valor && valor.value.trim() === '') { falta.push('o valor'); }
-                if (!d.foto && !temFotoNova && !prev.querySelector('img')) { falta.push('a foto'); }
-                aviso(falta.length ? 'Li o que deu. Falta ' + falta.join(' e ') + '.' : 'Pronto: confira os dados e adicione.', falta.length > 0);
+                if (!d.nome && nome.value.trim() === '') { falta.push(T('o nome')); }
+                if (!d.valor && valor.value.trim() === '') { falta.push(T('o valor')); }
+                if (!d.foto && !temFotoNova && !prev.querySelector('img')) { falta.push(T('a foto')); }
+                aviso(falta.length ? T('Li o que deu. Falta {itens}.', { itens: falta.reduce(function (a, b) { return T('{a} e {b}', { a: a, b: b }); }) }) : T('Pronto: confira os dados e adicione.'), falta.length > 0);
             }).catch(function (e) {
                 if (e.name !== 'AbortError') {
-                    aviso('Não consegui ler o link agora. Preencha à mão ou salve que eu tento de novo.', true);
+                    aviso(T('Não consegui ler o link agora. Preencha à mão ou salve que eu tento de novo.'), true);
                 }
             });
         }

@@ -30,8 +30,8 @@
 .emp-dl { display: flex; flex-direction: column; }
 .emp-dl > div { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 10px 0; border-top: 1px solid var(--line); }
 .emp-dl dt { color: var(--text-2); font-size: 14px; font-weight: 600; }
-.emp-dl dd { font-size: 16px; font-weight: 750; text-align: right; }
-.emp-dl dd small { display: block; color: var(--text-2); font-size: var(--t-peq); font-weight: 600; }
+.emp-dl dd { min-width: 0; font-size: 16px; font-weight: 750; text-align: right; }
+.emp-dl dd small { display: block; white-space: normal; color: var(--text-2); font-size: var(--t-peq); font-weight: 600; }
 .emp-dl dd small.pos { color: var(--pos); }
 
 .emp-graf { margin: 0; }

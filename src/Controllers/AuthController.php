@@ -32,7 +32,7 @@ final class AuthController
 
         if ($login === '' || $senha === '') {
             http_response_code(401);
-            $tela['erro'] = 'login ou senha?';
+            $tela['erro'] = t('login ou senha?');
             View::renderAuth('auth/login', $tela);
             return;
         }
@@ -52,13 +52,13 @@ final class AuthController
         }
         if ($bloqueado > 0) {
             http_response_code(429);
-            $tela['erro'] = 'bloqueado · tente em ' . (int) ceil($bloqueado / 60) . ' min';
+            $tela['erro'] = t('bloqueado · tente em {min} min', ['min' => (int) ceil($bloqueado / 60)]);
             View::renderAuth('auth/login', $tela);
             return;
         }
         if (!$ok) {
             http_response_code(401);
-            $tela['erro'] = 'login ou senha?';
+            $tela['erro'] = t('login ou senha?');
             View::renderAuth('auth/login', $tela);
             return;
         }

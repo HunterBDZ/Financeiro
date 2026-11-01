@@ -1,0 +1,17 @@
+/* Aba Investimentos */
+.inv { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.inv-total .saldo-v { margin: 10px 0 8px; font-size: 34px; }
+.inv-partes { display: grid; gap: 14px; min-width: 0; }
+.inv-parte { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.inv-saldo { font-family: var(--fn); font-size: 28px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.2; }
+.inv-saldo small { color: var(--text-2); font-size: 16px; }
+.inv-conta > div { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-top: 1px solid var(--line); }
+.inv-conta dt { color: var(--text-2); font-size: 14px; font-weight: 600; }
+.inv-conta dd { font-weight: 700; }
+.inv-acoes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.inv-acoes .btn { min-height: 44px; }
+.inv-vazio { color: var(--text-2); font-size: 14px; }
+.inv-sub { color: var(--text-2); font-size: 13px; font-weight: 750; }
+@media (min-width: 1000px) {
+    .inv-partes { grid-template-columns: 1fr 1fr; align-items: start; }
+}

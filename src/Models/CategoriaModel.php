@@ -13,7 +13,7 @@ final class CategoriaModel
             'SELECT id, nome, apelido, icone, grupo, sinal, operacional, essencial
              FROM categorias
              WHERE ativo = 1
-             ORDER BY FIELD(grupo, "Entradas","Fixos","Dia a dia","Cartao","Ano","Emprestimo","Poupanca"), ordem, nome'
+             ORDER BY FIELD(grupo, "Entradas","Fixos","Dia a dia","Cartao","Ano","Emprestimo","Poupanca","Investimento"), ordem, nome'
         );
         return $stmt->fetchAll();
     }

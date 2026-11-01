@@ -81,7 +81,7 @@ final class LancamentosController
         $categorias = CategoriaModel::ativas();
 
         View::render('lancamentos/index', [
-            'pageTitle'  => 'extrato · ' . monthLabel($mes) . ' · financeiro',
+            'pageTitle'  => t('extrato · {mes} · financeiro', ['mes' => monthLabel($mes)]),
             'mes'        => $mes,
             'meses'      => $meses,
             'situacao'   => $situacao,
@@ -132,7 +132,7 @@ final class LancamentosController
         }
 
         View::render('lancamentos/lancar', [
-            'pageTitle'        => 'lançar · financeiro',
+            'pageTitle'        => t('lançar · financeiro'),
             'semDialogoLancar' => true,
             'form'             => LancarForm::dados() + ['modo' => 'pagina', 'pref' => 'pg', 'volta' => $volta, 'antigo' => $antigo],
         ], '');
@@ -152,7 +152,7 @@ final class LancamentosController
                 redirecionar('/lancar?volta=' . rawurlencode($volta !== '' ? $volta : '/cartao'), 303);
             }
             $destino = $volta !== '' ? $volta : '/cartao';
-            flash('success', $r['aviso'], ['url' => '/cartao/compras/' . $r['id'] . '/excluir', 'label' => 'desfazer',
+            flash('success', $r['aviso'], ['url' => '/cartao/compras/' . $r['id'] . '/excluir', 'label' => t('desfazer'),
                                            'campos' => ['volta' => $destino]]);
             redirecionar($destino);
         }
@@ -177,7 +177,7 @@ final class LancamentosController
         $destino = $volta !== '' ? $volta : '/lancamentos?mes=' . substr($d['data'], 0, 8) . '01';
         flash('success', self::avisoLancado($d['cat'], $d['valor'], $d['data']), [
             'url'    => '/lancamentos/' . $id . '/excluir',
-            'label'  => 'desfazer',
+            'label'  => t('desfazer'),
             'campos' => ['volta' => $destino],
         ]);
         redirecionar($destino);
@@ -191,12 +191,12 @@ final class LancamentosController
 
         $l = LancamentoModel::find((int) $id);
         if (!$l) {
-            renderErro(404, 'lançamento não encontrado', 'pode ter sido excluído');
+            renderErro(404, t('lançamento não encontrado'), t('pode ter sido excluído'));
         }
         $volta = voltaSegura(self::get('volta'), '/lancamentos?mes=' . substr($l['data'], 0, 8) . '01');
 
         View::render('lancamentos/editar', [
-            'pageTitle'  => 'editar · financeiro',
+            'pageTitle'  => t('editar · financeiro'),
             'lancamento' => $l,
             'volta'      => $volta,
             'form'       => LancarForm::dados() + [
@@ -216,7 +216,7 @@ final class LancamentosController
 
         $l = LancamentoModel::find((int) $id);
         if (!$l) {
-            renderErro(404, 'lançamento não encontrado', 'pode ter sido excluído');
+            renderErro(404, t('lançamento não encontrado'), t('pode ter sido excluído'));
         }
         $volta = voltaSegura(self::post('volta'), '/lancamentos?mes=' . substr($l['data'], 0, 8) . '01');
 
@@ -229,7 +229,7 @@ final class LancamentosController
         MesModel::ensureExists(substr($d['data'], 0, 8) . '01');
         LancamentoModel::atualizar((int) $l['id'], $d['data'], $d['descricao'], $d['categoria_id'], $d['valor']);
 
-        flash('success', self::valorTexto($d['cat'], $d['valor'], true) . ' · salvo');
+        flash('success', t('{texto} · salvo', ['texto' => self::valorTexto($d['cat'], $d['valor'], true)]));
         redirecionar($volta);
     }
 
@@ -245,7 +245,7 @@ final class LancamentosController
             $volta = '/lancamentos?mes=' . $mesL;       // a página de edição dele deixou de existir
         }
         if (!$l) {
-            flash('warn', 'já tinha sido excluído');
+            flash('warn', t('já tinha sido excluído'));
             redirecionar($volta);
         }
 
@@ -260,9 +260,9 @@ final class LancamentosController
             ],
         ];
 
-        flash('success', 'excluído · ' . self::valorTexto($l, (float) $l['valor'], true), [
+        flash('success', t('excluído · {texto}', ['texto' => self::valorTexto($l, (float) $l['valor'], true)]), [
             'url'    => '/lancamentos/desfazer',
-            'label'  => 'desfazer',
+            'label'  => t('desfazer'),
             'campos' => ['volta' => $volta, 'token' => $token],
         ]);
         redirecionar($volta);
@@ -278,7 +278,7 @@ final class LancamentosController
         $d = $_SESSION['lanc_desfazer'] ?? null;
         $token = self::post('token') ?? '';
         if (!is_array($d) || !is_string($d['token'] ?? null) || !hash_equals($d['token'], $token)) {
-            flash('warn', 'nada para desfazer');
+            flash('warn', t('nada para desfazer'));
             redirecionar($volta);
         }
         unset($_SESSION['lanc_desfazer']);
@@ -287,13 +287,13 @@ final class LancamentosController
         $cat = CategoriaModel::find((int) $linha['categoria_id']);
         $erroData = self::validarData((string) $linha['data']);
         if ($cat === null || $erroData !== null) {
-            flash('error', $erroData ?? 'categoria?');
+            flash('error', $erroData ?? t('categoria?'));
             redirecionar($volta);
         }
 
         MesModel::ensureExists(substr($linha['data'], 0, 8) . '01');
         LancamentoModel::restaurar($linha);
-        flash('success', 'restaurado · ' . self::valorTexto($cat, (float) $linha['valor'], true));
+        flash('success', t('restaurado · {texto}', ['texto' => self::valorTexto($cat, (float) $linha['valor'], true)]));
         redirecionar($volta);
     }
 
@@ -307,18 +307,18 @@ final class LancamentosController
     public static function validarData(string $data): ?string
     {
         if (!preg_match('/^(\d{4})-(\d{2})-(\d{2})$/D', $data, $m) || !checkdate((int) $m[2], (int) $m[3], (int) $m[1])) {
-            return 'data?';
+            return t('data?');
         }
         $primeiro = MesModel::primeiro();
         $ultimo   = MesModel::ultimo();
         if ($primeiro === null || $ultimo === null) {
-            return 'data?';
+            return t('data?');
         }
         if ($data < $primeiro) {
-            return 'data antes de ' . monthLabel($primeiro);
+            return t('data antes de {mes}', ['mes' => monthLabel($primeiro)]);
         }
         if ($data > date('Y-m-t', strtotime($ultimo))) {
-            return 'data depois de ' . monthLabel($ultimo);
+            return t('data depois de {mes}', ['mes' => monthLabel($ultimo)]);
         }
         return null;
     }
@@ -345,13 +345,13 @@ final class LancamentosController
         $valor = parseMoedaBr(is_string($in['valor'] ?? null) ? $in['valor'] : null);
         $valor = $valor === null ? null : round(abs($valor), 2);     // "-50" / "−50" gravam 50 (o sinal vem da categoria)
         if ($valor === null || $valor <= 0 || $valor > 1000000) {
-            return ['valor?', null];
+            return [t('valor?'), null];
         }
 
         $categoriaId = (int) (is_string($in['categoria_id'] ?? null) ? $in['categoria_id'] : 0);
         $cat = $categoriaId > 0 ? CategoriaModel::find($categoriaId) : null;
         if ($cat === null) {
-            return ['categoria?', null];
+            return [t('categoria?'), null];
         }
 
         $data = self::dataDoQuando($in);
@@ -362,7 +362,7 @@ final class LancamentosController
         $descricao = is_string($in['descricao'] ?? null) ? $in['descricao'] : '';
         $descricao = trim((string) preg_replace('/[\x00-\x1F\x7F]+/', ' ', $descricao));
         if (mb_strlen($descricao) > 255) {
-            return ['descrição longa', null];
+            return [t('descrição longa'), null];
         }
         if ($descricao === '') {
             $descricao = (string) $cat['nome'];
@@ -396,12 +396,12 @@ final class LancamentosController
         $txt = self::valorTexto($cat, $valor, true);
         $mes = substr($data, 0, 8) . '01';
         if (MesModel::situacao($mes) === 'REAL') {
-            return $txt . ' · ' . monthLabel($mes) . ' ' . mb_strtolower(estadoLabel('real'));
+            return t('{texto} · {mes} fechado', ['mes' => monthLabel($mes), 'texto' => $txt]);
         }
         if ((int) $cat['operacional'] === 1 && (int) $cat['sinal'] < 0) {
             $previsto = PrevisaoModel::valor((int) $cat['id'], $mes);
             if ($previsto > 0) {
-                return $txt . ' · resta ' . num($previsto - LancamentoModel::somaPorCategoria((int) $cat['id'], $mes));
+                return t('{texto} · resta {valor}', ['valor' => num($previsto - LancamentoModel::somaPorCategoria((int) $cat['id'], $mes)), 'texto' => $txt]);
             }
         }
         return $txt;
@@ -414,7 +414,7 @@ final class LancamentosController
     public static function sessaoRenovada(): never
     {
         $volta = voltaSegura(self::post('volta'), '/');
-        $_SESSION['lanc_antigo'] = self::antigoDe($_POST) + ['erro' => 'sessão renovada · confira e lance'];
+        $_SESSION['lanc_antigo'] = self::antigoDe($_POST) + ['erro' => t('sessão renovada · confira e lance')];
         redirecionar('/lancar?volta=' . rawurlencode($volta), 303);
     }
 

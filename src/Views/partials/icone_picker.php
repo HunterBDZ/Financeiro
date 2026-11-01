@@ -9,11 +9,11 @@ use Financeiro\Icones;
 
 $selecionado = $selecionado ?? null;
 $sugerir     = !empty($sugerir);
-$legenda     = (string) ($legenda ?? 'Ícone');
+$legenda     = (string) ($legenda ?? t('Ícone'));
 ?>
 <fieldset class="ic-picker"<?= $sugerir ? ' data-ic-sugerir data-ic-regras="' . e(Icones::regrasJson()) . '"' : '' ?>>
     <legend><?= e($legenda) ?></legend>
-    <?php if ($sugerir): ?><p class="ic-dica">Sem escolher, o ícone vem do nome.</p><?php endif; ?>
+    <?php if ($sugerir): ?><p class="ic-dica"><?= e(t('Sem escolher, o ícone vem do nome.')) ?></p><?php endif; ?>
     <?php foreach (Icones::porGrupo() as $g => $grupo): if ($grupo['chaves'] === []) { continue; } ?>
         <p class="ic-grupo"><?= e($grupo['rotulo']) ?></p>
         <div class="ic-grade">

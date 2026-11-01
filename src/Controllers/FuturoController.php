@@ -27,7 +27,7 @@ final class FuturoController
         $hoje  = date('Y-m-d');
         $base  = MotorFinanceiro::calcularPlano();
         if ($base === []) {
-            View::render('dashboard/vazio', ['pageTitle' => 'anual · financeiro'], 'futuro');
+            View::render('dashboard/vazio', ['pageTitle' => t('anual · financeiro')], 'futuro');
             return;
         }
         $dados    = MotorFinanceiro::dados();
@@ -65,7 +65,7 @@ final class FuturoController
                 'consignado' => (float) $l['parcela_consignado'],
                 'sai' => round($saidas, 2), 'gastos' => (float) $l['sai'], 'amort' => (float) $l['amortizacao_extra'],
                 'sobra' => (float) $l['resultado_op'], 'mudou' => $mudou[$m] ?? [], 'simulado' => (float) ($se['extra'][$m] ?? 0.0),
-                'cred' => (float) $l['credito_emprestimo'], 'poup' => -(float) $l['poupanca_liquido'],
+                'cred' => (float) $l['credito_emprestimo'], 'poup' => -(float) $l['poupanca_liquido'], 'inv' => -(float) ($l['invest_liquido'] ?? 0.0),
                 'bal' => $balanco, 'fica' => $fica, 'divida' => max(0.0, (float) $l['falta_pagar']),
                 'base_fica' => (float) $base[$m]['fica_na_conta'],
                 'alerta' => $fica < 0 ? 'neg' : (round($fica, 2) < $reserva - 0.004 ? 'warn' : ''),
@@ -81,7 +81,7 @@ final class FuturoController
         }
 
         View::render('futuro/index', [
-            'pageTitle' => 'anual · financeiro',
+            'pageTitle' => t('anual · financeiro'),
             'hoje' => $hoje, 'ref' => $ref, 'ultimo' => (string) end($meses),
             'marcos' => AnualResumo::marcos($plano, $reserva, $ref), 'ganho' => $ganho,
             'reserva' => $reserva, 'meta' => $meta, 'linhas' => $linhas,
@@ -118,7 +118,7 @@ final class FuturoController
             }
             $v = parseMoedaBr($bruto);
             if ($v === null || $v < 0 || $v > self::MAX_SIMULADO) {
-                $erros[] = 'Valor inválido em "' . $nome . '": use um número como 500 ou 1.250,00.';
+                $erros[] = t('Valor inválido em "{campo}": use um número como 500 ou 1.250,00.', ['campo' => $nome]);
                 return 0.0;
             }
             return round($v, 2);
@@ -127,10 +127,10 @@ final class FuturoController
 
         $enviado = ($_GET['se'] ?? '') === '1';
         $s = [
-            'mensal' => $enviado ? $valor('mensal', 'todo mês') : 0.0,
+            'mensal' => $enviado ? $valor('mensal', t('todo mês')) : 0.0,
             'mensalTipo' => ($_GET['mensal_tipo'] ?? '') === 'gastar' ? 'gastar' : 'economizar',
             'mensalDe' => $mesDe('mensal_de'),
-            'uma' => $enviado ? $valor('uma', 'uma vez') : 0.0,
+            'uma' => $enviado ? $valor('uma', t('uma vez')) : 0.0,
             'umaTipo' => ($_GET['uma_tipo'] ?? '') === 'entrada' ? 'entrada' : 'gasto',
             'umaMes' => $mesDe('uma_mes'),
             'adiantar' => $enviado ? isset($_GET['adiantar']) : $adiantaPadrao,

@@ -48,7 +48,7 @@ final class AjustesController
         }
 
         View::render('ajustes/index', [
-            'pageTitle'   => 'ajustes · financeiro',
+            'pageTitle'   => t('ajustes · financeiro'),
             'aj'          => $aj,
             'ultimo'      => MesModel::ultimo(),
             'recorrentes' => $recorrentes,
@@ -73,7 +73,7 @@ final class AjustesController
         // os dados do empréstimo são da aba Empréstimo: aqui ficam fora da whitelist
         ['valores' => $valores, 'erro' => $errado] = self::lerValores($brutos, array_diff(AjusteModel::EDITAVEIS, AjusteModel::DO_EMPRESTIMO));
         if ($errado !== null) {
-            $_SESSION['aj_erro'] = ['grupo' => $grupo, 'msg' => self::rotulo($errado) . '?', 'campo' => $errado, 'valores' => $brutos];
+            $_SESSION['aj_erro'] = ['grupo' => $grupo, 'msg' => t('{campo}?', ['campo' => self::rotulo($errado)]), 'campo' => $errado, 'valores' => $brutos];
             redirecionar('/ajustes?aberto=' . $grupo . '#' . $grupo, 303);
         }
 
@@ -81,7 +81,7 @@ final class AjustesController
             AjusteModel::setValor($chave, $v);                  // preserva `confirmado`
         }
 
-        flash('success', $valores === [] ? 'nada mudou' : 'ajustes salvos');
+        flash('success', $valores === [] ? t('nada mudou') : t('ajustes salvos'));
         redirecionar('/ajustes?aberto=' . $grupo . '#' . $grupo, 303);
     }
 
@@ -141,11 +141,11 @@ final class AjustesController
             }
         }
         if ($elegivel === null || $dia < 1 || $dia > 31) {
-            $_SESSION['aj_erro'] = ['grupo' => 'contas', 'msg' => $elegivel === null ? 'conta?' : 'dia?'];
+            $_SESSION['aj_erro'] = ['grupo' => 'contas', 'msg' => $elegivel === null ? t('conta?') : t('dia?')];
             redirecionar('/ajustes?aberto=contas#contas', 303);
         }
         ContaRecorrenteModel::upsert($cat, $dia);
-        flash('success', nomeCurto($elegivel) . ' · dia ' . $dia);
+        flash('success', t('{nome} · dia {dia}', ['dia' => $dia, 'nome' => nomeCurto($elegivel)]));
         redirecionar('/ajustes?aberto=contas#contas', 303);
     }
 
@@ -156,12 +156,12 @@ final class AjustesController
 
         $conta = ContaRecorrenteModel::buscar((int) $id);
         if ($conta === null || (int) $conta['ativo'] !== 1) {
-            flash('warn', 'já removida');
+            flash('warn', t('já removida'));
             redirecionar('/ajustes?aberto=contas#contas', 303);
         }
         ContaRecorrenteModel::desativar((int) $id);
-        flash('success', nomeCurto(['nome' => $conta['categoria_nome'], 'apelido' => $conta['apelido']]) . ' removida', [
-            'url' => '/ajustes/contas', 'label' => 'desfazer',
+        flash('success', t('{nome} removida', ['nome' => nomeCurto(['nome' => $conta['categoria_nome'], 'apelido' => $conta['apelido']])]), [
+            'url' => '/ajustes/contas', 'label' => t('desfazer'),
             'campos' => ['categoria_id' => (string) $conta['categoria_id'], 'dia_vencimento' => (string) $conta['dia_vencimento']],
         ]);
         redirecionar('/ajustes?aberto=contas#contas', 303);
@@ -178,7 +178,7 @@ final class AjustesController
         foreach (CategoriaModel::gastos() as $c) {
             CategoriaModel::setEssencial((int) $c['id'], isset($marcadas[(int) $c['id']]));
         }
-        flash('success', 'essenciais salvos');
+        flash('success', t('essenciais salvos'));
         redirecionar('/ajustes?aberto=essenciais#essenciais', 303);
     }
 
@@ -190,7 +190,7 @@ final class AjustesController
         csrfCheck();
 
         Auth::sairDeTodos((int) Auth::id());
-        flash('success', 'saiu de todos os outros aparelhos');
+        flash('success', t('saiu de todos os outros aparelhos'));
         redirecionar('/ajustes?aberto=aparelhos#aparelhos', 303);
     }
 
@@ -209,12 +209,12 @@ final class AjustesController
         $conferida = Auth::conferirSenhaAtual((int) Auth::id(), $atual);
         if ($conferida === 'bloqueado') {
             Auth::logout();
-            renderErro(429, 'bloqueado', 'senha atual errada demais · entre de novo em 10 min');
+            renderErro(429, t('bloqueado'), t('senha atual errada demais · entre de novo em 10 min'));
         }
         $erro = match (true) {
-            $conferida !== 'ok'   => 'senha atual?',
-            mb_strlen($nova) < 6  => 'nova: mínimo 6',
-            $nova !== $repetir    => 'repetir não bate',
+            $conferida !== 'ok'   => t('senha atual?'),
+            mb_strlen($nova) < 6  => t('nova: mínimo 6'),
+            $nova !== $repetir    => t('repetir não bate'),
             default               => null,
         };
         if ($erro !== null) {
@@ -224,17 +224,17 @@ final class AjustesController
 
         UsuarioModel::trocarSenha((int) Auth::id(), $nova);
         Auth::sairDeTodos((int) Auth::id());                    // os outros aparelhos precisam da senha nova
-        flash('success', 'senha trocada');
+        flash('success', t('senha trocada'));
         redirecionar('/ajustes', 303);
     }
 
     public static function rotulo(string $chave): string
     {
         return [
-            'reserva_minima' => 'reserva mínima', 'meta_final' => 'meta', 'juros_mes' => 'juros ao mês',
-            'parcela_mensal' => 'parcela', 'n_parcelas' => 'nº de parcelas', 'consignado_inicio' => '1ª parcela', 'saldo_ini' => 'conta',
-            'poupanca_ini' => 'poupança', 'recebido_emprestimo' => 'crédito recebido',
-            'saldo_devedor' => 'saldo devedor', 'saldo_devedor_mes' => 'mês do saldo',
+            'reserva_minima' => t('reserva mínima'), 'meta_final' => t('meta'), 'juros_mes' => t('juros ao mês'),
+            'parcela_mensal' => t('parcela'), 'n_parcelas' => t('nº de parcelas'), 'consignado_inicio' => t('1ª parcela'), 'saldo_ini' => t('conta'),
+            'poupanca_ini' => t('poupança'), 'investimentos_ini' => t('investimentos'), 'recebido_emprestimo' => t('crédito recebido'),
+            'saldo_devedor' => t('saldo devedor'), 'saldo_devedor_mes' => t('mês do saldo'),
         ][$chave] ?? $chave;
     }
 }

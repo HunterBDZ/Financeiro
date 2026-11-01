@@ -72,7 +72,8 @@
 .barras-i .trilho { grid-column: 2 / -1; }
 
 /* conferir com o banco */
-.dash-conf > summary { flex-wrap: wrap; row-gap: 0; }
+.dash-conf > summary { flex-wrap: nowrap; row-gap: 0; }
+.dash-conf > summary .titulo { min-width: 0; }
 .dash-conf-ult { color: var(--text-2); font-size: 13px; font-weight: 650; margin-left: auto; padding-right: 6px; }
 .dash-conf[open] > summary { margin-bottom: 10px; }
 .dash-conf-form { display: flex; flex-direction: column; gap: 12px; }

@@ -27,7 +27,10 @@ use Financeiro\Controllers\DashboardController;
 use Financeiro\Controllers\EmprestimoController;
 use Financeiro\Controllers\WishlistController;
 use Financeiro\Controllers\TemaController;
+use Financeiro\Controllers\InvestimentosController;
+use Financeiro\Services\Investimentos;
 use Financeiro\Temas;
+use Financeiro\Idioma;
 use Financeiro\Controllers\FuturoController;
 use Financeiro\Controllers\LancamentosController;
 use Financeiro\Controllers\MesController;
@@ -117,6 +120,7 @@ $telas = [
     ['/mes/fechar', MesController::class,         'fecharForm', 'fe-topo'],
     ['/futuro',     FuturoController::class,      'index',      'fu-meses'],
     ['/ajustes',    AjustesController::class,     'index',      'aj-titulo'],
+    ['/investimentos', InvestimentosController::class, 'index',  'inv-total'],
 ];
 foreach ($telas as [$path, $cls, $metodo, $marcador]) {
     $_SERVER['REQUEST_URI'] = $path;
@@ -156,6 +160,55 @@ if ($linhaPrevT !== null && $linhaPrevT['situacao'] !== 'REAL') {
     $tagPrev = 'data-previsao-fim>Previsão para o fim de ' . mesExtenso($mesPrevT) . ': <b>' . $valPrevT . '</b>';
     $check('Início: previsão do fim do mês vem do mesmo plano do Anual', str_contains($htmlIni, $tagPrev) && str_contains($htmlAno, $valPrevT));
     $check('Mês: previsão do fim do mês igual à do Início', str_contains($htmlMes, $tagPrev));
+}
+
+// ---- 3c. idiomas: tudo traduzido, marcadores certos e telas sem sobra em português
+$rodaGerador = (string) shell_exec(escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg(__DIR__ . '/../tools/idiomas/gerar.php') . ' --json');
+$faltaIdioma = json_decode($rodaGerador, true);
+$check('idiomas: todo texto marcado tem tradução', is_array($faltaIdioma) && $faltaIdioma['en'] === [] && $faltaIdioma['es'] === [], substr($rodaGerador, 0, 300));
+foreach (['en', 'es'] as $idT) {
+    $dicT = require __DIR__ . '/../src/idiomas/' . $idT . '.php';
+    $marc = static function (string $s): array { preg_match_all('/\{\w+\}/', $s, $m); sort($m[0]); return $m[0]; };
+    $ruins = array_filter(array_keys($dicT), static fn($k) => $marc((string) $k) !== $marc((string) $dicT[$k]));
+    $check("idiomas: marcadores iguais em {$idT}", $ruins === [], implode(' | ', array_slice($ruins, 0, 3)));
+    Idioma::usar($idT);
+    $check("idiomas: Início em {$idT} sem o texto em português", !str_contains($pagina(DashboardController::class, 'index', '/'), 'Em conta hoje'));
+    $check("idiomas: meses em {$idT}", mesExtenso('2026-12-01') !== 'dezembro');
+    Idioma::usar(null);
+}
+Idioma::usar('pt');
+$check('idiomas: português é o texto original', t('Em conta hoje') === 'Em conta hoje' && t('Ver {n}', ['n' => 2]) === 'Ver 2' && tn(1, '1 mês', '{n} meses') === '1 mês' && tn(3, '1 mês', '{n} meses') === '3 meses');
+$check('idiomas: texto sem tradução continua em português', (static function (): bool { Idioma::usar('en'); $r = t('texto que não existe'); Idioma::usar('pt'); return $r === 'texto que não existe'; })());
+$check('idiomas: o navegador escolhe só o que existe', Idioma::doNavegador('en-US,en;q=0.9') === 'en' && Idioma::doNavegador('fr-FR,es;q=0.8') === 'es' && Idioma::doNavegador('fr') === 'pt' && Idioma::doNavegador('') === 'pt');
+
+// ---- 3d. investimentos: vêm dos lançamentos e não são renda nem gasto
+$hojeInv = date('Y-m-d');
+$mesInv = date('Y-m-01');
+$catAplic = $pdo->query("SELECT id, operacional FROM categorias WHERE nome = 'Aplicar em investimentos'")->fetch(PDO::FETCH_ASSOC);
+$check('investimentos: a categoria de aplicar existe e não é renda nem gasto', $catAplic !== false && (int) $catAplic['operacional'] === 0);
+if ($catAplic !== false && MotorFinanceiro::linhaDoMes($mesInv) !== null) {
+    MotorFinanceiro::limparCache();
+    $antesInv = Investimentos::resumo($hojeInv);
+    $linhaAntes = MotorFinanceiro::linhaDoMes($mesInv);
+    $saldoAntes = LancamentoModel::saldoCalculado(AjusteModel::valor('saldo_ini'), $hojeInv);
+    $pdo->beginTransaction();
+    $pdo->prepare('INSERT INTO lancamentos (data, descricao, categoria_id, valor, usuario_id) VALUES (?, ?, ?, 700, ?)')->execute([$hojeInv, 'teste', (int) $catAplic['id'], $uid]);
+    MotorFinanceiro::limparCache();
+    $depoisInv = Investimentos::resumo($hojeInv);
+    $linhaDepois = MotorFinanceiro::linhaDoMes($mesInv);
+    $saldoDepois = LancamentoModel::saldoCalculado(AjusteModel::valor('saldo_ini'), $hojeInv);
+    $htmlInv = $pagina(InvestimentosController::class, 'index', '/investimentos');
+    $pdo->rollBack();
+    MotorFinanceiro::limparCache();
+    $check('investimentos: o lançamento soma em outros investimentos e no total', abs($depoisInv['outros']['saldo'] - $antesInv['outros']['saldo'] - 700) < 0.01 && abs($depoisInv['total'] - $antesInv['total'] - 700) < 0.01 && abs($depoisInv['poupanca']['saldo'] - $antesInv['poupanca']['saldo']) < 0.01);
+    $check('investimentos: o dinheiro sai da conta', abs($saldoAntes - $saldoDepois - 700) < 0.01);
+    $check('investimentos: não muda entradas nem gastos do plano', abs($linhaDepois['entra'] - $linhaAntes['entra']) < 0.01 && abs($linhaDepois['sai'] - $linhaAntes['sai']) < 0.01);
+    $check('investimentos: o plano registra a aplicação', abs($linhaDepois['invest_liquido'] - $linhaAntes['invest_liquido'] - 700) < 0.01 && abs($linhaDepois['invest_saldo'] - $linhaAntes['invest_saldo'] - 700) < 0.01);
+    // o plano adianta menos o empréstimo quando há menos dinheiro, então a conferência é direta na fórmula do balanço
+    [, $saiuSem] = MotorFinanceiro::balancoTotal(['invest_liquido' => 0.0] + $linhaAntes);
+    [, $saiuCom] = MotorFinanceiro::balancoTotal(['invest_liquido' => 700.0] + $linhaAntes);
+    $check('investimentos: entra no balanço', abs($saiuCom - $saiuSem - 700) < 0.01);
+    $check('investimentos: a tela mostra as duas partes', str_contains($htmlInv, 'Outros investimentos') && str_contains($htmlInv, 'Guardado e investido') && str_contains($htmlInv, 'teste'));
 }
 
 // ---- 4. meta: definir uma meta pinta a barra no mês (verde/vermelho), sem sujar o banco
@@ -515,7 +568,7 @@ $check('anual: resumo, conclusão no título do gráfico, previsão tracejada e 
 $check('anual: o que mudou no mês, do maior efeito para o menor', $mu['2027-01-01'] === []
     && ($mu['2027-02-01'][0]['nome'] ?? '') === 'IPVA' && abs($mu['2027-02-01'][0]['efeito'] + 1200.0) < 0.01
     && array_map(static fn($x) => $x['nome'] . ' ' . (int) $x['efeito'], $mu['2027-03-01'])
-       === ['Salário 5000', 'IPVA 1100', 'Desconto do consignado -300'], json_encode($mu['2027-03-01']));
+       === ['Salário 5000', 'IPVA 1100', 'Parcela do empréstimo -300'], json_encode($mu['2027-03-01']));
 
 // ---- 14. "e se" do Anual: o motor soma o extra fora de mês fechado; a URL vira simulação; nada é gravado
 MotorFinanceiro::limparCache();

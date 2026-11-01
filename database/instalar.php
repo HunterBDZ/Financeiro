@@ -72,7 +72,7 @@ if ($demo) {
 }
 
 // nome, apelido, grupo, sinal, essencial. O motor e o Cartão acham pelo nome as de Empréstimo,
-// Poupança, "Salário" e "Fatura do cartão": não renomeie essas.
+// Poupança, Investimentos, "Salário" e "Fatura do cartão": não renomeie essas.
 $categorias = [
     ['Salário', null, 'Entradas', 1, 0],
     ['Outras entradas (13º, Pix, reembolsos)', 'Outras entradas', 'Entradas', 1, 0],
@@ -97,6 +97,8 @@ $categorias = [
     ['Outros gastos pontuais', null, 'Ano', -1, 0],
     ['Amortização extra do empréstimo', 'Amortização extra', 'Emprestimo', -1, 0],
     ['Guardar na poupança', null, 'Poupanca', -1, 0],
+    ['Resgate de investimentos', null, 'Investimento', 1, 0],
+    ['Aplicar em investimentos', null, 'Investimento', -1, 0],
 ];
 
 $mesAtual = date('Y-m-01');
@@ -110,11 +112,12 @@ $dataSaldo = date('d/m/Y', strtotime($inicio . ' -1 day'));
 $ajustes = [   // chave, rótulo, valor; o saldo do empréstimo e os parâmetros se ajustam nas telas depois
     ['saldo_ini', 'Saldo da conta em ' . $dataSaldo, $demo ? 4200.0 : 0.0],
     ['poupanca_ini', 'Poupança em ' . $dataSaldo, $demo ? 3000.0 : 0.0],
+    ['investimentos_ini', 'Investimentos em ' . $dataSaldo, $demo ? 5000.0 : 0.0],
     ['recebido_emprestimo', 'Crédito do empréstimo recebido', $demo ? 12000.0 : 0.0],
     ['parcela_mensal', 'Parcela mensal', $demo ? 289.90 : 0.0],
     ['n_parcelas', 'Número de parcelas', $demo ? 72.0 : 0.0],
     ['juros_mes', 'Juros ao mês', $demo ? 0.0165 : 0.0],
-    ['consignado_inicio', 'Mês da 1ª parcela do consignado (AAAAMM)', $demo ? (float) date('Ym', strtotime($inicio)) : 0.0],
+    ['consignado_inicio', 'Mês da 1ª parcela do empréstimo (AAAAMM)', $demo ? (float) date('Ym', strtotime($inicio)) : 0.0],
     ['reserva_minima', 'Reserva mínima na conta', $demo ? 1500.0 : 0.0],
     ['meta_final', 'Meta conta + poupança', $demo ? 25000.0 : 0.0],
     ['objetivo', 'Objetivo da sobra', 1.0],
@@ -202,6 +205,8 @@ if ($demo) {
         foreach ($fixos as $nome => [$v, $dia]) {
             $lancar($m, $dia, $nome, $nome, $v, 0);
         }
+        $lancar($m, 3, 'Guardar na poupança', 'Guardar na poupança', 200.00, 0);
+        $lancar($m, 3, 'Tesouro Selic', 'Aplicar em investimentos', 300.00, 1);
         $lancar($m, 5, 'Fatura do cartão', 'Fatura do cartão', round(1700.00 + mt_rand(0, 30000) / 100, 2), 1);
         foreach ($variaveis as $nome => [$descs, $n, $min, $max]) {
             for ($k = 0; $k < $n; $k++) {

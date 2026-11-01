@@ -5,10 +5,11 @@
  * Computador: menu lateral (marca, Lançar, abas, Claro/Escuro, quem está e sair).
  * Celular: barra de cima (marca, sol/lua, menu do avatar) e barra flutuante embaixo com o "+" no
  * meio de 4 abas (Início, Extrato, +, Mês, Cartão). O Anual abre pelo seletor de meses do Mês
- * ("Anual") e pelo menu do avatar; as Metas, o Empréstimo e a Wishlist, pelo menu do avatar (ao lado de Ajustes).
+ * ("Anual") e pelo menu do avatar; as Metas, o Empréstimo, os Investimentos e a Wishlist, pelo menu do avatar (ao lado de Ajustes).
  * CSS/JS dos pacotes entram só se o arquivo existir (D19): nenhum 404 durante o build.
  */
 use Financeiro\Auth;
+use Financeiro\Idioma;
 use Financeiro\Temas;
 use Financeiro\View;
 
@@ -16,20 +17,21 @@ $activePage = (string) ($active ?? '');
 
 // chave => [href, rótulo, ícone]; a ordem é a da barra de baixo (o "+" entra depois da 2ª)
 $abas = [
-    'inicio'  => ['/', 'Início', 'home'],
-    'extrato' => ['/lancamentos', 'Extrato', 'list'],
-    'mes'     => ['/mes', 'Mês', 'calendar'],
-    'cartao'  => ['/cartao', 'Cartão', 'cartao'],
-    'futuro'  => ['/futuro', 'Anual', 'trend'],
-    'emprestimo' => ['/emprestimo', 'Empréstimo', 'emprestimo'],
-    'wishlist' => ['/wishlist', 'Wishlist', 'gift'],
-    'temas'   => ['/temas', 'Temas', 'paleta'],
-    'meta'    => ['/meta', 'Metas', 'target'],
+    'inicio'  => ['/', t('Início'), 'home'],
+    'extrato' => ['/lancamentos', t('Extrato'), 'list'],
+    'mes'     => ['/mes', t('Mês'), 'calendar'],
+    'cartao'  => ['/cartao', t('Cartão'), 'cartao'],
+    'futuro'  => ['/futuro', t('Anual'), 'trend'],
+    'emprestimo' => ['/emprestimo', t('Empréstimo'), 'emprestimo'],
+    'investimentos' => ['/investimentos', t('Investimentos'), 'invest'],
+    'wishlist' => ['/wishlist', t('Wishlist'), 'gift'],
+    'temas'   => ['/temas', t('Temas'), 'paleta'],
+    'meta'    => ['/meta', t('Metas'), 'target'],
 ];
 
 $publico = __DIR__ . '/../../../public';
 $existe  = static fn(string $p): bool => is_file($publico . $p);
-$estilos = array_filter(['/assets/css/style.css', '/assets/css/inicio.css', '/assets/css/lancar.css', '/assets/css/mes.css', '/assets/css/cartao.css', '/assets/css/emprestimo.css', '/assets/css/wishlist.css', '/assets/css/temas-tela.css', '/assets/css/temas.css'], $existe);
+$estilos = array_filter(['/assets/css/style.css', '/assets/css/inicio.css', '/assets/css/lancar.css', '/assets/css/mes.css', '/assets/css/investimentos.css', '/assets/css/cartao.css', '/assets/css/emprestimo.css', '/assets/css/wishlist.css', '/assets/css/temas-tela.css', '/assets/css/temas.css'], $existe);
 $scripts = array_filter(['/assets/js/app.js', '/assets/js/lancar.js', '/assets/js/mes.js', '/assets/js/cartao.js', '/assets/js/emprestimo.js', '/assets/js/wishlist.js', '/assets/js/temas.js'], $existe);
 
 $uri     = (string) ($_SERVER['REQUEST_URI'] ?? '/');
@@ -56,7 +58,7 @@ $atual = static function (string $chave) use ($activePage): string {
     return $activePage === $chave ? ' aria-current="page"' : '';
 };
 // barra do celular: Início, Extrato, +, Mês, Cartão; no Anual quem fica acesa é a do Mês
-$barra = array_diff_key($abas, ['futuro' => true, 'meta' => true, 'emprestimo' => true, 'wishlist' => true, 'temas' => true]);
+$barra = array_diff_key($abas, ['futuro' => true, 'meta' => true, 'emprestimo' => true, 'investimentos' => true, 'wishlist' => true, 'temas' => true]);
 $acesaNaBarra = $activePage === 'futuro' ? 'mes' : $activePage;
 // o tema da conta vem no HTML: nada de piscar, e vale em qualquer aparelho. Null = automático (theme.js)
 $temaConta = Temas::doUsuario();
@@ -65,7 +67,7 @@ $csrfTema = e(csrfToken());
 $marca = '<span class="marca"><img src="/assets/img/spitz.png" alt="" width="216" height="181"></span>';
 ?>
 <!doctype html>
-<html lang="pt-BR"<?= $dadosTema !== null ? ' data-theme="' . e((string) $dadosTema['modo']) . '" data-tema="' . e((string) $temaConta) . '"' : '' ?>>
+<html lang="<?= e(Idioma::html()) ?>"<?= $dadosTema !== null ? ' data-theme="' . e((string) $dadosTema['modo']) . '" data-tema="' . e((string) $temaConta) . '"' : '' ?>>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
@@ -83,32 +85,36 @@ $marca = '<span class="marca"><img src="/assets/img/spitz.png" alt="" width="216
 <link rel="preload" href="/assets/fonts/manrope-var-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/assets/fonts/sora-var-latin.woff2" as="font" type="font/woff2" crossorigin>
 <script src="<?= e(asset('/assets/js/theme.js')) ?>"></script>
+<?php if (Idioma::atual() !== Idioma::PADRAO): ?>
+<script src="<?= e(asset('/assets/js/i18n-' . Idioma::atual() . '.js')) ?>"></script>
+<?php endif; ?>
+<script src="<?= e(asset('/assets/js/i18n.js')) ?>"></script>
 <?php foreach ($estilos as $css): ?>
 <link rel="stylesheet" href="<?= e(asset($css)) ?>">
 <?php endforeach; ?>
 </head>
 <body style="--ic-sprite:url('<?= e(asset('/assets/img/icones.webp')) ?>')">
-<a class="pular" href="#conteudo">Pular para o conteúdo</a>
+<a class="pular" href="#conteudo"><?= e(t('Pular para o conteúdo')) ?></a>
 
-<aside class="lateral" aria-label="menu">
+<aside class="lateral" aria-label="<?= e(t('menu')) ?>">
     <a class="lat-marca" href="/"><?= $marca ?><b translate="no">financeiro</b></a>
-    <a class="lat-lancar" href="<?= e($hrefLancar) ?>" data-lancar><?= svgIcon('plus', 18) ?>Lançar</a>
-    <nav class="lat-nav" aria-label="principal">
-        <?php foreach ($abas + ['ajustes' => ['/ajustes', 'Ajustes', 'settings']] as $chave => [$href, $rotulo, $icone]): ?>
+    <a class="lat-lancar" href="<?= e($hrefLancar) ?>" data-lancar><?= svgIcon('plus', 18) ?><?= e(t('Lançar')) ?></a>
+    <nav class="lat-nav" aria-label="<?= e(t('principal')) ?>">
+        <?php foreach ($abas + ['ajustes' => ['/ajustes', t('Ajustes'), 'settings']] as $chave => [$href, $rotulo, $icone]): ?>
             <a class="lat-i<?= $aba($chave) ?>" href="<?= e($href) ?>"<?= $atual($chave) ?>><?= svgIcon($icone, 20) ?><span><?= e($rotulo) ?></span></a>
         <?php endforeach; ?>
     </nav>
     <div class="lat-fim">
-        <div class="tema-seg" role="group" aria-label="tema" data-tema-csrf="<?= $csrfTema ?>">
-            <button type="button" class="t-claro" data-tema="light"><?= svgIcon('sun', 16) ?>Claro</button>
-            <button type="button" class="t-escuro" data-tema="dark"><?= svgIcon('moon', 16) ?>Escuro</button>
+        <div class="tema-seg" role="group" aria-label="<?= e(t('tema')) ?>" data-tema-csrf="<?= $csrfTema ?>">
+            <button type="button" class="t-claro" data-tema="light"><?= svgIcon('sun', 16) ?><?= e(t('Claro')) ?></button>
+            <button type="button" class="t-escuro" data-tema="dark"><?= svgIcon('moon', 16) ?><?= e(t('Escuro')) ?></button>
         </div>
         <div class="lat-user">
             <span class="avatar"><?= e($inicial) ?></span>
             <b><?= e((string) ($nome ?? '')) ?></b>
             <form method="post" action="/logout">
                 <?= csrfField() ?>
-                <button type="submit" class="lat-sair" aria-label="sair"><?= svgIcon('logout', 18) ?></button>
+                <button type="submit" class="lat-sair" aria-label="<?= e(t('sair')) ?>"><?= svgIcon('logout', 18) ?></button>
             </form>
         </div>
     </div>
@@ -116,20 +122,21 @@ $marca = '<span class="marca"><img src="/assets/img/spitz.png" alt="" width="216
 
 <header class="topbar">
     <a class="topbar-marca" href="/"><?= $marca ?><b translate="no">financeiro</b></a>
-    <button type="button" class="ic" data-theme-toggle data-tema-csrf="<?= $csrfTema ?>" aria-label="trocar tema"><?= svgIcon('sun', 19, 'so-escuro') ?><?= svgIcon('moon', 19, 'so-claro') ?></button>
+    <button type="button" class="ic" data-theme-toggle data-tema-csrf="<?= $csrfTema ?>" aria-label="<?= e(t('trocar tema')) ?>"><?= svgIcon('sun', 19, 'so-escuro') ?><?= svgIcon('moon', 19, 'so-claro') ?></button>
     <details class="menu menu-avatar">
-        <summary aria-label="menu"><span class="avatar<?= in_array($activePage, ['ajustes', 'meta', 'emprestimo', 'wishlist', 'temas'], true) ? ' is-active' : '' ?>"><?= e($inicial) ?></span></summary>
+        <summary aria-label="<?= e(t('menu')) ?>"><span class="avatar<?= in_array($activePage, ['ajustes', 'meta', 'emprestimo', 'investimentos', 'wishlist', 'temas'], true) ? ' is-active' : '' ?>"><?= e($inicial) ?></span></summary>
         <div class="menu-painel">
             <?php if ($nome): ?><div class="menu-quem"><?= e($nome) ?></div><?php endif; ?>
-            <a class="menu-item<?= $activePage === 'futuro' ? ' is-active' : '' ?>" href="/futuro"<?= $atual('futuro') ?>><?= svgIcon('trend', 18) ?>Anual</a>
-            <a class="menu-item<?= $activePage === 'meta' ? ' is-active' : '' ?>" href="/meta"<?= $atual('meta') ?>><?= svgIcon('target', 18) ?>Metas</a>
-            <a class="menu-item<?= $activePage === 'emprestimo' ? ' is-active' : '' ?>" href="/emprestimo"<?= $atual('emprestimo') ?>><?= svgIcon('emprestimo', 18) ?>Empréstimo</a>
-            <a class="menu-item<?= $activePage === 'wishlist' ? ' is-active' : '' ?>" href="/wishlist"<?= $atual('wishlist') ?>><?= svgIcon('gift', 18) ?>Wishlist</a>
-            <a class="menu-item<?= $activePage === 'temas' ? ' is-active' : '' ?>" href="/temas"<?= $atual('temas') ?>><?= svgIcon('paleta', 18) ?>Temas</a>
-            <a class="menu-item<?= $activePage === 'ajustes' ? ' is-active' : '' ?>" href="/ajustes"><?= svgIcon('settings', 18) ?>Ajustes</a>
+            <a class="menu-item<?= $activePage === 'futuro' ? ' is-active' : '' ?>" href="/futuro"<?= $atual('futuro') ?>><?= svgIcon('trend', 18) ?><?= e(t('Anual')) ?></a>
+            <a class="menu-item<?= $activePage === 'meta' ? ' is-active' : '' ?>" href="/meta"<?= $atual('meta') ?>><?= svgIcon('target', 18) ?><?= e(t('Metas')) ?></a>
+            <a class="menu-item<?= $activePage === 'emprestimo' ? ' is-active' : '' ?>" href="/emprestimo"<?= $atual('emprestimo') ?>><?= svgIcon('emprestimo', 18) ?><?= e(t('Empréstimo')) ?></a>
+            <a class="menu-item<?= $activePage === 'investimentos' ? ' is-active' : '' ?>" href="/investimentos"<?= $atual('investimentos') ?>><?= svgIcon('invest', 18) ?><?= e(t('Investimentos')) ?></a>
+            <a class="menu-item<?= $activePage === 'wishlist' ? ' is-active' : '' ?>" href="/wishlist"<?= $atual('wishlist') ?>><?= svgIcon('gift', 18) ?><?= e(t('Wishlist')) ?></a>
+            <a class="menu-item<?= $activePage === 'temas' ? ' is-active' : '' ?>" href="/temas"<?= $atual('temas') ?>><?= svgIcon('paleta', 18) ?><?= e(t('Temas')) ?></a>
+            <a class="menu-item<?= $activePage === 'ajustes' ? ' is-active' : '' ?>" href="/ajustes"><?= svgIcon('settings', 18) ?><?= e(t('Ajustes')) ?></a>
             <form method="post" action="/logout">
                 <?= csrfField() ?>
-                <button type="submit" class="menu-item"><?= svgIcon('logout', 18) ?>Sair</button>
+                <button type="submit" class="menu-item"><?= svgIcon('logout', 18) ?><?= e(t('Sair')) ?></button>
             </form>
         </div>
     </details>
@@ -146,10 +153,10 @@ $marca = '<span class="marca"><img src="/assets/img/spitz.png" alt="" width="216
             <?php foreach ((array) ($flash['acao']['campos'] ?? []) as $campo => $valor): ?>
                 <input type="hidden" name="<?= e((string) $campo) ?>" value="<?= e((string) $valor) ?>">
             <?php endforeach; ?>
-            <button type="submit"><?= e((string) ($flash['acao']['label'] ?? 'desfazer')) ?></button>
+            <button type="submit"><?= e((string) ($flash['acao']['label'] ?? t('desfazer'))) ?></button>
         </form>
     <?php endif; ?>
-    <button type="button" class="toast-x" data-toast-fechar aria-label="fechar"><?= svgIcon('x', 16) ?></button>
+    <button type="button" class="toast-x" data-toast-fechar aria-label="<?= e(t('fechar')) ?>"><?= svgIcon('x', 16) ?></button>
 </div>
 <?php endif; ?>
 
@@ -157,17 +164,17 @@ $marca = '<span class="marca"><img src="/assets/img/spitz.png" alt="" width="216
 <?= $content ?>
 </main>
 
-<nav class="tabbar" aria-label="principal">
+<nav class="tabbar" aria-label="<?= e(t('principal')) ?>">
     <?php $i = 0; foreach ($barra as $chave => [$href, $rotulo, $icone]): ?>
         <?php if ($i++ === 2): ?>
-            <a class="tab-add" href="<?= e($hrefLancar) ?>" data-lancar aria-label="lançar"><?= svgIcon('plus', 24) ?></a>
+            <a class="tab-add" href="<?= e($hrefLancar) ?>" data-lancar aria-label="<?= e(t('lançar')) ?>"><?= svgIcon('plus', 24) ?></a>
         <?php endif; ?>
         <a class="tab<?= $acesaNaBarra === $chave ? ' is-active' : '' ?>" href="<?= e($href) ?>"<?= $atual($chave) ?>><?= svgIcon($icone, 21) ?><span><?= e($rotulo) ?></span></a>
     <?php endforeach; ?>
 </nav>
 
 <?php if ($comDialogo): ?>
-<dialog id="lancar" class="sheet" aria-label="lançar">
+<dialog id="lancar" class="sheet" aria-label="<?= e(t('lançar')) ?>">
 <?php View::partial('lancamentos/_form', \Financeiro\Services\LancarForm::dados() + ['modo' => 'dialog', 'pref' => 'dlg', 'volta' => $volta]); ?>
 </dialog>
 <?php endif; ?>

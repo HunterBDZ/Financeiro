@@ -88,7 +88,7 @@ final class MetaController
         }
 
         View::render('meta/index', [
-            'pageTitle'     => 'meta · financeiro',
+            'pageTitle'     => t('meta · financeiro'),
             'essenciais'    => $ess,
             'naoEssenciais' => $naoEss,
             'addEss'        => $addEss,
@@ -140,7 +140,7 @@ final class MetaController
         }
 
         if ($erroCampo !== null) {
-            flash('error', 'meta?');
+            flash('error', t('meta?'));
             redirecionar('/meta#c' . $erroCampo, 303);
         }
 
@@ -163,23 +163,22 @@ final class MetaController
                 $pdo->rollBack();
             }
             error_log('meta/salvar: ' . $e->getMessage());
-            flash('error', 'não salvou · tente de novo');
+            flash('error', t('não salvou · tente de novo'));
             redirecionar('/meta', 303);
         }
         MotorFinanceiro::limparCache();
         $depois = MotorFinanceiro::calcularPlano();
 
-        $segs = [$n === 0 ? 'metas limpas' : 'metas salvas', $n === 0 ? null : $n . ($n === 1 ? ' categoria' : ' categorias')];
+        $segs = [$n === 0 ? t('metas limpas') : t('metas salvas'), $n === 0 ? null : tn($n, '1 categoria', '{n} categorias')];
         $ult  = array_key_last($depois);
         if ($ult !== null && isset($antes[$ult])
             && abs((float) $antes[$ult]['fica_na_conta'] - (float) $depois[$ult]['fica_na_conta']) >= 0.5) {
-            $segs[] = 'fim de ' . monthLabel((string) $ult) . ' ' . num((float) $antes[$ult]['fica_na_conta'], 0)
-                . ' → ' . num((float) $depois[$ult]['fica_na_conta'], 0);
+            $segs[] = t('fim de {mes} {antes} → {depois}', ['mes' => monthLabel((string) $ult), 'antes' => num((float) $antes[$ult]['fica_na_conta'], 0), 'depois' => num((float) $depois[$ult]['fica_na_conta'], 0)]);
         }
         $reserva = (float) (MotorFinanceiro::dados()['aj']['reserva_minima'] ?? 0.0);
         $alerta  = PrevisaoEdicao::piorou($antes, $depois, date('Y-m-01'), $reserva);
         if ($alerta !== null) {
-            $segs[] = 'atenção: ' . monthLabel($alerta['mes']) . ($alerta['tipo'] === 'vermelho' ? ' no vermelho' : ' abaixo da reserva');
+            $segs[] = $alerta['tipo'] === 'vermelho' ? t('atenção: {mes} no vermelho', ['mes' => monthLabel($alerta['mes'])]) : t('atenção: {mes} abaixo da reserva', ['mes' => monthLabel($alerta['mes'])]);
         }
         flash($alerta !== null ? 'warn' : 'success', implode(' · ', array_filter($segs, static fn($s) => $s !== null)));
         redirecionar('/meta', 303);

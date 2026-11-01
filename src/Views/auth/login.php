@@ -13,14 +13,14 @@ $lembrar = $lembrar ?? false;
 $css = array_filter(['/assets/css/style.css', '/assets/css/lancar.css', '/assets/css/temas.css'], static fn(string $p): bool => is_file(__DIR__ . '/../../../public' . $p));
 ?>
 <!doctype html>
-<html lang="pt-BR">
+<html lang="<?= e(\Financeiro\Idioma::html()) ?>">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#f4f5f7" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0a0b0f" media="(prefers-color-scheme: dark)">
 <meta name="format-detection" content="telephone=no">
-<title>Entrar · financeiro</title>
+<title><?= e(t('Entrar · financeiro')) ?></title>
 <link rel="icon" type="image/png" sizes="32x32" href="/assets/img/icone-32.png">
 <link rel="apple-touch-icon" href="/assets/img/icone-180.png">
 <link rel="preload" href="/assets/fonts/manrope-var-latin.woff2" as="font" type="font/woff2" crossorigin>
@@ -35,50 +35,53 @@ $css = array_filter(['/assets/css/style.css', '/assets/css/lancar.css', '/assets
     <div class="lg-topo">
         <span class="marca"><img src="/assets/img/spitz.png" alt="" width="216" height="181"></span>
         <b translate="no">financeiro</b>
-        <button type="button" class="ic" data-theme-toggle aria-label="trocar tema"><?= svgIcon('sun', 19, 'so-escuro') ?><?= svgIcon('moon', 19, 'so-claro') ?></button>
+        <button type="button" class="ic" data-theme-toggle aria-label="<?= e(t('trocar tema')) ?>"><?= svgIcon('sun', 19, 'so-escuro') ?><?= svgIcon('moon', 19, 'so-claro') ?></button>
     </div>
 
     <div class="lg-esq">
-        <h1 class="lg-titulo">O dinheiro da casa, mês a mês.</h1>
-        <p class="lg-sub">Saldo, contas, metas e os próximos meses, num lugar só.</p>
+        <h1 class="lg-titulo"><?= e(t('O dinheiro da casa, mês a mês.')) ?></h1>
+        <p class="lg-sub"><?= e(t('Saldo, contas, metas e os próximos meses, num lugar só.')) ?></p>
     </div>
 
     <div class="lg-dir">
         <form class="lg-card" method="post" action="/login">
             <img class="lg-spitz" src="/assets/img/spitz.png" alt="" width="216" height="181">
-            <h2 class="lg-card-t">Entrar</h2>
+            <h2 class="lg-card-t"><?= e(t('Entrar')) ?></h2>
             <?= csrfField() ?>
             <label class="lg-campo">
                 <?= svgIcon('user', 19) ?>
-                <span class="sr-only">Login</span>
-                <input type="text" name="login" value="<?= e($login) ?>" required maxlength="100" placeholder="Login"
+                <span class="sr-only"><?= e(t('Login')) ?></span>
+                <input type="text" name="login" value="<?= e($login) ?>" required maxlength="100" placeholder="<?= e(t('Login')) ?>"
                        autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false"
                        enterkeyhint="next"<?= $login === '' ? ' data-autofocus' : '' ?>>
             </label>
             <label class="lg-campo">
                 <?= svgIcon('lock', 19) ?>
-                <span class="sr-only">Senha</span>
-                <input type="password" name="senha" required placeholder="Senha" autocomplete="current-password" enterkeyhint="go"<?= $login !== '' ? ' data-autofocus' : '' ?>>
+                <span class="sr-only"><?= e(t('Senha')) ?></span>
+                <input type="password" name="senha" required placeholder="<?= e(t('Senha')) ?>" autocomplete="current-password" enterkeyhint="go"<?= $login !== '' ? ' data-autofocus' : '' ?>>
             </label>
             <label class="lg-lembrar">
-                <span>Lembrar este aparelho</span>
+                <span><?= e(t('Lembrar este aparelho')) ?></span>
                 <input type="checkbox" name="lembrar" value="1"<?= $lembrar ? ' checked' : '' ?>>
             </label>
 
             <?php if ($erro !== null): ?>
                 <div class="aviso aviso-error" role="alert"><?= e($erro) ?></div>
             <?php elseif ($expirou): ?>
-                <div class="aviso aviso-warn" role="status">A sessão expirou. Entre de novo.</div>
+                <div class="aviso aviso-warn" role="status"><?= e(t('A sessão expirou. Entre de novo.')) ?></div>
             <?php endif; ?>
 
-            <button type="submit" class="btn btn-primary btn-block">Entrar</button>
+            <button type="submit" class="btn btn-primary btn-block"><?= e(t('Entrar')) ?></button>
         </form>
+        <?php require __DIR__ . '/../partials/idioma_escolha.php'; ?>
 
         <details class="lg-cert">
-            <summary>O navegador avisou “conexão não segura”?</summary>
-            <p>Esse aviso é esperado: o app roda só na sua rede local, com certificado próprio. Toque em
-            <strong>Avançado</strong> (ou “Detalhes”) e depois em <strong>Continuar</strong> ou <strong>Prosseguir</strong>.
-            Os dados não saem da sua rede.</p>
+            <summary><?= e(t('O navegador avisou “conexão não segura”?')) ?></summary>
+            <p><?= e(t('Esse aviso é esperado: o app roda só na sua rede local, com certificado próprio.')) ?> <?= t('Toque em{avancado} (ou “Detalhes”) e depois em {continuar} ou {prosseguir}.', [
+                'avancado' => "\n            <strong>" . e(t('Avançado')) . '</strong>',
+                'continuar' => '<strong>' . e(t('Continuar')) . '</strong>',
+                'prosseguir' => '<strong>' . e(t('Prosseguir')) . '</strong>',
+            ]) . "\n            " . e(t('Os dados não saem da sua rede.')) ?></p>
         </details>
     </div>
 </main>
