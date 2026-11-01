@@ -8,7 +8,7 @@
 
 ![PHP 8.4+](https://img.shields.io/badge/PHP-8.4%2B-777BB4?logo=php&logoColor=white) ![MySQL 8](https://img.shields.io/badge/MySQL-8-4479A1?logo=mysql&logoColor=white) ![Sem dependências](https://img.shields.io/badge/depend%C3%AAncias-nenhuma-success) ![Privado](https://img.shields.io/badge/uso-pessoal-lightgrey)
 
-[Diferenciais](#o-que-ele-tem-de-diferente) · [Telas](#telas) · [Como funciona](#como-funciona) · [Instalar](#instalar) · [Manual completo](docs/INSTALACAO.md)
+[Diferenciais](#o-que-ele-tem-de-diferente) · [Telas](#telas) · [Como funciona](#como-funciona) · [Instalar](#instalar) · [Atualizar](#atualizar) · [Manual completo](docs/INSTALACAO.md)
 
 <br>
 
@@ -135,7 +135,7 @@ sequenceDiagram
 **Para experimentar**, com dados fictícios, em cerca de 10 minutos ([passo a passo](docs/INSTALACAO.md#caminho-rápido-para-experimentar)). Requer PHP 8.4+ e MySQL 8:
 
 ```sh
-git clone git@github.com:HunterBDZ/Financeiro.git && cd financeiro
+git clone git@github.com:HunterBDZ/Financeiro.git financeiro && cd financeiro
 sudo mysql -e "CREATE DATABASE financeiro_demo CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
   CREATE USER 'financeiro_demo'@'localhost' IDENTIFIED BY 'demo1234';
   GRANT SELECT, INSERT, UPDATE, DELETE ON financeiro_demo.* TO 'financeiro_demo'@'localhost';"
@@ -150,7 +150,7 @@ Abra http://127.0.0.1:8099 e entre com `ana` / `demo1234`.
 
 **Para usar de verdade**, siga o **[manual de instalação](docs/INSTALACAO.md)**: 10 passos com Apache, HTTPS, firewall e backup, além de como atualizar, restaurar e resolver problemas.
 
-### Atualizar
+## Atualizar
 
 Os sites não se atualizam sozinhos: o dono decide quando. Um comando baixa a última versão publicada, testa numa cópia do banco, faz backup e aplica. Se algo falhar, o site volta para a versão anterior.
 
