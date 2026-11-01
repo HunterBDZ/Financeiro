@@ -19,7 +19,7 @@ Para quem desenvolve. Quem só usa o site segue a [atualização do manual](INST
    - crie `database/migrations/AAAA_MM_DD_descricao.sql` (estrutura) e, se precisar mudar dados, um `.php` com o mesmo prefixo;
    - faça a migração funcionar se rodar de novo, porque ela só é registrada depois de terminar;
    - atualize `database/schema.sql`, porque instalações novas começam por ele.
-3. Atualize `VERSION` e acrescente a seção da versão no topo de `CHANGELOG.md`.
+3. Atualize `VERSION`, o selo de versão no topo do `README.md` (ele aparece duas vezes na mesma linha) e acrescente a seção da versão no topo de `CHANGELOG.md`. Os testes falham se o selo e o `VERSION` não baterem.
 4. Publique:
    ```sh
    git add -A && git commit -m "Versão 1.1.0: aba Exemplo"

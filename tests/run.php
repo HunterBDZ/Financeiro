@@ -716,5 +716,14 @@ if ($catAmortT !== null && $faltaAntesT > 100.0 && $refT === substr($hojeReal, 0
     }
 }
 
+// ---- 17. o selo do README acompanha o VERSION (o README do repositório é privado: o selo é fixo)
+$arqVersao = __DIR__ . '/../VERSION';
+$arqReadme = __DIR__ . '/../README.md';
+if (is_file($arqVersao) && is_file($arqReadme)) {
+    $versao = trim((string) file_get_contents($arqVersao));
+    $readme = (string) file_get_contents($arqReadme);
+    $check('versão: o selo do README diz o mesmo que o VERSION', str_contains($readme, "[![Versão {$versao}](") && str_contains($readme, "-{$versao}-blue)"), $versao);
+}
+
 echo "\n{$ok} ok, {$falhas} falha(s)\n";
 exit($falhas > 0 ? 1 : 0);
