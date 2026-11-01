@@ -1,7 +1,8 @@
 # financeiro — decisões e operação
 
-Repositório canônico: `~/financeiro` no servidor 192.168.0.154 (git, branch `main`).
-Produção: `/var/www/financeiro`, publicada a partir deste repositório. O código que estava
+Repositório: GitHub (`HunterBDZ/Financeiro`); `~/financeiro` no servidor 192.168.0.154 é a cópia de trabalho
+com a staging. Produção: `/var/www/financeiro`, atualizada por versões com `financeiro-atualizar` desde
+1/11/2026 (remoto `github`, chave só de leitura). O código que estava
 na máquina .164 (publicado em 10/10/2026) é o primeiro commit daqui; trabalhe sempre neste.
 
 ## 2026-11-01 — versões e atualização pelo GitHub
@@ -269,7 +270,9 @@ na máquina .164 (publicado em 10/10/2026) é o primeiro commit daqui; trabalhe 
   próprio comando do ssh e derruba a sessão.)
 - Recarregar a staging com os dados de produção (como root):
   `mysqldump --single-transaction --routines --triggers financeiro | mysql financeiro_stage`.
-- Publicar: testes na staging → backup do banco e do código → migrações SQL como root
+- Publicar agora: lançar a versão ([`LANCAR-VERSAO.md`](LANCAR-VERSAO.md)) e rodar `sudo financeiro-atualizar`. O
+  processo abaixo, com `financeiro-publish`, é o antigo, e fica só para consulta.
+- Publicar (antigo): testes na staging → backup do banco e do código → migrações SQL como root
   (`sudo mysql financeiro < database/migrations/….sql`) → `sudo financeiro-publish ~/financeiro`
   (copia src/public/tests/schema.sql e roda `tests/run.php` em produção, como www-data; não
   copia `database/migrations`) → migrações de dados copiadas para
