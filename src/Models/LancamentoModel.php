@@ -345,6 +345,16 @@ final class LancamentoModel
         return $stmt->fetch() ?: null;
     }
 
+    /** Os lançamentos de uma categoria, do mais recente para o mais antigo. */
+    public static function porCategoria(int $categoriaId): array
+    {
+        $stmt = Database::connection()->prepare(
+            'SELECT id, data, descricao, valor FROM lancamentos WHERE categoria_id = :cat ORDER BY data DESC, id DESC'
+        );
+        $stmt->execute(['cat' => $categoriaId]);
+        return $stmt->fetchAll();
+    }
+
     /**
      * Quantas vezes cada categoria foi lançada desde $desde: pelo usuário ('meu') e pela casa ('casa').
      * @return array<int, array{meu:int, casa:int}>

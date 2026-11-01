@@ -24,6 +24,7 @@ use Financeiro\Controllers\AjustesController;
 use Financeiro\Controllers\CartaoController;
 use Financeiro\Controllers\CategoriaController;
 use Financeiro\Controllers\DashboardController;
+use Financeiro\Controllers\EmprestimoController;
 use Financeiro\Controllers\FuturoController;
 use Financeiro\Controllers\LancamentosController;
 use Financeiro\Controllers\MesController;
@@ -38,6 +39,7 @@ use Financeiro\Models\MesModel;
 use Financeiro\Models\MetaModel;
 use Financeiro\Models\PrevisaoModel;
 use Financeiro\Models\UsuarioModel;
+use Financeiro\Services\EmprestimoSimulacao;
 use Financeiro\Services\AnualResumo;
 use Financeiro\Services\CartaoFatura;
 use Financeiro\Services\LancarForm;
@@ -596,6 +598,123 @@ $htmlBar = $render(MesController::class, 'index', []);
 preg_match('#<nav class="tabbar".*?</nav>#s', $htmlBar, $mB);
 $check('barra do celular: Início, Extrato, +, Mês, Cartão; Metas e Anual no menu do M', str_contains($mB[0] ?? '', 'href="/cartao"')
     && !str_contains($mB[0] ?? '', 'href="/meta"') && str_contains($htmlBar, 'class="menu-item" href="/meta"') && str_contains($htmlBar, 'class="lat-i" href="/cartao"'));
+
+// ---- 16. aba Empréstimo: dados de mentira, para não depender da dívida de verdade
+$dadosEmp = [
+    'meses' => [['mes' => '2030-01-01', 'situacao' => 'PREVISAO'], ['mes' => '2030-02-01', 'situacao' => 'PREVISAO'], ['mes' => '2030-03-01', 'situacao' => 'PREVISAO']],
+    'aj' => ['parcela_mensal' => 100.0, 'juros_mes' => 0.01, 'n_parcelas' => 12.0, 'reserva_minima' => 500.0, 'saldo_ini' => 2000.0, 'poupanca_ini' => 0.0, 'objetivo' => 1.0, 'meta_final' => 0.0],
+    'loanIni' => 1000.0, 'cats' => [], 'prev' => [], 'excecao' => [], 'metas' => [], 'real' => [], 'n' => [], 'ult' => [],
+    'esp' => ['cred' => null, 'amort' => 99, 'guard' => null, 'resg' => null],
+];
+$hojeEmp = '2029-12-15';
+$sitEmp = EmprestimoSimulacao::situacao($dadosEmp, '2030-01-01', $hojeEmp);
+$check('empréstimo: falta = saldo + juros − parcela no fim do mês', abs($sitEmp['falta'] - 910.0) < 0.005, (string) $sitEmp['falta']);
+$check('empréstimo: sem o mês da 1ª parcela, não há fim pelo contrato', $sitEmp['contrato'] === null);
+$simEmp = EmprestimoSimulacao::simular($dadosEmp, '2030-01-01', '2030-01-01', 200.0, $hojeEmp);
+$check('empréstimo: o adiantamento abate a dívida e sai da conta', abs($simEmp['falta'] - 710.0) < 0.005 && abs($simEmp['contaAntes'] - $simEmp['contaDepois'] - 200.0) < 0.005, json_encode($simEmp));
+$saldoT = 710.0;
+$k = 0;
+$jurosT = 0.0;
+while ($saldoT > 0.01) {
+    $jT = $saldoT * 0.01;
+    $jurosT += $jT;
+    $saldoT = max(0.0, $saldoT + $jT - 100.0);
+    $k++;
+}
+$saldoS = 910.0;
+$kS = 0;
+$jurosS = 0.0;
+while ($saldoS > 0.01) {
+    $jS = $saldoS * 0.01;
+    $jurosS += $jS;
+    $saldoS = max(0.0, $saldoS + $jS - 100.0);
+    $kS++;
+}
+$check('empréstimo: meses e juros a menos batem com a conta à mão', $simEmp['mesesAntes'] === $kS - $k && abs($simEmp['jurosMenos'] - ($jurosS - $jurosT)) < 0.01, json_encode([$simEmp['mesesAntes'], $kS - $k, $simEmp['jurosMenos'], $jurosS - $jurosT]));
+$demais = EmprestimoSimulacao::simular($dadosEmp, '2030-01-01', '2030-02-01', 50000.0, $hojeEmp);
+$check('empréstimo: valor acima da dívida quita e só tira da conta o que devia', $demais['ajustado'] && $demais['falta'] <= 0.01 && abs($demais['aplicado'] - $demais['teto']) < 0.005
+    && abs($demais['contaAntes'] - $demais['contaDepois'] - $demais['aplicado']) < 0.005 && $demais['quita'] === '2030-02-01', json_encode($demais['aplicado']));
+$alerta = EmprestimoSimulacao::simular($dadosEmp, '2030-01-01', '2030-01-01', 900.0, $hojeEmp);
+$check('empréstimo: avisa quando a conta cai abaixo da reserva, e sem aviso se não cai', $alerta['alerta'] === null && $simEmp['alerta'] === null
+    && EmprestimoSimulacao::simular(array_replace_recursive($dadosEmp, ['aj' => ['saldo_ini' => 900.0]]), '2030-01-01', '2030-01-01', 350.0, $hojeEmp)['alerta'] === 'warn'
+    && EmprestimoSimulacao::simular(array_replace_recursive($dadosEmp, ['aj' => ['saldo_ini' => 600.0]]), '2030-01-01', '2030-01-01', 500.0, $hojeEmp)['alerta'] === 'neg');
+$check('empréstimo: com a parcela menor, o prazo fica e os juros caem menos que encurtando', $simEmp['menorParcela']['quita'] === $simEmp['quitaAntes'] && $simEmp['menorParcela']['parcela'] < 100.0
+    && $simEmp['menorParcela']['jurosMenos'] < $simEmp['jurosMenos'], json_encode($simEmp['menorParcela']));
+$check('empréstimo: mês real não recebe adiantamento simulado', abs(MotorFinanceiro::calcular(array_replace($dadosEmp, ['meses' => [['mes' => '2030-01-01', 'situacao' => 'REAL']]]),
+    ['adiantar' => ['2030-01-01' => 200.0], 'v2' => true, 'objetivo' => 3, 'hoje' => $hojeEmp])['2030-01-01']['amortizacao_extra']) < 0.005);
+$check('empréstimo: sem a opção, o motor segue igual', json_encode(MotorFinanceiro::calcular($dadosEmp, ['hoje' => $hojeEmp])) === json_encode(MotorFinanceiro::calcular($dadosEmp, ['hoje' => $hojeEmp, 'adiantar' => []])));
+$antesEmp = (int) $pdo->query('SELECT COUNT(*) FROM lancamentos')->fetchColumn();
+$htmlEmp = $render(EmprestimoController::class, 'index', []);
+$check('empréstimo: a aba abre, com o menu do M e fora da barra', str_contains($htmlEmp, '<h1>Empréstimo</h1>') && str_contains($htmlEmp, 'class="menu-item is-active" href="/emprestimo"')
+    && !preg_match('#<nav class="tabbar".*?href="/emprestimo".*?</nav>#s', $htmlEmp));
+$htmlErro = $render(EmprestimoController::class, 'index', ['valor' => '12a', 'parcial' => '1']);
+$check('empréstimo: valor inválido diz como corrigir, ou a dívida já acabou', str_contains($htmlErro, 'Valor inválido') || str_contains($htmlEmp, 'Empréstimo quitado'));
+$check('empréstimo: o pedaço do resultado vem sem o layout', !str_contains($htmlErro, '<html'));
+$htmlOk = $render(EmprestimoController::class, 'index', ['valor' => '100,00']);
+$check('empréstimo: simular mostra o resultado e não grava nada', (str_contains($htmlOk, 'Falta depois') || str_contains($htmlEmp, 'Empréstimo quitado'))
+    && (int) $pdo->query('SELECT COUNT(*) FROM lancamentos')->fetchColumn() === $antesEmp);
+$lido = AjustesController::lerValores(['juros_mes' => '1,9143', 'parcela_mensal' => '314,28', 'n_parcelas' => '96', 'consignado_inicio' => '2026-11', 'reserva_minima' => '1,00'], AjusteModel::DO_EMPRESTIMO);
+$check('dados do empréstimo: lê os campos e ignora o que não é do empréstimo', $lido['erro'] === null && abs($lido['valores']['juros_mes'] - 0.019143) < 1e-9
+    && $lido['valores']['consignado_inicio'] === 202611.0 && !isset($lido['valores']['reserva_minima']), json_encode($lido));
+$check('dados do empréstimo: recusa parcela zero, número de parcelas quebrado e mês inválido',
+    AjustesController::lerValores(['parcela_mensal' => '0'], AjusteModel::DO_EMPRESTIMO)['erro'] === 'parcela_mensal'
+    && AjustesController::lerValores(['n_parcelas' => '1,5'], AjusteModel::DO_EMPRESTIMO)['erro'] === 'n_parcelas'
+    && AjustesController::lerValores(['consignado_inicio' => '2026-13'], AjusteModel::DO_EMPRESTIMO)['erro'] === 'consignado_inicio');
+$check('dados do empréstimo: Ajustes não grava mais esses campos', array_diff(AjusteModel::DO_EMPRESTIMO, AjusteModel::EDITAVEIS) === []
+    && AjustesController::lerValores(['juros_mes' => '5'], array_diff(AjusteModel::EDITAVEIS, AjusteModel::DO_EMPRESTIMO))['valores'] === []);
+$htmlAj = $render(AjustesController::class, 'index', []);
+$check('dados do empréstimo: saíram de Ajustes, que avisa onde estão', !str_contains($htmlAj, 'valores[juros_mes]') && !str_contains($htmlAj, 'valores[parcela_mensal]')
+    && !str_contains($htmlAj, 'valores[n_parcelas]') && !str_contains($htmlAj, 'valores[consignado_inicio]') && !str_contains($htmlAj, 'valores[recebido_emprestimo]')
+    && str_contains($htmlAj, 'valores[reserva_minima]') && str_contains($htmlAj, 'valores[saldo_ini]') && str_contains($htmlAj, '/emprestimo?dados=1#emp-dados'));
+$check('dados do empréstimo: estão na aba, mesmo com a dívida quitada', str_contains($htmlEmp, 'action="/emprestimo/dados"') && str_contains($htmlEmp, 'valores[juros_mes]') && str_contains($htmlEmp, 'valores[saldo_devedor]') && str_contains($htmlEmp, 'valores[saldo_devedor_mes]')
+    && str_contains($htmlEmp, 'valores[parcela_mensal]') && str_contains($htmlEmp, 'valores[n_parcelas]') && str_contains($htmlEmp, 'valores[consignado_inicio]') && str_contains($htmlEmp, 'valores[recebido_emprestimo]'));
+$dadosSaldo = array_replace_recursive($dadosEmp, ['aj' => ['saldo_devedor' => 500.0, 'saldo_devedor_mes' => 203002.0]]);
+$pSaldo = MotorFinanceiro::calcular($dadosSaldo, ['v2' => true, 'objetivo' => 3, 'hoje' => $hojeEmp]);
+$check('saldo informado: a dívida parte dele no mês informado, antes da parcela', abs($pSaldo['2030-01-01']['falta_pagar'] - 910.0) < 0.005
+    && abs($pSaldo['2030-02-01']['falta_pagar'] - 405.0) < 0.005 && abs($pSaldo['2030-03-01']['falta_pagar'] - 309.05) < 0.005, json_encode(array_column($pSaldo, 'falta_pagar')));
+$pSaldoAuto = MotorFinanceiro::calcular($dadosSaldo, ['v2' => true, 'objetivo' => 1, 'hoje' => $hojeEmp]);
+$check('saldo informado: sem adiantamento automático antes dele, e com adiantamento depois', abs($pSaldoAuto['2030-01-01']['amortizacao_extra']) < 0.005 && $pSaldoAuto['2030-02-01']['amortizacao_extra'] > 0.0
+    && MotorFinanceiro::calcular($dadosEmp, ['v2' => true, 'objetivo' => 1, 'hoje' => $hojeEmp])['2030-01-01']['amortizacao_extra'] > 0.0);
+$check('saldo informado: juros menores não aumentam a dívida', MotorFinanceiro::calcular(array_replace_recursive($dadosSaldo, ['aj' => ['juros_mes' => 0.005]]), ['v2' => true, 'objetivo' => 3, 'hoje' => $hojeEmp])['2030-02-01']['falta_pagar'] < $pSaldo['2030-02-01']['falta_pagar']);
+$check('saldo informado: em branco ou sem mês, vale o cálculo de antes', MotorFinanceiro::saldoInformado($dadosEmp['aj']) === null
+    && MotorFinanceiro::saldoInformado(['saldo_devedor' => 500.0, 'saldo_devedor_mes' => 0.0]) === null && MotorFinanceiro::saldoInformado(['saldo_devedor' => 0.0, 'saldo_devedor_mes' => 203002.0]) === null);
+$simSaldo = EmprestimoSimulacao::simular($dadosSaldo, '2030-02-01', '2030-02-01', 100.0, $hojeEmp);
+$check('saldo informado: a simulação parte dele', abs($simSaldo['faltaAntes'] - 405.0) < 0.005 && abs($simSaldo['falta'] - 305.0) < 0.005, json_encode([$simSaldo['faltaAntes'], $simSaldo['falta']]));
+$confere = static fn(array $v): ?string => EmprestimoController::conferirSaldo($v, '2026-11-15', '2026-09-01', '2027-12-01')[0];
+$check('saldo informado: valor e mês juntos, em mês do plano que já começou', $confere(['saldo_devedor' => 0.0, 'saldo_devedor_mes' => 0.0]) === null
+    && $confere(['saldo_devedor' => 100.0, 'saldo_devedor_mes' => 202611.0]) === null && $confere(['saldo_devedor' => 100.0, 'saldo_devedor_mes' => 0.0]) === 'saldo_devedor_mes'
+    && $confere(['saldo_devedor' => 0.0, 'saldo_devedor_mes' => 202611.0]) === 'saldo_devedor' && $confere(['saldo_devedor' => 100.0, 'saldo_devedor_mes' => 202612.0]) === 'saldo_devedor_mes'
+    && $confere(['saldo_devedor' => 100.0, 'saldo_devedor_mes' => 202608.0]) === 'saldo_devedor_mes');
+$check('saldo informado: o campo em branco lê como zero', AjustesController::lerValores(['saldo_devedor' => ' ', 'saldo_devedor_mes' => ''], AjusteModel::DO_EMPRESTIMO) === ['valores' => ['saldo_devedor' => 0.0, 'saldo_devedor_mes' => 0.0], 'erro' => null]);
+$hojeReal = date('Y-m-d');
+$check('consolidar: valor inválido, data futura e data fora do plano são recusados; o resto passa',
+    EmprestimoController::validarAdiantamento('12a', $hojeReal, $hojeReal)[0] !== null
+    && EmprestimoController::validarAdiantamento('0', $hojeReal, $hojeReal)[0] !== null
+    && str_contains((string) EmprestimoController::validarAdiantamento('100', date('Y-m-d', strtotime('+1 day')), $hojeReal)[0], 'depois de hoje')
+    && str_contains((string) EmprestimoController::validarAdiantamento('100', '2000-01-01', $hojeReal)[0], 'Data inválida')
+    && EmprestimoController::validarAdiantamento('100', 'ontem', $hojeReal)[0] !== null
+    && EmprestimoController::validarAdiantamento('1.250,50', $hojeReal, $hojeReal) === [null, 1250.5]);
+$catAmortT = MotorFinanceiro::dados()['esp']['amort'];
+$refT = MesModel::referencia($hojeReal);
+$faltaAntesT = EmprestimoSimulacao::dividaNoMes(MotorFinanceiro::dados(), $refT, $hojeReal);
+if ($catAmortT !== null && $faltaAntesT > 100.0 && $refT === substr($hojeReal, 0, 8) . '01') {
+    $pdo->beginTransaction();
+    try {
+        $saldoAntesT = (float) MotorFinanceiro::calcular(MotorFinanceiro::dados(), ['v2' => true, 'objetivo' => 3])[$refT]['fica_na_conta'];
+        LancamentoModel::criar($hojeReal, 'Adiantamento de teste', (int) $catAmortT, 100.0, (int) $pdo->query('SELECT MIN(id) FROM usuarios')->fetchColumn());
+        MotorFinanceiro::limparCache();
+        $dT = MotorFinanceiro::dados();
+        $check('consolidar: o lançamento abate a dívida e sai da conta', abs(EmprestimoSimulacao::dividaNoMes($dT, $refT, $hojeReal) - $faltaAntesT + 100.0) < 0.01
+            && abs((float) MotorFinanceiro::calcular($dT, ['v2' => true, 'objetivo' => 3])[$refT]['fica_na_conta'] - $saldoAntesT + 100.0) < 0.01);
+        $htmlT = $render(EmprestimoController::class, 'index', []);
+        $htmlEx = $render(LancamentosController::class, 'index', ['mes' => $refT, 'cat' => (string) $catAmortT]);
+        $check('consolidar: aparece em Adiantamentos feitos e no Extrato', str_contains($htmlT, 'Adiantamentos feitos') && str_contains($htmlEx, 'Adiantamento de teste'));
+        $check('consolidar: com adiantamento lançado, não compara o fim com o contrato', !str_contains($htmlT, 'Pelo contrato'));
+    } finally {
+        $pdo->rollBack();
+        MotorFinanceiro::limparCache();
+    }
+}
 
 echo "\n{$ok} ok, {$falhas} falha(s)\n";
 exit($falhas > 0 ? 1 : 0);

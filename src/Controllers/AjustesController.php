@@ -10,8 +10,9 @@ use Financeiro\Models\UsuarioModel;
 use Financeiro\View;
 
 /**
- * Ajustes (SPEC §2.8, menu do avatar) — dono: P5. Parâmetros do motor, ponto de partida,
- * contas recorrentes, essenciais, aparelhos e senha. Cada grupo tem o seu SALVAR.
+ * Ajustes (SPEC §2.8, menu do avatar) — dono: P5. Reserva e meta, ponto de partida, contas
+ * recorrentes, essenciais, aparelhos e senha. Cada grupo tem o seu SALVAR. Os dados do empréstimo
+ * ficam na aba Empréstimo (EmprestimoController::salvarDados), que usa a mesma validação.
  */
 final class AjustesController
 {
@@ -49,7 +50,6 @@ final class AjustesController
         View::render('ajustes/index', [
             'pageTitle'   => 'ajustes · financeiro',
             'aj'          => $aj,
-            'taxa'        => AjusteModel::taxaPeloCredito(),
             'ultimo'      => MesModel::ultimo(),
             'recorrentes' => $recorrentes,
             'apelidos'    => $apelidos,
@@ -69,44 +69,60 @@ final class AjustesController
         csrfCheck();
 
         $grupo = ($_POST['grupo'] ?? '') === 'partida' ? 'partida' : 'parametros';
+        $brutos = (array) ($_POST['valores'] ?? []);
+        // os dados do empréstimo são da aba Empréstimo: aqui ficam fora da whitelist
+        ['valores' => $valores, 'erro' => $errado] = self::lerValores($brutos, array_diff(AjusteModel::EDITAVEIS, AjusteModel::DO_EMPRESTIMO));
+        if ($errado !== null) {
+            $_SESSION['aj_erro'] = ['grupo' => $grupo, 'msg' => self::rotulo($errado) . '?', 'campo' => $errado, 'valores' => $brutos];
+            redirecionar('/ajustes?aberto=' . $grupo . '#' . $grupo, 303);
+        }
+
+        foreach ($valores as $chave => $v) {
+            AjusteModel::setValor($chave, $v);                  // preserva `confirmado`
+        }
+
+        flash('success', $valores === [] ? 'nada mudou' : 'ajustes salvos');
+        redirecionar('/ajustes?aberto=' . $grupo . '#' . $grupo, 303);
+    }
+
+    /**
+     * Confere os campos digitados, só os de $permitidas; os outros são ignorados.
+     * @return array{valores: array<string, float>, erro: ?string} os valores prontos para gravar, ou a chave errada
+     */
+    public static function lerValores(array $brutos, array $permitidas): array
+    {
         $valores = [];
-        foreach ((array) ($_POST['valores'] ?? []) as $chave => $bruto) {
+        foreach ($brutos as $chave => $bruto) {
             $chave = (string) $chave;
-            if (!in_array($chave, AjusteModel::EDITAVEIS, true)) {
+            if (!in_array($chave, $permitidas, true)) {
                 continue;                                       // fora da whitelist: ignorado
             }
-            if ($chave === 'consignado_inicio') {               // <input type="month">: "AAAA-MM" → AAAAMM; vazio = desde o início
+            if ($chave === 'consignado_inicio' || $chave === 'saldo_devedor_mes') {   // <input type="month">: "AAAA-MM" → AAAAMM; vazio = 0
                 $bruto = is_string($bruto) ? trim($bruto) : '';
                 if ($bruto !== '' && !preg_match('/^(\d{4})-(0[1-9]|1[0-2])$/', $bruto, $m)) {
-                    $_SESSION['aj_erro'] = ['grupo' => $grupo, 'msg' => self::rotulo($chave) . '?', 'campo' => $chave, 'valores' => (array) $_POST['valores']];
-                    redirecionar('/ajustes?aberto=' . $grupo . '#' . $grupo, 303);
+                    return ['valores' => [], 'erro' => $chave];
                 }
                 $valores[$chave] = $bruto === '' ? 0.0 : (float) ((int) $m[1] * 100 + (int) $m[2]);
+                continue;
+            }
+            if ($chave === 'saldo_devedor' && is_string($bruto) && trim($bruto) === '') {
+                $valores[$chave] = 0.0;                         // em branco: volta a calcular o saldo pela parcela
                 continue;
             }
             $v = parseMoedaBr(is_string($bruto) ? $bruto : '');
             $ok = $v !== null && match ($chave) {
                 'saldo_ini'  => true,                           // a conta pode começar negativa
                 'n_parcelas' => $v >= 1 && abs($v - round($v)) < 1e-9,
+                'parcela_mensal' => $v > 0,
                 'juros_mes'  => $v >= 0 && $v < 100,
                 default      => $v >= 0,
             };
             if (!$ok) {
-                $_SESSION['aj_erro'] = ['grupo' => $grupo, 'msg' => self::rotulo($chave) . '?', 'campo' => $chave, 'valores' => (array) $_POST['valores']];
-                redirecionar('/ajustes?aberto=' . $grupo . '#' . $grupo, 303);
+                return ['valores' => [], 'erro' => $chave];
             }
             $valores[$chave] = $chave === 'juros_mes' ? round($v / 100, 6) : round($v, 4);   // o campo mostra %, o banco guarda a fração
         }
-
-        foreach ($valores as $chave => $v) {
-            AjusteModel::setValor($chave, $v);                  // preserva `confirmado`
-        }
-        if (array_key_exists('juros_mes', $valores)) {
-            AjusteModel::setConfirmado('juros_mes', ($_POST['confirmado']['juros_mes'] ?? '') === '1');   // só o juros tem "confirmado"
-        }
-
-        flash('success', $valores === [] ? 'nada mudou' : 'ajustes salvos');
-        redirecionar('/ajustes?aberto=' . $grupo . '#' . $grupo, 303);
+        return ['valores' => $valores, 'erro' => null];
     }
 
     /* -------------------------------------------------------------- contas recorrentes */
@@ -212,12 +228,13 @@ final class AjustesController
         redirecionar('/ajustes', 303);
     }
 
-    private static function rotulo(string $chave): string
+    public static function rotulo(string $chave): string
     {
         return [
             'reserva_minima' => 'reserva mínima', 'meta_final' => 'meta', 'juros_mes' => 'juros ao mês',
             'parcela_mensal' => 'parcela', 'n_parcelas' => 'nº de parcelas', 'consignado_inicio' => '1ª parcela', 'saldo_ini' => 'conta',
             'poupanca_ini' => 'poupança', 'recebido_emprestimo' => 'crédito recebido',
+            'saldo_devedor' => 'saldo devedor', 'saldo_devedor_mes' => 'mês do saldo',
         ][$chave] ?? $chave;
     }
 }

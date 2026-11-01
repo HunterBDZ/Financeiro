@@ -41,28 +41,11 @@ $campo = static function (string $chave, string $rotulo, string $un = '', int $d
     <!-- 1: parâmetros -->
     <details class="card dobra aj-grupo" id="parametros"<?= $aberto('parametros') ?>>
         <summary><span class="titulo">Parâmetros</span></summary>
+        <p class="aj-ajuda">Juros, parcela e os outros dados do empréstimo agora ficam na <a class="aj-link" href="/emprestimo?dados=1#emp-dados">aba Empréstimo</a>.</p>
         <form class="aj-form" method="post" action="/ajustes/salvar">
             <?= $csrf ?><input type="hidden" name="grupo" value="parametros">
             <?php $campo('reserva_minima', 'Reserva mínima'); ?>
             <?php $campo('meta_final', 'Meta de conta e poupança' . ($ultLbl !== '' ? ' até ' . $ultLbl : '')); ?>
-            <?php $campo('juros_mes', 'Juros ao mês', '%'); ?>
-            <div class="aj-extra">
-                <label class="aj-check"><input type="checkbox" name="confirmado[juros_mes]" value="1"<?= !empty($aj['juros_mes']['confirmado']) ? ' checked' : '' ?>><span>Confirmado</span></label>
-                <?php if ($taxa !== null): ?><span class="aj-taxa num">Pelo crédito recebido: <?= e(num($taxa * 100)) ?>%</span><?php endif; ?>
-            </div>
-            <?php $campo('parcela_mensal', 'Parcela'); ?>
-            <?php $campo('n_parcelas', 'Número de parcelas', '', 0); ?>
-            <?php
-            $ini = (int) round($aj['consignado_inicio']['valor'] ?? 0);
-            $iniTxt = $erro !== null && is_string($erro['valores']['consignado_inicio'] ?? null)
-                ? $erro['valores']['consignado_inicio']
-                : ($ini > 0 ? sprintf('%04d-%02d', intdiv($ini, 100), $ini % 100) : '');
-            ?>
-            <div class="aj-campo">
-                <label for="aj-consignado_inicio">1ª parcela descontada em</label>
-                <span class="aj-input aj-input-mes"><input id="aj-consignado_inicio" type="month" name="valores[consignado_inicio]" value="<?= e($iniTxt) ?>"<?= $erro !== null && ($erro['campo'] ?? '') === 'consignado_inicio' ? ' aria-invalid="true" autofocus' : '' ?>></span>
-            </div>
-            <p class="aj-ajuda">A parcela só abate a dívida e o soldo a partir desse mês. Em branco, vale desde o início do plano.</p>
             <?php $erroDe('parametros'); ?>
             <button type="submit" class="btn btn-primary aj-salvar">Salvar</button>
         </form>
@@ -75,7 +58,6 @@ $campo = static function (string $chave, string $rotulo, string $un = '', int $d
             <?= $csrf ?><input type="hidden" name="grupo" value="partida">
             <?php $campo('saldo_ini', 'Conta' . $dataDoLabel('saldo_ini')); ?>
             <?php $campo('poupanca_ini', 'Poupança' . $dataDoLabel('poupanca_ini')); ?>
-            <?php $campo('recebido_emprestimo', 'Crédito recebido'); ?>
             <?php $erroDe('partida'); ?>
             <button type="submit" class="btn btn-primary aj-salvar">Salvar</button>
         </form>

@@ -1,0 +1,82 @@
+/* ==========================================================================
+   emprestimo.css — aba Empréstimo (prefixo .emp-*). Um destaque por tela: o cartão escuro diz quanto
+   falta; o resultado responde em números simples. Só tokens de style.css.
+   ========================================================================== */
+
+.emp { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.emp-topo h1 { font-size: 24px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.15; }
+.emp-cols, .emp-col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.emp-saldo-sub { margin: 2px 0 12px; color: var(--cofre-txt-2); font-size: 14px; }
+.emp-saldo .saldo-duas small + b + small { margin-top: 2px; font-weight: 600; }
+.emp-saldo .saldo-duas + .emp-saldo-sub { margin: 10px 0 0; }
+
+.emp-form { display: grid; grid-template-columns: 1fr; gap: 12px; }
+.emp-valor { display: flex; align-items: center; gap: 8px; padding-left: 14px; border: 1px solid var(--line-2); border-radius: var(--r-md); background: var(--card); }
+.emp-valor:focus-within { outline: 2px solid var(--foco); outline-offset: 1px; }
+.emp-valor > span { color: var(--text-2); font-size: 18px; font-weight: 600; }
+.emp-valor input { flex: 1 1 auto; width: 100%; min-width: 0; min-height: 60px; padding: 0 14px 0 0; border: 0; border-radius: var(--r-md); background: none; box-shadow: none; outline: 0;
+    font-family: var(--fn); font-size: 28px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.emp-ajuda { color: var(--text-2); font-size: var(--t-peq); }
+.emp-acoes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.emp-acoes .btn { width: 100%; min-height: var(--tap); }
+.emp-plano { padding: 0 4px; color: var(--text-2); font-size: 14px; line-height: 1.45; }
+.emp-plano a { color: var(--text); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; white-space: nowrap; }
+.emp-convite p { color: var(--text-2); font-size: 15px; line-height: 1.5; }
+
+.emp-res { display: flex; flex-direction: column; gap: 14px; }
+.emp-res-t { color: var(--text-2); font-size: 14px; font-weight: 700; }
+.emp-res-v small { display: block; color: var(--text-2); font-size: var(--t-peq); font-weight: 650; }
+.emp-res-v b { font-family: var(--fn); font-size: 32px; font-weight: 600; letter-spacing: -0.03em; line-height: 1.2; }
+.emp-dl { display: flex; flex-direction: column; }
+.emp-dl > div { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 10px 0; border-top: 1px solid var(--line); }
+.emp-dl dt { color: var(--text-2); font-size: 14px; font-weight: 600; }
+.emp-dl dd { font-size: 16px; font-weight: 750; text-align: right; }
+.emp-dl dd small { display: block; color: var(--text-2); font-size: var(--t-peq); font-weight: 600; }
+.emp-dl dd small.pos { color: var(--pos); }
+
+.emp-graf { margin: 0; }
+.emp-graf svg { display: block; width: 100%; height: 150px; overflow: visible; }
+.emp-leg { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-bottom: 10px; color: var(--text-2); font-size: var(--t-peq); font-weight: 600; }
+.emp-leg span { display: inline-flex; align-items: center; gap: 6px; }
+.emp-leg i { width: 20px; height: 0; border-top: 2px solid var(--text); }
+.emp-leg i.emp-l-antes { border-top: 2px dashed var(--text-3); }
+.emp-base { stroke: var(--line-2); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.emp-antes, .emp-com { fill: none; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.emp-antes { stroke: var(--text-3); stroke-width: 2; stroke-dasharray: 5 5; }
+.emp-com { stroke: var(--text); stroke-width: 2.5; }
+.emp-eixo { display: flex; justify-content: space-between; margin-top: 6px; color: var(--text-2); font-size: var(--t-peq); }
+
+.emp-anos { border-top: 1px solid var(--line); padding-top: 2px; }
+.emp-tab-rola { overflow-x: auto; }
+.emp-anos table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.emp-anos th, .emp-anos td { padding: 8px 0 8px 12px; text-align: right; font-weight: 600; white-space: nowrap; }
+.emp-anos th:first-child { padding-left: 0; text-align: left; }
+.emp-anos thead th { color: var(--text-2); font-size: var(--t-peq); }
+.emp-anos tbody tr { border-top: 1px solid var(--line); }
+.emp-parc { padding-bottom: 8px; color: var(--text-2); font-size: 14px; line-height: 1.5; }
+.emp-parc b { color: var(--text); }
+
+.emp-dados { scroll-margin-top: 72px; }
+
+.emp-como ul { display: flex; flex-direction: column; gap: 8px; padding: 0 0 4px 18px; color: var(--text-2); font-size: 14px; line-height: 1.45; list-style: disc; }
+.emp-como a { color: var(--text); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+
+.emp-consolidar { scroll-margin-top: 72px; }
+.emp-consolidar-cab { display: flex; flex-direction: column; gap: 4px; }
+.emp-consolidar input[type="date"] { min-height: 60px; }
+.emp-consolidar > .btn { width: 100%; }
+
+.emp-feitos ul { display: flex; flex-direction: column; }
+.emp-feitos li a { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: var(--tap); border-top: 1px solid var(--line); font-size: 15px; }
+.emp-feitos li a:hover { background: var(--sel); }
+.emp-feitos li span { color: var(--text-2); }
+.emp-feitos .btn-link { display: inline-flex; align-items: center; min-height: var(--tap); }
+
+@media (min-width: 620px) {
+    .emp-form { grid-template-columns: minmax(0, 1fr) 150px; align-items: end; }
+    .emp-consolidar { grid-template-columns: minmax(0, 1fr) 170px; }
+    .emp-ajuda, .emp-acoes, .emp-inteira, .emp-consolidar-cab { grid-column: 1 / -1; }
+}
+@media (min-width: 1100px) {
+    .emp-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
+}

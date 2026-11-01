@@ -19,6 +19,7 @@ use Financeiro\Controllers\CategoriaController;
 use Financeiro\Controllers\FuturoController;
 use Financeiro\Controllers\AjustesController;
 use Financeiro\Controllers\CartaoController;
+use Financeiro\Controllers\EmprestimoController;
 
 $router = new Router();
 
@@ -67,6 +68,9 @@ $router->post('/cartao/compras/{id}/excluir', [CartaoController::class, 'excluir
 $router->post('/cartao/compras/{id}', [CartaoController::class, 'atualizar']);
 
 $router->get('/futuro', [FuturoController::class, 'index']);
+$router->get('/emprestimo', [EmprestimoController::class, 'index']);
+$router->post('/emprestimo/adiantamento', [EmprestimoController::class, 'registrar']);
+$router->post('/emprestimo/dados', [EmprestimoController::class, 'salvarDados']);
 
 // ---- ajustes (menu do avatar)
 $router->get('/ajustes', [AjustesController::class, 'index']);

@@ -317,6 +317,7 @@ $opcoesMes = static function (string $sel) use ($se): string {
                 <?php endforeach; ?>
             </ol>
         <?php endif; ?>
+        <?php if ($temDivida): ?><a class="fu-res-emp" href="/emprestimo">Simular um adiantamento do empréstimo</a><?php endif; ?>
     </section>
 
     <!-- e se: simulação pela URL, nada é gravado -->

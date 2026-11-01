@@ -9,7 +9,11 @@ final class AjusteModel
     public const EDITAVEIS = [
         'saldo_ini', 'poupanca_ini', 'recebido_emprestimo', 'parcela_mensal',
         'n_parcelas', 'juros_mes', 'consignado_inicio', 'reserva_minima', 'meta_final',
+        'saldo_devedor', 'saldo_devedor_mes',
     ];
+
+    /** As chaves do contrato do empréstimo: quem as grava é a aba Empréstimo, não Ajustes. */
+    public const DO_EMPRESTIMO = ['recebido_emprestimo', 'parcela_mensal', 'n_parcelas', 'juros_mes', 'consignado_inicio', 'saldo_devedor', 'saldo_devedor_mes'];
 
     public static function valor(string $chave, float $default = 0.0): float
     {

@@ -4,6 +4,44 @@ Repositório canônico: `~/financeiro` no servidor 192.168.0.154 (git, branch `m
 Produção: `/var/www/financeiro`, publicada a partir deste repositório. O código que estava
 na máquina .164 (publicado em 10/10/2026) é o primeiro commit daqui; trabalhe sempre neste.
 
+## 2026-11-01 — aba Empréstimo: simular um adiantamento
+
+- **Por quê:** a Natalia sentia falta de um lugar para pôr um valor adiantado e ver quanto falta. O
+  "E se…?" do Anual não tem esse campo.
+- **Compara com "só as parcelas" (`objetivo` 3), não com o plano:** o plano já adianta a sobra de
+  cada mês, então um adiantamento manual só troca de lugar com o automático. Na staging, R$ 1.000 em
+  nov/26 não mudou nenhum número do plano. A tela diz em uma linha quando o plano do Anual quita.
+- **Como calcula:** `MotorFinanceiro::calcular` ganhou a opção `adiantar` (mês → valor, fora de mês
+  fechado), que soma à amortização lançada no mês. `EmprestimoSimulacao` compara os dois cenários;
+  depois do último mês do plano, segue só com parcela e juros. Valor acima da dívida vira a dívida.
+- **Nada é gravado:** a simulação vai na URL (`/emprestimo?valor=…&mes=…`); `parcial=1` devolve só o
+  resultado, que `emprestimo.js` troca enquanto se digita (o cálculo fica só no servidor).
+- **Consolidar:** o cartão "Consolidar adiantamento" (`POST /emprestimo/adiantamento`) grava o que foi
+  pago como lançamento da Amortização extra: entra no Extrato, sai da conta e abate a dívida, com
+  desfazer. A data não pode ser futura, porque o motor só conta adiantamento lançado em mês aberto ou
+  fechado. Igual a outro no mesmo dia pede confirmação. Valor acima da dívida estimada é aceito com
+  aviso (o pagamento aconteceu), mas o motor só abate até a dívida e a conta prevista fica diferente
+  do Extrato até o saldo ser conferido. "Adiantamentos feitos" lista os lançados, com edição.
+- **Validação própria:** `parseMoedaBr` descarta letras ("12a" vira 12), então a tela confere o campo
+  antes de chamá-la.
+- **Onde fica:** menu lateral, menu do M e link no resumo do Anual. A barra do celular já tem 5 itens.
+- **Dados do empréstimo:** juros, parcela, número de parcelas, 1ª parcela e crédito recebido saíram de
+  Ajustes e são editados só na aba (`POST /emprestimo/dados`), para cada dado ter um lugar só. Ajustes
+  ignora essas chaves (`AjusteModel::DO_EMPRESTIMO`), e os dois usam a mesma validação
+  (`AjustesController::lerValores`). Parcela zero passou a ser recusada, porque zeraria a dívida.
+- **Saldo devedor informado:** o saldo era só o valor presente da parcela, então baixar os juros aumentava
+  a dívida (1,97% → 1,91% levou nov/26 de 14.000,90 a 14.268,95). Agora os ajustes `saldo_devedor` e
+  `saldo_devedor_mes` (AAAAMM; criados na 1ª gravação, sem migração) dizem quanto a POUPEX cobra antes
+  da parcela do mês: no início desse mês a dívida passa a esse valor (`MotorFinanceiro::saldoInformado`), e
+  vale em todas as telas. Adiantamentos de meses anteriores já estão no extrato; os lançados no próprio mês
+  ou depois abatem do saldo. Antes do mês informado o motor não supõe adiantamento automático. Os meses
+  anteriores continuam com a dívida estimada, então o Anual pode mostrar um salto nesse mês. Em
+  branco, tudo volta ao cálculo antigo. O mês tem de ser do plano e não pode ser futuro.
+- **Em aberto até informar o saldo:** sem ele, o saldo inicial é o valor presente das 96 parcelas, mas
+  ainda soma juros de set e out antes da 1ª parcela (nov/26). Com isso o cálculo chega a nov/35, e o
+  contrato acabaria em out/34. A tela avisa enquanto as datas diferirem, e o "juros a menos" e o ganho
+  do Anual dependem disso. A taxa guarda 2 casas em % (`ajustes.valor` é DECIMAL(14,4)).
+
 ## 2026-10-16 — aba Cartão: compras à vista e parceladas
 
 - **Por quê:** o casal queria um lugar para lançar as compras no cartão e as parcelas; a previsão

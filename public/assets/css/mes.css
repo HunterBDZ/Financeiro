@@ -260,6 +260,7 @@ details.mes-ed:target > summary { animation: mes-realce 1.6s ease-out 1; }   /* 
 .fu-res-v b { font-family: var(--fn); font-size: 30px; font-weight: 600; letter-spacing: -0.03em; }
 .fu-res-v span { font-size: 14px; font-weight: 750; }
 .fu-res-meta { color: var(--text-2); font-size: 13px; }
+.fu-res-emp { display: inline-flex; align-items: center; min-height: var(--tap); margin-top: 4px; font-size: 14px; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
 .fu-marcos { position: relative; display: flex; flex-direction: column; margin: 12px 0 0; padding: 6px 0 0; border-top: 1px solid var(--line); list-style: none; }
 .fu-marcos::before { content: ""; position: absolute; left: 3.5px; top: 28px; bottom: 26px; width: 1px; background: var(--line-2); }
 .fu-marco {
@@ -465,6 +466,7 @@ details.mes-ed:target > summary { animation: mes-realce 1.6s ease-out 1; }   /* 
 .aj-extra { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 12px; padding-bottom: 8px; }
 .aj-check { display: inline-flex; flex-direction: row-reverse; align-items: center; gap: 12px; min-height: 44px; font-weight: 600; cursor: pointer; }
 .aj-taxa { color: var(--text-2); font-size: 13px; }
+.aj-link { color: var(--text); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
 .aj-form > .aviso { margin-top: 12px; }
 .aj-salvar { align-self: flex-start; min-width: 150px; margin-top: 14px; }
 .aj-contas { display: flex; flex-direction: column; margin-bottom: 14px; }

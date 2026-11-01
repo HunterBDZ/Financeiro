@@ -19,6 +19,10 @@ use Financeiro\Models\MesModel;
  * - com MOTOR_V2=1, a sobra acima da reserva amortiza o empréstimo "olhando à frente": só o
  *   que mantém todos os meses seguintes ≥ reserva (D4); `objetivo` 3 (só a meta) não amortiza.
  *
+ * - saldo devedor informado (ajustes saldo_devedor e saldo_devedor_mes): a dívida passa a esse valor
+ *   no início do mês informado, antes da parcela. O extrato do banco já contém o que aconteceu antes,
+ *   então nos meses anteriores o motor não supõe adiantamento automático.
+ *
  * dados() lê o banco uma vez; calcular() é aritmética pura sobre esse array (a sugestão roda
  * o motor centenas de vezes por requisição sem tocar no banco).
  */
@@ -122,7 +126,9 @@ final class MotorFinanceiro
      *       aberto (bool, padrão true: regra D5), objetivo (1 os dois · 2 só quitar · 3 só a meta;
      *       padrão ajustes.objetivo; ignorado sem v2), hoje ('Y-m-d'), tratarComoReal (string[]),
      *       extra [mes=>valor] (o "e se" do Anual: fora de mês REAL, + entra e − sai no mês, como uma
-     *       categoria operacional a mais; nada é gravado).
+     *       categoria operacional a mais; nada é gravado),
+     *       adiantar [mes=>valor] (a simulação da aba Empréstimo: fora de mês REAL, soma à amortização
+     *       extra lançada no mês; nada é gravado).
      */
     public static function calcular(array $dados, array $opts = []): array
     {
@@ -140,12 +146,14 @@ final class MotorFinanceiro
         $tcr      = array_flip($opts['tratarComoReal'] ?? []);
         $override = $opts['override'] ?? [];
         $extra    = $opts['extra'] ?? [];
+        $adiantar = $opts['adiantar'] ?? [];
 
         $reserva  = (float) ($aj['reserva_minima'] ?? 0.0);
         $meta     = (float) ($aj['meta_final'] ?? 0.0);
         $parcela  = (float) ($aj['parcela_mensal'] ?? 0.0);
         $jurosMes = (float) ($aj['juros_mes'] ?? 0.0);
         $iniParcela = self::mesInicioParcela($aj);
+        $informado  = self::saldoInformado($aj);
 
         // ---- passo 1: componentes de cada mês (não dependem do encadeamento)
         $comp = [];
@@ -210,6 +218,9 @@ final class MotorFinanceiro
                     $sai -= $x;
                 }
             }
+            if (!$ehReal && isset($adiantar[$mes])) {
+                $amortReal += (float) $adiantar[$mes];
+            }
             // somas de dinheiro em centavos: arredondar reproduz o SUM() do banco ao centavo
             $comp[] = [
                 'mes' => $mes, 'situacao' => $m['situacao'], 'estado' => $estado, 'real' => $ehReal,
@@ -227,6 +238,10 @@ final class MotorFinanceiro
 
         for ($i = 0; $i < $n; $i++) {
             $k = $comp[$i];
+            if ($informado !== null && $k['mes'] === $informado['mes']) {
+                $loanIni = $informado['valor'];
+            }
+            $antesDoSaldo = $informado !== null && $k['mes'] < $informado['mes'];
 
             // a parcela só começa a ser descontada (e a abater a dívida) a partir de ajustes.consignado_inicio
             $jurosV      = $loanIni > 0 ? $loanIni * $jurosMes : 0.0;
@@ -251,13 +266,13 @@ final class MotorFinanceiro
             } elseif (!$v2) {
                 $base  = min($k['amort'], $la);
                 $livre = $fluxo - $base - $mov;
-                $adiantado = $base + ($livre <= 0
+                $adiantado = $base + ($livre <= 0 || $antesDoSaldo
                     ? 0.0
                     : min($la - $base, max(0.0, $livre - max(0.0, $reserva - $saldoIni))));
             } else {
                 $base = min($k['amort'], $la);
                 $auto = 0.0;
-                if ($objetivo !== 3) {
+                if ($objetivo !== 3 && !$antesDoSaldo) {
                     // olha à frente: o menor saldo projetado (sem novos adiantamentos) acima da reserva
                     $proj = $saldoIni + $fluxo - $base - $mov;
                     $melhor = $proj - $reserva;
@@ -323,7 +338,24 @@ final class MotorFinanceiro
     /** ajustes.consignado_inicio (AAAAMM) → 'Y-m-01'; vazio/0 = a parcela desconta desde o primeiro mês. */
     public static function mesInicioParcela(array $aj): ?string
     {
-        $v = (int) round((float) ($aj['consignado_inicio'] ?? 0));
+        return self::mesDe((float) ($aj['consignado_inicio'] ?? 0));
+    }
+
+    /**
+     * O saldo devedor informado (o que a POUPEX diz que falta antes da parcela do mês), ou null.
+     * @return ?array{mes:string, valor:float}
+     */
+    public static function saldoInformado(array $aj): ?array
+    {
+        $mes   = self::mesDe((float) ($aj['saldo_devedor_mes'] ?? 0));
+        $valor = (float) ($aj['saldo_devedor'] ?? 0);
+        return $mes !== null && $valor > 0 ? ['mes' => $mes, 'valor' => $valor] : null;
+    }
+
+    /** AAAAMM → 'Y-m-01'; vazio ou inválido = null. */
+    private static function mesDe(float $aaaamm): ?string
+    {
+        $v = (int) round($aaaamm);
         if ($v < 190001 || $v > 299912 || $v % 100 < 1 || $v % 100 > 12) {
             return null;
         }
