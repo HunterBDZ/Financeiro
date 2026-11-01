@@ -20,6 +20,7 @@ use Financeiro\Controllers\FuturoController;
 use Financeiro\Controllers\AjustesController;
 use Financeiro\Controllers\CartaoController;
 use Financeiro\Controllers\EmprestimoController;
+use Financeiro\Controllers\WishlistController;
 
 $router = new Router();
 
@@ -71,6 +72,19 @@ $router->get('/futuro', [FuturoController::class, 'index']);
 $router->get('/emprestimo', [EmprestimoController::class, 'index']);
 $router->post('/emprestimo/adiantamento', [EmprestimoController::class, 'registrar']);
 $router->post('/emprestimo/dados', [EmprestimoController::class, 'salvarDados']);
+
+// ---- wishlist
+$router->get('/wishlist', [WishlistController::class, 'index']);
+$router->post('/wishlist', [WishlistController::class, 'salvar']);
+$router->post('/wishlist/ler-link', [WishlistController::class, 'lerLink']);
+$router->get('/wishlist/{id}/foto', [WishlistController::class, 'foto']);
+$router->get('/wishlist/{id}/editar', [WishlistController::class, 'editar']);
+$router->post('/wishlist/{id}/mover', [WishlistController::class, 'mover']);
+$router->post('/wishlist/{id}/comprei', [WishlistController::class, 'comprei']);
+$router->post('/wishlist/{id}/devolver', [WishlistController::class, 'devolver']);
+$router->post('/wishlist/{id}/excluir', [WishlistController::class, 'excluir']);
+$router->post('/wishlist/{id}/restaurar', [WishlistController::class, 'restaurar']);
+$router->post('/wishlist/{id}', [WishlistController::class, 'atualizar']);
 
 // ---- ajustes (menu do avatar)
 $router->get('/ajustes', [AjustesController::class, 'index']);

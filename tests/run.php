@@ -25,6 +25,7 @@ use Financeiro\Controllers\CartaoController;
 use Financeiro\Controllers\CategoriaController;
 use Financeiro\Controllers\DashboardController;
 use Financeiro\Controllers\EmprestimoController;
+use Financeiro\Controllers\WishlistController;
 use Financeiro\Controllers\FuturoController;
 use Financeiro\Controllers\LancamentosController;
 use Financeiro\Controllers\MesController;
@@ -40,6 +41,10 @@ use Financeiro\Models\MetaModel;
 use Financeiro\Models\PrevisaoModel;
 use Financeiro\Models\UsuarioModel;
 use Financeiro\Services\EmprestimoSimulacao;
+use Financeiro\Services\Cotacao;
+use Financeiro\Services\LinkProduto;
+use Financeiro\Services\WishlistPrevisao;
+use Financeiro\Models\WishlistModel;
 use Financeiro\Services\AnualResumo;
 use Financeiro\Services\CartaoFatura;
 use Financeiro\Services\LancarForm;
@@ -716,7 +721,135 @@ if ($catAmortT !== null && $faltaAntesT > 100.0 && $refT === substr($hojeReal, 0
     }
 }
 
-// ---- 17. nome de instituição financeira não entra no projeto (a palavra fica dividida para este arquivo passar)
+// ---- 17. wishlist: previsão com dados de mentira, leitura de link sem rede, itens em transação
+$mesesWl = array_map(static fn(string $m): array => ['mes' => $m, 'situacao' => 'PREVISAO'], ['2030-01-01', '2030-02-01', '2030-03-01', '2030-04-01']);
+$catSal = ['id' => 1, 'nome' => 'Renda', 'apelido' => null, 'grupo' => 'Entradas', 'sinal' => 1, 'operacional' => 1, 'essencial' => 0, 'ativo' => 1, 'ordem' => 0];
+$dadosWl = ['meses' => $mesesWl, 'aj' => ['parcela_mensal' => 0.0, 'juros_mes' => 0.0, 'n_parcelas' => 0.0, 'reserva_minima' => 500.0, 'saldo_ini' => 1000.0, 'poupanca_ini' => 0.0, 'objetivo' => 1.0, 'meta_final' => 0.0],
+    'loanIni' => 0.0, 'cats' => [1 => $catSal], 'prev' => array_fill_keys(['2030-01-01', '2030-02-01', '2030-03-01', '2030-04-01'], [1 => 500.0]),
+    'excecao' => [], 'metas' => [], 'real' => [], 'n' => [], 'ult' => [], 'esp' => ['cred' => null, 'amort' => null, 'guard' => null, 'resg' => null]];
+$hojeWl = '2029-12-20';
+$pW = WishlistPrevisao::calcular($dadosWl, '2030-01-01', 1800.0, 1, $hojeWl);   // conta: 1500, 2000, 2500, 3000
+$check('wishlist: à vista, cabe no 1º mês em que nada fica abaixo da reserva', $pW['cedo'] === '2030-03-01' && $pW['meses']['2030-01-01']['estado'] === 'neg'
+    && $pW['meses']['2030-02-01']['estado'] === 'warn' && $pW['meses']['2030-03-01']['estado'] === 'ok' && !$pW['temDivida'], json_encode($pW['meses']));
+$check('wishlist: mês bom mostra o ponto mais apertado depois da compra', abs($pW['meses']['2030-03-01']['pior']['fica'] - 700.0) < 0.005 && $pW['meses']['2030-03-01']['pior']['mes'] === '2030-03-01');
+$pP = WishlistPrevisao::calcular($dadosWl, '2030-01-01', 1800.0, 2, $hojeWl);   // 900 em fev e 900 em mar
+$check('wishlist: parcelado sai da fatura do mês seguinte e pode caber antes', $pP['cedo'] === '2030-01-01' && abs($pP['meses']['2030-01-01']['pior']['fica'] - 700.0) < 0.005, json_encode($pP['meses']['2030-01-01']));
+$pF = WishlistPrevisao::calcular($dadosWl, '2030-01-01', 1200.0, 3, $hojeWl);
+$check('wishlist: parcela depois do fim do plano não é avaliada', $pF['meses']['2030-02-01']['estado'] === 'fora' && $pF['meses']['2030-01-01']['estado'] !== 'fora');
+$pN = WishlistPrevisao::calcular($dadosWl, '2030-01-01', 9000.0, 1, $hojeWl);
+$check('wishlist: não cabe em mês nenhum e diz quanto falta no mais perto', $pN['cedo'] === null && $pN['menorFalta']['mes'] === '2030-04-01' && abs($pN['menorFalta']['valor'] - 6500.0) < 0.01, json_encode($pN['menorFalta']));
+$pV = WishlistPrevisao::calcular(array_replace_recursive($dadosWl, ['aj' => ['saldo_ini' => -200.0]]), '2030-01-01', 50.0, 1, $hojeWl);   // sem a compra, jan fica em 300
+$check('wishlist: mês já abaixo da reserva sem a compra só não pode piorar', $pV['meses']['2030-01-01']['estado'] === 'warn' && $pV['meses']['2030-02-01']['estado'] === 'ok' && $pV['cedo'] === '2030-02-01', json_encode(array_column($pV['meses'], 'estado')));
+$mesesWl8 = [];
+for ($i = 1; $i <= 8; $i++) {
+    $mesesWl8[] = sprintf('2030-%02d-01', $i);
+}
+$dadosWlD = array_replace_recursive($dadosWl, ['aj' => ['saldo_ini' => 600.0, 'parcela_mensal' => 100.0, 'juros_mes' => 0.02, 'n_parcelas' => 12.0]]);
+$dadosWlD['loanIni'] = 1000.0;
+$dadosWlD['meses'] = array_map(static fn(string $m): array => ['mes' => $m, 'situacao' => 'PREVISAO'], $mesesWl8);
+$dadosWlD['prev'] = array_fill_keys($mesesWl8, [1 => 400.0]);
+$pD = WishlistPrevisao::calcular($dadosWlD, '2030-01-01', 300.0, 1, $hojeWl);
+$check('wishlist: comprar antes de quitar custa juros; depois, não', $pD['temDivida'] && $pD['cedo'] === '2030-01-01' && $pD['meses']['2030-01-01']['custo'] > 0.0
+    && $pD['semCusto'] !== null && $pD['semCusto'] > $pD['cedo'] && $pD['meses'][$pD['semCusto']]['custo'] < 1.0 && $pD['melhor'] === $pD['semCusto'], json_encode([$pD['cedo'], $pD['semCusto'], array_column($pD['meses'], 'custo')]));
+$check('wishlist: a simulação não mexe nos dados', MotorFinanceiro::calcular($dadosWl, ['hoje' => $hojeWl])['2030-04-01']['fica_na_conta'] == 3000.0);
+
+$check('link: aceita o texto do compartilhar e endereço sem https', LinkProduto::normalizar('Olha isso: https://loja.exemplo/p/1?a=b') === 'https://loja.exemplo/p/1?a=b' && LinkProduto::normalizar('loja.exemplo/p/1') === 'https://loja.exemplo/p/1');
+$check('link: recusa esquema, porta, usuário e formatos ambíguos', LinkProduto::normalizar('ftp://loja.exemplo/a') === null && LinkProduto::normalizar('file:///etc/passwd') === null && LinkProduto::normalizar('javascript:alert(1)') === null
+    && LinkProduto::normalizar('http://loja.exemplo:8080/a') === null && LinkProduto::normalizar('http://x:y@loja.exemplo/') === null && LinkProduto::normalizar('http://loja.exemplo\\@interno/') === null);
+foreach (['127.0.0.1', '10.0.0.1', '172.16.0.1', '192.168.0.154', '169.254.169.254', '100.64.0.1', '0.0.0.0', '224.0.0.1', '198.18.0.1', '::1', 'fc00::1'] as $ipRuim) {
+    $check("link: IP fora da internet recusado ({$ipRuim})", !LinkProduto::ipPublico($ipRuim));
+}
+$check('link: IP público aceito', LinkProduto::ipPublico('8.8.8.8'));
+foreach (['http://127.0.0.1/', 'http://169.254.169.254/latest/meta-data/', 'http://192.168.0.154/', 'http://2130706433/', 'http://0x7f.0.0.1/', 'http://localhost/'] as $urlRuim) {
+    $check("link: não conecta em endereço interno ({$urlRuim})", LinkProduto::buscar($urlRuim, 1024) === null);
+}
+$htmlP = '<html><head><title>Título ruim</title><meta property="og:title" content="Nome do OG"><meta property="og:image" content="/img/og.jpg"><script type="application/ld+json">{"@graph":[{"@type":"WebSite"},{"@type":"Product","name":"Sofá &amp; Cia","image":["https://cdn.exemplo/a.jpg"],"offers":{"@type":"Offer","price":"1299.90","priceCurrency":"BRL"}}]}</script></head></html>';
+$mP = LinkProduto::metadados($htmlP, 'https://loja.exemplo/p/1');
+$check('link: lê nome, preço e foto dos dados do produto', $mP['nome'] === 'Sofá & Cia' && $mP['valor'] === 1299.9 && $mP['imagem'] === 'https://cdn.exemplo/a.jpg', json_encode($mP));
+$mO = LinkProduto::metadados('<head><title>T</title><meta property="og:title" content="Só OG"><meta property="og:image" content="/img/og.jpg"><meta property="product:price:amount" content="89,90"></head>', 'https://loja.exemplo/p/1');
+$check('link: sem dados de produto, usa as etiquetas de compartilhamento', $mO['nome'] === 'Só OG' && $mO['valor'] === 89.9 && $mO['imagem'] === 'https://loja.exemplo/img/og.jpg', json_encode($mO));
+$mG = LinkProduto::metadados('<script type="application/ld+json">[{"@type":"ProductGroup","name":"Grupo","hasVariant":[{"@type":"Product","offers":{"price":899,"priceCurrency":"BRL"}}]}]</script>', 'https://loja.exemplo/');
+$check('link: grupo de produtos usa o preço da 1ª variação', $mG['nome'] === 'Grupo' && $mG['valor'] === 899.0, json_encode($mG));
+$mC = LinkProduto::metadados('<div id="corePrice_feature_div"><span class="a-price"><span class="a-offscreen">R$455,05</span></span></div><img id="x" data-old-hires="https://cdn.exemplo/g.jpg">', 'https://loja.exemplo/');
+$check('link: sem dados estruturados, tenta a marcação usual', $mC['valor'] === 455.05 && $mC['imagem'] === 'https://cdn.exemplo/g.jpg', json_encode($mC));
+$mU = LinkProduto::metadados('<script type="application/ld+json">{"@type":"Product","name":"X","offers":{"price":"10","priceCurrency":"USD"}}</script>', 'https://loja.exemplo/');
+$check('link: preço em dólar vem com a moeda', $mU['valor'] === 10.0 && $mU['moeda'] === 'USD');
+$mX = LinkProduto::metadados('<script type="application/ld+json">{"@type":"Product","name":"X","offers":{"price":"10","priceCurrency":"KPW"}}</script>', 'https://loja.exemplo/');
+$check('link: moeda que o app não tem não entra', $mX['valor'] === null && $mX['moeda'] === 'BRL' && $mX['nome'] === 'X');
+$check('cotação: lê a fonte principal e ignora o resto', Cotacao::lerPrincipal('{"USDBRL":{"code":"USD","codein":"BRL","bid":"5.4397","create_date":"2026-10-30 19:00:08"},"XXXBRL":{"code":"XXX","codein":"BRL","bid":"1","create_date":"2026-10-30 19:00:08"},"EURBRL":{"code":"EUR","codein":"BRL","bid":"zero","create_date":"2026-10-30 19:00:08"}}') === ['USD' => ['valor' => 5.4397, 'data' => '2026-10-30']]);
+$check('cotação: a fonte reserva vem invertida', Cotacao::lerReserva('{"base":"BRL","date":"2026-10-30","rates":{"USD":0.2,"XXX":1}}') === ['USD' => ['valor' => 5.0, 'data' => '2026-10-30']]);
+$check('cotação: resposta inválida não vira cotação', Cotacao::lerPrincipal('<html>erro</html>') === [] && Cotacao::lerReserva('{"base":"USD","date":"2026-10-30","rates":{"BRL":5}}') === [] && Cotacao::lerPrincipal('{"USDBRL":{"code":"USD","codein":"BRL","bid":"5","create_date":"ontem"}}') === []);
+$taxasT = ['USD' => ['valor' => 5.4397, 'data' => '2026-10-30']];
+$check('cotação: converte para reais; real fica igual; sem cotação é null', Cotacao::emReais(100.0, 'USD', $taxasT) === 543.97 && Cotacao::emReais(100.0, 'BRL', []) === 100.0 && Cotacao::emReais(100.0, 'EUR', $taxasT) === null);
+$check('cotação: formata na moeda', Cotacao::formatar(1299.0, 'USD') === 'US$' . NBSP . '1.299,00' && Cotacao::formatar(10.0, 'BRL') === money(10.0));
+$check('link: imagem data: não é baixada', LinkProduto::metadados('<meta property="og:image" content="data:image/png;base64,AAAA">', 'https://loja.exemplo/')['imagem'] === null);
+$check('link: leitura de preços', LinkProduto::preco('1299.90') === 1299.9 && LinkProduto::preco('R$ 1.299,90') === 1299.9 && LinkProduto::preco(50) === 50.0 && LinkProduto::preco('grátis') === null && LinkProduto::preco('0') === null);
+$pngT = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=');
+$fotoT = LinkProduto::fotoValida($pngT);
+$check('foto: vale pelo conteúdo, não pelo nome', $fotoT !== null && $fotoT['tipo'] === 'image/png' && LinkProduto::fotoValida('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>') === null
+    && LinkProduto::fotoValida('<?php echo 1;') === null && LinkProduto::fotoValida(str_repeat('a', LinkProduto::MAX_FOTO + 1)) === null);
+$lc = WishlistController::lerCampos(['nome' => "  Sofá\n novo ", 'url' => 'loja.exemplo/a', 'valor' => '1.250,50']);
+$check('wishlist: lê o formulário', $lc['nome'] === 'Sofá  novo' || $lc['nome'] === 'Sofá novo', $lc['nome']);
+$check('wishlist: moeda inválida vira real; iene aceita valor alto', WishlistController::lerCampos(['moeda' => 'XXX'])['moeda'] === 'BRL' && WishlistController::lerCampos(['moeda' => 'JPY', 'valor' => '2000000'])['valor'] === 2000000.0
+    && WishlistController::lerCampos(['moeda' => 'BRL', 'valor' => '2000000'])['erro'] !== null);
+$check('wishlist: recusa link e valor inválidos', WishlistController::lerCampos(['url' => 'javascript:alert(1)'])['erro'] !== null && WishlistController::lerCampos(['valor' => '12a'])['erro'] !== null && WishlistController::lerCampos(['valor' => '0'])['erro'] !== null
+    && WishlistController::lerCampos(['valor' => ''])['valor'] === null);
+$pdo->beginTransaction();
+try {
+    $uT = (int) $pdo->query('SELECT MIN(id) FROM usuarios')->fetchColumn();
+    // cotação fresca e conhecida: os testes não vão à rede
+    $pdo->exec("REPLACE INTO cotacoes (moeda, valor, data, buscado_em) VALUES ('BRL', 1, CURDATE(), NOW()), ('USD', 5, '2030-01-02', NOW())");
+    $pdo->exec("DELETE FROM cotacoes WHERE moeda NOT IN ('BRL', 'USD')");
+    $ini = count(WishlistModel::ativos());
+    $a = WishlistModel::criar('<b>Item A</b>', 'https://loja.exemplo/a', 1000.0, $uT);
+    $b = WishlistModel::criar('Item B', null, null, $uT);
+    $c = WishlistModel::criar('Item C', null, 50.0, $uT);
+    WishlistModel::salvarFoto($a, $fotoT);
+    $check('wishlist: foto volta igual do banco', WishlistModel::foto($a)['dados'] === $pngT && WishlistModel::foto($b) === null);
+    WishlistModel::mover($c, 'primeiro');
+    $check('wishlist: colocar em 1º', (int) WishlistModel::ativos()[0]['id'] === $c);
+    $ordemWl = static fn(): array => array_map(static fn(array $i): int => (int) $i['id'], WishlistModel::ativos());
+    WishlistModel::mover($c, 'descer');
+    $check('wishlist: descer', array_search($c, $ordemWl(), true) === 1, json_encode($ordemWl()));
+    $antesB = array_search($b, $ordemWl(), true);
+    WishlistModel::mover($b, 'subir');
+    $check('wishlist: subir', array_search($b, $ordemWl(), true) === $antesB - 1, json_encode($ordemWl()));
+    WishlistModel::mover($a, 'primeiro');
+    $htmlW = $render(WishlistController::class, 'index', []);
+    $itemUsd = WishlistModel::criar('Item em dolar', null, 100.0, $uT, 'USD');
+    $itemEur = WishlistModel::criar('Item em euro', null, 100.0, $uT, 'EUR');
+    WishlistModel::mover($itemUsd, 'primeiro');
+    $htmlUsd = $render(WishlistController::class, 'index', []);
+    $check('wishlist: fora de real mostra o original, a conversão e a data', str_contains($htmlUsd, 'US$' . NBSP . '100,00') && str_contains($htmlUsd, money(500.0) . ', cotação de 02/01'));
+    $check('wishlist: sem cotação avisa em vez de inventar', str_contains($htmlUsd, 'Sem cotação agora'));
+    $check('wishlist: a previsão usa o valor em reais', str_contains($htmlUsd, 'O valor em reais muda com a cotação') || MotorFinanceiro::dados()['meses'] === []);
+    $check('wishlist: o formulário oferece as moedas', str_contains($htmlUsd, 'name="moeda"') && str_contains($htmlUsd, 'value="EUR"'));
+    WishlistModel::mover($itemEur, 'primeiro');
+    $check('wishlist: 1º sem cotação não tem previsão', str_contains($render(WishlistController::class, 'index', []), 'Sem cotação de EUR'));
+    WishlistModel::excluir($itemUsd);
+    WishlistModel::excluir($itemEur);
+    WishlistModel::mover($a, 'primeiro');
+    $check('wishlist: a aba abre, com o 1º em destaque, previsão e fora da barra', str_contains($htmlW, '<h1>Wishlist</h1>') && str_contains($htmlW, 'wl-vitrine') && (str_contains($htmlW, 'Quando comprar') || MotorFinanceiro::dados()['meses'] === [])
+        && str_contains($htmlW, 'class="menu-item is-active" href="/wishlist"') && !preg_match('#<nav class="tabbar".*?href="/wishlist".*?</nav>#s', $htmlW));
+    $check('wishlist: texto da loja é escapado', str_contains($htmlW, '&lt;b&gt;Item A&lt;/b&gt;') && !str_contains($htmlW, '<b>Item A</b>'));
+    $check('wishlist: foto não vem como link externo', !preg_match('#<img[^>]+src="https?://#', $htmlW));
+    $check('wishlist: a previsão parcial vem sem layout', !str_contains($render(WishlistController::class, 'index', ['parcial' => '1', 'parcelas' => '3']), '<html'));
+    WishlistModel::marcarComprado($a, $hojeReal = date('Y-m-d'));
+    $check('wishlist: comprado sai da lista e vai para Compradas', count(WishlistModel::ativos()) === $ini + 2 && (int) WishlistModel::comprados()[0]['id'] === $a);
+    WishlistModel::devolver($a);
+    WishlistModel::excluir($b);
+    $check('wishlist: excluído some, e desfazer traz de volta', WishlistModel::find($b) === null);
+    WishlistModel::restaurar($b);
+    $check('wishlist: restaurado volta com a foto preservada', WishlistModel::find($b) !== null && WishlistModel::foto($a) !== null);
+    ob_start();
+    (new WishlistController())->editar((string) $a);
+    $htmlE = (string) ob_get_clean();
+    $check('wishlist: editar abre preenchido', str_contains($htmlE, 'action="/wishlist/' . $a . '"') && str_contains($htmlE, 'loja.exemplo/a'));
+} finally {
+    $pdo->rollBack();
+}
+
+// ---- 18. nome de instituição financeira não entra no projeto (a palavra fica dividida para este arquivo passar)
 $proibidas = ['pou' . 'pex', 'ouro' . 'card'];
 $raiz = dirname(__DIR__);
 $achados = [];
@@ -740,7 +873,7 @@ foreach ($arquivos as $arq) {
 }
 $check('nenhum arquivo cita instituição financeira', $achados === [], implode(', ', $achados));
 
-// ---- 18. o selo do README acompanha o VERSION (o README do repositório é privado: o selo é fixo)
+// ---- 19. o selo do README acompanha o VERSION (o README do repositório é privado: o selo é fixo)
 $arqVersao = __DIR__ . '/../VERSION';
 $arqReadme = __DIR__ . '/../README.md';
 if (is_file($arqVersao) && is_file($arqReadme)) {

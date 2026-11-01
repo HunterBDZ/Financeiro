@@ -251,6 +251,41 @@ CREATE TABLE `sessoes_lembradas` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `wishlist_itens` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `nome` varchar(160) NOT NULL,
+  `url` varchar(2048) DEFAULT NULL,
+  `valor` decimal(14,2) DEFAULT NULL,
+  `moeda` char(3) NOT NULL DEFAULT 'BRL',
+  `posicao` int unsigned NOT NULL DEFAULT '0',
+  `usuario_id` int unsigned NOT NULL,
+  `comprado_em` date DEFAULT NULL,
+  `excluido_em` datetime DEFAULT NULL,
+  `criado_em` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `atualizado_em` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_wishlist_ordem` (`excluido_em`,`comprado_em`,`posicao`),
+  KEY `fk_wishlist_usuario` (`usuario_id`),
+  CONSTRAINT `fk_wishlist_usuario` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`),
+  CONSTRAINT `chk_wishlist_valor` CHECK (((`valor` is null) or (`valor` > 0)))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+CREATE TABLE `cotacoes` (
+  `moeda` char(3) NOT NULL,
+  `valor` decimal(18,8) NOT NULL,
+  `data` date NOT NULL,
+  `buscado_em` datetime NOT NULL,
+  PRIMARY KEY (`moeda`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+CREATE TABLE `wishlist_fotos` (
+  `item_id` int unsigned NOT NULL,
+  `tipo` varchar(32) NOT NULL,
+  `largura` int unsigned NOT NULL,
+  `altura` int unsigned NOT NULL,
+  `hash` char(40) NOT NULL,
+  `dados` mediumblob NOT NULL,
+  PRIMARY KEY (`item_id`),
+  CONSTRAINT `fk_wishlist_foto_item` FOREIGN KEY (`item_id`) REFERENCES `wishlist_itens` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 CREATE TABLE `usuarios` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `nome` varchar(100) NOT NULL,

@@ -15,7 +15,9 @@ if (PHP_SAPI !== 'cli') {
 require __DIR__ . '/../src/bootstrap.php';
 
 use Financeiro\Database;
+use Financeiro\Models\WishlistModel;
 use Financeiro\Services\CartaoFatura;
+use Financeiro\Services\LinkProduto;
 
 $pdo = Database::connection();
 $demo = in_array('--demo', $argv, true);
@@ -219,6 +221,17 @@ if ($demo) {
     }
 
     CartaoFatura::sincronizarPlano($ids[0], $hoje);
+
+    $pos = 0;
+    $item = $pdo->prepare('INSERT INTO wishlist_itens (nome, url, valor, moeda, posicao, usuario_id) VALUES (?, ?, ?, ?, ?, ?)');
+    foreach ([['Sofá retrátil 3 lugares', 'sofa', 3290.00, 'BRL'], ['Bicicleta aro 29', 'bicicleta', 2450.00, 'BRL'], ['Cafeteira espresso', 'cafeteira', 179.00, 'USD'], ['Aspirador robô', 'aspirador', 1799.90, 'BRL']] as [$nome, $img, $v, $moedaItem]) {
+        $item->execute([$nome, 'https://www.loja-exemplo.com.br/produto/' . $img, $v, $moedaItem, ++$pos, $ids[$pos % 2]]);
+        $arq = __DIR__ . '/demo/' . $img . '.jpg';
+        $foto = is_file($arq) ? LinkProduto::fotoValida((string) file_get_contents($arq)) : null;
+        if ($foto !== null) {
+            WishlistModel::salvarFoto((int) $pdo->lastInsertId(), $foto);
+        }
+    }
 
     $saldo = (float) $pdo->query("SELECT COALESCE(SUM(l.valor * c.sinal), 0) FROM lancamentos l JOIN categorias c ON c.id = l.categoria_id WHERE l.data <= " . $pdo->quote($hoje))->fetchColumn() + 4200.00;
     $pdo->prepare('INSERT INTO saldo_conferencias (data, saldo_informado, usuario_id) VALUES (?, ?, ?)')->execute([$hoje, round($saldo, 2), $ids[0]]);

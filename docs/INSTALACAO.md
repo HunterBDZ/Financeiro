@@ -9,7 +9,7 @@ Ao final, o Financeiro estará rodando em HTTPS na sua rede, com o banco criado,
 | Você precisa de | Detalhe |
 |---|---|
 | Um servidor Linux na sua rede | Testado em Ubuntu 26.04. Os comandos usam `apt` |
-| PHP **8.4 ou mais novo** | Testado em 8.5, com as extensões `pdo_mysql` e `mbstring`. O Ubuntu 24.04 traz o PHP 8.3, que não serve |
+| PHP **8.4 ou mais novo** | Testado em 8.5, com as extensões `pdo_mysql` e `mbstring`, além de `curl` e `xml` para a Wishlist ler os links. O Ubuntu 24.04 traz o PHP 8.3, que não serve |
 | MySQL **8** | Testado em 8.4. O banco usa a collation `utf8mb4_0900_ai_ci`; MariaDB não foi testado |
 | Acesso ao repositório | Ele é privado: use uma conta com acesso e uma [chave SSH no GitHub](https://docs.github.com/pt/authentication/connecting-to-github-with-ssh) |
 | Um IP fixo para o servidor | Reserve no roteador. Os exemplos usam `192.168.0.50`: troque pelo seu |
@@ -23,7 +23,7 @@ Ao final, o Financeiro estará rodando em HTTPS na sua rede, com o banco criado,
 
 ```sh
 sudo apt update
-sudo apt install apache2 mysql-server php libapache2-mod-php php-mysql php-mbstring git rsync openssl
+sudo apt install apache2 mysql-server php libapache2-mod-php php-mysql php-mbstring php-curl php-xml git rsync openssl
 php -v
 ```
 
@@ -183,7 +183,7 @@ Pronto: use o **+** para lançar.
 Sobe uma cópia descartável, com dados fictícios, só neste computador. Use um banco separado do real.
 
 ```sh
-sudo apt install mysql-server php php-mysql php-mbstring git
+sudo apt install mysql-server php php-mysql php-mbstring php-curl php-xml git
 git clone git@github.com:HunterBDZ/Financeiro.git ~/financeiro-demo
 cd ~/financeiro-demo
 

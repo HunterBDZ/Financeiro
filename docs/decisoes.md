@@ -5,6 +5,34 @@ com a staging. Produção: `/var/www/financeiro`, atualizada por versões com `f
 1/11/2026 (remoto `github`, chave só de leitura). O código que estava
 na máquina .164 (publicado em 10/10/2026) é o primeiro commit daqui; trabalhe sempre neste.
 
+## 2026-11-01 — aba Wishlist
+
+- **Por quê:** o casal queria um lugar para guardar o que pretende comprar, com link, foto e valor, e saber quando
+  fica melhor comprar o 1º da lista.
+- **Previsão (`WishlistPrevisao`):** roda o motor uma vez para cada mês de compra, com a opção `extra`, e olha o plano
+  inteiro. Cabe quando a compra não deixa nenhum mês abaixo da reserva; mês que já estava abaixo sem ela só não
+  pode piorar. O melhor mês é o 1º que cabe sem atrasar o empréstimo; "sem esperar" mostra o 1º que cabe, com os juros a
+  mais. Parcelado sai da fatura do mês seguinte, sem juros; se alguma parcela passar do plano, o mês não é avaliado.
+  Não grava nada e usa o plano de hoje.
+- **Fileira de meses:** cada mês tem símbolo e rótulo, não só cor: cabe, cabe atrasando o empréstimo, abaixo da reserva,
+  no vermelho. O motivo de separar os dois primeiros é que essa é a decisão real.
+- **Link (`LinkProduto`):** lê JSON-LD de produto, as etiquetas de compartilhamento e a marcação usual de páginas grandes.
+  O endereço vem da pessoa, então vale a defesa contra SSRF do OWASP: só http/https nas portas 80 e 443, todo IP
+  resolvido tem de ser público, a conexão vai para o IP conferido, cada redirecionamento é reavaliado, e há limite
+  de tempo e de tamanho. Loja que bloqueia não quebra nada: o item é preenchido à mão.
+- **Foto:** a CSP só permite imagem local, então nada de link externo. Fica em `wishlist_fotos`, no banco: entra nos
+  backups e na volta do atualizador, que apagaria arquivos soltos no site. Sem a extensão GD, o servidor não reduz nem
+  reescreve a imagem: confere pelo conteúdo (JPEG, PNG ou WebP, até 3 MB), e o navegador reduz a foto escolhida. Sai por
+  `/wishlist/{id}/foto`, só com login. SVG é recusado.
+- **Moedas (`Cotacao`):** o item guarda o valor na moeda escolhida, e a conversão para reais é feita ao mostrar, então muda
+  com a cotação. A previsão e o "Comprei" usam os reais de hoje. A cotação é a comercial, guardada na tabela `cotacoes` e
+  renovada no máximo a cada 2 horas, com uma fonte reserva; se as duas falharem, vale a última guardada, com a data à vista.
+  IOF e taxa do cartão não entram, e a tela avisa. As fontes são de terceiros, sem chave, e o endereço delas está no código.
+- **Ordem:** por botões (1º, subir, descer), sem arrastar: funciona igual no celular e no teclado (WCAG 2.5.7).
+- **Comprei:** tira o item da lista e abre o "+" preenchido, onde se escolhe conta ou cartão; tem desfazer. Excluir também;
+  o item some de vez depois de 30 dias.
+- **Onde fica:** menu lateral e menu do M. A barra do celular já tem 5 itens.
+
 ## 2026-11-01 — empréstimo sem nome de instituição
 
 - **Regra:** o app e o repositório são genéricos: nada de nome de instituição financeira em telas, código,

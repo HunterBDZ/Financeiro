@@ -1,0 +1,148 @@
+/* ==========================================================================
+   wishlist.css — aba Wishlist (prefixo .wl-*). Vitrine: o 1º item com a foto grande e a fileira de
+   meses dizendo quando ele cabe; é a única coisa em destaque. Os outros são linhas numeradas,
+   porque a ordem importa. Foto sempre inteira (contain), sobre um fundo neutro. Só tokens de style.css.
+   ========================================================================== */
+
+.wl { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.wl > * { min-width: 0; }
+.wl-topo { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.wl-topo h1 { font-size: 24px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.15; }
+.wl-topo p { color: var(--text-2); font-size: 14px; font-weight: 600; }
+
+/* adicionar */
+.wl-novo { padding-top: 0; padding-bottom: 0; scroll-margin-top: 72px; }
+.wl-novo > summary { display: flex; align-items: center; gap: 8px; min-height: 56px; font-weight: 750; list-style: none; }
+.wl-novo > summary::-webkit-details-marker { display: none; }
+.wl-novo[open] { padding-bottom: 18px; }
+.wl-form { display: flex; flex-direction: column; gap: 14px; }
+.wl-url-st { margin-top: 2px; color: var(--text-2); font-size: var(--t-peq); line-height: 1.4; }
+.wl-url-st.is-erro { color: var(--warn); }
+.wl-form-cols { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 14px; align-items: start; }
+.wl-form-foto { display: flex; flex-direction: column; gap: 8px; }
+.wl-form-dados { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.wl-foto-prev { display: grid; place-items: center; aspect-ratio: 1; border-radius: var(--r-md); background: var(--card-2); color: var(--text-3); overflow: hidden; }
+.wl-foto-prev img { width: 100%; height: 100%; object-fit: contain; background: #fff; }
+.wl-foto-btn { position: relative; width: 100%; padding: 0 6px; overflow: hidden; text-align: center; font-size: 13px; }
+.wl-foto-btn input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.wl-foto-btn:focus-within { outline: 2px solid var(--foco); outline-offset: 2px; }
+.wl-tirar-foto { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-2); }
+.wl-valor { padding-left: 4px; }
+.wl-valor select { flex: 0 0 auto; width: 88px; min-height: 40px; padding: 0 22px 0 8px; border: 0; border-radius: 10px; background-color: var(--card-2); font-size: 13px; font-weight: 700; box-shadow: none; }
+.wl-valor input { min-height: 48px; font-size: 20px; }
+.wl-conv { color: var(--text-2); font-size: 13px; font-weight: 600; line-height: 1.4; white-space: normal; }
+.wl-conv-nota { color: var(--text-2); font-size: 12.5px; line-height: 1.4; }
+.wl-salvar { width: 100%; }
+
+/* vitrine: o 1º da lista */
+.wl-vitrine { display: flex; flex-direction: column; overflow: hidden; border-radius: 22px; background: var(--card); box-shadow: var(--sombra); scroll-margin-top: 72px; }
+.wl-vitrine-foto { position: relative; display: grid; place-items: center; aspect-ratio: 16 / 10; overflow: hidden; background: #fff; color: var(--text-3); }
+.wl-vitrine-foto img { position: absolute; inset: 0; width: 100%; height: 100%; padding: 10px; object-fit: contain; }
+.wl-foto-vazia { display: grid; place-items: center; width: 100%; height: 100%; background: var(--card-2); color: var(--text-3); }
+.wl-rank { position: absolute; top: 12px; left: 12px; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: var(--cofre); color: var(--cofre-txt); font-family: var(--fn); font-size: 20px; font-weight: 600; }
+.wl-vitrine-info { display: flex; flex-direction: column; gap: 6px; padding: 18px; min-width: 0; }
+.wl-vitrine-info h2 { font-size: 20px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.25; overflow-wrap: anywhere; }
+.wl-loja { display: inline-flex; align-items: center; gap: 4px; align-self: flex-start; max-width: 100%; min-height: 24px; color: var(--text-2); font-size: var(--t-peq); font-weight: 600; overflow-wrap: anywhere; }
+.wl-loja:hover { color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
+.wl-loja svg { flex: none; }
+.wl-preco { margin-top: 4px; font-family: var(--fn); font-size: 30px; font-weight: 600; letter-spacing: -0.03em; line-height: 1.15; }
+.wl-acoes { display: flex; gap: 8px; margin-top: 8px; }
+
+/* quando comprar */
+.wl-prev { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; padding-top: 16px; border-top: 1px solid var(--line); }
+.wl-prev-t { color: var(--text-2); font-size: var(--t-peq); font-weight: 650; }
+.wl-resposta { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.25; }
+.wl-resposta a { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 4px; }
+.wl-resposta-2, .wl-sem-valor { color: var(--text-2); font-size: 14px; line-height: 1.45; }
+.wl-resposta-2 a, .wl-sem-valor a, .wl-ver-anual { color: var(--text); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+.wl-sem-valor { margin-top: 14px; padding-top: 16px; border-top: 1px solid var(--line); }
+.wl-pagar { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.wl-pagar-op { display: inline-flex; align-items: center; min-height: 40px; padding: 0 12px; border-radius: 99px; background: var(--card-2); color: var(--text-2); font-size: 13px; font-weight: 700; }
+.wl-pagar-op:hover { background: var(--card-3); color: var(--text); }
+.wl-pagar-op.is-on { background: var(--text); color: var(--card); }
+
+/* a fileira de meses: estado com símbolo e cor, o mês escolhido com contorno */
+.wl-trilho { display: grid; grid-template-columns: repeat(auto-fill, minmax(46px, 1fr)); gap: 6px; margin-top: 4px; }
+.wl-mes { display: flex; flex-direction: column; align-items: center; gap: 3px; min-height: 68px; padding: 7px 2px 5px; border: 2px solid transparent; border-radius: 12px; background: var(--card-2); font-weight: 700; }
+.wl-mes:hover { background: var(--card-3); }
+.wl-mes:focus-visible { outline: 2px solid var(--foco); outline-offset: 2px; }
+.wl-mes-n { font-size: 13px; }
+.wl-mes-s { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; font-size: 15px; line-height: 1; }
+.wl-mes-a { color: var(--text-2); font-size: 11px; font-weight: 600; line-height: 1; }
+.is-ok > .wl-mes-s, .wl-legenda .is-ok > span { background: var(--pos-bg); color: var(--pos); }
+.is-custo > .wl-mes-s, .wl-legenda .is-custo > span { background: var(--card-3); color: var(--text-2); }
+.is-warn > .wl-mes-s, .wl-legenda .is-warn > span { background: var(--warn-bg); color: var(--warn); }
+.is-neg > .wl-mes-s, .wl-legenda .is-neg > span { background: var(--neg-bg); color: var(--neg); }
+.is-fora > .wl-mes-s, .wl-legenda .is-fora > span { color: var(--text-3); }
+.wl-mes.is-sel { border-color: var(--text); background: var(--card); }
+.wl-mes.is-melhor > .wl-mes-s { background: var(--pos); color: var(--card); }
+.wl-legenda { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--text-2); font-size: 12.5px; font-weight: 600; }
+.wl-legenda li { display: inline-flex; align-items: center; gap: 5px; }
+.wl-legenda span { display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; }
+.wl-mes-det { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; padding: 12px 14px; border-radius: var(--r-md); background: var(--card-2); }
+.wl-det-t { font-size: 14px; font-weight: 750; }
+.wl-mes-det > p:not(.wl-det-t) { font-size: 14px; line-height: 1.45; }
+.wl-mes-det dl > div { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 7px 0; border-top: 1px solid var(--line); }
+.wl-mes-det dt { color: var(--text-2); font-size: 14px; }
+.wl-mes-det dd { font-size: 15px; font-weight: 750; text-align: right; }
+.wl-mes-det dd small { display: block; color: var(--text-2); font-size: 12.5px; font-weight: 600; }
+.wl-ver-anual { align-self: flex-start; display: inline-flex; align-items: center; min-height: 32px; font-size: 14px; }
+.wl-prev-nota { color: var(--text-2); font-size: 12.5px; line-height: 1.45; }
+
+/* depois: linhas numeradas */
+.wl-depois-t { margin: 8px 0 8px; }
+.wl-lista { display: flex; flex-direction: column; gap: 8px; }
+.wl-item { display: grid; grid-template-columns: 26px 72px minmax(0, 1fr); gap: 6px 10px; align-items: center; padding: 10px 12px; border-radius: 18px; background: var(--card); box-shadow: var(--sombra); scroll-margin-top: 72px; }
+.wl-num { font-family: var(--fn); font-size: 22px; font-weight: 600; color: var(--text-3); text-align: center; }
+.wl-item-foto { display: block; aspect-ratio: 1; overflow: hidden; border-radius: 12px; background: #fff; }
+.wl-item-foto img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.wl-item-txt { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.wl-item-nome { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; font-size: 15px; font-weight: 700; line-height: 1.3; }
+.wl-item-nome:hover { text-decoration: underline; text-underline-offset: 3px; }
+.wl-item-preco { font-size: 15px; font-weight: 750; }
+.wl-item-mover { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 4px; }
+.wl-mover { display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 12px; background: var(--card-2); color: var(--text); cursor: pointer; }
+.wl-mover:hover:not(:disabled) { background: var(--card-3); }
+.wl-mover:disabled { opacity: .4; cursor: not-allowed; }
+
+/* compradas */
+.wl-comprados ul { display: flex; flex-direction: column; }
+.wl-comprados li { display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 4px 10px; align-items: center; padding: 10px 0; border-top: 1px solid var(--line); }
+.wl-comprado-foto { display: block; aspect-ratio: 1; overflow: hidden; border-radius: 10px; background: #fff; }
+.wl-comprado-foto img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.wl-comprado-txt b { display: block; font-size: 14px; font-weight: 700; }
+.wl-comprado-txt small { color: var(--text-2); font-size: 12.5px; }
+.wl-comprados form { grid-column: 2; }
+.wl-comprados .btn-link { min-height: 36px; font-size: 13px; }
+
+/* editar */
+.wl-editar { max-width: 620px; }
+.wl-editar-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.wl-editar-acoes .btn-link-danger { margin-left: auto; }
+
+/* no celular o aviso fica sobre a barra de baixo: os botões do último item precisam poder passar dele */
+@media (max-width: 767px) {
+    .wl { padding-bottom: 76px; }
+}
+/* coluna estreita: a moeda vai em cima, para o valor nunca ser cortado */
+@media (max-width: 619px) {
+    .wl-valor { flex-wrap: wrap; gap: 0; padding: 4px; }
+    .wl-valor select { width: 100%; }
+    .wl-valor input { flex-basis: 100%; padding-left: 8px; }
+}
+
+@media (min-width: 620px) {
+    .wl-form-cols { grid-template-columns: 148px minmax(0, 1fr); }
+    .wl-salvar { align-self: flex-start; width: auto; min-width: 200px; }
+    .wl-item { grid-template-columns: 30px 88px minmax(0, 1fr) auto; }
+    .wl-item-mover { grid-column: auto; }
+    .wl-comprados li { grid-template-columns: 48px minmax(0, 1fr) auto; }
+    .wl-comprados form { grid-column: auto; }
+}
+@media (min-width: 1000px) {
+    .wl-vitrine { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); align-items: start; padding: 14px; }
+    .wl-vitrine-foto { position: sticky; top: 14px; aspect-ratio: 1; border-radius: 14px; }
+    .wl-vitrine-foto img { padding: 20px; }
+    .wl-vitrine-info { padding: 14px 16px 12px 28px; }
+    .wl-vitrine-info h2 { font-size: 24px; }
+}
