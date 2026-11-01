@@ -65,7 +65,7 @@ na máquina .164 (publicado em 10/10/2026) é o primeiro commit daqui; trabalhe 
 - **Limite conhecido:** se a volta automática restaurar o banco, perde o que foi lançado nos segundos
   entre o backup e a falha; o site não entra em manutenção nesse intervalo.
 - **Antes de abrir ao público:** criar um repositório novo, sem o histórico (nomes, valores e o IP da casa);
-  trocar `icones.webp` por ícones de licença livre; definir a licença; apagar `database/seed.php`,
+  trocar `icones.webp` por ícones de licença livre; definir a licença; 
   que traz nomes e senha fixa, e tirar o IP de `deploy.sh` e `tools/backup-pull.sh`; e rever as menções pessoais
   em `docs/decisoes.md`.
 
@@ -334,8 +334,7 @@ na máquina .164 (publicado em 10/10/2026) é o primeiro commit daqui; trabalhe 
   (sem `DROP TABLE`, de propósito), `sed -E 's/ AUTO_INCREMENT=[0-9]+//'`, para os contadores da
   staging não entrarem no diff, e `sed 's/DEFINER=`root`@`localhost` //'`, para qualquer usuário
   conseguir importar a view.
-- Instalar do zero: [`INSTALACAO.md`](INSTALACAO.md) e `database/instalar.php`. O `database/seed.php`
-  só serve para a importação original da planilha, que fica fora do git.
+- Instalar do zero: [`INSTALACAO.md`](INSTALACAO.md) e `database/instalar.php`.
 
 ## 2026-11-01 — auditoria: rótulos antes de cortes
 
@@ -363,9 +362,8 @@ O app é para qualquer pessoa, então as telas não podem supor a situação de 
 
 Ainda supõem um caso específico, e precisam de decisão antes do lançamento público:
 
-- **O motor desconta a parcela do salário previsto.** Quem paga a parcela à parte teria o aviso de "salário entrou bruto" e a previsão somando errado. Falta a opção "descontada do salário" ou "paga à parte".
 - **Nomes internos:** `consignado_inicio`, `parcela_consignado` e afins não aparecem na tela. Renomear exige migração.
-- **Repositório:** `database/seed.php` e os exemplos em `docs/decisoes.md` e `tests/run.php` citam nomes e o endereço da casa.
+- **Repositório:** os exemplos em `docs/decisoes.md` e `tests/run.php` citam nomes e o endereço da casa.
 
 ## 2026-11-01 — aba Investimentos
 
@@ -380,4 +378,18 @@ Poupança e outros investimentos, com o saldo = valor de partida (Ajustes) + lan
 ## 2026-11-01 — ícone do site
 
 O ícone fica no banco, em `site_icone`, e vale para o site inteiro, porque a tela de login aparece antes de saber quem entrou. Sem ícone enviado, vale `public/assets/img/marca.svg`. Nenhuma imagem pessoal fica no código. O efeito de espiar por cima do cartão, no login, só aparece com ícone enviado.
+
+## 2026-11-01 — qualquer pessoa, em qualquer dia
+
+Antes, os meses eram criados uma vez, na instalação, e o app recusava lançamentos quando eles acabavam. O início era sempre o mês da instalação, e a data dele ficava escrita no texto do rótulo.
+
+- **Meses sem fim:** `Horizonte` mantém sempre 24 meses depois do mês de hoje. Mês novo copia a previsão do anterior; contas pontuais, a do mesmo mês do ano passado; categoria com meta continua seguindo a meta; a fatura vem do Cartão. Nos meses que já existiam, o plano não muda.
+- **Início numa data de verdade:** `ajustes.data_inicio` (AAAAMMDD), uma só para conta, poupança e investimentos. O saldo é o do início desse dia, e lançamentos valem a partir dele. Não dá para pôr o início depois de um lançamento ou de um mês fechado, nem no futuro.
+- **Início no meio do mês:** nesse 1º mês, a meta conta só pelos dias que faltam. Na primeira configuração, salário e contas cujo dia já passou ficam fora da previsão daquele mês, porque já estão no saldo.
+- **Meta com data própria:** `ajustes.meta_mes`, opcional, em vez de valer "até o último mês".
+- **Primeira configuração no site:** `/comecar`. A instalação pelo terminal só cria categorias e usuários. Só o 1º passo é obrigatório.
+- **Empréstimo e cartão opcionais:** `usa_emprestimo` e `usa_cartao` escondem a aba; sem empréstimo, o plano ignora a dívida.
+- **Parcela:** `parcela_modo` 1 = descontada do salário, 2 = paga à parte. Nos dois casos a conta e a dívida dão o mesmo resultado; à parte, o salário não diminui, e no mês fechado vale a categoria "Parcela do empréstimo".
+- O Anual mostra de um ano atrás em diante; o histórico inteiro fica no Mês.
+- O plano continua sendo calculado desde o 1º mês a cada página. Um teste exige menos de 1 segundo com mais de 10 anos de meses.
 

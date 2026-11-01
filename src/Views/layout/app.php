@@ -9,6 +9,7 @@
  * CSS/JS dos pacotes entram só se o arquivo existir (D19): nenhum 404 durante o build.
  */
 use Financeiro\Auth;
+use Financeiro\Models\AjusteModel;
 use Financeiro\Idioma;
 use Financeiro\SiteIcone;
 use Financeiro\Temas;
@@ -29,6 +30,16 @@ $abas = [
     'temas'   => ['/temas', t('Temas'), 'paleta'],
     'meta'    => ['/meta', t('Metas'), 'target'],
 ];
+
+// recursos opcionais: a aba do que a pessoa não usa fica escondida
+$usaCartao = AjusteModel::usa('usa_cartao');
+$usaEmprestimo = AjusteModel::usa('usa_emprestimo');
+if (!$usaCartao) {
+    unset($abas['cartao']);
+}
+if (!$usaEmprestimo) {
+    unset($abas['emprestimo']);
+}
 
 $publico = __DIR__ . '/../../../public';
 $existe  = static fn(string $p): bool => is_file($publico . $p);
@@ -58,9 +69,9 @@ $aba = static function (string $chave) use ($activePage): string {
 $atual = static function (string $chave) use ($activePage): string {
     return $activePage === $chave ? ' aria-current="page"' : '';
 };
-// barra do celular: Início, Extrato, +, Mês, Cartão; no Anual quem fica acesa é a do Mês
-$barra = array_diff_key($abas, ['futuro' => true, 'meta' => true, 'emprestimo' => true, 'investimentos' => true, 'wishlist' => true, 'temas' => true]);
-$acesaNaBarra = $activePage === 'futuro' ? 'mes' : $activePage;
+// barra do celular: Início, Extrato, +, Mês, Cartão; no Anual quem fica acesa é a do Mês. Sem cartão, o Anual toma o lugar dele
+$barra = array_diff_key($abas, ($usaCartao ? ['futuro' => true] : []) + ['meta' => true, 'emprestimo' => true, 'investimentos' => true, 'wishlist' => true, 'temas' => true]);
+$acesaNaBarra = $usaCartao && $activePage === 'futuro' ? 'mes' : $activePage;
 // o tema da conta vem no HTML: nada de piscar, e vale em qualquer aparelho. Null = automático (theme.js)
 $temaConta = Temas::doUsuario();
 $dadosTema = $temaConta !== null ? Temas::todos()[$temaConta] : null;
@@ -127,7 +138,7 @@ $marca = '<span class="marca"><img src="' . e(SiteIcone::url()) . '" alt="" widt
             <?php if ($nome): ?><div class="menu-quem"><?= e($nome) ?></div><?php endif; ?>
             <a class="menu-item<?= $activePage === 'futuro' ? ' is-active' : '' ?>" href="/futuro"<?= $atual('futuro') ?>><?= svgIcon('trend', 18) ?><?= e(t('Anual')) ?></a>
             <a class="menu-item<?= $activePage === 'meta' ? ' is-active' : '' ?>" href="/meta"<?= $atual('meta') ?>><?= svgIcon('target', 18) ?><?= e(t('Metas')) ?></a>
-            <a class="menu-item<?= $activePage === 'emprestimo' ? ' is-active' : '' ?>" href="/emprestimo"<?= $atual('emprestimo') ?>><?= svgIcon('emprestimo', 18) ?><?= e(t('Empréstimo')) ?></a>
+            <?php if ($usaEmprestimo): ?><a class="menu-item<?= $activePage === 'emprestimo' ? ' is-active' : '' ?>" href="/emprestimo"<?= $atual('emprestimo') ?>><?= svgIcon('emprestimo', 18) ?><?= e(t('Empréstimo')) ?></a><?php endif; ?>
             <a class="menu-item<?= $activePage === 'investimentos' ? ' is-active' : '' ?>" href="/investimentos"<?= $atual('investimentos') ?>><?= svgIcon('invest', 18) ?><?= e(t('Investimentos')) ?></a>
             <a class="menu-item<?= $activePage === 'wishlist' ? ' is-active' : '' ?>" href="/wishlist"<?= $atual('wishlist') ?>><?= svgIcon('gift', 18) ?><?= e(t('Wishlist')) ?></a>
             <a class="menu-item<?= $activePage === 'temas' ? ' is-active' : '' ?>" href="/temas"<?= $atual('temas') ?>><?= svgIcon('paleta', 18) ?><?= e(t('Temas')) ?></a>

@@ -2,6 +2,18 @@
 
 Cada versão publicada é uma tag `vX.Y.Z` deste repositório. Sites instalados atualizam com `sudo financeiro-atualizar`.
 
+## 1.4.0
+
+- **O plano não acaba mais:** o app mantém sempre 24 meses à frente, sozinho. Antes, os lançamentos eram recusados quando os meses criados na instalação acabavam.
+- **Início numa data de verdade:** um campo em Ajustes, igual para conta, poupança e investimentos. A meta passa a ter data própria e opcional.
+- **Primeira configuração no site:** data de início, saldos, salário, contas fixas e o que você usa. A instalação pelo terminal só cria categorias e usuários.
+- **Início no meio do mês:** o que venceu antes da data não entra na previsão daquele mês, e a meta conta só pelos dias que faltam.
+- **Empréstimo e cartão opcionais:** a aba de quem não usa fica escondida. A parcela do empréstimo pode vir descontada do salário ou ser paga à parte.
+- O Anual mostra de um ano atrás em diante; o histórico completo fica no Mês.
+- Sem reserva definida, as telas não falam mais em "acima da reserva"; sem meta, não dizem que ela foi batida.
+- Sites já instalados continuam como estão: o início é o 1º mês que já existe, a meta fica no último mês de hoje, e a parcela continua descontada do salário.
+- Migração nova: ajustes e a categoria "Parcela do empréstimo", aplicados pelo atualizador.
+
 ## 1.3.1
 
 - **Ícone do site:** em Ajustes, dá para enviar a própria imagem. Sem nenhuma, vale uma imagem neutra. Vale para todas as contas do site.

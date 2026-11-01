@@ -337,9 +337,23 @@ final class Auth
         return $_SESSION['usuario_nome'] ?? null;
     }
 
+    /** Antes da primeira configuração, toda tela leva a ela. */
+    private static function exigirConfiguracao(): void
+    {
+        if (PHP_SAPI === 'cli' || Models\AjusteModel::configurado()) {
+            return;
+        }
+        $caminho = (string) strtok((string) ($_SERVER['REQUEST_URI'] ?? '/'), '?');
+        if ($caminho !== '/comecar') {
+            header('Location: /comecar', true, 302);
+            exit;
+        }
+    }
+
     public static function requireLogin(): void
     {
         if (self::logado() || self::tentarLembrado()) {
+            self::exigirConfiguracao();
             return;
         }
         $expirou = isset($_COOKIE[session_name()]);

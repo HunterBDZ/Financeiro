@@ -107,7 +107,7 @@ final class DashboardController
 
         // limite: até 60 dias atrás, nunca antes do saldo inicial (véspera do 1º mês), nunca no futuro
         $minimo = date('Y-m-d', strtotime('-60 days', strtotime($hoje)));
-        $primeiro = MesModel::primeiro();
+        $primeiro = MesModel::primeiroDia();
         if ($primeiro !== null) {
             $minimo = max($minimo, date('Y-m-d', strtotime('-1 day', strtotime($primeiro))));
         }

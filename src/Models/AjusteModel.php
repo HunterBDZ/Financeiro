@@ -9,11 +9,37 @@ final class AjusteModel
     public const EDITAVEIS = [
         'saldo_ini', 'poupanca_ini', 'investimentos_ini', 'recebido_emprestimo', 'parcela_mensal',
         'n_parcelas', 'juros_mes', 'consignado_inicio', 'reserva_minima', 'meta_final',
-        'saldo_devedor', 'saldo_devedor_mes',
+        'saldo_devedor', 'saldo_devedor_mes', 'meta_mes',
     ];
 
     /** As chaves do contrato do empréstimo: quem as grava é a aba Empréstimo, não Ajustes. */
     public const DO_EMPRESTIMO = ['recebido_emprestimo', 'parcela_mensal', 'n_parcelas', 'juros_mes', 'consignado_inicio', 'saldo_devedor', 'saldo_devedor_mes'];
+
+    /** O início do plano como 'Y-m-d'; null = ainda não definido. A data é um valor próprio, AAAAMMDD. */
+    public static function dataInicio(): ?string
+    {
+        return self::dataDe(self::valor('data_inicio'));
+    }
+
+    public static function dataDe(float $valor): ?string
+    {
+        $s = (string) (int) round($valor);
+        return strlen($s) === 8 && checkdate((int) substr($s, 4, 2), (int) substr($s, 6, 2), (int) substr($s, 0, 4))
+            ? substr($s, 0, 4) . '-' . substr($s, 4, 2) . '-' . substr($s, 6, 2)
+            : null;
+    }
+
+    /** A primeira configuração já foi feita. Quem instalou antes dela conta como feita (migração). */
+    public static function configurado(): bool
+    {
+        return self::valor('configurado', 1.0) >= 1.0;
+    }
+
+    /** O recurso opcional está ligado ('usa_emprestimo', 'usa_cartao'). */
+    public static function usa(string $chave): bool
+    {
+        return self::valor($chave, 1.0) >= 1.0;
+    }
 
     public static function valor(string $chave, float $default = 0.0): float
     {

@@ -88,10 +88,12 @@ $quandoFoi   = static function (string $data) use ($hoje): string {
             </div>
             <p class="saldo-v num"><small>R$</small><?= e($contaInt) ?><span><?= e($contaCent) ?></span></p>
             <div class="saldo-medidor" aria-hidden="true"><i style="--p:<?= e(number_format($pReserva, 1, '.', '')) ?>%"></i></div>
+            <?php if ($reserva > 0.004 || $vermelho): ?>
             <p class="saldo-rod num">
                 <span><?php if ($vermelho): ?><?= t('Faltam {valor} para zerar', ['valor' => '<b>' . e(num(abs($conta))) . '</b>']) ?><?php elseif ($abaixo): ?><?= t('Faltam {valor} para a reserva', ['valor' => '<b>' . e(num(abs($dif))) . '</b>']) ?><?php else: ?><?= t('{valor} acima da reserva', ['valor' => '<b>' . e(num($dif)) . '</b>']) ?><?php endif; ?></span>
                 <span><?= t('Reserva {valor}', ['valor' => '<b>' . e(num($reserva, 0)) . '</b>']) ?></span>
             </p>
+            <?php endif; ?>
             <?php if ($previsaoFim !== null): ?>
                 <p class="saldo-prev num" data-previsao-fim><?= t('Previsão para o fim de {mes}: {valor}', ['mes' => e(mesExtenso($mesPrevisao)), 'valor' => '<b>' . e(num($previsaoFim, 0)) . '</b>']) ?></p>
             <?php endif; ?>

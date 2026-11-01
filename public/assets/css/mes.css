@@ -455,6 +455,14 @@ details.mes-ed:target > summary { animation: mes-realce 1.6s ease-out 1; }   /* 
 .aj-temas { display: flex; align-items: center; gap: 10px; min-height: 56px; padding-top: 8px; padding-bottom: 8px; font-weight: 750; }
 .aj-temas span { flex: 1 1 auto; }
 .aj-temas:hover { background: var(--sel); }
+.aj-recursos { display: flex; flex-direction: column; gap: 10px; }
+.aj-recursos-form { display: flex; flex-direction: column; gap: 6px; }
+.aj-marcar { display: flex; align-items: center; gap: 10px; min-height: 44px; font-weight: 600; }
+.aj-marcar input { flex: none; }
+.aj-marcar input[type=radio] { width: 20px; height: 20px; accent-color: var(--text); }
+.aj-grupo-modo { margin: 6px 0; padding: 0; border: 0; }
+.aj-grupo-modo legend { padding: 0; color: var(--text-2); font-size: 13px; font-weight: 650; }
+.aj-inicio { padding-bottom: 12px; margin-bottom: 12px; border-bottom: 1px solid var(--line); }
 .aj-icone { display: flex; flex-direction: column; gap: 12px; }
 .aj-icone-l { display: flex; align-items: center; gap: 14px; }
 .aj-icone-img { flex: none; width: 64px; height: 64px; border-radius: 14px; object-fit: contain; background: var(--card-2); }

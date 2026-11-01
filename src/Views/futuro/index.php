@@ -134,6 +134,8 @@ if ($negMeses !== []) {
 }
 if ($bate !== null) {
     $metaTxt = t('Bate a meta de {meta} em {mes}.', ['meta' => num($meta, 0), 'mes' => monthLabel($bate)]);
+} elseif ($meta > 0.004 && $metaMes !== null && isset($porMes[$metaMes])) {
+    $metaTxt = t('Meta de {meta} em {mes}: faltam {falta}.', ['meta' => num($meta, 0), 'mes' => monthLabel($metaMes), 'falta' => num(max(0.0, $meta - $porMes[$metaMes]['fica']), 0)]);
 } elseif ($meta > 0.004 && $fim['fica'] < $meta) {
     $metaTxt = t('Meta de {meta}: faltam {falta}.', ['meta' => num($meta, 0), 'falta' => num($meta - $fim['fica'], 0)]);
 } else {
@@ -503,6 +505,7 @@ $opcoesMes = static function (string $sel) use ($se): string {
                                 <?php if ($l['simulado'] < -0.004): ?><p class="fu-conta-sub"><span><?= t('inclui {valor} do "e se"', ['valor' => e(num(abs($l['simulado'])))]) ?></span></p><?php endif; ?>
                                 <?php if ($l['amort'] > 0.004): ?><p><span><?= MENOS ?> <?= e(t('Adiantado do empréstimo')) ?></span> <?= e(num($l['amort'])) ?></p><?php endif; ?>
                                 <?php if ($l['poup'] < -0.004): ?><p><span><?= MENOS ?> <?= e(t('Guardado na poupança')) ?></span> <?= e(num(abs($l['poup']))) ?></p><?php endif; ?>
+                                <?php if (($l['parte'] ?? 0.0) > 0.004): ?><p><span><?= MENOS ?> <?= e(t('Parcela do empréstimo')) ?></span> <?= e(num($l['parte'])) ?></p><?php endif; ?>
                                 <?php if ($l['inv'] < -0.004): ?><p><span><?= MENOS ?> <?= e(t('Aplicado em investimentos')) ?></span> <?= e(num(abs($l['inv']))) ?></p><?php endif; ?>
                                 <p class="fu-conta-fim<?= $l['alerta'] !== '' ? ' ' . e($l['alerta']) : '' ?>"><span>= <?= e(t('Conta no fim')) ?></span> <?= e($valor2((float) $l['fica'])) ?></p>
                                 <p class="fu-conta-div"><span><?= e(t('Dívida no fim')) ?></span> <?= $l['divida'] > 0.004 ? e(num($l['divida'])) : e(t('quitada')) ?></p>

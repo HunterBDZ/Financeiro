@@ -139,7 +139,7 @@ $painel = static function (array $l, string $tipo) use ($csrf, $mes, $mesLbl, $e
         <?php if ($erro !== null): ?><p class="aviso aviso-error"><?= e((string) $erro['msg']) ?></p><?php endif; ?>
         <?php if ($info !== []): ?><p class="mes-form-info"><?= e(implode(' ', $info)) ?></p><?php endif; ?>
         <?php if (!$ehUltimo): ?>
-            <label class="mes-prop"><input type="checkbox" name="propagar" value="1"<?= !empty($erro['propagar']) ? ' checked' : '' ?>><span><?= e(t('Também nos meses seguintes, até {mes}', ['mes' => $ultLbl])) ?></span></label>
+            <label class="mes-prop"><input type="checkbox" name="propagar" value="1"<?= !empty($erro['propagar']) ? ' checked' : '' ?>><span><?= e(t('Também nos meses seguintes')) ?></span></label>
         <?php endif; ?>
         <?php if ($temAcoes): ?>
             <div class="mes-form-acoes">
@@ -277,7 +277,7 @@ $incluirConta = static function () use ($incluir, $csrf, $mes, $mesLbl, $erroLin
             </div>
             <?php if ($erro !== null): ?><p class="aviso aviso-error"><?= e((string) $erro['msg']) ?></p><?php endif; ?>
             <?php if (!$ehUltimo): ?>
-                <label class="mes-prop"><input type="checkbox" name="propagar" value="1"<?= !empty($erro['propagar']) ? ' checked' : '' ?>><span><?= e(t('Também nos meses seguintes, até {mes}', ['mes' => $ultLbl])) ?></span></label>
+                <label class="mes-prop"><input type="checkbox" name="propagar" value="1"<?= !empty($erro['propagar']) ? ' checked' : '' ?>><span><?= e(t('Também nos meses seguintes')) ?></span></label>
             <?php endif; ?>
         </form>
     </details>
@@ -329,10 +329,10 @@ $linhaLeitura = static function (array $l, float $v): void { ?>
         $txtConta  = num($emConta);
         $virgula   = strrpos($txtConta, ',');
         $estadoTxt = $emConta < -0.004 ? t('No vermelho')
-            : ($emConta < $reserva - 0.004 ? t('{valor} abaixo da reserva', ['valor' => num($reserva - $emConta, 0)]) : t('{valor} acima da reserva', ['valor' => num($emConta - $reserva, 0)]));
+            : ($reserva <= 0.004 ? '' : ($emConta < $reserva - 0.004 ? t('{valor} abaixo da reserva', ['valor' => num($reserva - $emConta, 0)]) : t('{valor} acima da reserva', ['valor' => num($emConta - $reserva, 0)])));
         ?>
         <section class="saldo mes-resumo <?= $emConta < -0.004 ? 'is-vermelho' : $nivel ?>" aria-labelledby="mes-res-t">
-            <div class="saldo-l1"><h2 id="mes-res-t"><?= substr((string) $hoje, 0, 7) === substr($mes, 0, 7) ? e(t('Em conta hoje')) : e(t('Conta no fim do mês')) ?></h2><span class="saldo-estado num"><?= e($estadoTxt) ?></span></div>
+            <div class="saldo-l1"><h2 id="mes-res-t"><?= substr((string) $hoje, 0, 7) === substr($mes, 0, 7) ? e(t('Em conta hoje')) : e(t('Conta no fim do mês')) ?></h2><?php if ($estadoTxt !== ''): ?><span class="saldo-estado num"><?= e($estadoTxt) ?></span><?php endif; ?></div>
             <p class="saldo-v num"><small>R$</small><?= e($virgula === false ? $txtConta : substr($txtConta, 0, $virgula)) ?><span><?= e($virgula === false ? '' : substr($txtConta, $virgula)) ?></span></p>
             <?php if ($estado === 'aberto' && isset($linha['fica_na_conta'])): ?>
                 <p class="saldo-prev num" data-previsao-fim><?= t('Previsão para o fim de {mes}: {valor}', ['mes' => e(mesExtenso($mes)), 'valor' => '<b>' . e(num((float) $linha['fica_na_conta'], 0)) . '</b>']) ?></p>

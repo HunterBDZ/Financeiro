@@ -6,7 +6,7 @@
 
 **O controle financeiro da casa, no seu servidor: lance em segundos, veja como o mês fecha e planeje a quitação do empréstimo.**
 
-[![Versão 1.3.1](https://img.shields.io/badge/vers%C3%A3o-1.3.1-blue)](CHANGELOG.md) ![PHP 8.4+](https://img.shields.io/badge/PHP-8.4%2B-777BB4?logo=php&logoColor=white) ![MySQL 8](https://img.shields.io/badge/MySQL-8-4479A1?logo=mysql&logoColor=white) ![Sem dependências](https://img.shields.io/badge/depend%C3%AAncias-nenhuma-success) ![Privado](https://img.shields.io/badge/uso-pessoal-lightgrey)
+[![Versão 1.4.0](https://img.shields.io/badge/vers%C3%A3o-1.4.0-blue)](CHANGELOG.md) ![PHP 8.4+](https://img.shields.io/badge/PHP-8.4%2B-777BB4?logo=php&logoColor=white) ![MySQL 8](https://img.shields.io/badge/MySQL-8-4479A1?logo=mysql&logoColor=white) ![Sem dependências](https://img.shields.io/badge/depend%C3%AAncias-nenhuma-success) ![Privado](https://img.shields.io/badge/uso-pessoal-lightgrey)
 
 [Diferenciais](#o-que-ele-tem-de-diferente) · [Telas](#telas) · [Como funciona](#como-funciona) · [Instalar](#instalar) · [Atualizar](#atualizar) · [Manual completo](docs/INSTALACAO.md)
 
@@ -39,6 +39,8 @@ Aqui, os dois lançam pelo celular, e o app responde o que importa: **quanto tem
 | **Cartão pelo que importa** | Compras e parcelas formam a escada das próximas faturas. No plano só conta a fatura, no mês em que vence, sem contar o gasto duas vezes. |
 | **Contas que não enganam** | Empréstimo e poupança nunca contam como renda ou gasto, e dá para conferir o saldo com o banco a qualquer momento. |
 | **Sozinho ou com mais gente** | Cada pessoa tem seu login, e o app guarda quem lançou o quê, com aviso de lançamento duplicado e desfazer. |
+| **Comece em qualquer dia do ano** | Na primeira entrada, o site pede a data de início e os saldos, e o resto é opcional. O plano nunca acaba: sempre há 24 meses à frente. |
+| **Só o que você usa** | Sem empréstimo ou sem cartão, a aba não aparece. A parcela pode vir descontada do salário ou ser paga à parte. |
 | **Guardado e investido num lugar só** | A aba Investimentos soma a poupança e os outros investimentos a partir dos lançamentos do Extrato. Aplicar nunca conta como gasto. |
 | **Em português, inglês e espanhol** | Cada conta escolhe o idioma, em Ajustes ou no login. Os valores seguem em reais. |
 | **32 temas, cada um com o seu** | Do Nord ao Terminal, passando por paletas brasileiras e opções de acessibilidade. Cada card mostra a prévia, e o tema escolhido acompanha a conta em qualquer aparelho. |
@@ -67,6 +69,7 @@ Aqui, os dois lançam pelo celular, e o app responde o que importa: **quanto tem
   </tr>
   <tr>
     <td align="center"><img src="docs/img/celular-investimentos-claro.jpg" alt="Investimentos com o total, a poupança e os outros investimentos" width="190"><br><b>Investimentos</b><br><sub>Poupança e o resto, pelo Extrato</sub></td>
+    <td align="center"><img src="docs/img/celular-comecar-claro.jpg" alt="Primeira configuração: data de início e saldos" width="190"><br><b>Primeira configuração</b><br><sub>Data de início e saldos</sub></td>
   </tr>
 </table>
 
@@ -128,6 +131,7 @@ Aqui, os dois lançam pelo celular, e o app responde o que importa: **quanto tem
 | **Wishlist** | O que queremos comprar? Quando fica melhor comprar o 1º? | `/wishlist` |
 | **Temas** | Com que cara quero o app? | `/temas` |
 | **Metas** | Quanto queremos gastar por categoria? | `/meta` |
+| **Primeira configuração** | De onde eu começo? | `/comecar` |
 | **Ajustes** | Reserva, meta, contas recorrentes, aparelhos e senha | `/ajustes` |
 
 ## Como funciona

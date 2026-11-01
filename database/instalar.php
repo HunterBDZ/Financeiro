@@ -96,6 +96,7 @@ $categorias = [
     ['Imposto de renda', null, 'Ano', -1, 0],
     ['Outros gastos pontuais', null, 'Ano', -1, 0],
     ['Amortização extra do empréstimo', 'Amortização extra', 'Emprestimo', -1, 0],
+    ['Parcela do empréstimo', null, 'Emprestimo', -1, 0],
     ['Guardar na poupança', null, 'Poupanca', -1, 0],
     ['Resgate de investimentos', null, 'Investimento', 1, 0],
     ['Aplicar em investimentos', null, 'Investimento', -1, 0],
@@ -103,23 +104,29 @@ $categorias = [
 
 $mesAtual = date('Y-m-01');
 $somaMes = static fn(string $mes, int $n): string => date('Y-m-01', strtotime($mes . ' ' . ($n >= 0 ? '+' : '') . $n . ' month'));
-$inicio = $demo ? $somaMes($mesAtual, -2) : $mesAtual;
+$inicio = $somaMes($mesAtual, $demo ? -2 : 0);
+// sem demonstração, os meses nascem na primeira configuração, no site, a partir da data que a pessoa escolher
 $meses = [];
-for ($i = 0; $i < ($demo ? 18 : 16); $i++) {
+for ($i = 0; $demo && $i <= 2 + Financeiro\Services\Horizonte::MESES_A_FRENTE; $i++) {
     $meses[] = $somaMes($inicio, $i);
 }
-$dataSaldo = date('d/m/Y', strtotime($inicio . ' -1 day'));
 $ajustes = [   // chave, rótulo, valor; o saldo do empréstimo e os parâmetros se ajustam nas telas depois
-    ['saldo_ini', 'Saldo da conta em ' . $dataSaldo, $demo ? 4200.0 : 0.0],
-    ['poupanca_ini', 'Poupança em ' . $dataSaldo, $demo ? 3000.0 : 0.0],
-    ['investimentos_ini', 'Investimentos em ' . $dataSaldo, $demo ? 5000.0 : 0.0],
+    ['saldo_ini', 'Saldo da conta no início', $demo ? 4200.0 : 0.0],
+    ['poupanca_ini', 'Poupança no início', $demo ? 3000.0 : 0.0],
+    ['investimentos_ini', 'Investimentos no início', $demo ? 5000.0 : 0.0],
     ['recebido_emprestimo', 'Crédito do empréstimo recebido', $demo ? 12000.0 : 0.0],
     ['parcela_mensal', 'Parcela mensal', $demo ? 289.90 : 0.0],
     ['n_parcelas', 'Número de parcelas', $demo ? 72.0 : 0.0],
     ['juros_mes', 'Juros ao mês', $demo ? 0.0165 : 0.0],
     ['consignado_inicio', 'Mês da 1ª parcela do empréstimo (AAAAMM)', $demo ? (float) date('Ym', strtotime($inicio)) : 0.0],
     ['reserva_minima', 'Reserva mínima na conta', $demo ? 1500.0 : 0.0],
-    ['meta_final', 'Meta conta + poupança', $demo ? 25000.0 : 0.0],
+    ['meta_final', 'Meta de conta e poupança', $demo ? 25000.0 : 0.0],
+    ['meta_mes', 'Mês da meta (AAAAMM)', $demo ? (float) date('Ym', strtotime($somaMes($inicio, 17))) : 0.0],
+    ['data_inicio', 'Início do plano (AAAAMMDD)', $demo ? (float) date('Ymd', strtotime($inicio)) : 0.0],
+    ['configurado', 'Primeira configuração feita', $demo ? 1.0 : 0.0],
+    ['usa_emprestimo', 'Usa a aba Empréstimo', 1.0],
+    ['usa_cartao', 'Usa a aba Cartão', 1.0],
+    ['parcela_modo', 'Parcela do empréstimo: 1 descontada do salário, 2 paga à parte', 1.0],
     ['objetivo', 'Objetivo da sobra', 1.0],
 ];
 
@@ -245,4 +252,5 @@ $pdo->commit();
 
 echo $demo
     ? "Pronto, com dados fictícios. Entre com ana / demo1234 ou bruno / demo1234. Não use a demonstração para dados reais.\n"
-    : 'Pronto. ' . count($categorias) . ' categorias, ' . count($meses) . " meses e " . count($usuarios) . " usuário(s). Entre no app e ajuste os valores iniciais em Ajustes e em Empréstimo.\n";
+    : 'Pronto. ' . count($categorias) . ' categorias e ' . count($usuarios) . " usuário(s). Entre no site para fazer a primeira configuração.
+";

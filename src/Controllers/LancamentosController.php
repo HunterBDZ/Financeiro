@@ -309,13 +309,13 @@ final class LancamentosController
         if (!preg_match('/^(\d{4})-(\d{2})-(\d{2})$/D', $data, $m) || !checkdate((int) $m[2], (int) $m[3], (int) $m[1])) {
             return t('data?');
         }
-        $primeiro = MesModel::primeiro();
+        $primeiro = MesModel::primeiroDia();
         $ultimo   = MesModel::ultimo();
         if ($primeiro === null || $ultimo === null) {
             return t('data?');
         }
         if ($data < $primeiro) {
-            return t('data antes de {mes}', ['mes' => monthLabel($primeiro)]);
+            return t('data antes do início ({data})', ['data' => diaMes($primeiro)]);
         }
         if ($data > date('Y-m-t', strtotime($ultimo))) {
             return t('data depois de {mes}', ['mes' => monthLabel($ultimo)]);

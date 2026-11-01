@@ -327,7 +327,8 @@ final class MesController
         $pos = array_search($mes, $chaves, true);
         $loanIni = $pos > 0 ? (float) $plano[$chaves[$pos - 1]]['falta_pagar'] : (float) ($d['loanIni'] ?? 0.0);
         $iniParcela = MotorFinanceiro::mesInicioParcela($d['aj']);
-        $consignado = ($loanIni > 0.01 && ($iniParcela === null || $mes >= $iniParcela))
+        $aParte = (int) round((float) ($d['aj']['parcela_modo'] ?? 1.0)) === 2;
+        $consignado = (!$aParte && $loanIni > 0.01 && ($iniParcela === null || $mes >= $iniParcela))
             ? round(min((float) ($d['aj']['parcela_mensal'] ?? 0.0), $loanIni + (float) $linha['juros']), 2)
             : 0.0;
 
@@ -406,7 +407,7 @@ final class MesController
     private static function dataMinBanco(string $hoje): string
     {
         $minimo = date('Y-m-d', strtotime('-60 days', strtotime($hoje)));
-        $primeiro = MesModel::primeiro();
+        $primeiro = MesModel::primeiroDia();
         if ($primeiro !== null) {
             $minimo = max($minimo, date('Y-m-d', strtotime('-1 day', strtotime($primeiro))));
         }

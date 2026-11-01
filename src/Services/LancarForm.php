@@ -117,7 +117,7 @@ final class LancarForm
         $pri = $r['pri'] ?? null;
         $ult = $r['ult'] ?? null;
         return [
-            'min'      => $pri ? (string) $pri : $mes,
+            'min'      => \Financeiro\Models\MesModel::primeiroDia() ?? ($pri ? (string) $pri : $mes),
             'max'      => $ult ? date('Y-m-t', strtotime((string) $ult)) : date('Y-m-t', strtotime($mes)),
             'situacao' => $r['sit'] ?? null,
         ];

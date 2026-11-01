@@ -30,6 +30,7 @@ use Financeiro\Controllers\TemaController;
 use Financeiro\Controllers\InvestimentosController;
 use Financeiro\Services\Investimentos;
 use Financeiro\Temas;
+use Financeiro\Services\Horizonte;
 use Financeiro\SiteIcone;
 use Financeiro\Idioma;
 use Financeiro\Controllers\FuturoController;
@@ -226,6 +227,83 @@ SiteIcone::remover();
 $pdo->rollBack();
 $check('ícone: arquivo que não é imagem é recusado', LinkProduto::fotoValida('<?php echo 1;') === null);
 $check('ícone: a imagem individual não está no código', !is_file(__DIR__ . '/../public/assets/img/spitz.png') && !str_contains((string) file_get_contents(__DIR__ . '/../src/Views/layout/app.php'), 'spitz'));
+
+// ---- 3f. meses sem fim, início em data real e recursos opcionais
+$mesHojeT = date('Y-m-01');
+$pdo->beginTransaction();
+$longe = date('Y-m-d', strtotime($mesHojeT . ' +10 year'));
+$ultAntes = (string) MesModel::ultimo();
+$catFixo = (int) $pdo->query("SELECT id FROM categorias WHERE grupo = 'Fixos' AND ativo = 1 ORDER BY id LIMIT 1")->fetchColumn();
+$catAno = (int) $pdo->query("SELECT id FROM categorias WHERE grupo = 'Ano' AND ativo = 1 ORDER BY id LIMIT 1")->fetchColumn();
+PrevisaoModel::setValor($catFixo, $ultAntes, 123.45);
+$mesAnoT = date('Y-m-01', strtotime($ultAntes . ' -6 month'));
+PrevisaoModel::setValor($catAno, $mesAnoT, 777.00);
+$tempoIni = microtime(true);
+Horizonte::garantir($longe);
+$tempoHorizonte = microtime(true) - $tempoIni;
+$alvoT = date('Y-m-01', strtotime(date('Y-m-01', strtotime($longe)) . ' +' . Horizonte::MESES_A_FRENTE . ' month'));
+$check('meses: o horizonte anda sozinho e não deixa buracos', MesModel::ultimo() === $alvoT && (int) $pdo->query('SELECT COUNT(*) FROM meses')->fetchColumn() === (int) $pdo->query("SELECT TIMESTAMPDIFF(MONTH, MIN(mes), MAX(mes)) + 1 FROM meses")->fetchColumn());
+$check('meses: conta fixa continua nos meses novos', abs(PrevisaoModel::valor($catFixo, date('Y-m-01', strtotime($ultAntes . ' +1 month'))) - 123.45) < 0.01 && abs(PrevisaoModel::valor($catFixo, $alvoT) - 123.45) < 0.01);
+$check('meses: conta pontual repete no mesmo mês do ano seguinte, e só nele', abs(PrevisaoModel::valor($catAno, date('Y-m-01', strtotime($mesAnoT . ' +1 year'))) - 777) < 0.01 && PrevisaoModel::valor($catAno, date('Y-m-01', strtotime($mesAnoT . ' +13 month'))) < 0.01);
+Horizonte::garantir($longe);
+$check('meses: rodar de novo não muda nada', MesModel::ultimo() === $alvoT);
+MotorFinanceiro::limparCache();
+$tempoIni = microtime(true);
+$planoLongo = MotorFinanceiro::calcularPlano();
+$tempoPlano = microtime(true) - $tempoIni;
+$check('meses: o plano com mais de 10 anos continua rápido', $planoLongo !== [] && $tempoPlano < 1.0, sprintf('%.3f s em %d meses', $tempoPlano, count($planoLongo)));
+$check('meses: lançamento num mês novo é aceito', LancamentosController::validarData(date('Y-m-d', strtotime($longe))) === null);
+$pdo->rollBack();
+MotorFinanceiro::limparCache();
+
+$iniT = (string) AjusteModel::dataInicio();
+$check('início: é uma data de verdade', $iniT !== '' && $iniT <= date('Y-m-d') && MesModel::primeiroDia() === $iniT);
+$check('início: lançamento antes dele é recusado', LancamentosController::validarData(date('Y-m-d', strtotime($iniT . ' -1 day'))) !== null);
+$check('início: não pode ser no futuro', Horizonte::problemaNaData(date('Y-m-d', strtotime('+1 day'))) !== null);
+if ((int) $pdo->query('SELECT COUNT(*) FROM lancamentos')->fetchColumn() > 0) {
+    $check('início: não passa por cima de lançamentos', Horizonte::problemaNaData(date('Y-m-d')) !== null || (string) $pdo->query('SELECT MIN(data) FROM lancamentos')->fetchColumn() === date('Y-m-d'));
+}
+$dadosT = MotorFinanceiro::dados();
+$mesMetaT = null;
+foreach ($dadosT['meses'] as $m) {
+    if ($m['situacao'] !== 'REAL' && $m['mes'] > date('Y-m-01')) { $mesMetaT = $m['mes']; break; }
+}
+$pdo->beginTransaction();
+$catMetaT = (int) $pdo->query("SELECT id FROM categorias WHERE grupo = 'Dia a dia' AND ativo = 1 ORDER BY id LIMIT 1")->fetchColumn();
+$pdo->prepare('DELETE FROM previsao WHERE categoria_id = ?')->execute([$catMetaT]);
+$pdo->prepare('REPLACE INTO metas (categoria_id, valor) VALUES (?, 300)')->execute([$catMetaT]);
+AjusteModel::setValor('data_inicio', (float) date('Ymd', strtotime($mesMetaT . ' +14 day')));
+MotorFinanceiro::limparCache();
+$dadosParcial = MotorFinanceiro::dados();
+$fracaoT = (diasNoMes($mesMetaT) - 15 + 1) / diasNoMes($mesMetaT);
+$check('início no meio do mês: a meta conta só pelos dias que faltam', abs(($dadosParcial['prev'][$mesMetaT][$catMetaT] ?? 0) - round(300 * $fracaoT, 2)) < 0.01);
+$check('início no dia 1: nada muda nos outros meses', abs(($dadosParcial['prev'][date('Y-m-01', strtotime($mesMetaT . ' +1 month'))][$catMetaT] ?? 0) - 300) < 0.01);
+$pdo->rollBack();
+MotorFinanceiro::limparCache();
+
+$comParcela = $dadosT;
+$comParcela['aj']['parcela_mensal'] = 200.0; $comParcela['aj']['n_parcelas'] = 12.0; $comParcela['aj']['juros_mes'] = 0.01; $comParcela['aj']['saldo_devedor'] = 0.0;
+$comParcela['loanIni'] = AjusteModel::devedorPor(200.0, 12.0, 0.01);
+$noSalario = $comParcela; $noSalario['aj']['parcela_modo'] = 1.0;
+$aParte = $comParcela; $aParte['aj']['parcela_modo'] = 2.0;
+$planoS = MotorFinanceiro::calcular($noSalario, ['objetivo' => 3]);
+$planoP = MotorFinanceiro::calcular($aParte, ['objetivo' => 3]);
+$difCaixa = 0.0;
+foreach ($planoS as $m => $l) {
+    $difCaixa = max($difCaixa, abs($l['fica_na_conta'] - $planoP[$m]['fica_na_conta']), abs($l['falta_pagar'] - $planoP[$m]['falta_pagar']));
+}
+$linhaP = $planoP[$mesMetaT]; $linhaS = $planoS[$mesMetaT];
+$check('parcela à parte: a conta e a dívida ficam iguais, sem mexer no salário', $difCaixa < 0.01 && $linhaP['parcela_consignado'] == 0.0 && $linhaP['parcela_parte'] > 0 && abs($linhaP['entra'] - $linhaS['entra_bruto']) < 0.01 && abs(MotorFinanceiro::balancoTotal($linhaP)[2] - MotorFinanceiro::balancoTotal($linhaS)[2]) < 0.01);
+$pdo->beginTransaction();
+AjusteModel::setValor('usa_emprestimo', 0.0);
+MotorFinanceiro::limparCache();
+$semEmp = MotorFinanceiro::calcularPlano();
+$check('sem empréstimo: nenhuma dívida nem parcela no plano', max(array_map(static fn($l) => abs($l['falta_pagar']) + $l['parcela_consignado'] + $l['parcela_parte'], $semEmp)) < 0.01);
+$check('sem empréstimo: a aba sai do menu', !str_contains($pagina(MetaController::class, 'index', '/meta'), 'href="/emprestimo"'));
+AjusteModel::setValor('usa_cartao', 0.0);
+$check('sem cartão: a aba sai e o Anual vai para a barra', (static function (string $h): bool { return !str_contains($h, 'href="/cartao"') && str_contains($h, 'class="tab" href="/futuro"'); })($pagina(MetaController::class, 'index', '/meta')));
+$pdo->rollBack();
+MotorFinanceiro::limparCache();
 
 // ---- 4. meta: definir uma meta pinta a barra no mês (verde/vermelho), sem sujar o banco
 $mesMeta = null;

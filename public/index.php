@@ -24,6 +24,15 @@ use Financeiro\Controllers\WishlistController;
 use Financeiro\Controllers\TemaController;
 use Financeiro\Controllers\IdiomaController;
 use Financeiro\Controllers\InvestimentosController;
+use Financeiro\Controllers\ComecarController;
+use Financeiro\Services\Horizonte;
+
+// os meses do plano não têm fim: se o mês virou, cria os que faltam
+try {
+    Horizonte::garantir();
+} catch (\Throwable $e) {
+    error_log('horizonte: ' . $e->getMessage());
+}
 
 $router = new Router();
 
@@ -80,6 +89,10 @@ $router->post('/emprestimo/dados', [EmprestimoController::class, 'salvarDados'])
 $router->get('/temas', [TemaController::class, 'index']);
 $router->post('/temas', [TemaController::class, 'salvar']);
 
+// ---- primeira configuração
+$router->get('/comecar', [ComecarController::class, 'index']);
+$router->post('/comecar', [ComecarController::class, 'salvar']);
+
 // ---- investimentos
 $router->get('/investimentos', [InvestimentosController::class, 'index']);
 
@@ -106,6 +119,8 @@ $router->post('/ajustes/senha', [AjustesController::class, 'trocarSenha']);
 $router->post('/ajustes/contas', [AjustesController::class, 'salvarConta']);
 $router->post('/ajustes/contas/{id}/remover', [AjustesController::class, 'removerConta']);
 $router->post('/ajustes/essenciais', [AjustesController::class, 'salvarEssenciais']);
+$router->post('/ajustes/inicio', [AjustesController::class, 'salvarInicio']);
+$router->post('/ajustes/recursos', [AjustesController::class, 'salvarRecursos']);
 $router->post('/ajustes/icone', [AjustesController::class, 'salvarIcone']);
 $router->post('/ajustes/icone/remover', [AjustesController::class, 'removerIcone']);
 $router->get('/icone', [AjustesController::class, 'icone']);

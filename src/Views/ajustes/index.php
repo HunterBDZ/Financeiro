@@ -12,10 +12,6 @@ $valorDe = static function (string $chave, int $dec = 2) use ($aj, $erro): strin
     $v = $aj[$chave]['valor'] ?? 0.0;
     return $chave === 'juros_mes' ? numInput($v * 100) : numInput($v, $dec);
 };
-/** "Saldo da conta em 31/08/2026" → "31/08/2026" (a data mora no label do ajuste) */
-$dataDoLabel = static function (string $chave) use ($aj): string {
-    return preg_match('~\d{2}/\d{2}/\d{4}~', $aj[$chave]['label'] ?? '', $m) ? $m[0] : '';
-};
 $aberto = static fn(string $g): string => !empty($abertos[$g]) ? ' open' : '';
 $erroDe = static function (string $g) use ($erro): void {
     if ($erro !== null && ($erro['grupo'] ?? '') === $g) {
@@ -53,6 +49,21 @@ $campo = static function (string $chave, string $rotulo, string $un = '', int $d
             <form method="post" action="/ajustes/icone/remover"><?= $csrf ?><button type="submit" class="btn-link"><?= e(t('Voltar ao ícone padrão')) ?></button></form>
         <?php endif; ?>
     </section>
+    <section class="card aj-recursos" id="recursos" aria-labelledby="aj-recursos-t">
+        <h2 class="titulo" id="aj-recursos-t"><?= e(t('O que você usa')) ?></h2>
+        <form class="aj-recursos-form" method="post" action="/ajustes/recursos">
+            <?= $csrf ?>
+            <label class="aj-marcar"><input type="checkbox" name="usa_cartao" value="1"<?= (float) ($aj['usa_cartao']['valor'] ?? 1) >= 1 ? ' checked' : '' ?>><span><?= e(t('Cartão de crédito')) ?></span></label>
+            <label class="aj-marcar"><input type="checkbox" name="usa_emprestimo" value="1"<?= (float) ($aj['usa_emprestimo']['valor'] ?? 1) >= 1 ? ' checked' : '' ?>><span><?= e(t('Empréstimo ou financiamento')) ?></span></label>
+            <?php $aParte = (int) round((float) ($aj['parcela_modo']['valor'] ?? 1)) === 2; ?>
+            <fieldset class="aj-grupo-modo">
+                <legend><?= e(t('Parcela do empréstimo')) ?></legend>
+                <label class="aj-marcar"><input type="radio" name="parcela_modo" value="1"<?= $aParte ? '' : ' checked' ?>><span><?= e(t('Já vem descontada do salário')) ?></span></label>
+                <label class="aj-marcar"><input type="radio" name="parcela_modo" value="2"<?= $aParte ? ' checked' : '' ?>><span><?= e(t('Pago à parte, com o dinheiro da conta')) ?></span></label>
+            </fieldset>
+            <button type="submit" class="btn btn-primary aj-salvar"><?= e(t('Salvar')) ?></button>
+        </form>
+    </section>
     <section class="card aj-idioma" aria-labelledby="aj-idioma-t">
         <h2 class="titulo" id="aj-idioma-t"><?= e(t('Idioma')) ?></h2>
         <?php require __DIR__ . '/../partials/idioma_escolha.php'; ?>
@@ -64,7 +75,12 @@ $campo = static function (string $chave, string $rotulo, string $un = '', int $d
         <form class="aj-form" method="post" action="/ajustes/salvar">
             <?= $csrf ?><input type="hidden" name="grupo" value="parametros">
             <?php $campo('reserva_minima', t('Reserva mínima')); ?>
-            <?php $campo('meta_final', $ultLbl !== '' ? t('Meta de conta e poupança até {mes}', ['mes' => $ultLbl]) : t('Meta de conta e poupança')); ?>
+            <?php $campo('meta_final', t('Meta de conta e poupança')); ?>
+            <?php $metaInt = (int) round((float) ($aj['meta_mes']['valor'] ?? 0)); ?>
+            <div class="aj-campo">
+                <label for="aj-meta_mes"><?= e(t('Até quando (opcional)')) ?></label>
+                <span class="aj-input aj-input-mes"><input id="aj-meta_mes" type="month" name="valores[meta_mes]" value="<?= $metaInt > 0 ? e(sprintf('%04d-%02d', intdiv($metaInt, 100), $metaInt % 100)) : '' ?>"></span>
+            </div>
             <?php $erroDe('parametros'); ?>
             <button type="submit" class="btn btn-primary aj-salvar"><?= e(t('Salvar')) ?></button>
         </form>
@@ -73,11 +89,21 @@ $campo = static function (string $chave, string $rotulo, string $un = '', int $d
     <!-- 2: ponto de partida -->
     <details class="card dobra aj-grupo" id="partida"<?= $aberto('partida') ?>>
         <summary><span class="titulo"><?= e(t('Ponto de partida')) ?></span></summary>
+        <form class="aj-form aj-inicio" method="post" action="/ajustes/inicio">
+            <?= $csrf ?>
+            <?php $inicioPlano = \Financeiro\Models\AjusteModel::dataInicio(); ?>
+            <div class="aj-campo">
+                <label for="aj-data_inicio"><?= e(t('Início do plano')) ?></label>
+                <span class="aj-input aj-input-mes"><input id="aj-data_inicio" type="date" name="data_inicio" value="<?= e((string) $inicioPlano) ?>" max="<?= e(date('Y-m-d')) ?>" required></span>
+            </div>
+            <p class="aj-ajuda"><?= e(t('Os valores abaixo são o que você tinha no início desse dia. Lançamentos valem a partir dele.')) ?></p>
+            <button type="submit" class="btn btn-ghost aj-salvar"><?= e(t('Salvar início')) ?></button>
+        </form>
         <form class="aj-form" method="post" action="/ajustes/salvar">
             <?= $csrf ?><input type="hidden" name="grupo" value="partida">
-            <?php $em = $dataDoLabel('saldo_ini'); $campo('saldo_ini', $em !== '' ? t('Conta em {data}', ['data' => $em]) : t('Conta')); ?>
-            <?php $em = $dataDoLabel('poupanca_ini'); $campo('poupanca_ini', $em !== '' ? t('Poupança em {data}', ['data' => $em]) : t('Poupança')); ?>
-            <?php $em = $dataDoLabel('investimentos_ini'); $campo('investimentos_ini', $em !== '' ? t('Investimentos em {data}', ['data' => $em]) : t('Investimentos')); ?>
+            <?php $campo('saldo_ini', t('Saldo da conta no início')); ?>
+            <?php $campo('poupanca_ini', t('Poupança no início')); ?>
+            <?php $campo('investimentos_ini', t('Investimentos no início')); ?>
             <?php $erroDe('partida'); ?>
             <button type="submit" class="btn btn-primary aj-salvar"><?= e(t('Salvar')) ?></button>
         </form>

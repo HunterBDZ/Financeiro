@@ -2,6 +2,7 @@
 namespace Financeiro\Controllers;
 
 use Financeiro\Auth;
+use Financeiro\Services\Horizonte;
 use Financeiro\Services\LinkProduto;
 use Financeiro\SiteIcone;
 use Financeiro\Models\AjusteModel;
@@ -61,6 +62,38 @@ final class AjustesController
             'erro'        => is_array($erro) ? $erro : null,
             'login'       => (string) (\Financeiro\Models\UsuarioModel::find((int) Auth::id())['login'] ?? ''),
         ], 'ajustes');
+    }
+
+    /* -------------------------------------------------------------- início do plano e recursos */
+
+    public function salvarInicio(): void
+    {
+        Auth::requireLogin();
+        csrfCheck();
+        $data = is_string($_POST['data_inicio'] ?? null) ? $_POST['data_inicio'] : '';
+        $ok = preg_match('/^(\d{4})-(\d{2})-(\d{2})$/D', $data, $m) === 1 && checkdate((int) $m[2], (int) $m[3], (int) $m[1]);
+        $problema = $ok ? Horizonte::problemaNaData($data) : t('data?');
+        if ($problema !== null) {
+            flash('error', $problema);
+            redirecionar('/ajustes?aberto=partida#partida', 303);
+        }
+        $antes = AjusteModel::dataInicio();
+        Horizonte::mudarInicio($data);
+        flash('success', $antes !== null && $data < $antes && substr($data, 0, 7) < date('Y-m')
+            ? t('Início salvo. Os meses que passaram ficam abertos: lance o que houve e feche cada um.')
+            : t('Início salvo.'));
+        redirecionar('/ajustes?aberto=partida#partida', 303);
+    }
+
+    public function salvarRecursos(): void
+    {
+        Auth::requireLogin();
+        csrfCheck();
+        AjusteModel::setValor('usa_cartao', ($_POST['usa_cartao'] ?? '') === '1' ? 1.0 : 0.0);
+        AjusteModel::setValor('usa_emprestimo', ($_POST['usa_emprestimo'] ?? '') === '1' ? 1.0 : 0.0);
+        AjusteModel::setValor('parcela_modo', ($_POST['parcela_modo'] ?? '') === '2' ? 2.0 : 1.0);
+        flash('success', t('ajustes salvos'));
+        redirecionar('/ajustes#recursos', 303);
     }
 
     /* -------------------------------------------------------------- ícone do site */
@@ -146,7 +179,7 @@ final class AjustesController
             if (!in_array($chave, $permitidas, true)) {
                 continue;                                       // fora da whitelist: ignorado
             }
-            if ($chave === 'consignado_inicio' || $chave === 'saldo_devedor_mes') {   // <input type="month">: "AAAA-MM" → AAAAMM; vazio = 0
+            if ($chave === 'consignado_inicio' || $chave === 'saldo_devedor_mes' || $chave === 'meta_mes') {   // <input type="month">: "AAAA-MM" → AAAAMM; vazio = 0
                 $bruto = is_string($bruto) ? trim($bruto) : '';
                 if ($bruto !== '' && !preg_match('/^(\d{4})-(0[1-9]|1[0-2])$/', $bruto, $m)) {
                     return ['valores' => [], 'erro' => $chave];
@@ -282,7 +315,7 @@ final class AjustesController
         return [
             'reserva_minima' => t('reserva mínima'), 'meta_final' => t('meta'), 'juros_mes' => t('juros ao mês'),
             'parcela_mensal' => t('parcela'), 'n_parcelas' => t('nº de parcelas'), 'consignado_inicio' => t('1ª parcela'), 'saldo_ini' => t('conta'),
-            'poupanca_ini' => t('poupança'), 'investimentos_ini' => t('investimentos'), 'recebido_emprestimo' => t('crédito recebido'),
+            'meta_mes' => t('mês da meta'), 'poupanca_ini' => t('poupança'), 'investimentos_ini' => t('investimentos'), 'recebido_emprestimo' => t('crédito recebido'),
             'saldo_devedor' => t('saldo devedor'), 'saldo_devedor_mes' => t('mês do saldo'),
         ][$chave] ?? $chave;
     }

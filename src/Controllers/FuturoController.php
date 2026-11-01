@@ -65,12 +65,17 @@ final class FuturoController
                 'consignado' => (float) $l['parcela_consignado'],
                 'sai' => round($saidas, 2), 'gastos' => (float) $l['sai'], 'amort' => (float) $l['amortizacao_extra'],
                 'sobra' => (float) $l['resultado_op'], 'mudou' => $mudou[$m] ?? [], 'simulado' => (float) ($se['extra'][$m] ?? 0.0),
-                'cred' => (float) $l['credito_emprestimo'], 'poup' => -(float) $l['poupanca_liquido'], 'inv' => -(float) ($l['invest_liquido'] ?? 0.0),
+                'cred' => (float) $l['credito_emprestimo'], 'poup' => -(float) $l['poupanca_liquido'], 'inv' => -(float) ($l['invest_liquido'] ?? 0.0), 'parte' => (float) ($l['parcela_parte'] ?? 0.0),
                 'bal' => $balanco, 'fica' => $fica, 'divida' => max(0.0, (float) $l['falta_pagar']),
                 'base_fica' => (float) $base[$m]['fica_na_conta'],
                 'alerta' => $fica < 0 ? 'neg' : (round($fica, 2) < $reserva - 0.004 ? 'warn' : ''),
             ];
         }
+        // a tabela e o gráfico mostram de um ano atrás em diante; o histórico inteiro fica no Mês
+        $desde = date('Y-m-01', strtotime($ref . ' -12 month'));
+        $linhas = array_values(array_filter($linhas, static fn(array $l): bool => $l['mes'] >= $desde));
+        $metaInt = (int) round((float) ($aj['meta_mes'] ?? 0.0));
+        $metaMes = $metaInt > 0 ? sprintf('%04d-%02d-01', intdiv($metaInt, 100), $metaInt % 100) : null;
         $quitacao = AnualResumo::quitacao($plano, $parcela, $jurosMes);
         $bate = null;
         foreach ($plano as $m => $l) {
@@ -84,7 +89,7 @@ final class FuturoController
             'pageTitle' => t('anual · financeiro'),
             'hoje' => $hoje, 'ref' => $ref, 'ultimo' => (string) end($meses),
             'marcos' => AnualResumo::marcos($plano, $reserva, $ref), 'ganho' => $ganho,
-            'reserva' => $reserva, 'meta' => $meta, 'linhas' => $linhas,
+            'reserva' => $reserva, 'meta' => $meta, 'metaMes' => $metaMes, 'linhas' => $linhas,
             'quita' => ($quitacao['noPlano'] ?? false) ? $quitacao['mes'] : null, 'bate' => $bate,
             'se' => $se,
             'comparar' => $se['ativo'] ? [

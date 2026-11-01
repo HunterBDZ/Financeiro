@@ -32,6 +32,7 @@ final class MotorFinanceiro
     public const CAT_AMORT   = 'Amortização extra do empréstimo';
     public const CAT_GUARDAR = 'Guardar na poupança';
     public const CAT_RESGATE = 'Resgate da poupança';
+    public const CAT_PARCELA = 'Parcela do empréstimo';
     public const CAT_APLICAR = 'Aplicar em investimentos';
     public const CAT_RESGATE_INV = 'Resgate de investimentos';
 
@@ -71,11 +72,16 @@ final class MotorFinanceiro
 
         $meses = array_map(fn($m) => ['mes' => (string) $m['mes'], 'situacao' => (string) $m['situacao']], MesModel::todos());
         $aj    = AjusteModel::mapa();
+        if (($aj['usa_emprestimo'] ?? 1.0) < 1.0) {             // sem a aba Empréstimo, é como se não houvesse dívida
+            foreach (['parcela_mensal', 'n_parcelas', 'juros_mes', 'saldo_devedor', 'recebido_emprestimo'] as $k) {
+                $aj[$k] = 0.0;
+            }
+        }
         $loanIni = AjusteModel::devedorPor($aj['parcela_mensal'] ?? 0.0, $aj['n_parcelas'] ?? 0.0, $aj['juros_mes'] ?? 0.0);
 
         $cats = [];
-        $esp  = ['cred' => null, 'amort' => null, 'guard' => null, 'resg' => null];
-        $nomesEsp = [self::CAT_CREDITO => 'cred', self::CAT_AMORT => 'amort', self::CAT_GUARDAR => 'guard', self::CAT_RESGATE => 'resg', self::CAT_APLICAR => 'aplic', self::CAT_RESGATE_INV => 'resgInv'];
+        $esp  = ['cred' => null, 'amort' => null, 'guard' => null, 'resg' => null, 'parc' => null, 'aplic' => null, 'resgInv' => null];
+        $nomesEsp = [self::CAT_CREDITO => 'cred', self::CAT_AMORT => 'amort', self::CAT_GUARDAR => 'guard', self::CAT_RESGATE => 'resg', self::CAT_PARCELA => 'parc', self::CAT_APLICAR => 'aplic', self::CAT_RESGATE_INV => 'resgInv'];
         foreach ($pdo->query('SELECT id, nome, apelido, grupo, sinal, operacional, essencial, ativo, ordem FROM categorias ORDER BY ordem, id') as $c) {
             $id = (int) $c['id'];
             $cats[$id] = [
@@ -95,6 +101,17 @@ final class MotorFinanceiro
             $prev[$m][$c] = (float) $r['valor'];
             if ($r['fonte'] === 'mes') {
                 $excecao[$m][$c] = true;
+            }
+        }
+        // início no meio do mês: nesse 1º mês, a meta conta só pelos dias que faltam (valor próprio do mês fica como está)
+        $inicio = AjusteModel::dataDe((float) ($aj['data_inicio'] ?? 0.0));
+        if ($inicio !== null && (int) substr($inicio, 8, 2) > 1) {
+            $mesIni = substr($inicio, 0, 8) . '01';
+            $fracao = (diasNoMes($mesIni) - (int) substr($inicio, 8, 2) + 1) / diasNoMes($mesIni);
+            foreach ($prev[$mesIni] ?? [] as $c => $v) {
+                if (!isset($excecao[$mesIni][$c])) {
+                    $prev[$mesIni][$c] = round($v * $fracao, 2);
+                }
             }
         }
         foreach ($pdo->query('SELECT categoria_id, valor FROM metas') as $r) {
@@ -166,7 +183,7 @@ final class MotorFinanceiro
             $real  = $dados['real'][$mes] ?? [];
 
             $entra = $sai = 0.0;
-            $cred = $amortReal = $guard = $resg = $aplic = $resgInv = 0.0;
+            $cred = $amortReal = $guard = $resg = $aplic = $resgInv = $parcLanc = 0.0;
             $usaMov = false;
             if ($ehReal) {
                 foreach ($real as $c => $v) {
@@ -181,6 +198,7 @@ final class MotorFinanceiro
                 $resg      = self::em($real, $esp['resg']);
                 $aplic     = self::em($real, $esp['aplic'] ?? null);
                 $resgInv   = self::em($real, $esp['resgInv'] ?? null);
+                $parcLanc  = self::em($real, $esp['parc'] ?? null);
                 $usaMov    = true;
             } else {
                 $p = $dados['prev'][$mes] ?? [];
@@ -232,7 +250,7 @@ final class MotorFinanceiro
                 'mes' => $mes, 'situacao' => $m['situacao'], 'estado' => $estado, 'real' => $ehReal,
                 'entra' => round($entra, 2), 'sai' => round($sai, 2), 'cred' => round($cred, 2),
                 'amort' => round($amortReal, 2), 'mov' => $usaMov ? round($guard - $resg, 2) : 0.0,
-                'inv' => $usaMov ? round($aplic - $resgInv, 2) : 0.0,
+                'inv' => $usaMov ? round($aplic - $resgInv, 2) : 0.0, 'parc' => round($parcLanc, 2),
             ];
         }
 
@@ -240,6 +258,7 @@ final class MotorFinanceiro
         $saldoIni    = (float) ($aj['saldo_ini'] ?? 0.0);
         $poupancaIni = (float) ($aj['poupanca_ini'] ?? 0.0);
         $investIni   = (float) ($aj['investimentos_ini'] ?? 0.0);
+        $parcelaAParte = (int) round((float) ($aj['parcela_modo'] ?? 1.0)) === 2;
         $loanIni     = (float) $dados['loanIni'];
         $n = count($comp);
         $linhas = [];
@@ -257,16 +276,22 @@ final class MotorFinanceiro
             $parcelaPaga = ($cobra && $loanIni > 0.01) ? min($parcela, $loanIni + $jurosV) : 0.0;
             $la          = max(0.0, $loanIni + $jurosV - $parcelaPaga);
 
-            // Fora de mês REAL, a parcela do consignado sai direto da folha: o salário previsto
-            // chega líquido na conta. No REAL, o lançamento de salário já é o líquido.
+            // Fora de mês REAL, a parcela sai do salário previsto (ele chega líquido na conta) ou, se é paga
+            // à parte, sai da conta. No REAL, valem os lançamentos: o salário líquido ou a categoria da parcela.
             $entra = $k['entra'];
             $parcelaDesc = 0.0;
+            $parcelaParte = $k['parc'];
             if (!$k['real']) {
-                $entra -= $parcelaPaga;
-                $parcelaDesc = $parcelaPaga;
+                if ($parcelaAParte) {
+                    $parcelaParte = $parcelaPaga;
+                } else {
+                    $entra -= $parcelaPaga;
+                    $parcelaDesc = $parcelaPaga;
+                    $parcelaParte = 0.0;
+                }
             }
             $resultadoOp = $entra - $k['sai'];
-            $fluxo = $resultadoOp + $k['cred'];
+            $fluxo = $resultadoOp + $k['cred'] - $parcelaParte;
             $mov   = $k['mov'];
             $inv   = $k['inv'];
 
@@ -293,7 +318,7 @@ final class MotorFinanceiro
                         $ll = max(0.0, $ll + $jq - $pq);
                         $bq = min($kq['amort'], $ll);
                         $ll -= $bq;
-                        $proj += ($kq['real'] ? $kq['entra'] : $kq['entra'] - $pq) - $kq['sai'] + $kq['cred'] - $bq - $kq['mov'] - $kq['inv'];
+                        $proj += ($kq['real'] ? $kq['entra'] - $kq['parc'] : $kq['entra'] - $pq) - $kq['sai'] + $kq['cred'] - $bq - $kq['mov'] - $kq['inv'];
                         if ($proj - $reserva < $melhor) {
                             $melhor = $proj - $reserva;
                         }
@@ -319,6 +344,7 @@ final class MotorFinanceiro
                 'sai'                 => $k['sai'],
                 'resultado_op'        => $resultadoOp,
                 'parcela_consignado'  => $parcelaDesc,
+                'parcela_parte'       => $parcelaParte,
                 'juros'               => $jurosV,
                 'credito_emprestimo'  => $k['cred'],
                 'amortizacao_extra'   => $adiantado,
@@ -331,7 +357,7 @@ final class MotorFinanceiro
                 'total'               => $total,
                 'quitado'             => $loanFim <= 0.01,
                 'bateu_reserva'       => $fica >= $reserva,
-                'bateu_meta'          => $total >= $meta,
+                'bateu_meta'          => $meta > 0.004 && $total >= $meta,
             ];
 
             $saldoIni    = $fica;
@@ -402,7 +428,7 @@ final class MotorFinanceiro
     {
         $inv = (float) ($linha['invest_liquido'] ?? 0.0);
         $entradas = $linha['entra'] + $linha['credito_emprestimo'] + max(0, -$linha['poupanca_liquido']) + max(0, -$inv);
-        $saidas   = $linha['sai'] + $linha['amortizacao_extra'] + max(0, $linha['poupanca_liquido']) + max(0, $inv);
+        $saidas   = $linha['sai'] + $linha['amortizacao_extra'] + max(0, $linha['poupanca_liquido']) + max(0, $inv) + (float) ($linha['parcela_parte'] ?? 0.0);
         return [$entradas, $saidas, $entradas - $saidas];
     }
 

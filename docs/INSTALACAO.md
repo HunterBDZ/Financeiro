@@ -79,9 +79,9 @@ sudo chmod 640 config/.env
 sudo -u www-data php database/instalar.php
 ```
 
-O instalador pergunta nome, login e senha (mínimo de 8 caracteres), e oferece um segundo usuário para quem divide as finanças com você. Ele também cria as categorias e os 16 meses do plano, a partir do mês atual.
+O instalador pergunta nome, login e senha (mínimo de 8 caracteres), e oferece um segundo usuário para quem divide as finanças com você. Ele também cria as categorias.
 
-✅ A última linha deve ser `Pronto. 23 categorias, 16 meses e …`.
+✅ A última linha deve começar com `Pronto.`. Ao entrar no site pela primeira vez, ele pede a data de início, os saldos, a renda e as contas fixas. Só o primeiro passo é obrigatório, e você pode começar em qualquer dia do ano.
 
 ### 6. Confira com os testes
 

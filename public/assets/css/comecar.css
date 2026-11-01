@@ -1,0 +1,27 @@
+/* Primeira configuração */
+.cm-body { min-height: 100dvh; background: var(--bg); color: var(--text); }
+.cm { display: flex; flex-direction: column; gap: 14px; width: min(100%, 520px); margin: 0 auto; padding: 18px 16px 40px; }
+.cm-topo { display: flex; align-items: center; gap: 10px; font-size: 18px; }
+.cm-topo b { font-family: var(--fn); font-weight: 700; letter-spacing: -0.02em; }
+.cm-passo { margin-left: auto; color: var(--text-2); font-size: 13px; font-weight: 650; }
+.cm-barra { height: 6px; border-radius: 99px; background: var(--card-3); overflow: hidden; }
+.cm-barra i { display: block; width: var(--p); height: 100%; border-radius: inherit; background: var(--text); }
+.cm-card { display: flex; flex-direction: column; gap: 14px; }
+.cm-titulo { font-family: var(--fn); font-size: 24px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.2; }
+.cm-ajuda { color: var(--text-2); font-size: 14.5px; line-height: 1.45; }
+.cm-nota { padding: 10px 12px; border-radius: 12px; background: var(--card-2); color: var(--text-2); font-size: 13.5px; line-height: 1.4; }
+.cm-campo { display: flex; flex-direction: column; gap: 6px; }
+.cm-campo span { font-size: 14px; font-weight: 650; }
+.cm-card input[type=text], .cm-card input[type=date] { width: 100%; min-width: 0; min-height: 46px; padding: 0 12px; border: 1px solid var(--line-2); border-radius: 12px; background: var(--card-2); color: var(--text); font: inherit; font-size: 16px; }
+.cm-card input:focus-visible { outline: 2px solid var(--foco); outline-offset: 1px; }
+.cm-contas { display: grid; grid-template-columns: minmax(0, 1fr) 110px 58px; align-items: center; gap: 8px; }
+.cm-contas-c { color: var(--text-2); font-size: 12.5px; font-weight: 650; }
+.cm-conta-n { min-width: 0; font-size: 14.5px; font-weight: 600; overflow-wrap: anywhere; }
+.cm-marcar { display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: 15px; font-weight: 600; }
+.cm-marcar input { flex: none; }
+.cm-marcar input[type=radio] { width: 20px; height: 20px; accent-color: var(--text); }
+.cm-grupo { border: 0; padding: 0; margin: 0; }
+.cm-grupo legend { padding: 0; color: var(--text-2); font-size: 13.5px; font-weight: 650; }
+.cm-acoes { display: flex; gap: 8px; }
+.cm-acoes .btn { flex: 1 1 0; min-height: 46px; }
+.cm-pular { align-self: center; color: var(--text-2); font-size: 14px; font-weight: 600; text-decoration: underline; }

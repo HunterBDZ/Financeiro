@@ -66,6 +66,12 @@ final class MesModel
         return $mes ? (string) $mes : null;
     }
 
+    /** O primeiro dia em que se pode lançar: o início do plano ou, sem ele, o 1º dia do primeiro mês. */
+    public static function primeiroDia(): ?string
+    {
+        return AjusteModel::dataInicio() ?? self::primeiro();
+    }
+
     /** Último mês cadastrado (MAX(mes)) — limite superior da data de um lançamento e o "dez/27" das telas. */
     public static function ultimo(): ?string
     {
