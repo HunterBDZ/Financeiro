@@ -5,7 +5,7 @@
  *                                      'href' => '/mes?mes=', 'sufixo' => '#contas']);
  * Variáveis: $mes (AAAA-MM-01), $meses (linhas {mes, situacao} em ordem), $href (prefixo do link,
  * recebe o mês no fim), $sufixo (opcional, ex. '#contas'), $hoje (opcional, Y-m-d),
- * $anual (opcional: true põe "Anual" no fim do painel; no celular é o caminho para o Anual).
+ * $anual (opcional: true põe o Relatório e o simulador no fim do painel; no celular é o caminho para eles).
  * O mês por extenso é o botão de um seletor (details.menu, funciona sem JS): abre um painel com
  * todos os meses por ano, cada um com o ponto do estado. Setas redondas à direita.
  * O h1 da tela fica escondido para leitor de tela (o botão mostra o mesmo texto).
@@ -70,7 +70,8 @@ foreach ($lista as $k) {
                 <span class="leg-previsto"><i class="ponto-estado"></i><?= e(t('Previsto')) ?></span>
             </p>
             <?php if ($anual): ?>
-                <a class="mes-picker-anual" href="/futuro"><?= svgIcon('trend', 18) ?><span><?= e(t('Anual')) ?></span><?= svgIcon('chevron', 16) ?></a>
+                <a class="mes-picker-anual" href="/relatorio"><?= svgIcon('relatorio', 18) ?><span><?= e(t('Relatório')) ?></span><?= svgIcon('chevron', 16) ?></a>
+                <a class="mes-picker-anual" href="/futuro"><?= svgIcon('trend', 18) ?><span><?= e(t('Simular uma mudança')) ?></span><?= svgIcon('chevron', 16) ?></a>
             <?php endif; ?>
         </div>
     </details>

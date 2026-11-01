@@ -380,6 +380,8 @@ function svgIcon(string $name, int $size = 14, string $class = ''): string
         'list'     => '<path d="M9 6.5h11"/><path d="M9 12h11"/><path d="M9 17.5h11"/><circle cx="4.5" cy="6.5" r=".9" fill="currentColor"/><circle cx="4.5" cy="12" r=".9" fill="currentColor"/><circle cx="4.5" cy="17.5" r=".9" fill="currentColor"/>',
         'calendar' => '<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17"/><path d="M8 3v4"/><path d="M16 3v4"/><path d="M7.5 14h2"/><path d="M11 14h2"/>',
         'invest'   => '<path d="M4 20.5h16"/><path d="M6.5 20.5v-6h3v6"/><path d="M10.5 20.5v-10h3v10"/><path d="M14.5 20.5V6h3v14.5"/>',
+        'relatorio' => '<path d="M6.5 3.5h7.8L18.5 7.7V19a1.5 1.5 0 0 1-1.5 1.5H6.5A1.5 1.5 0 0 1 5 19V5a1.5 1.5 0 0 1 1.5-1.5z"/><path d="M14 3.8V8h4.2"/><path d="M8.7 16.8v-3"/><path d="M12 16.8v-5.5"/><path d="M15.3 16.8v-2"/>',
+        'download' => '<path d="M12 4v11"/><path d="m7.5 11 4.5 4.5 4.5-4.5"/><path d="M4.5 19.5h15"/>',
         'trend'    => '<path d="M3.5 17.5 9 12l3.5 3.5 8-8"/><path d="M15 7.5h5.5V13"/>',
         'emprestimo' => '<circle cx="12" cy="12" r="8.5"/><path d="M12 6.8v10.4"/><path d="M14.9 9.4c-.5-.9-1.6-1.4-2.9-1.4-1.6 0-2.9.8-2.9 2s1.2 1.8 2.9 2 3 .8 3 2-1.3 2-3 2c-1.4 0-2.5-.5-3-1.4"/>',
         'gift'     => '<rect x="3.5" y="8" width="17" height="4" rx="1"/><path d="M5 12v8.5h14V12"/><path d="M12 8v12.5"/><path d="M12 8c-1-2.5-2.6-4.5-4.6-4.5a2.25 2.25 0 0 0 0 4.5H12Z"/><path d="M12 8c1-2.5 2.6-4.5 4.6-4.5a2.25 2.25 0 0 1 0 4.5H12Z"/>',

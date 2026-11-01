@@ -304,7 +304,8 @@ $opcoesMes = static function (string $sel) use ($se): string {
 };
 ?>
 <div class="fu<?= $sim ? ' is-sim' : '' ?>">
-    <h1 class="fu-titulo pg-titulo"><?= e(t('Anual')) ?></h1>
+    <h1 class="fu-titulo pg-titulo"><?= e(t('Simular')) ?></h1>
+    <p class="fu-sub"><?= e(t('Veja como uma mudança mexe no plano. Nada é salvo.')) ?> <a class="btn-link" href="/relatorio"><?= e(t('Ver relatório')) ?></a></p>
 
     <?php if ($sim): ?>
         <p class="fu-sim" role="status">
@@ -452,6 +453,8 @@ $opcoesMes = static function (string $sel) use ($se): string {
     </section>
 
     <!-- mês a mês -->
+    <details class="fu-tabela"<?= $sim ? ' open' : '' ?>>
+    <summary class="btn btn-ghost"><?= e(t('Ver mês a mês')) ?></summary>
     <section class="card fu-meses" id="meses" aria-labelledby="fu-meses-t">
         <div class="fu-meses-cab">
             <h2 class="titulo" id="fu-meses-t"><?= e(t('Mês a mês')) ?> <span class="fu-unid"><?= e(t('em R$')) ?></span></h2>
@@ -530,4 +533,5 @@ $opcoesMes = static function (string $sel) use ($se): string {
             <?php endforeach; ?>
         </div>
     </section>
+    </details>
 </div>

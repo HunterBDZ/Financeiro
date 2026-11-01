@@ -25,11 +25,14 @@ use Financeiro\Controllers\TemaController;
 use Financeiro\Controllers\IdiomaController;
 use Financeiro\Controllers\InvestimentosController;
 use Financeiro\Controllers\ComecarController;
+use Financeiro\Controllers\RelatorioController;
+use Financeiro\Services\FotoPlano;
 use Financeiro\Services\Horizonte;
 
 // os meses do plano não têm fim: se o mês virou, cria os que faltam
 try {
     Horizonte::garantir();
+    FotoPlano::garantir();
 } catch (\Throwable $e) {
     error_log('horizonte: ' . $e->getMessage());
 }
@@ -92,6 +95,10 @@ $router->post('/temas', [TemaController::class, 'salvar']);
 // ---- primeira configuração
 $router->get('/comecar', [ComecarController::class, 'index']);
 $router->post('/comecar', [ComecarController::class, 'salvar']);
+
+// ---- relatório
+$router->get('/relatorio', [RelatorioController::class, 'index']);
+$router->get('/relatorio/pdf', [RelatorioController::class, 'pdf']);
 
 // ---- investimentos
 $router->get('/investimentos', [InvestimentosController::class, 'index']);

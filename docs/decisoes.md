@@ -393,3 +393,16 @@ Antes, os meses eram criados uma vez, na instalação, e o app recusava lançame
 - O Anual mostra de um ano atrás em diante; o histórico inteiro fica no Mês.
 - O plano continua sendo calculado desde o 1º mês a cada página. Um teste exige menos de 1 segundo com mais de 10 anos de meses.
 
+## 2026-11-01 — aba Relatório no lugar da Anual
+
+Passou por conselho (5 conselheiros, revisão anônima, síntese). A aba Anual saiu. O simulador "E se…?" e o gráfico do plano continuam em `/futuro`, agora chamado Simular, sem item de menu: abre pelo Relatório, pelo Mês, pela Wishlist e pelo Empréstimo. Um PDF não simula nada.
+
+- **PDF próprio, em `src/Pdf`:** o servidor não tem GD, Imagick nem navegador, e o projeto não usa Composer. Manrope e Sora saem como TTF estático de `tools/pdf-fontes/gerar.py` e ficam commitadas. Caractere fora da fonte vira um ponto médio. Sem PDF marcado (PDF/UA): mal feito é pior que nada. Título, idioma e ToUnicode estão lá.
+- **Juízo só em mês encerrado.** O plano do mês em andamento usa o maior entre lançado e planejado, então não dá para dizer que algo ficou abaixo.
+- **Regras** em `RelatorioDados`: diferença relevante = ao menos 2% da renda e 10% do planejado; no máximo 2 itens por lista; entrada abaixo em 5%; 25% acima da média com 3 meses encerrados; conta pontual só se julga no anual. Regra sem base se cala. Nada de nota, 50/30/20 ou comparação com a média do país.
+- **"Pode melhorar" é aritmética:** roda o motor com 10% a menos numa categoria não essencial e só mostra se muda algo.
+- **Foto do plano (`plano_fotos`):** na primeira requisição de cada mês, sem depender de fechar, porque fechar tarde já conhece o resultado. Foto depois do dia 7 não entra no placar. Não dá para refazer meses passados.
+- **Previsão em três camadas:** já contratado, estimado e cenários, sem leque de incerteza por falta de base. Os cenários usam "o que tem menos o que deve": na conta sozinha, gastar mais parecia melhor, porque o plano adianta menos o empréstimo.
+- **Fatura aberta por categoria só para ler.** O plano continua contando a fatura, e o que não tem compra registrada aparece como "Fatura sem detalhe".
+- **Nada de nome de usuário no PDF:** ele pode sair do app.
+

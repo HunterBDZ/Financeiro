@@ -65,7 +65,7 @@ $difContrato = $feitos === [] && $sit['contrato'] !== null && $sit['quita'] !== 
             <?php endif; ?>
 
             <?php if (!$sit['quitado'] && $sit['quitaPlano'] !== null && $sit['quitaPlano'] !== $sit['quita']): ?>
-                <p class="emp-plano"><?= e(t('No Anual, o plano usa a sobra de cada mês para adiantar e quita em {mes}.', ['mes' => monthLabel($sit['quitaPlano'])])) ?> <a href="/futuro"><?= e(t('Ver o plano')) ?></a></p>
+                <p class="emp-plano"><?= e(t('O plano usa a sobra de cada mês para adiantar e termina de pagar em {mes}.', ['mes' => monthLabel($sit['quitaPlano'])])) ?> <a href="/futuro"><?= e(t('Ver o plano')) ?></a></p>
             <?php endif; ?>
         </div>
 
@@ -145,7 +145,7 @@ $difContrato = $feitos === [] && $sit['contrato'] !== null && $sit['quita'] !== 
                 <summary><?= e(t('Dados do empréstimo')) ?></summary>
                 <form class="aj-form" method="post" action="/emprestimo/dados">
                     <?= csrfField() ?>
-                    <p class="aj-ajuda"><?= e(t('Mudar estes dados recalcula o plano inteiro: Início, Mês, Anual e esta aba.')) ?></p>
+                    <p class="aj-ajuda"><?= e(t('Mudar estes dados recalcula o plano inteiro: Início, Mês, Relatório e esta aba.')) ?></p>
                     <div class="aj-campo">
                         <label for="emp-d-saldo_devedor"><?= e(t('Saldo devedor do extrato')) ?></label>
                         <span class="aj-input"><input id="emp-d-saldo_devedor" type="text" name="valores[saldo_devedor]" inputmode="decimal" autocomplete="off" placeholder="0,00" value="<?= e($saldoTxt) ?>"<?= $invalido('saldo_devedor') ?>></span>

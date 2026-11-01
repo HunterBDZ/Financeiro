@@ -189,6 +189,13 @@ if ($demo) {
             $prev->execute([$cat['IPVA'], $m, 1450.00]);
         }
     }
+    // meses encerrados guardam a meta como previsão própria, como o fechamento de verdade faz
+    $congela = $pdo->prepare('INSERT IGNORE INTO previsao (categoria_id, mes, valor) SELECT categoria_id, ?, valor FROM metas');
+    foreach ($meses as $m) {
+        if ($m < $mesAtual) {
+            $congela->execute([$m]);
+        }
+    }
 
     $lanc = $pdo->prepare('INSERT INTO lancamentos (data, descricao, categoria_id, valor, usuario_id) VALUES (?, ?, ?, ?, ?)');
     $lancar = static function (string $mes, int $dia, string $desc, string $nome, float $v, int $quem) use ($lanc, $cat, $ids, $hoje): void {

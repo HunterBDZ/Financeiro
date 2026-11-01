@@ -74,7 +74,7 @@ $presentes = array_unique(array_map($estadoDe, $prev['meses']));
                     <?php endif; ?>
                 </dl>
                 <?php if ($parcelas === 1 && $sel['estado'] === 'ok'): ?>
-                    <a class="wl-ver-anual" href="<?= e('/futuro?' . http_build_query(['se' => 1, 'uma' => numInput($prev['valor']), 'uma_tipo' => 'gasto', 'uma_mes' => $mes, 'adiantar' => 1])) ?>"><?= e(t('Ver no Anual')) ?></a>
+                    <a class="wl-ver-anual" href="<?= e('/futuro?' . http_build_query(['se' => 1, 'uma' => numInput($prev['valor']), 'uma_tipo' => 'gasto', 'uma_mes' => $mes, 'adiantar' => 1])) ?>"><?= e(t('Simular esta compra')) ?></a>
                 <?php endif; ?>
             <?php endif; ?>
         </div>

@@ -30,6 +30,11 @@ use Financeiro\Controllers\TemaController;
 use Financeiro\Controllers\InvestimentosController;
 use Financeiro\Services\Investimentos;
 use Financeiro\Temas;
+use Financeiro\Pdf\Documento;
+use Financeiro\Pdf\RelatorioPdf;
+use Financeiro\Services\FotoPlano;
+use Financeiro\Services\RelatorioDados;
+use Financeiro\Controllers\RelatorioController;
 use Financeiro\Services\Horizonte;
 use Financeiro\SiteIcone;
 use Financeiro\Idioma;
@@ -301,9 +306,106 @@ $semEmp = MotorFinanceiro::calcularPlano();
 $check('sem empréstimo: nenhuma dívida nem parcela no plano', max(array_map(static fn($l) => abs($l['falta_pagar']) + $l['parcela_consignado'] + $l['parcela_parte'], $semEmp)) < 0.01);
 $check('sem empréstimo: a aba sai do menu', !str_contains($pagina(MetaController::class, 'index', '/meta'), 'href="/emprestimo"'));
 AjusteModel::setValor('usa_cartao', 0.0);
-$check('sem cartão: a aba sai e o Anual vai para a barra', (static function (string $h): bool { return !str_contains($h, 'href="/cartao"') && str_contains($h, 'class="tab" href="/futuro"'); })($pagina(MetaController::class, 'index', '/meta')));
+$check('sem cartão: a aba sai e o Relatório vai para a barra', (static function (string $h): bool { return !str_contains($h, 'href="/cartao"') && str_contains($h, 'class="tab" href="/relatorio"'); })($pagina(MetaController::class, 'index', '/meta')));
 $pdo->rollBack();
 MotorFinanceiro::limparCache();
+
+// ---- 3g. relatório: PDF válido, escada que fecha, juízo só com base, foto a tempo
+$docT = new Documento('Título ação', 'pt-BR', '20261122153000');
+$docT->novaPagina();
+$docT->texto(40, 60, 'Ação ñ € −1,00 🍕 日本', 'manrope-500', 12);
+$docT->texto(40, 80, 'Sora', 'sora-600', 12, [0, 0, 0], 'd');
+$docT->retangulo(40, 90, 100, 20, [0.5, 0.5, 0.5], [0, 0, 0], 4);
+$docT->hachura(40, 120, 50, 20, [0, 0, 0]);
+$pngA = (string) base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M/wHwAEBgIApD5fRAAAAABJRU5ErkJggg==');
+$check('pdf: PNG com transparência entra sem GD', $docT->imagem($pngA, 40, 150, 10, 10));
+$check('pdf: formato que não dá para embutir fica de fora', !$docT->imagem('nao e imagem', 40, 150, 10, 10));
+$bytesT = $docT->saida();
+$xrefOk = false;
+if (preg_match('/startxref\n(\d+)\n%%EOF\n$/', $bytesT, $mx) && substr($bytesT, (int) $mx[1], 4) === 'xref') {
+    $xrefOk = true;
+    $linhasX = explode("\n", substr($bytesT, (int) $mx[1]));
+    [, $totalX] = explode(' ', $linhasX[1]);
+    for ($iX = 1; $iX < (int) $totalX; $iX++) {
+        $xrefOk = $xrefOk && substr($bytesT, (int) substr($linhasX[2 + $iX], 0, 10), strlen($iX . ' 0 obj')) === $iX . ' 0 obj';
+    }
+}
+$check('pdf: cabeçalho, xref e objetos nos lugares certos', str_starts_with($bytesT, '%PDF-1.5') && $xrefOk);
+$check('pdf: título e idioma declarados', str_contains($bytesT, '/Title <FEFF') && str_contains($bytesT, '/Lang <FEFF') && str_contains($bytesT, '/DisplayDocTitle true'));
+$check('pdf: fontes embutidas com ToUnicode', substr_count($bytesT, '/FontFile2') === 2 && substr_count($bytesT, '/ToUnicode') === 2);
+$check('pdf: quebra de linha respeita a largura', max(array_map(static fn($l) => $docT->medir($l, 'manrope-500', 10), $docT->quebrar('um texto bem longo com umapalavraenormequenaocabedeformanenhumanalinha e mais', 'manrope-500', 10, 80))) <= 80.01);
+
+$dadosR = MotorFinanceiro::dados();
+$planoR = MotorFinanceiro::calcularPlano();
+$mesHojeR = date('Y-m-01');
+$ponteOk = true;
+$comVeredito = 0;
+foreach ($planoR as $m => $l) {
+    if ($m > $mesHojeR) {
+        break;
+    }
+    $rel = RelatorioDados::mensal((string) $m);
+    $soma = 0.0;
+    foreach ($rel['ponte'] as $d) {
+        if ($d['tipo'] !== 'fim') {
+            $soma += $d['valor'];
+        }
+    }
+    $ponteOk = $ponteOk && abs($soma - (float) $l['fica_na_conta']) < 0.01;
+    if (!$rel['encerrado'] && array_merge($rel['achados']['bom'], $rel['achados']['ruim'], $rel['achados']['melhorar']) !== []) {
+        $check('relatório: mês em andamento não dá veredito', false, (string) $m);
+    }
+    $comVeredito += $rel['encerrado'] ? 1 : 0;
+    if ($rel['encerrado']) {
+        $check("relatório: gastos de {$m} batem com o que saiu", abs($rel['categorias']['totalReal'] - (float) $l['sai']) < 0.01, json_encode([$rel['categorias']['totalReal'], $l['sai']]));
+    }
+}
+$check('relatório: a escada de todo mês fecha no centavo', $ponteOk);
+$relHoje = RelatorioDados::mensal($mesHojeR);
+if ($relHoje !== null && $relHoje['previsao']['cenarios'] !== []) {
+    [$cBase, $cGasto, $cRenda] = $relHoje['previsao']['cenarios'];
+    $check('relatório: cenário pior nunca parece melhor', end($cGasto['linha']) <= end($cBase['linha']) + 0.01 && end($cRenda['linha']) <= end($cBase['linha']) + 0.01);
+}
+$pdo->beginTransaction();
+AjusteModel::setValor('usa_emprestimo', 0.0);
+MotorFinanceiro::limparCache();
+$semD = RelatorioDados::mensal($mesHojeR);
+$check('relatório: sem empréstimo, nada de terminar de pagar', $semD !== null && ($semD['previsao']['cenarios'] === [] || $semD['previsao']['cenarios'][0]['quita'] === null) && $semD['previsao']['quita'] === null && $semD['divida'] === null);
+$pdo->rollBack();
+MotorFinanceiro::limparCache();
+$pdo->beginTransaction();
+$pdo->exec('DELETE FROM plano_fotos');
+$mesFotoR = date('Y-m-01');
+FotoPlano::garantir(substr($mesFotoR, 0, 8) . '03');
+$fotoCedo = FotoPlano::valida($mesFotoR);
+$check('foto do plano: a do começo do mês vale', $fotoCedo !== null && isset($fotoCedo['meses'][$mesFotoR]['fica']));
+$qtd = (int) $pdo->query('SELECT COUNT(*) FROM plano_fotos')->fetchColumn();
+FotoPlano::garantir(substr($mesFotoR, 0, 8) . '04');
+$check('foto do plano: uma só por mês', (int) $pdo->query('SELECT COUNT(*) FROM plano_fotos')->fetchColumn() === $qtd);
+$pdo->exec('DELETE FROM plano_fotos');
+FotoPlano::garantir(substr($mesFotoR, 0, 8) . '20');
+$check('foto do plano: tirada tarde não entra no placar', FotoPlano::valida($mesFotoR) === null);
+$pdo->rollBack();
+foreach (['pt', 'en', 'es'] as $idR) {
+    Idioma::usar($idR);
+    $mesesR = RelatorioDados::periodos();
+    $pdfM = (new RelatorioPdf(RelatorioDados::mensal((string) $mesesR['mesPadrao'])))->gerar();
+    $pdfA = (new RelatorioPdf(RelatorioDados::anual((int) $mesesR['anoPadrao'])))->gerar();
+    $check("relatório: PDF mensal e anual em {$idR}", str_starts_with($pdfM, '%PDF') && str_starts_with($pdfA, '%PDF') && strlen($pdfM) > 10000);
+}
+Idioma::usar('pt');
+$nomesR = $pdo->query('SELECT nome, login FROM usuarios')->fetchAll(PDO::FETCH_ASSOC);
+$jsonR = json_encode(RelatorioDados::mensal($mesHojeR), JSON_UNESCAPED_UNICODE);
+$vazou = array_filter($nomesR, static fn($u) => str_contains((string) $jsonR, ' ' . $u['nome'] . ' '));
+$check('relatório: não traz nome de quem usa', $vazou === []);
+$htmlR = $pagina(RelatorioController::class, 'index', '/relatorio');
+$check('relatório: a tela mostra a capa e o botão do PDF', str_contains($htmlR, 'rl-capa') && str_contains($htmlR, '/relatorio/pdf?') && str_contains($htmlR, 'Baixar PDF'));
+$_GET = ['tipo' => 'anual'];
+ob_start();
+(new RelatorioController())->index();
+$htmlRA = (string) ob_get_clean();
+$_GET = [];
+$check('relatório: a escolha anual funciona', str_contains($htmlRA, 'aria-current="page">Anual'));
 
 // ---- 4. meta: definir uma meta pinta a barra no mês (verde/vermelho), sem sujar o banco
 $mesMeta = null;
@@ -603,12 +705,12 @@ $htmlMes = $render(MesController::class, 'index', []);
 preg_match('#<nav class="tabbar".*?</nav>#s', $htmlMes, $m);
 $barra = $m[0] ?? '';
 preg_match_all('#<a class="(tab[^" ]*)#', $barra, $itens);
-$check('barra do celular: 2 abas, o +, 2 abas (sem o Anual)', $itens[1] === ['tab', 'tab', 'tab-add', 'tab', 'tab']
-    && !str_contains($barra, 'href="/futuro"') && str_contains($htmlMes, 'class="lat-i" href="/futuro"'), implode(',', $itens[1]));
-$check('seletor de meses do Mês leva ao Anual; o do Extrato não', str_contains($htmlMes, 'class="mes-picker-anual" href="/futuro"')
+$check('barra do celular: 2 abas, o +, 2 abas (sem o Relatório)', $itens[1] === ['tab', 'tab', 'tab-add', 'tab', 'tab']
+    && !str_contains($barra, 'href="/relatorio"') && str_contains($htmlMes, 'class="lat-i" href="/relatorio"'), implode(',', $itens[1]));
+$check('seletor de meses do Mês leva ao Relatório e ao simulador; o do Extrato não', str_contains($htmlMes, 'class="mes-picker-anual" href="/relatorio"') && str_contains($htmlMes, 'class="mes-picker-anual" href="/futuro"')
     && !str_contains($htmlEx, 'mes-picker-anual'));
-$check('menu do avatar (celular) também leva ao Anual', str_contains($htmlMes, 'class="menu-item" href="/futuro"'));
-$check('no Anual, a aba Mês da barra fica acesa', str_contains($render(FuturoController::class, 'index', []), 'class="tab is-active" href="/mes"'));
+$check('menu do avatar (celular) leva ao Relatório, e a aba Anual saiu', str_contains($htmlMes, 'class="menu-item" href="/relatorio"') && !str_contains($htmlMes, 'class="menu-item" href="/futuro"') && !str_contains($htmlMes, '>Anual<'));
+$check('no simulador, a aba Mês da barra fica acesa', str_contains($render(FuturoController::class, 'index', []), 'class="tab is-active" href="/mes"'));
 
 // ---- 13. Anual: marcos do plano e o que mudou em cada mês (AnualResumo, dados de mentira)
 $pl = static fn(string $m, float $fica, bool $quit = false, float $parc = 0.0): array => ['mes' => $m, 'estado' => 'previsto',
@@ -774,7 +876,7 @@ $check('cartão: sem cartão cadastrado, a aba pede o cadastro', CartaoModel::at
     || str_contains($render(CartaoController::class, 'index', []), 'Cadastre o cartão'));
 $htmlBar = $render(MesController::class, 'index', []);
 preg_match('#<nav class="tabbar".*?</nav>#s', $htmlBar, $mB);
-$check('barra do celular: Início, Extrato, +, Mês, Cartão; Metas e Anual no menu do M', str_contains($mB[0] ?? '', 'href="/cartao"')
+$check('barra do celular: Início, Extrato, +, Mês, Cartão; Metas e Relatório no menu do M', str_contains($mB[0] ?? '', 'href="/cartao"')
     && !str_contains($mB[0] ?? '', 'href="/meta"') && str_contains($htmlBar, 'class="menu-item" href="/meta"') && str_contains($htmlBar, 'class="lat-i" href="/cartao"'));
 
 // ---- 16. aba Empréstimo: dados de mentira, para não depender da dívida de verdade

@@ -123,7 +123,7 @@ $temAdd = $addEss !== [] || $addNao !== [];
         <?php endif; ?>
     </section>
 
-    <p class="meta-dica meta-previsao"><?= t('A meta também é a previsão de todos os meses e entra na conta da aba Anual. Num mês diferente (férias, presente, conta extra), ajuste o valor na aba {link}.', ['link' => '<a href="/mes">' . e(t('Mês')) . '</a>']) ?></p>
+    <p class="meta-dica meta-previsao"><?= t('A meta também é a previsão de todos os meses e entra no plano. Num mês diferente (férias, presente, conta extra), ajuste o valor na aba {link}.', ['link' => '<a href="/mes">' . e(t('Mês')) . '</a>']) ?></p>
 
     <!-- escolher quais categorias terão meta -->
     <form class="card meta-add" method="get" action="/meta" data-meta-add-form>

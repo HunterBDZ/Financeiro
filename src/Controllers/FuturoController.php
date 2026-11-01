@@ -8,7 +8,7 @@ use Financeiro\Services\MotorFinanceiro;
 use Financeiro\View;
 
 /**
- * Anual (SPEC §2.7): a conta mês a mês pelo plano do motor — linha do saldo projetado e a tabela
+ * Simular (a antiga aba Anual, SPEC §2.7): a conta mês a mês pelo plano do motor — linha do saldo projetado e a tabela
  * entradas / saídas / balanço. "balanço" só de MotorFinanceiro::balancoTotal(). Os marcos do plano
  * e o "o que mudou" de cada mês vêm de AnualResumo.
  *
@@ -27,7 +27,7 @@ final class FuturoController
         $hoje  = date('Y-m-d');
         $base  = MotorFinanceiro::calcularPlano();
         if ($base === []) {
-            View::render('dashboard/vazio', ['pageTitle' => t('anual · financeiro')], 'futuro');
+            View::render('dashboard/vazio', ['pageTitle' => t('simular · financeiro')], 'relatorio');
             return;
         }
         $dados    = MotorFinanceiro::dados();
@@ -86,7 +86,7 @@ final class FuturoController
         }
 
         View::render('futuro/index', [
-            'pageTitle' => t('anual · financeiro'),
+            'pageTitle' => t('simular · financeiro'),
             'hoje' => $hoje, 'ref' => $ref, 'ultimo' => (string) end($meses),
             'marcos' => AnualResumo::marcos($plano, $reserva, $ref), 'ganho' => $ganho,
             'reserva' => $reserva, 'meta' => $meta, 'metaMes' => $metaMes, 'linhas' => $linhas,
@@ -97,7 +97,7 @@ final class FuturoController
                 'se'    => AnualResumo::numeros($plano, $reserva, $ref, $parcela, $jurosMes),
             ] : null,
             'temDivida' => (float) ($base[$ref]['falta_pagar'] ?? reset($base)['falta_pagar']) > 0.004,
-        ], 'futuro');
+        ], 'relatorio');
     }
 
     /**

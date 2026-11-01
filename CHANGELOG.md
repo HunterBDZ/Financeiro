@@ -2,6 +2,17 @@
 
 Cada versão publicada é uma tag `vX.Y.Z` deste repositório. Sites instalados atualizam com `sudo financeiro-atualizar`.
 
+## 1.5.0
+
+- **Aba Relatório no lugar da Anual:** escolha mensal ou anual, veja o resumo na tela e baixe o PDF, com gráficos, o que foi bom, o que foi ruim, o que pode melhorar e previsões.
+- **Escada do saldo:** do valor inicial ao final do período, fechando no centavo.
+- **Placar do planejamento:** o app guarda o que o plano dizia no começo de cada mês e compara com o que aconteceu. Começa no mês em que esta versão for instalada, se for na primeira semana; senão, no mês seguinte.
+- **Previsões em três camadas:** parcelas já contratadas, estimado e cenários.
+- Mês em andamento não recebe veredito, e regra sem histórico suficiente não aparece.
+- **Simular:** o gráfico do plano e o "E se…?" ficam em `/futuro`, sem item de menu. Abrem pelo Relatório, pelo Mês, pela Wishlist e pelo Empréstimo.
+- O PDF é gerado pelo próprio app, sem dependências novas no servidor.
+- Migração nova: tabela `plano_fotos`, aplicada pelo atualizador.
+
 ## 1.4.0
 
 - **O plano não acaba mais:** o app mantém sempre 24 meses à frente, sozinho. Antes, os lançamentos eram recusados quando os meses criados na instalação acabavam.

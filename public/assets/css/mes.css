@@ -604,3 +604,8 @@ details.mes-ed:target > summary { animation: mes-realce 1.6s ease-out 1; }   /* 
     .meta-pg > .meta-cab { grid-column: 1 / -1; }
     .meta-lado { display: flex; flex-direction: column; gap: 16px; position: sticky; top: 28px; }
 }
+
+/* Simular */
+.fu-sub { color: var(--text-2); font-size: 14px; line-height: 1.45; }
+.fu-tabela > summary { display: inline-flex; align-items: center; list-style: none; margin-bottom: 10px; cursor: pointer; }
+.fu-tabela > summary::-webkit-details-marker { display: none; }

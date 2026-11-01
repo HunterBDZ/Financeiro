@@ -303,6 +303,7 @@ $linhaLeitura = static function (array $l, float $v): void { ?>
                         <a class="menu-item" href="/mes/fechar?mes=<?= e($mes) ?>"><?= svgIcon('check', 18) ?><?= e(t('Fechar {mes}', ['mes' => $mesLbl])) ?></a>
                     <?php endif; ?>
                     <?php if ($menu['reabrir']): ?>
+                        <a class="menu-item" href="/relatorio?tipo=mensal&amp;mes=<?= e($mes) ?>"><?= svgIcon('relatorio', 18) ?><?= e(t('Relatório de {mes}', ['mes' => $mesLbl])) ?></a>
                         <form method="post" action="/mes/reabrir">
                             <?= $csrf ?><input type="hidden" name="mes" value="<?= e($mes) ?>">
                             <button type="submit" class="menu-item"><?= svgIcon('chevron', 18) ?><?= e(t('Reabrir {mes}', ['mes' => $mesLbl])) ?></button>

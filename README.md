@@ -6,7 +6,7 @@
 
 **O controle financeiro da casa, no seu servidor: lance em segundos, veja como o mês fecha e planeje a quitação do empréstimo.**
 
-[![Versão 1.4.0](https://img.shields.io/badge/vers%C3%A3o-1.4.0-blue)](CHANGELOG.md) ![PHP 8.4+](https://img.shields.io/badge/PHP-8.4%2B-777BB4?logo=php&logoColor=white) ![MySQL 8](https://img.shields.io/badge/MySQL-8-4479A1?logo=mysql&logoColor=white) ![Sem dependências](https://img.shields.io/badge/depend%C3%AAncias-nenhuma-success) ![Privado](https://img.shields.io/badge/uso-pessoal-lightgrey)
+[![Versão 1.5.0](https://img.shields.io/badge/vers%C3%A3o-1.5.0-blue)](CHANGELOG.md) ![PHP 8.4+](https://img.shields.io/badge/PHP-8.4%2B-777BB4?logo=php&logoColor=white) ![MySQL 8](https://img.shields.io/badge/MySQL-8-4479A1?logo=mysql&logoColor=white) ![Sem dependências](https://img.shields.io/badge/depend%C3%AAncias-nenhuma-success) ![Privado](https://img.shields.io/badge/uso-pessoal-lightgrey)
 
 [Diferenciais](#o-que-ele-tem-de-diferente) · [Telas](#telas) · [Como funciona](#como-funciona) · [Instalar](#instalar) · [Atualizar](#atualizar) · [Manual completo](docs/INSTALACAO.md)
 
@@ -39,6 +39,7 @@ Aqui, os dois lançam pelo celular, e o app responde o que importa: **quanto tem
 | **Cartão pelo que importa** | Compras e parcelas formam a escada das próximas faturas. No plano só conta a fatura, no mês em que vence, sem contar o gasto duas vezes. |
 | **Contas que não enganam** | Empréstimo e poupança nunca contam como renda ou gasto, e dá para conferir o saldo com o banco a qualquer momento. |
 | **Sozinho ou com mais gente** | Cada pessoa tem seu login, e o app guarda quem lançou o quê, com aviso de lançamento duplicado e desfazer. |
+| **Relatório em PDF que diz a verdade** | Mensal ou anual, com gráficos, o que foi bom, o que foi ruim e o que pode melhorar. O saldo fecha no centavo, e o plano é comparado com o que aconteceu. Sem nenhuma dependência no servidor. |
 | **Comece em qualquer dia do ano** | Na primeira entrada, o site pede a data de início e os saldos, e o resto é opcional. O plano nunca acaba: sempre há 24 meses à frente. |
 | **Só o que você usa** | Sem empréstimo ou sem cartão, a aba não aparece. A parcela pode vir descontada do salário ou ser paga à parte. |
 | **Guardado e investido num lugar só** | A aba Investimentos soma a poupança e os outros investimentos a partir dos lançamentos do Extrato. Aplicar nunca conta como gasto. |
@@ -53,7 +54,7 @@ Aqui, os dois lançam pelo celular, e o app responde o que importa: **quanto tem
     <td align="center"><img src="docs/img/celular-lancar-claro.jpg" alt="Lançar um gasto" width="190"><br><b>Lançar</b><br><sub>Valor primeiro, conta ou cartão</sub></td>
     <td align="center"><img src="docs/img/celular-mes-claro.jpg" alt="Mês com entradas, contas e metas" width="190"><br><b>Mês</b><br><sub>Previsão editável, contas e metas</sub></td>
     <td align="center"><img src="docs/img/celular-cartao-claro.jpg" alt="Fatura do cartão e próximas faturas" width="190"><br><b>Cartão</b><br><sub>Fatura aberta e as próximas</sub></td>
-    <td align="center"><img src="docs/img/celular-anual-claro.jpg" alt="Projeção anual da conta" width="190"><br><b>Anual</b><br><sub>Projeção e "E se…?"</sub></td>
+    <td align="center"><img src="docs/img/celular-relatorio-claro.jpg" alt="Relatório do mês com a escada do saldo" width="190"><br><b>Relatório</b><br><sub>Mensal ou anual, em PDF</sub></td>
   </tr>
   <tr>
     <td align="center"><img src="docs/img/celular-wishlist-claro.jpg" alt="Wishlist com o primeiro item em destaque e a foto do produto" width="190"><br><b>Wishlist</b><br><sub>Link, foto, valor e ordem</sub></td>
@@ -110,12 +111,24 @@ Aqui, os dois lançam pelo celular, e o app responde o que importa: **quanto tem
 </details>
 
 <details>
-<summary><b>Anual, no computador</b></summary>
+<summary><b>Relatório, no computador</b></summary>
 <br>
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/img/pc-anual-escuro.jpg">
-  <img src="docs/img/pc-anual-claro.jpg" alt="Gráfico da conta e da dívida mês a mês, com os marcos do plano" width="860">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/pc-relatorio-escuro.jpg">
+  <img src="docs/img/pc-relatorio-claro.jpg" alt="Tela do Relatório: escolha do período, botão de baixar o PDF, escada do saldo e leitura do mês" width="860">
 </picture>
+</details>
+
+<details>
+<summary><b>O PDF do relatório</b></summary>
+<br>
+<table>
+  <tr>
+    <td align="center"><img src="docs/img/pdf-mensal-1.jpg" alt="Página 1 do relatório mensal: frase de abertura, escada do saldo, o que foi bom, ruim e pode melhorar" width="280"><br><sub>Mensal: como a conta chegou até aqui</sub></td>
+    <td align="center"><img src="docs/img/pdf-mensal-3.jpg" alt="Página 3 do relatório mensal: parcelas contratadas, estimado e cenários" width="280"><br><sub>Mensal: o que vem pela frente</sub></td>
+    <td align="center"><img src="docs/img/pdf-anual-2.jpg" alt="Relatório anual: entradas e saídas de cada mês e a tabela do ano" width="280"><br><sub>Anual: mês a mês</sub></td>
+  </tr>
+</table>
 </details>
 
 | Tela | Responde | Rota |
@@ -125,7 +138,8 @@ Aqui, os dois lançam pelo celular, e o app responde o que importa: **quanto tem
 | **Lançar (+)** | Registrar um gasto ou entrada | `/lancar` |
 | **Mês** | Como este mês fecha? O que falta pagar? | `/mes` |
 | **Cartão** | Quanto vem em cada fatura? | `/cartao` |
-| **Anual** | Vamos ficar bem nos próximos meses? E se algo mudar? | `/futuro` |
+| **Relatório** | Como foi o mês ou o ano? O que foi bom, o que foi ruim, o que vem pela frente? | `/relatorio` |
+| **Simular** | E se algo mudar? | `/futuro` |
 | **Empréstimo** | Quanto falta? Vale adiantar? | `/emprestimo` |
 | **Investimentos** | Quanto tenho guardado e investido? | `/investimentos` |
 | **Wishlist** | O que queremos comprar? Quando fica melhor comprar o 1º? | `/wishlist` |
@@ -144,7 +158,7 @@ flowchart LR
     B --> C["Conferir o saldo<br>com o banco"]
     C --> D["Fechar o mês"]
     D --> E["O real substitui<br>a previsão"]
-    E --> F["Rever o plano<br>e o Anual"]
+    E --> F["Ler o relatório<br>e rever o plano"]
     F --> A
 ```
 

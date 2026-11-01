@@ -276,6 +276,14 @@ CREATE TABLE `cotacoes` (
   `buscado_em` datetime NOT NULL,
   PRIMARY KEY (`moeda`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+CREATE TABLE `plano_fotos` (
+  `mes` date NOT NULL,
+  `criada_em` date NOT NULL,
+  `versao` tinyint unsigned NOT NULL DEFAULT '1',
+  `dados` mediumtext NOT NULL,
+  PRIMARY KEY (`mes`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 CREATE TABLE `site_icone` (
   `id` tinyint unsigned NOT NULL DEFAULT '1',
   `tipo` varchar(32) NOT NULL,
