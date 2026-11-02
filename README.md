@@ -105,14 +105,36 @@ Funciona no computador e no celular.
 
 ## Instalar
 
-**No Windows 10 ou 11, de 64 bits.** Baixe `financeiro-…-windows-x86_64.exe` em [Versões](https://github.com/HunterBDZ/Financeiro/releases/latest) e dê dois cliques. Não pede administrador. No fim, o site abre no navegador, e você cria a sua conta.
+No Windows, no Mac e no Linux, não há banco de dados nem outro programa para instalar.
 
-**No Mac com chip Apple (macOS 12 ou mais novo).** Baixe `financeiro-…-macos-arm64.dmg` em [Versões](https://github.com/HunterBDZ/Financeiro/releases/latest), arraste o Financeiro para Aplicativos e abra de lá. Mac Intel ainda não é atendido.
+### Windows
+
+Windows 10 ou 11, de 64 bits. Não pede administrador.
+
+1. Baixe `financeiro-…-windows-x86_64.exe` em [Versões](https://github.com/HunterBDZ/Financeiro/releases/latest).
+2. Dê dois cliques no arquivo.
+3. Se aparecer **"O Windows protegeu o computador"**, clique em **Mais informações** e depois em **Executar assim mesmo**.
+4. No fim, deixe marcado **Abrir o Financeiro** e crie a sua conta no navegador.
+
+Depois, abra pelo ícone **Financeiro** na área de trabalho. Ele liga sozinho quando você entra no Windows.
+
+### Mac
+
+Mac com chip Apple e macOS 12 ou mais novo. Mac Intel ainda não é atendido.
+
+1. Baixe `financeiro-…-macos-arm64.dmg` em [Versões](https://github.com/HunterBDZ/Financeiro/releases/latest) e abra o arquivo.
+2. Arraste o **Financeiro** para **Aplicativos** e abra de lá.
+3. Se o Mac disser que não pode verificar o app, abra **Ajustes do Sistema → Privacidade e Segurança** e clique em **Abrir Mesmo Assim**.
+4. Crie a sua conta no navegador.
+
+Depois, abra pelo Financeiro em Aplicativos. Ele liga sozinho quando você entra no Mac.
 
 > [!WARNING]
-> Os instaladores de Windows e Mac são novos e ainda não passaram por computadores de verdade. Sem assinatura paga, o sistema avisa ao abrir: o [manual](docs/INSTALACAO.md) mostra o que fazer.
+> Os instaladores de Windows e Mac são novos: o de Windows já foi instalado num computador de verdade, e o de Mac ainda não passou por nenhum Mac. Os avisos do passo 3 aparecem porque eles ainda não têm assinatura paga, e não porque foi encontrado algum problema.
 
-**No Linux.** Baixe o pacote em [Versões](https://github.com/HunterBDZ/Financeiro/releases/latest) e rode, sem `sudo`:
+### Linux
+
+Baixe o pacote em [Versões](https://github.com/HunterBDZ/Financeiro/releases/latest) e rode, sem `sudo`:
 
 ```sh
 tar xzf financeiro-*-linux-*.tar.gz
@@ -120,18 +142,20 @@ cd financeiro-*/
 ./instalar
 ```
 
-Abra `http://localhost:8484` e crie a sua conta. Em nenhum desses há banco de dados para instalar. Para usar no celular, abra **Ajustes → Usar no celular** e leia o código com a câmera.
+Abra `http://localhost:8484` e crie a sua conta.
 
-**Num servidor com Ubuntu ou Debian:**
+### Servidor com Ubuntu ou Debian
 
 ```sh
 git clone https://github.com/HunterBDZ/Financeiro.git
 sudo bash Financeiro/instalar.sh
 ```
 
-**Com Docker:** `docker compose up -d`, na pasta do repositório.
+### Docker
 
-Dúvidas? Veja o [manual de instalação](docs/INSTALACAO.md).
+`docker compose up -d`, na pasta do repositório.
+
+Para usar no celular, abra **Ajustes → Usar no celular** e leia o código com a câmera. Dúvidas? Veja o [manual de instalação](docs/INSTALACAO.md).
 
 ## Atualizar e guardar
 

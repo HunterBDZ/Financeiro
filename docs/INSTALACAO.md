@@ -1,7 +1,7 @@
 # Manual de instalação
 
 > [!WARNING]
-> Os instaladores de Windows e Mac são novos e ainda não passaram por computadores de verdade. Eles só foram montados e testados em simulação. Guarde um backup e conte o que acontecer numa [issue](https://github.com/HunterBDZ/Financeiro/issues).
+> Os instaladores de Windows e Mac são novos: o de Windows já foi instalado num computador de verdade, e o de Mac ainda não passou por nenhum Mac. Guarde um backup e conte o que acontecer numa [issue](https://github.com/HunterBDZ/Financeiro/issues).
 
 ## No Windows
 

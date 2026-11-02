@@ -34,14 +34,36 @@ No subscription, no cloud, and it never asks for your bank password.
 
 ## Install
 
-**On 64-bit Windows 10 or 11.** Download `financeiro-…-windows-x86_64.exe` from [Releases](https://github.com/HunterBDZ/Financeiro/releases/latest) and double-click it. It does not ask for administrator rights. At the end, the site opens in your browser and you create your account.
+On Windows, Mac and Linux there is no database or other program to install.
 
-**On a Mac with an Apple chip (macOS 12 or newer).** Download `financeiro-…-macos-arm64.dmg` from [Releases](https://github.com/HunterBDZ/Financeiro/releases/latest), drag Financeiro to Applications and open it from there. Intel Macs are not supported yet.
+### Windows
+
+64-bit Windows 10 or 11. It does not ask for administrator rights.
+
+1. Download `financeiro-…-windows-x86_64.exe` from [Releases](https://github.com/HunterBDZ/Financeiro/releases/latest).
+2. Double-click the file.
+3. If **"Windows protected your PC"** appears, click **More info** and then **Run anyway**.
+4. At the end, leave **Open Financeiro** checked and create your account in the browser.
+
+After that, open it from the **Financeiro** icon on the desktop. It starts by itself when you sign in to Windows.
+
+### Mac
+
+A Mac with an Apple chip and macOS 12 or newer. Intel Macs are not supported yet.
+
+1. Download `financeiro-…-macos-arm64.dmg` from [Releases](https://github.com/HunterBDZ/Financeiro/releases/latest) and open it.
+2. Drag **Financeiro** to **Applications** and open it from there.
+3. If the Mac says it cannot verify the app, open **System Settings → Privacy & Security** and click **Open Anyway**.
+4. Create your account in the browser.
+
+After that, open Financeiro from Applications. It starts by itself when you sign in to the Mac.
 
 > [!WARNING]
-> The Windows and Mac installers are new and have not been tried on real computers yet. Without a paid signature, the system warns you when opening them: the [installation manual, in Portuguese,](docs/INSTALACAO.md) shows what to do.
+> The Windows and Mac installers are new: the Windows one has been installed on a real computer, and the Mac one has not been tried on a real Mac yet. The warnings in step 3 appear because they do not have a paid signature yet, not because a problem was found.
 
-**On Linux.** Download the package from [Releases](https://github.com/HunterBDZ/Financeiro/releases/latest) and run, without `sudo`:
+### Linux
+
+Download the package from [Releases](https://github.com/HunterBDZ/Financeiro/releases/latest) and run, without `sudo`:
 
 ```sh
 tar xzf financeiro-*-linux-*.tar.gz
@@ -49,16 +71,20 @@ cd financeiro-*/
 ./instalar
 ```
 
-Open `http://localhost:8484` and create your account. None of these needs a database installed. To use it on your phone, open **Settings → Use on your phone** and scan the code with the camera.
+Open `http://localhost:8484` and create your account.
 
-**On an Ubuntu or Debian server:**
+### Ubuntu or Debian server
 
 ```sh
 git clone https://github.com/HunterBDZ/Financeiro.git
 sudo bash Financeiro/instalar.sh
 ```
 
-**With Docker:** `docker compose up -d`, in the repository folder.
+### Docker
+
+`docker compose up -d`, in the repository folder.
+
+To use it on your phone, open **Settings → Use on your phone** and scan the code with the camera. The [installation manual](docs/INSTALACAO.md) is in Portuguese.
 
 ## Update and back up
 
