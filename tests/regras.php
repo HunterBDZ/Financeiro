@@ -153,6 +153,8 @@ use Financeiro\Services\WishlistPrevisao;
 use Financeiro\Models\WishlistModel;
 use Financeiro\Services\AnualResumo;
 use Financeiro\Services\CartaoFatura;
+use Financeiro\Services\GastoPorCategoria;
+use Financeiro\Services\GastosMensais;
 use Financeiro\Services\LancarForm;
 use Financeiro\Services\MotorFinanceiro;
 use Financeiro\Services\PrevisaoEdicao;
@@ -681,6 +683,133 @@ LancarForm::limparCache();
 $emTransacao('sem cartão cadastrado', static function () use ($pdo, $render, $check): void {
     $pdo->exec('UPDATE cartoes SET ativo = 0');
     $check('cartão: sem cartão cadastrado, a aba pede o cadastro', CartaoModel::ativos() === [] && str_contains($render(CartaoController::class, 'index', []), 'Cadastre o cartão'));
+});
+// ---- 15b. gasto por categoria: nas Metas e no "Para onde foi", o cartão conta pela data da compra, parcela a parcela; o
+// plano continua pela fatura. Os mesmos números nas duas passadas: as datas fixas caem no mês de hoje (nov/26).
+$emTransacao('gasto por categoria', static function () use ($pdo, $check, $catFat, $render, $hoje, $mesHoje, $uid): void {
+    // o cartão da demonstração e os pagamentos de fatura saem de cena até o rollback: os números ficam conhecidos
+    $pdo->exec('DELETE FROM cartao_compras');
+    $pdo->exec('DELETE FROM lancamentos WHERE categoria_id = ' . $catFat);
+    $pdo->exec('UPDATE cartoes SET ativo = 0');
+    $nova = static function (string $nome) use ($pdo): int {
+        $pdo->prepare("INSERT INTO categorias (nome, grupo, sinal, essencial, ordem) VALUES (?, 'Dia a dia', -1, 0, 90)")->execute([$nome]);
+        return (int) $pdo->lastInsertId();
+    };
+    [$catD, $catL, $catM] = [$nova('Teste delivery'), $nova('Teste lazer'), $nova('Teste parcelado')];
+    MetaModel::definir($catD, 500.0);
+    MetaModel::definir($catL, 150.0);
+    $cA = CartaoModel::salvar(null, 'Cartão A teste', 25, 5, null);
+    $cB = CartaoModel::salvar(null, 'Cartão B teste', 10, 20, null);
+    $fNovA = '2026-11-01';
+    $fNovB = CartaoFatura::faturaDe('2026-11-05', 10, 20);
+    // pagamentos ligados: A paga 250 da fatura de nov (só 100 dela tem compra registrada); B paga a dele inteira
+    LancamentoModel::criar('2026-11-04', 'Fatura do cartão', $catFat, 250.0, $uid, null, ['cartao_id' => $cA, 'fatura' => $fNovA]);
+    LancamentoModel::criar('2026-11-18', 'Fatura do cartão', $catFat, 90.0, $uid, null, ['cartao_id' => $cB, 'fatura' => $fNovB]);
+    MotorFinanceiro::limparCache();
+    $planoAntes = MotorFinanceiro::calcularPlano();
+    $real = MotorFinanceiro::dados()['real'];
+
+    $compra = static fn(int $cartao, string $data, ?int $cat, float $v, int $n, string $primeira): int
+        => CartaoModel::criarCompra($cartao, $data, 'teste', $cat, $v, $n, $primeira, $uid);
+    $compra($cA, '2026-11-03', $catD, 120.0, 1, CartaoFatura::faturaDe('2026-11-03', 25, 5));                 // à vista
+    $compra($cA, '2026-10-28', $catL, 300.0, 3, CartaoFatura::faturaDe('2026-10-28', 25, 5));                 // 3x: out, nov e dez
+    $antiga = CartaoController::criarCompraDe(['valor' => '500', 'categoria_id' => (string) $catM, 'data' => $hoje, 'parcelas' => '5',
+                                               'parcela_atual' => '3', 'descricao' => 'antiga'], $hoje, $cA);       // 3/5, lançada hoje
+    $estorno = CartaoController::criarCompraDe(['valor' => '50', 'estorno' => '1', 'categoria_id' => (string) $catD, 'data' => $hoje, 'descricao' => 'estorno'], $hoje, $cB);
+    $compra($cB, '2026-11-05', $catL, 90.0, 1, $fNovB);                                                      // outro cartão
+    $semCat = $compra($cB, '2026-11-06', null, 40.0, 1, $fNovB);                                             // sem categoria
+    MotorFinanceiro::limparCache();
+    $planoDepois = MotorFinanceiro::calcularPlano();
+    $check('gasto por categoria: o plano é o mesmo, com ou sem as compras no cartão (sem dupla contagem)', $planoDepois === $planoAntes);
+
+    $g = GastoPorCategoria::doMes($mesHoje);
+    $check('gasto por categoria: à vista no mês da compra; o estorno abate', abs(($g[$catD] ?? 0.0) - 70.0) < 0.001, json_encode($g));
+    $check('gasto por categoria: 3x atravessando meses, uma parcela por mês a partir do da compra; outro cartão soma junto',
+        abs((GastoPorCategoria::doMes('2026-10-01')[$catL] ?? 0.0) - 100.0) < 0.001 && abs(($g[$catL] ?? 0.0) - 190.0) < 0.001
+        && abs((GastoPorCategoria::doMes('2026-12-01')[$catL] ?? 0.0) - 100.0) < 0.001 && !isset(GastoPorCategoria::doMes('2027-01-01')[$catL]));
+    $ca = $antiga['erro'] === null ? CartaoModel::acharCompra($antiga['id']) : null;
+    $base = $ca !== null ? min($mesHoje, $ca['primeira_fatura']) : '';
+    $okAntiga = $ca !== null && $ca['primeira_fatura'] <= $mesHoje;    // a data (hoje) é depois da 1ª fatura, ou no mesmo mês
+    for ($i = -1; $i <= 5; $i++) {
+        $v = GastoPorCategoria::doMes(CartaoFatura::somaMeses($base, $i))[$catM] ?? 0.0;
+        $okAntiga = $okAntiga && abs($v - ($i >= 0 && $i < 5 ? 100.0 : 0.0)) < 0.001;
+    }
+    $check('gasto por categoria: compra antiga (3/5) lançada hoje conta a partir do mês da 1ª fatura, uma parcela por mês',
+        $okAntiga && abs(($g[$catM] ?? 0.0) - 100.0) < 0.001, json_encode([$ca, $base]));
+    $check('gasto por categoria: sem categoria vira "Cartão sem categoria"', abs(($g[GastoPorCategoria::SEM_CATEGORIA] ?? 0.0) - 40.0) < 0.001
+        && GastoPorCategoria::semCategoria($mesHoje)['compras'] === [$semCat]);
+    $check('gasto por categoria: a Fatura do cartão fica só com o pago sem compra registrada; o pagamento todo detalhado sai',
+        abs(($g[$catFat] ?? 0.0) - 150.0) < 0.001 && $estorno['erro'] === null, json_encode($g));
+    $somaCaixa = 0.0;
+    foreach ($real[$mesHoje] ?? [] as $c => $v) {
+        $cat = MotorFinanceiro::dados()['cats'][$c] ?? null;
+        $somaCaixa += $cat !== null && $cat['operacional'] === 1 && $cat['sinal'] === -1 ? $v : 0.0;
+    }
+    $check('gasto por categoria: no mês, a diferença para o extrato é só o cartão (compras − pagamentos detalhados)',
+        abs(array_sum($g) - $somaCaixa - (70.0 + 190.0 + 100.0 + 40.0 + 150.0 - 340.0)) < 0.01, json_encode([array_sum($g), $somaCaixa]));
+
+    // Metas: a meta estoura só por causa do cartão; "Resta para usar" usa a mesma conta
+    $hMeta = $render(MetaController::class, 'index', []);
+    $gastoTotal = 0.0;
+    foreach (CategoriaModel::gastos() as $c) {
+        $gastoTotal += max(0.0, $g[(int) $c['id']] ?? 0.0);
+    }
+    $gastoTotal += $g[GastoPorCategoria::SEM_CATEGORIA];
+    $check('metas: a meta estoura só por causa do cartão', str_contains($hMeta, 'class="meta-cat is-over" id="c' . $catL . '"')
+        && str_contains($hMeta, 'data-gasto="190.00"') && str_contains($hMeta, 'class="meta-cat is-ok" id="c' . $catD . '"'));
+    $check('metas: "Resta para usar" conta o cartão pela data da compra, com o sem categoria', str_contains($hMeta, 'data-gasto-total="' . number_format($gastoTotal, 2, '.', '') . '"'), number_format($gastoTotal, 2, '.', ''));
+    $check('metas: diz que o cartão conta pela data da compra e leva a categorizar', str_contains($hMeta, 'O cartão conta pela data da compra.')
+        && str_contains($hMeta, 'href="/cartao/compras/' . $semCat . '/editar"'));
+
+    // "Para onde foi": soma 100%, bate com a visão e é o mesmo no Início e no Relatório
+    $positivo = round(array_sum(array_filter($g, static fn(float $v): bool => $v > 0.004)), 2);
+    $painel = (new \ReflectionMethod(DashboardController::class, 'painel'))->invoke(null, GastosMensais::matriz()[$mesHoje] ?? null, $mesHoje, 'aberto', false);
+    $pcts = array_sum(array_map(static fn(array $t): float => $t['valor'] / $painel['ondeTotal'] * 100, $painel['onde']));
+    $rel = RelatorioDados::mensal($mesHoje);
+    $relSoma = array_sum(array_column($rel['categorias']['linhas'], 'real')) + ($rel['categorias']['outros']['real'] ?? 0.0);
+    $check('"Para onde foi": soma 100% e bate com o total gasto da visão, no Início e no Relatório', $painel['porCompra'] && abs($pcts - 100.0) < 0.001
+        && abs($painel['ondeTotal'] - $positivo) < 0.01 && abs($rel['categorias']['totalReal'] - $positivo) < 0.01 && abs($relSoma - $positivo) < 0.01,
+        json_encode([$pcts, $painel['ondeTotal'], $positivo, $rel['categorias']['totalReal']]));
+    $nomes = array_column($painel['onde'], 'nome');
+    $check('"Para onde foi": a fatura aberta nas categorias, com "Fatura sem detalhe" e "Cartão sem categoria"', in_array('Teste lazer', $nomes, true)
+        && in_array('Fatura sem detalhe', $nomes, true) && in_array('Cartão sem categoria', $nomes, true) && !in_array('Fatura', $nomes, true), json_encode($nomes, JSON_UNESCAPED_UNICODE));
+    $hIni = $render(DashboardController::class, 'index', []);
+    $hRel = $render(RelatorioController::class, 'index', ['mes' => $mesHoje]);
+    $hIniFat = $render(DashboardController::class, 'index', ['onde' => 'fatura']);
+    $relFat = RelatorioDados::mensal($mesHoje, null, true);
+    $hIniVolta = $render(DashboardController::class, 'index', ['onde' => 'compra']);
+    unset($_COOKIE[DashboardController::COOKIE_ONDE]);
+    $check('"Para onde foi": o Início mostra a escolha e o atalho; "ver por fatura" volta ao que era', str_contains($hIni, 'Ver por fatura')
+        && str_contains($hIni, 'Compras no cartão sem categoria') && str_contains($hIni, 'href="/cartao/compras/' . $semCat . '/editar"')
+        && str_contains($hIniFat, 'Ver pela data da compra') && !str_contains($hIniFat, 'Compras no cartão sem categoria') && str_contains($hIniVolta, 'Ver por fatura'));
+    $check('"Para onde foi": por fatura, o Relatório soma o que saiu da conta, com a Fatura do cartão', !$relFat['porCompra']
+        && abs($relFat['categorias']['totalReal'] - $somaCaixa) < 0.01 && in_array('Fatura', array_column($relFat['categorias']['linhas'], 'nome'), true));
+    $check('"Para onde foi": o Relatório mostra a lista na tela, com a escolha, e o PDF sai', str_contains($hRel, 'class="card rl-onde"') && str_contains($hRel, 'Ver por fatura')
+        && str_starts_with((new \Financeiro\Pdf\RelatorioPdf($rel))->gerar(), '%PDF') && str_starts_with((new \Financeiro\Pdf\RelatorioPdf($relFat))->gerar(), '%PDF'));
+});
+// sem cartão (sem cartão ativo ou sem a aba), nada muda: a visão é o extrato, e as telas não mostram a escolha
+$emTransacao('gasto por categoria sem cartão', static function () use ($pdo, $check, $render, $mesHoje): void {
+    foreach (['sem cartão ativo' => 'UPDATE cartoes SET ativo = 0', 'sem a aba Cartão' => "UPDATE ajustes SET valor = 0 WHERE chave = 'usa_cartao'"] as $caso => $sql) {
+        $pdo->exec($sql);
+        MotorFinanceiro::limparCache();
+        $d = MotorFinanceiro::dados();
+        $igual = true;
+        foreach ($d['real'] as $m => $porCat) {
+            foreach ($porCat as $c => $v) {
+                if ($d['cats'][$c]['operacional'] === 1 && $d['cats'][$c]['sinal'] === -1 && abs($v) >= 0.005) {
+                    $igual = $igual && abs((GastoPorCategoria::doMes((string) $m)[$c] ?? 0.0) - round($v, 2)) < 0.001;
+                }
+            }
+        }
+        $hIni = $render(DashboardController::class, 'index', []);
+        $_COOKIE[DashboardController::COOKIE_ONDE] = 'fatura';
+        $hIniFat = $render(DashboardController::class, 'index', []);
+        unset($_COOKIE[DashboardController::COOKIE_ONDE]);
+        $hMeta = $render(MetaController::class, 'index', []);
+        $check("gasto por categoria {$caso}: é o extrato, e Início e Metas não mudam", !GastoPorCategoria::ativo() && $igual && $hIni === $hIniFat
+            && !str_contains($hIni, 'Ver por fatura') && !str_contains($hMeta, 'data da compra') && !RelatorioDados::mensal($mesHoje)['porCompra'],
+            json_encode([GastoPorCategoria::ativo(), $igual, $hIni === $hIniFat]));
+    }
 });
 $htmlBar = $render(MesController::class, 'index', []);
 preg_match('#<nav class="tabbar".*?</nav>#s', $htmlBar, $mB);
