@@ -2,6 +2,10 @@
 
 Cada versão publicada é uma tag `vX.Y.Z` deste repositório. Pacotes atualizam em Ajustes, em Backup e atualização; servidores, com `sudo financeiro-atualizar`.
 
+## 1.11.6
+
+- **Mês:** a linha "Saldo do mês anterior" ganhou o traço que separa as linhas, como as outras.
+
 ## 1.11.5
 
 - **Mês:** nos gastos que variam, o número da linha é o que já foi gasto no mês, e a meta aparece ao lado da situação: "Abaixo da meta · meta 800,00". O total do topo se chama "Saídas previstas", porque conta a meta do que ainda não foi gasto.
