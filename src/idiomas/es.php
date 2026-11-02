@@ -1025,7 +1025,7 @@ return [
     '{mes} (aberta)' => '{mes} (abierta)',
     '{mes} até hoje' => '{mes} hasta hoy',
     '{mes} de {ano}' => '{mes} de {ano}',
-    '{mes} de {ano}, trocar o mês' => '{mes} de {ano}, cambiar el mes',
+    '{mes} {ano}, trocar o mês' => '{mes} de {ano}, cambiar el mes',
     '{mes} está fechado' => '{mes} está cerrado',
     '{mes} previsto' => '{mes} previsto',
     '{mes} terminou e ainda está aberto.' => '{mes} terminó y todavía está abierto.',

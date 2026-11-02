@@ -146,10 +146,10 @@ $hrefLancar = '/lancar?pagou=cartao&volta=' . rawurlencode('/cartao');
                     $ano = $j === 0 || substr($f['mes'], 5, 2) === '01' ? substr($f['mes'], 0, 4) : '';
                     ?>
                     <a class="<?= $cls ?>" href="/cartao?fatura=<?= e($f['mes']) ?>#fatura" data-fatura="<?= e($ancora($f['mes'])) ?>"
-                       data-rot="<?= e(monthLabel($f['mes'])) ?>" data-v="<?= e(num($v)) ?>"<?= $f['mes'] === $selValido ? ' aria-current="true"' : '' ?>
-                       aria-label="<?= $f['status'] === 'paga' ? e(t('Fatura de {mes}: {valor}, paga', ['mes' => monthLabel($f['mes']), 'valor' => num($v)])) : ($f['mes'] === $aberta ? e(t('Fatura de {mes}: {valor}, aberta', ['mes' => monthLabel($f['mes']), 'valor' => num($v)])) : e(t('Fatura de {mes}: {valor}', ['mes' => monthLabel($f['mes']), 'valor' => num($v)]))) ?>">
+                       data-rot="<?= e(monthLabel($f['mes'])) ?>" data-v="<?= e(num($v)) ?>"<?= $f['mes'] === $selValido ? ' aria-current="true"' : '' ?>>
                         <span class="ct-degrau-barra" style="--h:<?= number_format(max(2.0, $v / $topo * 100), 1, '.', '') ?>%"></span>
-                        <span aria-hidden="true"><?= e(mesCurto($f['mes'])) ?></span><small aria-hidden="true"><?= $ano !== '' ? e($ano) : '&nbsp;' ?></small>
+                        <span><?= e(mesCurto($f['mes'])) ?></span><small><?= $ano !== '' ? e($ano) : '&nbsp;' ?></small>
+                        <span class="sr-only"><?= $f['status'] === 'paga' ? e(t('Fatura de {mes}: {valor}, paga', ['mes' => monthLabel($f['mes']), 'valor' => num($v)])) : ($f['mes'] === $aberta ? e(t('Fatura de {mes}: {valor}, aberta', ['mes' => monthLabel($f['mes']), 'valor' => num($v)])) : e(t('Fatura de {mes}: {valor}', ['mes' => monthLabel($f['mes']), 'valor' => num($v)]))) ?></span>
                     </a>
                 <?php endforeach; ?>
             </div>

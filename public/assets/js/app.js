@@ -46,7 +46,7 @@
     }
     function marcarTema() {                       // aria-pressed no seletor Claro/Escuro
         var t = temaAtual();
-        document.querySelectorAll('[data-tema]').forEach(function (b) {
+        document.querySelectorAll('button[data-tema]').forEach(function (b) {
             b.setAttribute('aria-pressed', b.getAttribute('data-tema') === t ? 'true' : 'false');
         });
     }
@@ -129,7 +129,7 @@
             return;
         }
 
-        var escolha = alvo.closest('[data-tema]');
+        var escolha = alvo.closest('button[data-tema]');
         if (escolha) {
             var tema = escolha.getAttribute('data-tema');
             if (tema === 'light' || tema === 'dark') {

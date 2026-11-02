@@ -47,7 +47,7 @@ foreach ($lista as $k) {
     <?php endif; ?>
     <h1 class="sr-only"><?= e(t('{mes} de {ano}', ['mes' => $extenso, 'ano' => $ano])) ?></h1>
     <details class="menu mes-picker" data-mes-picker>
-        <summary aria-label="<?= e(t('{mes} de {ano}, trocar o mês', ['mes' => $extenso, 'ano' => $ano])) ?>">
+        <summary aria-label="<?= e(t('{mes} {ano}, trocar o mês', ['mes' => $extenso, 'ano' => $ano])) ?>">
             <span class="mes-nav-t" aria-hidden="true"><?= e($extenso) ?> <span class="mes-nav-ano num"><?= e($ano) ?></span></span>
             <?= svgIcon('chevron', 18, 'mes-picker-seta') ?>
         </summary>

@@ -9,6 +9,8 @@ Cada versão publicada é uma tag `vX.Y.Z` deste repositório. Pacotes atualizam
 - **Docker:** aceita só o endereço `localhost` até você mudar o `compose.yaml`.
 - **Ajustes:** link para o código-fonte, ao lado da versão.
 - Regras de segurança do navegador mais restritas.
+- Com um tema escolhido, o olho que esconde os valores e o botão de fechar avisos voltam a funcionar.
+- Leitores de tela ouvem no seletor de mês e nas faturas do Cartão o mesmo texto que aparece na tela.
 
 ## 1.9.0
 

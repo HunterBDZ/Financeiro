@@ -4,17 +4,8 @@ import AxeBuilder from '@axe-core/playwright';
 import { test, expect, escolherTema, TELAS } from './fixtures.js';
 
 // Violações reais que o app ainda tem: [regra do axe, elemento]. As varreduras das telas ignoram só esse elemento
-// nessa regra, para pegar qualquer violação nova. Cada uma tem um teste "esperado falhar" no fim do arquivo: quando
-// a correção chegar, ele passa, o Playwright reprova, e então sai a linha daqui e o test.fail de lá.
-const CONHECIDAS = [
-    // app.js, marcarTema(): o aria-pressed vai para todo [data-tema], e o <html> também tem data-tema quando há tema
-    ['aria-allowed-attr', /^html$/],
-    // seletor de mês (partials/mes_nav.php), no Extrato e no Mês: o nome "Novembro de 2026, trocar o mês" não contém
-    // o texto à vista, "Novembro 2026" (WCAG 2.5.3)
-    ['label-content-name-mismatch', /^summary\[aria-label=/],
-    // escada de faturas do Cartão: o nome "Fatura de nov/26: …" não contém o texto à vista, "nov 2026" (WCAG 2.5.3)
-    ['label-content-name-mismatch', /^a\[data-fatura=/],
-];
+// nessa regra, para pegar qualquer violação nova. Se aparecer uma, ponha aqui e crie um teste "esperado falhar".
+const CONHECIDAS = [];
 
 /**
  * As violações graves da página: "regra (impacto): elemento, elemento". Sem `regras`, roda todas e deixa de fora as
@@ -79,26 +70,23 @@ for (const tema of ['claro', 'escuro']) {
     });
 }
 
-test.describe('violações conhecidas, ainda no app', () => {
+test.describe('violações já corrigidas não voltam', () => {
     test.afterEach(async ({ page, baseURL }) => {
         await escolherTema(page, baseURL, 'auto');
     });
 
     test('o <html> não recebe aria-pressed quando a conta tem tema', async ({ page, baseURL }) => {
-        test.fail(true, 'app.js, marcarTema(): aria-pressed em todo [data-tema], inclusive no <html data-tema>');
         await escolherTema(page, baseURL, 'claro');
         await page.goto('/');
         expect(await graves(page, ['aria-allowed-attr'])).toEqual([]);
     });
 
     test('o seletor de mês tem no nome o texto que mostra', async ({ page }) => {
-        test.fail(true, 'partials/mes_nav.php: aria-label "{mes} de {ano}, trocar o mês" e texto à vista "{mes} {ano}"');
         await page.goto('/mes');
         expect(await graves(page, ['label-content-name-mismatch'])).toEqual([]);
     });
 
     test('a escada de faturas tem no nome o texto que mostra', async ({ page }) => {
-        test.fail(true, 'cartao/index.php: aria-label "Fatura de mmm/aa: …" e texto à vista "mmm aaaa" nos degraus com o ano');
         await page.goto('/cartao');
         expect(await graves(page, ['label-content-name-mismatch'])).toEqual([]);
     });
