@@ -10,7 +10,7 @@
 set -euo pipefail
 
 FRANKENPHP=1.13.4
-ZIP_SHA=6022fcc180e9a3575c637dd0dc0aba8d23f78e14ac2a0e46f1f914535194be14
+ZIP_SHA=66b9b7322fe39a0027113cec9fd1c21a1d9d3d51ae4500ade1c9a2960555587e
 # o endereço versionado traz o próprio SHA-256; o curto da Microsoft muda a cada versão
 VCREDIST_SHA=cc0ff0eb1dc3f5188ae6300faef32bf5beeba4bdd6e8e445a9184072096b713b
 VCREDIST_URL=https://download.visualstudio.microsoft.com/download/pr/990c720a-46ce-4dc7-87b9-c2eb615d34b9/CC0FF0EB1DC3F5188AE6300FAEF32BF5BEEBA4BDD6E8E445A9184072096B713B/VC_redist.x64.exe

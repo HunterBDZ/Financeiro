@@ -36,6 +36,8 @@ O app é um pacote só para todo sistema: `financeiro-app-X.Y.Z.tar.gz`, com o `
 
 O instalador de Windows sai em Linux, com `nsis`, `p7zip-full` e `mingw-w64`. O `.dmg` só sai num Mac: o `release.yml` tem um job para isso. Em **Actions → Windows e Mac**, um botão monta, instala e testa nos dois sistemas de verdade. Rode antes de lançar: esse job só roda à mão, porque gasta mais da cota do GitHub.
 
+O FrankenPHP de cada sistema é conferido pelo SHA-256: em `packaging/empacotar.sh`, `packaging/windows/montar.sh` e `packaging/macos/montar.sh`. O projeto às vezes refaz os arquivos sem mudar o número da versão, e aí a montagem para com "não confere". Baixe o arquivo novo e veja o que mudou. Troque o SHA numa branch, rode **Windows e Mac** nela e só então junte na `main`.
+
 Assinar é opcional. Sem estes segredos, os pacotes saem sem assinatura, e o sistema avisa ao abrir:
 
 | Segredo | Para quê |
