@@ -35,7 +35,7 @@ jobs:
           coverage: none
       - name: A tag bate com o arquivo VERSION
         run: test "v$(tr -d '[:space:]' < VERSION)" = "$GITHUB_REF_NAME"
-      - run: sudo apt-get update && sudo apt-get install -y nsis p7zip-full osslsigncode
+      - run: sudo apt-get update && sudo apt-get install -y nsis p7zip-full gcc-mingw-w64-x86-64 binutils-mingw-w64-x86-64 osslsigncode
       - name: Montar
         env:
           FIN_CHAVE_ATUALIZACAO: ${{ secrets.FIN_CHAVE_ATUALIZACAO }}

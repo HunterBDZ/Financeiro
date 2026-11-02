@@ -214,9 +214,8 @@ function gerenteLancar(array $lugar): void
     $script = $lugar['programa'] . '/gerente.php';
     $env = gerenteAmbiente($lugar);
     if (PHP_OS_FAMILY === 'Windows') {
-        // php-win não abre janela; o start deixa ele rodando depois que este processo sair
-        $cmd = 'start /B "" "' . str_replace('/', '\\', $lugar['programa']) . '\\bin\\php-win.exe" -n "' . str_replace('/', '\\', $script) . '" servir';
-        $proc = proc_open($cmd, [], $tubos, $lugar['dados'], $env);
+        // ele inicia o gerente com um console próprio, invisível, que continua depois que este processo sair
+        $proc = proc_open([$lugar['programa'] . '/financeiro.exe', 'servir'], [], $tubos, gerentePastaAtual($lugar), $env);
         if (is_resource($proc)) {
             proc_close($proc);
         }

@@ -57,7 +57,7 @@ LangString TXT_APAGAR ${LANG_PORTUGUESEBR} "Apagar também os seus dados (lança
 LangString TXT_APAGAR ${LANG_SPANISH} "¿Borrar también sus datos (movimientos, cuentas y copias de seguridad)?$\r$\n$\r$\nEsto no se puede deshacer. Si elige No, se quedan en $LOCALAPPDATA\Financeiro."
 
 Function AbrirAgora
-    Exec '"$INSTDIR\bin\php-win.exe" -n "$INSTDIR\gerente.php" abrir'
+    Exec '"$INSTDIR\financeiro.exe"'
 FunctionEnd
 
 Section "Financeiro"
@@ -87,11 +87,11 @@ Section "Financeiro"
     WriteUninstaller "$INSTDIR\desinstalar.exe"
 
     ; no início da sessão, em segundo plano e sem janela
-    WriteRegStr HKCU "${CHAVE_INICIO}" "Financeiro" '"$INSTDIR\bin\php-win.exe" -n "$INSTDIR\gerente.php" servir'
+    WriteRegStr HKCU "${CHAVE_INICIO}" "Financeiro" '"$INSTDIR\financeiro.exe" servir'
     WriteRegStr HKCU "${CHAVE_APP}" "DisplayName" "Financeiro"
     WriteRegStr HKCU "${CHAVE_APP}" "DisplayVersion" "${VERSAO}"
     WriteRegStr HKCU "${CHAVE_APP}" "Publisher" "Hunter"
-    WriteRegStr HKCU "${CHAVE_APP}" "DisplayIcon" "$INSTDIR\financeiro.ico"
+    WriteRegStr HKCU "${CHAVE_APP}" "DisplayIcon" "$INSTDIR\financeiro.exe"
     WriteRegStr HKCU "${CHAVE_APP}" "InstallLocation" "$INSTDIR"
     WriteRegStr HKCU "${CHAVE_APP}" "UninstallString" '"$INSTDIR\desinstalar.exe"'
     WriteRegStr HKCU "${CHAVE_APP}" "QuietUninstallString" '"$INSTDIR\desinstalar.exe" /S'
@@ -101,10 +101,10 @@ Section "Financeiro"
     IntFmt $R0 "0x%08X" $R0
     WriteRegDWORD HKCU "${CHAVE_APP}" "EstimatedSize" $R0
 
-    CreateShortcut "$SMPROGRAMS\Financeiro.lnk" "$INSTDIR\bin\php-win.exe" '-n "$INSTDIR\gerente.php" abrir' "$INSTDIR\financeiro.ico"
-    CreateShortcut "$DESKTOP\Financeiro.lnk" "$INSTDIR\bin\php-win.exe" '-n "$INSTDIR\gerente.php" abrir' "$INSTDIR\financeiro.ico"
+    CreateShortcut "$SMPROGRAMS\Financeiro.lnk" "$INSTDIR\financeiro.exe"
+    CreateShortcut "$DESKTOP\Financeiro.lnk" "$INSTDIR\financeiro.exe"
 
-    Exec '"$INSTDIR\bin\php-win.exe" -n "$INSTDIR\gerente.php" iniciar'
+    Exec '"$INSTDIR\financeiro.exe" iniciar'
 SectionEnd
 
 

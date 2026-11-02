@@ -25,10 +25,10 @@ done
 AQUI=$(cd "$(dirname "$0")" && pwd)
 mkdir -p "$SAIDA"
 cp -R "$PROG/." "$SAIDA/"
-rm -f "$SAIDA/desinstalar.exe"
+rm -f "$SAIDA/desinstalar.exe" "$SAIDA/financeiro.exe"
 echo "windows-loja" > "$SAIDA/PACOTE"
-x86_64-w64-mingw32-gcc -municode -mwindows -O2 -s -o "$SAIDA/financeiro-abrir.exe" "$AQUI/lancador.c"
-x86_64-w64-mingw32-gcc -municode -mwindows -O2 -s '-DCOMANDO=L"servir"' -o "$SAIDA/financeiro-servir.exe" "$AQUI/lancador.c"
+x86_64-w64-mingw32-gcc -municode -mwindows -O2 -s -o "$SAIDA/financeiro-abrir.exe" "$AQUI/../lancador.c"
+x86_64-w64-mingw32-gcc -municode -mwindows -O2 -s '-DCOMANDO=L"servir"' -o "$SAIDA/financeiro-servir.exe" "$AQUI/../lancador.c"
 mkdir -p "$SAIDA/recursos"
 python3 - "$AQUI/../../icones/financeiro.ico" "$SAIDA/recursos" <<'PY'
 import sys

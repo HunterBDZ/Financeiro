@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - run: sudo apt-get update && sudo apt-get install -y nsis p7zip-full
+      - run: sudo apt-get update && sudo apt-get install -y nsis p7zip-full gcc-mingw-w64-x86-64 binutils-mingw-w64-x86-64
       - name: Pacote do app e instalador de Windows
         run: packaging/empacotar.sh --saida "$RUNNER_TEMP/versao" --sistemas windows
       - uses: actions/upload-artifact@v4

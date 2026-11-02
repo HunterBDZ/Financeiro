@@ -34,7 +34,7 @@ O app é um pacote só para todo sistema: `financeiro-app-X.Y.Z.tar.gz`, com o `
 
 ### Windows e Mac
 
-O instalador de Windows sai em Linux, com `nsis` e `p7zip-full`. O `.dmg` só sai num Mac: o `release.yml` tem um job para isso. Em **Actions → Windows e Mac**, um botão monta, instala e testa nos dois sistemas de verdade. Rode antes de lançar: esse job só roda à mão, porque gasta mais da cota do GitHub.
+O instalador de Windows sai em Linux, com `nsis`, `p7zip-full` e `mingw-w64`. O `.dmg` só sai num Mac: o `release.yml` tem um job para isso. Em **Actions → Windows e Mac**, um botão monta, instala e testa nos dois sistemas de verdade. Rode antes de lançar: esse job só roda à mão, porque gasta mais da cota do GitHub.
 
 Assinar é opcional. Sem estes segredos, os pacotes saem sem assinatura, e o sistema avisa ao abrir:
 

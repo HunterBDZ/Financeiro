@@ -5,7 +5,7 @@
 #
 # --so-pasta deixa o programa em SAIDA/programa, sem gerar o instalador: é o que a Microsoft Store usa (loja/montar.sh).
 #
-# Precisa de makensis, 7z, python3 e, para assinar, osslsigncode. Assinar é opcional: FIN_WIN_PFX é o certificado em
+# Precisa de makensis, 7z, python3, mingw-w64 e, para assinar, osslsigncode. Assinar é opcional: FIN_WIN_PFX é o certificado em
 # base64 e FIN_WIN_SENHA, a senha dele. Sem eles, sai sem assinar, e o Windows avisa ao abrir (docs/INSTALACAO.md).
 set -euo pipefail
 
@@ -52,7 +52,7 @@ PROG=$TMP/programa
 mkdir -p "$PROG/bin/ext" "$PROG/conf" "$PROG/licencas"
 unzip -q "$ZIP" -d "$TMP/fp"
 # só o que o app usa: o zip completo tem 164 MB, com ICU, banco de outros sistemas e extensões que nada chama
-for f in frankenphp.exe php.exe php-win.exe php8ts.dll brotlicommon.dll brotlidec.dll brotlienc.dll libwatcher-c.dll \
+for f in frankenphp.exe php.exe php8ts.dll brotlicommon.dll brotlidec.dll brotlienc.dll libwatcher-c.dll \
     pthreadVC3.dll libsqlite3.dll libsodium.dll libcrypto-3-x64.dll libssl-3-x64.dll libssh2.dll nghttp2.dll; do
     install -m 644 "$TMP/fp/$f" "$PROG/bin/$f"
 done
@@ -67,7 +67,10 @@ cp -R "$APP" "$PROG/app"
 cat "$AQUI/../php.ini" "$AQUI/php-windows.ini" > "$PROG/conf/php.ini"
 cp "$AQUI/../gerente-inicio.php" "$PROG/gerente.php"
 cp "$AQUI/financeiro.cmd" "$PROG/financeiro.cmd"
-cp "$AQUI/../icones/financeiro.ico" "$PROG/financeiro.ico"
+cp "$AQUI/../icones/financeiro.ico" "$TMP/financeiro.ico"
+cp "$AQUI/lancador.rc" "$TMP/lancador.rc"
+x86_64-w64-mingw32-windres -I "$TMP" "$TMP/lancador.rc" -O coff -o "$TMP/lancador.res"
+x86_64-w64-mingw32-gcc -municode -mwindows -O2 -s -o "$PROG/financeiro.exe" "$AQUI/lancador.c" "$TMP/lancador.res"
 echo "windows-x86_64" > "$PROG/PACOTE"
 
 if [ "$SO_PASTA" = 1 ]; then
@@ -83,7 +86,7 @@ if [ -n "${FIN_WIN_PFX:-}" ]; then
         osslsigncode sign -pkcs12 "$TMP/cert.pfx" -pass "${FIN_WIN_SENHA:-}" -n Financeiro -t http://timestamp.digicert.com -h sha256 -in "$1" -out "$1.assinado"
         mv "$1.assinado" "$1"
     }
-    while IFS= read -r -d '' f; do assinar "$f"; done < <(find "$PROG/bin" -type f \( -name '*.exe' -o -name '*.dll' \) -print0)
+    while IFS= read -r -d '' f; do assinar "$f"; done < <(find "$PROG" -type f \( -name '*.exe' -o -name '*.dll' \) -print0)
     # o makensis assina o instalador e o desinstalador com este comando; %1 é o arquivo
     printf '#!/bin/sh\nosslsigncode sign -pkcs12 "%s" -pass "$FIN_WIN_SENHA" -n Financeiro -t http://timestamp.digicert.com -h sha256 -in "$1" -out "$1.assinado" && mv "$1.assinado" "$1"\n' "$TMP/cert.pfx" > "$TMP/assinar.sh"
     chmod +x "$TMP/assinar.sh"
