@@ -2198,5 +2198,19 @@ $emTransacao('categoria fixa e ordem do cartão', static function () use ($pdo, 
     $check('cartão: os seletores de ordem estão na tela', !str_contains($html, 'ct-fat') || (str_contains($html, 'name="ordem"') && str_contains($html, 'De A a Z')));
 });
 
+// ---- o Mês fecha a conta: começou com + sobra − o adiantamento automático = termina com
+$desvioPonte = [];
+foreach (MotorFinanceiro::calcularPlano() as $mP => $lP) {
+    if ($lP['situacao'] === 'REAL') {
+        continue;
+    }
+    $sP = \Financeiro\Services\Sobra::prevista($lP);
+    $contaP = (float) $lP['sobrou_mes_anterior'] + (float) $sP['sobra'] - (float) ($lP['amortizacao_auto'] ?? 0.0);
+    if (abs($contaP - (float) $lP['fica_na_conta']) > 0.01) {
+        $desvioPonte[] = $mP . ': ' . round($contaP, 2) . ' ≠ ' . $lP['fica_na_conta'];
+    }
+}
+$check('Mês: começou com + sobra − adiantamento automático = termina com, em todo mês do plano', $desvioPonte === [], implode(' | ', array_slice($desvioPonte, 0, 3)));
+
 echo "\n{$ok} ok, {$falhas} falha(s)\n";
 exit($falhas > 0 ? 1 : 0);
