@@ -2,7 +2,7 @@
 use Financeiro\Site;
 
 /**
- * Ajustes (SPEC §2.8) — dono: P5. Na ordem do que mais se usa: a conta, o idioma, a moeda e o fuso, o que usa, o dinheiro,
+ * Ajustes. Na ordem do que mais se usa: a conta, o idioma, a moeda e o fuso, o que usa, o dinheiro,
  * as contas fixas e as categorias, as pessoas e, no fim, o Avançado. Cada grupo tem o seu SALVAR.
  * Todo value de dinheiro sai de numInput() (hífen ASCII): parseMoedaBr() lê de volta sem perder o sinal.
  */

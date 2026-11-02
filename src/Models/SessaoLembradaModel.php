@@ -4,7 +4,7 @@ namespace Financeiro\Models;
 use Financeiro\Database;
 
 /**
- * "Lembrar este aparelho" (SPEC §11 P4). Uma linha por aparelho, chave = seletor (público,
+ * "Lembrar este aparelho". Uma linha por aparelho, chave = seletor (público,
  * 24 hex). O validador (64 hex) nunca fica no banco: só o sha256 dele, o atual e o anterior
  * (aceito por JANELA_SEG segundos depois da rotação).
  *

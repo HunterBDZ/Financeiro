@@ -12,7 +12,7 @@ use Financeiro\Site;
 use Financeiro\View;
 
 /**
- * Aba Wishlist: a lista do que o casal quer comprar, em ordem, e em que mês o 1º item cabe no plano.
+ * Aba Wishlist: a lista do que se quer comprar, em ordem, e em que mês o 1º item cabe no plano.
  * A previsão vem na URL (GET, ?mes=…&parcelas=…) e nada é gravado; com parcial=1 devolve só a previsão.
  * O valor fica na moeda escolhida e é convertido para reais pela cotação do dia ao mostrar (Cotacao).
  * "Comprei" tira o item da lista e abre o lançamento preenchido, em reais. Excluir tem desfazer.

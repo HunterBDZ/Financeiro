@@ -13,7 +13,7 @@ use Financeiro\Services\MotorFinanceiro;
 use Financeiro\View;
 
 /**
- * Início (SPEC §2.1) e o gráfico "gastos mês a mês" (§3). Dono: P3.
+ * Início e o gráfico "gastos mês a mês".
  * Quanto ainda dá pra gastar? O que vence? A conta bate?
  */
 final class DashboardController

@@ -8,6 +8,7 @@ use Financeiro\Models\CategoriaModel;
 use Financeiro\Models\ContaRecorrenteModel;
 use Financeiro\Models\MesModel;
 use Financeiro\Models\PrevisaoModel;
+use Financeiro\Services\MotorFinanceiro;
 use Financeiro\Services\Horizonte;
 use Financeiro\Site;
 use Financeiro\View;
@@ -101,7 +102,7 @@ final class ComecarController
         if ($v === null || $v < 0 || $dia === false) {
             self::voltarComErro(2, t('Confira os valores: use números como 1.200,50.'));
         }
-        $cat = CategoriaModel::porNome('Salário');
+        $cat = CategoriaModel::porNome(MotorFinanceiro::CAT_SALARIO);
         if ($cat !== null) {
             self::preverEmTodos((int) $cat['id'], $v, $dia);
         }

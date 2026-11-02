@@ -1,4 +1,4 @@
-// lancar.js (P4, SPEC §2.2): o "+" abre o <dialog id="lancar"> e foca o valor NO MESMO
+// lancar.js: o "+" abre o <dialog id="lancar"> e foca o valor NO MESMO
 // toque — o iOS só abre o teclado dentro do gesto do usuário. Também: [data-categoria],
 // [data-valor], [data-descricao], [data-data] preenchem o form; tecla "n" (desktop); fechar
 // (×, Esc, toque fora); checagem mínima antes de enviar + trava de duplo envio; o valor estilo

@@ -1,6 +1,6 @@
 <?php
 /**
- * Layout (P1). Variáveis: $content, $pageTitle, $active (inicio|extrato|meta|mes|cartao|relatorio|emprestimo|wishlist|temas|ajustes),
+ * Layout. Variáveis: $content, $pageTitle, $active (inicio|extrato|meta|mes|cartao|relatorio|emprestimo|wishlist|temas|ajustes),
  * $semDialogoLancar (true = não renderiza o <dialog id="lancar">).
  * Computador: menu lateral (marca, Lançar, abas, Claro/Escuro, quem está e sair).
  * Celular: barra de cima (marca, sol/lua, botão Menu) e barra flutuante embaixo com o "+" no

@@ -3,7 +3,7 @@ namespace Financeiro\Models;
 
 use Financeiro\Database;
 
-/** Conferências do saldo com o banco (dono: P3). */
+/** Conferências do saldo com o banco. */
 final class SaldoConferenciaModel
 {
     /** A conferência mais recente (maior data; empate = a última registrada), ou null. */

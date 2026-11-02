@@ -8,7 +8,7 @@ use Financeiro\Models\LancamentoModel;
 use Financeiro\Models\MesModel;
 
 /**
- * Motor de cálculo — porta fiel da cascata "Plano" da planilha original (SPEC §5).
+ * Motor de cálculo — porta fiel da cascata do plano.
  *
  * Regras (ver docs/01-modelo-financeiro.md e docs/02-historico-decisoes.md):
  * - crédito do empréstimo, amortização extra e poupança NUNCA entram como renda ou gasto
@@ -28,6 +28,8 @@ use Financeiro\Models\MesModel;
  */
 final class MotorFinanceiro
 {
+    // As categorias que o app procura pelo nome: o nome é o identificador delas, e só muda com migração.
+    public const CAT_SALARIO = 'Salário';
     public const CAT_CREDITO = 'Crédito do empréstimo';
     public const CAT_AMORT   = 'Amortização extra do empréstimo';
     public const CAT_GUARDAR = 'Guardar na poupança';
@@ -343,7 +345,7 @@ final class MotorFinanceiro
                 'entra_bruto'         => $k['entra'],
                 'sai'                 => $k['sai'],
                 'resultado_op'        => $resultadoOp,
-                'parcela_consignado'  => $parcelaDesc,
+                'parcela_descontada'  => $parcelaDesc,
                 'parcela_parte'       => $parcelaParte,
                 'juros'               => $jurosV,
                 'credito_emprestimo'  => $k['cred'],

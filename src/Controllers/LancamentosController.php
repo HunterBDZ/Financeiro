@@ -13,7 +13,7 @@ use Financeiro\Services\MotorFinanceiro;
 use Financeiro\View;
 
 /**
- * Lançar, extrato e editar (P4, SPEC §2.2–2.4).
+ * Lançar, extrato e editar.
  * Todo POST: requireLogin + csrfCheck; `volta` sempre por voltaSegura(); valor por parseMoedaBr()
  * (aceita -, − e –; grava abs()); data dentro de [primeiro dia de MesModel::primeiro(),
  * último dia de MesModel::ultimo()] (invariante 9) em store, update e desfazer.
@@ -108,7 +108,7 @@ final class LancamentosController
 
     /* ================================================================== lançar (página) */
 
-    /** GET /lancar — fallback sem JS do diálogo, e a volta dos erros/duplicados (§2.2). */
+    /** GET /lancar — fallback sem JS do diálogo, e a volta dos erros/duplicados. */
     public function lancarForm(): void
     {
         Auth::requireLogin();
@@ -389,7 +389,7 @@ final class LancamentosController
     }
 
     /**
-     * Aviso depois de lançar (§2.2): `Delivery −56,80 · Ainda dá para gastar 343,20 da meta.`; mês fechado:
+     * Aviso depois de lançar: `Delivery −56,80 · Ainda dá para gastar 343,20 da meta.`; mês fechado:
      * `Delivery −56,80 · set/26 fechado`; categoria sem previsão no mês: só `Salário +11.839,24`.
      */
     private static function avisoLancado(array $cat, float $valor, string $data): string

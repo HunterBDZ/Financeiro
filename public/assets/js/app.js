@@ -1,4 +1,4 @@
-// app.js (P1): comportamento da casca. Sem nada inline (CSP script-src 'self').
+// app.js: comportamento da casca. Sem nada inline (CSP script-src 'self').
 // - alterna o tema ([data-theme-toggle]) ou escolhe um ([data-tema="light|dark"], o seletor do menu lateral);
 // - esconde/mostra os valores ([data-ocultar], o olho do cartão do saldo; só nesta aba);
 // - [data-ic-sugerir]: no form de nova categoria, o ícone acompanha o nome digitado até a pessoa escolher um;

@@ -4,7 +4,7 @@ namespace Financeiro\Services;
 use Financeiro\Database;
 
 /**
- * Dados do gráfico "gastos mês a mês" (SPEC §3.1): previsto e real por categoria × mês, só das
+ * Dados do gráfico "gastos mês a mês": previsto e real por categoria × mês, só das
  * categorias operacionais de gasto (Dia a dia, Fixos, Cartao, Ano), SEM filtro de `ativo` — o
  * motor soma todas, e o gráfico tem que bater com ele. A renda vem do plano do motor. O previsto
  * é o da view previsao_efetiva (o do mês, senão a meta), o mesmo que o motor usa.

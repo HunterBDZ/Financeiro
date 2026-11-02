@@ -92,7 +92,7 @@ $nivel       = $emConta < $reserva - 0.004 ? 'is-abaixo' : 'is-acima';   // camp
 // Só meses editáveis usam $linhaDia/$linhaConta/$linhaEntrada; cada linha é um <details> cujo
 // painel grava a previsão do mês (POST /mes/previsao). A meta é a previsão padrão de todo mês;
 // um valor próprio do mês é "ajustado" e pode voltar à meta.
-$consignado = (float) ($linha['parcela_consignado'] ?? 0.0);
+$parcelaDescontada = (float) ($linha['parcela_descontada'] ?? 0.0);
 $ehUltimo   = $mes === $ultimo;
 $ultLbl     = monthLabel($ultimo);
 $erroDe     = static fn(array $l): ?array => $erroLinha !== null && (int) ($erroLinha['cat'] ?? 0) === (int) $l['id'] ? $erroLinha : null;
@@ -107,7 +107,7 @@ $origem = static function (array $l) use ($estado, $fmt): string {
         : '<span class="mes-l2 mes-origem">' . e(t('segue a meta')) . '</span>';
 };
 
-$painel = static function (array $l, string $tipo) use ($csrf, $mes, $mesLbl, $estado, $fmt, $erroDe, $consignado, $ehUltimo, $ultLbl): void {
+$painel = static function (array $l, string $tipo) use ($csrf, $mes, $mesLbl, $estado, $fmt, $erroDe, $parcelaDescontada, $ehUltimo, $ultLbl): void {
     $erro = $erroDe($l);
     $meta = $l['meta_padrao'];
     $info = [];
@@ -120,8 +120,8 @@ $painel = static function (array $l, string $tipo) use ($csrf, $mes, $mesLbl, $e
             $info[] = $tipo === 'entrada' ? t('Recebido até hoje: {valor}.', ['valor' => $fmt($ja)]) : t('Lançado até hoje: {valor}.', ['valor' => $fmt($ja)]);
         }
     }
-    if ($tipo === 'entrada' && $l['nome_completo'] === 'Salário' && $consignado > 0.004) {
-        $info[] = t('Valor bruto. A parcela do empréstimo ({valor}) sai deste valor.', ['valor' => MENOS . $fmt($consignado)]);
+    if ($tipo === 'entrada' && $l['nome_completo'] === \Financeiro\Services\MotorFinanceiro::CAT_SALARIO && $parcelaDescontada > 0.004) {
+        $info[] = t('Valor bruto. A parcela do empréstimo ({valor}) sai deste valor.', ['valor' => MENOS . $fmt($parcelaDescontada)]);
     }
     $info[] = $tipo === 'entrada' ? t('Muda só a previsão. O que você já recebeu continua igual.') : t('Muda só a previsão. O que você já gastou continua igual.');
     $temAcoes = ($meta !== null && $l['ajuste']) || $l['prev'] > 0.004; ?>
@@ -362,7 +362,7 @@ $linhaLeitura = static function (array $l, float $v): void { ?>
                 <h2 class="titulo"><?= $estado === 'real' ? e(t('Entradas')) : e(t('Entradas previstas')) ?></h2>
                 <span class="card-acao num pos"><?= e(num($totalEntrou)) ?></span>
             </div>
-            <?php if ($estado !== 'real' && $consignado > 0.004): ?><p class="mes-nota num"><?= e(t('{valor} vão para a parcela do empréstimo', ['valor' => num($consignado)])) ?></p><?php endif; ?>
+            <?php if ($estado !== 'real' && $parcelaDescontada > 0.004): ?><p class="mes-nota num"><?= e(t('{valor} vão para a parcela do empréstimo', ['valor' => num($parcelaDescontada)])) ?></p><?php endif; ?>
             <?php if ($editavel): ?>
                 <div class="mes-linhas"><?php foreach ($entradas as $l) { $linhaEntrada($l); } ?></div>
             <?php else: ?>

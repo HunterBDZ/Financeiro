@@ -1,6 +1,6 @@
 <?php
 /**
- * Navegação entre meses (P1). Uso:
+ * Navegação entre meses. Uso:
  *   View::partial('partials/mes_nav', ['mes' => '2026-10-01', 'meses' => MesModel::todos(),
  *                                      'href' => '/mes?mes=', 'sufixo' => '#contas']);
  * Variáveis: $mes (AAAA-MM-01), $meses (linhas {mes, situacao} em ordem), $href (prefixo do link,

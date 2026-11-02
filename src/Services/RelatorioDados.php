@@ -209,7 +209,7 @@ final class RelatorioDados
         if ($fim <= 0.004 && $juros <= 0.004 && $adiantado <= 0.004) {
             return null;
         }
-        $parcela = (float) ($l['parcela_consignado'] ?: $l['parcela_parte']);
+        $parcela = (float) ($l['parcela_descontada'] ?: $l['parcela_parte']);
         return ['fim' => $fim, 'juros' => $juros, 'adiantado' => $adiantado, 'parcela' => $parcela];
     }
 
@@ -528,7 +528,7 @@ final class RelatorioDados
         $totais = ($c = self::cartao()) !== null ? CartaoFatura::totais(CartaoModel::compras((int) $c['id'])) : [];
         $contratado = [];
         foreach ($meses as $m) {
-            $contratado[] = ['mes' => $m, 'cartao' => (float) ($totais[$m] ?? 0.0), 'emprestimo' => (float) $plano[$m]['parcela_consignado'] + (float) $plano[$m]['parcela_parte']];
+            $contratado[] = ['mes' => $m, 'cartao' => (float) ($totais[$m] ?? 0.0), 'emprestimo' => (float) $plano[$m]['parcela_descontada'] + (float) $plano[$m]['parcela_parte']];
         }
         $extraGasto = $extraRenda = [];
         foreach ($plano as $m => $l) {

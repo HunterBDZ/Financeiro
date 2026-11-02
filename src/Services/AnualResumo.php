@@ -68,7 +68,7 @@ final class AnualResumo
 
     /**
      * Em cada mês, até 3 coisas que mais mudaram em relação ao mês anterior: categorias
-     * (entradas e gastos) e o desconto do consignado. Sinal do ponto de vista da conta:
+     * (entradas e gastos) e o desconto da parcela. Sinal do ponto de vista da conta:
      * efeito > 0 deixa o mês melhor (entrou mais ou gastou menos).
      * @return array<string, list<array{nome:string, valor:float, antes:float, efeito:float}>>
      */
@@ -91,8 +91,8 @@ final class AnualResumo
                     $lista[] = ['nome' => self::nome($cat), 'valor' => $v, 'antes' => $a,
                                 'efeito' => $cat['sinal'] === 1 ? $v - $a : $a - $v];
                 }
-                $p = (float) $l['parcela_consignado'];
-                $pa = (float) $antesLinha['parcela_consignado'];
+                $p = (float) $l['parcela_descontada'];
+                $pa = (float) $antesLinha['parcela_descontada'];
                 if (abs($p - $pa) >= 0.005 && ($p < 0.005 || $pa < 0.005)) {   // começou ou acabou
                     $lista[] = ['nome' => t('Parcela do empréstimo'), 'valor' => $p, 'antes' => $pa, 'efeito' => $pa - $p];
                 }

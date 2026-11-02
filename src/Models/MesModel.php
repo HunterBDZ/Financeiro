@@ -41,7 +41,7 @@ final class MesModel
     }
 
     /**
-     * Mês de referência (SPEC §1.3): o mês do calendário, se estiver em PREVISAO; senão o
+     * Mês de referência: o mês do calendário, se estiver em PREVISAO; senão o
      * primeiro PREVISAO depois dele; senão o último mês cadastrado. Hoje (29/09, set fechado): out/26.
      */
     public static function referencia(?string $hoje = null): string

@@ -6,7 +6,7 @@ use Financeiro\Models\AjusteModel;
 use Financeiro\Models\PrevisaoModel;
 
 /**
- * Único caminho de gravação da previsão (invariante 7, SPEC §4.6): grava um lote de células
+ * Único caminho de gravação da previsão: grava um lote de células
  * com log (antes/depois) para desfazer e auditar. Transação só é aberta aqui se ninguém abriu
  * antes (POST de Fechar mês e tests/run.php já abrem a sua).
  * Valor null numa célula = apagar a linha do mês (a categoria volta a seguir a meta); no log,

@@ -8,7 +8,7 @@ use Financeiro\Models\CategoriaModel;
 use Financeiro\Models\LancamentoModel;
 
 /**
- * Dados do formulário de lançar (P4, SPEC §2.2). O layout chama dados() em toda página
+ * Dados do formulário de lançar. O layout chama dados() em toda página
  * (o <dialog id="lancar">), então: no máximo 4 consultas (6 com o cartão cadastrado), todas limitadas,
  * e cache por requisição.
  */

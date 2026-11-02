@@ -5,7 +5,7 @@ use Financeiro\Models\SessaoLembradaModel;
 use Financeiro\Models\UsuarioModel;
 
 /**
- * Login, sessão e "lembrar este aparelho" (dono: P4, SPEC §11).
+ * Login, sessão e "lembrar este aparelho".
  *
  * Cookie `financeiro_lembrar` = "seletor:validador" (12 + 32 bytes aleatórios, em hex).
  * No banco fica só sha256(validador), comparado com hash_equals. Cada uso rotaciona o

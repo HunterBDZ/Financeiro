@@ -3,10 +3,10 @@ namespace Financeiro\Models;
 
 use Financeiro\Database;
 
-/** Contas recorrentes (dono: P5). ChecklistContas depende de ativas(): assinatura e colunas congeladas. */
+/** Contas recorrentes. ChecklistContas depende de ativas(): assinatura e colunas congeladas. */
 final class ContaRecorrenteModel
 {
-    /** Grupos que podem ter conta recorrente (SPEC §2.8): Fixos, Cartão e Pontuais. */
+    /** Grupos que podem ter conta recorrente: Fixos, Cartão e Pontuais. */
     public const GRUPOS = ['Fixos', 'Cartao', 'Ano'];
 
     /** @return array<int,array> contas recorrentes ativas, com dados da categoria */

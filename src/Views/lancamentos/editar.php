@@ -1,7 +1,7 @@
 <?php
 /**
- * Editar (P4, SPEC §2.4): ‹ volta · editar · o mesmo partial preenchido · SALVAR ·
- * excluir (POST sem confirm; o aviso traz DESFAZER) · lançado por Matheus · 24/09 22:10.
+ * Editar: ‹ volta · editar · o mesmo partial preenchido · SALVAR ·
+ * excluir (POST sem confirm; o aviso traz DESFAZER) · lançado por Ana · 24/09 22:10.
  * Variáveis: $lancamento, $volta, $form.
  */
 use Financeiro\View;

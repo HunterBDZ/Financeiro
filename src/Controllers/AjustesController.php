@@ -14,7 +14,7 @@ use Financeiro\Models\UsuarioModel;
 use Financeiro\View;
 
 /**
- * Ajustes (SPEC §2.8) — dono: P5. A conta, o dinheiro, as contas fixas, as categorias, os essenciais,
+ * Ajustes. A conta, o dinheiro, as contas fixas, as categorias, os essenciais,
  * as pessoas e, no Avançado, o ponto de partida, o ícone do site e os aparelhos. Cada grupo tem o seu SALVAR. Os dados do empréstimo
  * ficam na aba Empréstimo (EmprestimoController::salvarDados), que usa a mesma validação.
  */

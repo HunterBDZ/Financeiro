@@ -6,7 +6,7 @@ use PDO;
 use PDOException;
 
 /**
- * Lançamentos (dono: P4). Assinaturas CONGELADAS (outros pacotes dependem): somaPorCategoriaNome,
+ * Lançamentos. Assinaturas CONGELADAS (outros pacotes dependem): somaPorCategoriaNome,
  * primeiraDataPorCategoriaNome, saldoCalculado, somaOperacional.
  */
 final class LancamentoModel

@@ -1,7 +1,7 @@
 <?php
 // Funções globais pequenas, usadas nas views e nos controllers. Ficam fora de
 // classes de propósito: são formatação de saída e utilidades de requisição, sem
-// regra de negócio. Dono: P1 (SPEC §11). Código novo só usa as 6 funções mb_*
+// regra de negócio. Código novo só usa as 6 funções mb_*
 // cobertas pelo polyfill local (mb_strlen, mb_substr, mb_strtoupper,
 // mb_strtolower, mb_str_pad, mb_convert_case).
 
@@ -289,7 +289,7 @@ function diasNoMes(string $mes): int
     return $ts ? (int) date('t', $ts) : 30;
 }
 
-/** real | aberto | previsto (SPEC §3.1). Mês PREVISAO até o mês de hoje (inclusive) é "aberto". */
+/** real | aberto | previsto. Mês PREVISAO até o mês de hoje (inclusive) é "aberto". */
 function estadoMes(string $mes, string $situacao, ?string $hoje = null): string
 {
     if (strtoupper($situacao) === 'REAL') {

@@ -2,7 +2,7 @@
 namespace Financeiro\Services;
 
 /**
- * Edição da previsão na tela Mês (POST /mes/previsao): transforma o pedido do casal nas células
+ * Edição da previsão na tela Mês (POST /mes/previsao): transforma o pedido da pessoa nas células
  * de PrevisaoLote::gravar(). Aritmética pura sobre MotorFinanceiro::dados() — quem grava é o
  * MesController, pelo PrevisaoLote (invariante 7).
  *

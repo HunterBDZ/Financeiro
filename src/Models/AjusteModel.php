@@ -5,7 +5,7 @@ use Financeiro\Database;
 
 final class AjusteModel
 {
-    /** Chaves que a tela de Ajustes pode gravar (SPEC §2.8). `objetivo` só muda pela sugestão. */
+    /** Chaves que a tela de Ajustes pode gravar. `objetivo` só muda pela sugestão. */
     public const EDITAVEIS = [
         'saldo_ini', 'poupanca_ini', 'investimentos_ini', 'recebido_emprestimo', 'parcela_mensal',
         'n_parcelas', 'juros_mes', 'consignado_inicio', 'reserva_minima', 'meta_final',
@@ -132,7 +132,7 @@ final class AjusteModel
 
     /**
      * Taxa mensal implícita no crédito recebido: r tal que PV(r, n_parcelas, parcela_mensal)
-     * = recebido_emprestimo (bisseção). Hoje: 0,019703… (1,97%). null sem dados ou sem solução.
+     * = recebido_emprestimo (bisseção). null sem dados ou sem solução.
      */
     public static function taxaPeloCredito(): ?float
     {

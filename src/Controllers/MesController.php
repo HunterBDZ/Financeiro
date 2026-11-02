@@ -17,7 +17,7 @@ use Financeiro\Services\SugestaoAlocacao;
 use Financeiro\View;
 
 /**
- * Mês (SPEC §2.5) e Fechar mês (§2.6). A previsão só é gravada por PrevisaoLote::gravar()
+ * Mês e Fechar mês. A previsão só é gravada por PrevisaoLote::gravar()
  * (invariante 7): aqui, pela edição linha a linha (POST /mes/previsao) e pelo Fechar mês.
  * Desfazer e reabrir ficam no menu ⋯ do mês. A meta é a previsão padrão de todo mês; o que
  * se grava no mês é a exceção (view previsao_efetiva).
@@ -321,31 +321,31 @@ final class MesController
         $linha = $plano[$mes];
         [$entrou, $saiu, $balanco] = MotorFinanceiro::balancoTotal($linha);
 
-        // Parcela do consignado deste mês: sai da folha, então o soldo lançado (real) é o líquido;
-        // a previsão do Salário é o bruto. Só a partir de ajustes.consignado_inicio (mesma regra do motor).
+        // Parcela deste mês, quando descontada do salário: o salário lançado (real) é o líquido, e a
+        // previsão do Salário é o bruto. Só a partir de ajustes.consignado_inicio (mesma regra do motor).
         $chaves = array_keys($plano);
         $pos = array_search($mes, $chaves, true);
         $loanIni = $pos > 0 ? (float) $plano[$chaves[$pos - 1]]['falta_pagar'] : (float) ($d['loanIni'] ?? 0.0);
         $iniParcela = MotorFinanceiro::mesInicioParcela($d['aj']);
         $aParte = (int) round((float) ($d['aj']['parcela_modo'] ?? 1.0)) === 2;
-        $consignado = (!$aParte && $loanIni > 0.01 && ($iniParcela === null || $mes >= $iniParcela))
+        $parcelaDescontada = (!$aParte && $loanIni > 0.01 && ($iniParcela === null || $mes >= $iniParcela))
             ? round(min((float) ($d['aj']['parcela_mensal'] ?? 0.0), $loanIni + (float) $linha['juros']), 2)
             : 0.0;
 
         // bloco 2: desvios (3 maiores |real − previsto| ≥ 10, só operacionais)
         $desvios = [];
-        $avisoConsignado = null;
+        $avisoParcela = null;
         foreach ($d['cats'] as $id => $c) {
             if ($c['operacional'] !== 1) {
                 continue;
             }
             $r = round((float) ($d['real'][$mes][$id] ?? 0.0), 2);
             $p = round((float) ($d['prev'][$mes][$id] ?? 0.0), 2);
-            if (($c['nome'] ?? '') === 'Salário' && $consignado > 0 && $p > 0) {
-                // o soldo deveria chegar líquido da parcela; se chegou igual ao bruto previsto, avisa
-                $pLiq = round(max(0.0, $p - $consignado), 2);
+            if (($c['nome'] ?? '') === MotorFinanceiro::CAT_SALARIO && $parcelaDescontada > 0 && $p > 0) {
+                // o salário deveria chegar líquido da parcela; se chegou igual ao bruto previsto, avisa
+                $pLiq = round(max(0.0, $p - $parcelaDescontada), 2);
                 if ($r > 0 && abs($r - $p) < 1.0) {
-                    $avisoConsignado = t('A renda entrou com o valor cheio ({bruto}), sem descontar a parcela do empréstimo ({parcela}). Lance o valor que caiu na conta ou ajuste a 1ª parcela na aba Empréstimo.', ['bruto' => num($r), 'parcela' => num($consignado)]);
+                    $avisoParcela = t('A renda entrou com o valor cheio ({bruto}), sem descontar a parcela do empréstimo ({parcela}). Lance o valor que caiu na conta ou ajuste a 1ª parcela na aba Empréstimo.', ['bruto' => num($r), 'parcela' => num($parcelaDescontada)]);
                 }
                 if (abs($r - $pLiq) < abs($r - $p)) {
                     $p = $pLiq;
@@ -380,7 +380,7 @@ final class MesController
                 $refMeses = $s['ref']['meses'];
                 $previa = [
                     'mes' => $prox, 'obj' => $obj, 'dia' => $diaTotal, 'livre' => (float) ($s['niveis'][$prox] ?? 0.0),
-                    // §2.6: o rótulo da base é o do mês que está sendo fechado (`base out`)
+                    // o rótulo da base é o do mês que está sendo fechado (`base out`)
                     'base' => in_array($mes, $refMeses, true)
                         ? mesCurto($mes)
                         : (self::refRotulo($refMeses) ?? $s['rotulo_ref']),
@@ -398,7 +398,7 @@ final class MesController
             'entrou' => $entrou, 'saiu' => $saiu, 'saldoMes' => $balanco,
             'guardado' => max(0.0, (float) $linha['poupanca_liquido']) + max(0.0, (float) ($linha['invest_liquido'] ?? 0.0)),
             'contaAntes' => (float) $linha['sobrou_mes_anterior'], 'contaDepois' => (float) $linha['fica_na_conta'],
-            'desvios' => $desvios, 'avisoConsignado' => $avisoConsignado,
+            'desvios' => $desvios, 'avisoParcela' => $avisoParcela,
             'dataBanco' => $dataBanco, 'dataMin' => self::dataMinBanco($hoje), 'faltam' => max(0, $faltam),
             'previa' => $previa, 'erro' => is_array($erro) && ($erro['mes'] ?? '') === $mes ? $erro : null,
         ], 'mes');
@@ -471,7 +471,7 @@ final class MesController
         }
         $aplicar = ($_POST['aplicar'] ?? '') === '1' && $prox !== null && MotorFinanceiro::v2();
 
-        // uma transação só (§2.6): conferência → congela as metas do mês → REAL → limpa cache →
+        // uma transação só: conferência → congela as metas do mês → REAL → limpa cache →
         // sugestão do mês seguinte. Congelar = gravar como linhas do mês a previsão que vinha da
         // meta, para o mês fechado não mudar quando a meta mudar depois (reabrir descongela).
         $pdo = Database::connection();

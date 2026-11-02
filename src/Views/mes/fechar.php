@@ -1,6 +1,6 @@
 <?php
 /**
- * Fechar mês (SPEC §2.6) — dono: P5. Ritual mensal em até 4 blocos: os números, os desvios,
+ * Fechar mês. Ritual mensal em até 4 blocos: os números, os desvios,
  * o saldo no banco e a prévia do mês seguinte. Mês REAL: resumo só de leitura (blocos 1 e 2) +
  * REABRIR. Mês futuro: aviso "ainda não começou". Nos números, o rótulo vem num <span> (linha
  * pequena) e o valor logo depois (linha grande).
@@ -45,7 +45,7 @@ $sinal = static fn(float $v): string => ($v > 0.004 ? '+' : '') . num($v);
                 <p class="fe-num fe-conta <?= $contaDepois < 0 ? 'neg' : '' ?>"><span><?= e(t('Conta')) ?></span> <?= e($contaTxt) ?></p>
             </div>
             <?php if (($guardado ?? 0.0) > 0.004): ?><p class="fe-ponte num"><?= e(t('Sobra {sobra} − guardado {guardado} = {balanco} na conta.', ['sobra' => num($saldoMes + $guardado), 'guardado' => num($guardado), 'balanco' => $sinal($saldoMes)])) ?></p><?php endif; ?>
-            <?php if (!empty($avisoConsignado)): ?><p class="aviso aviso-warn" role="status"><?= e($avisoConsignado) ?></p><?php endif; ?>
+            <?php if (!empty($avisoParcela)): ?><p class="aviso aviso-warn" role="status"><?= e($avisoParcela) ?></p><?php endif; ?>
         </section>
 
         <!-- 2: desvios -->

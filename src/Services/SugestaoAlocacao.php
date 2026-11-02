@@ -4,10 +4,10 @@ namespace Financeiro\Services;
 use Financeiro\Models\ContaRecorrenteModel;
 
 /**
- * Sugestão de divisão do Dia a dia (SPEC §4). Nunca grava nada: devolve valores, mudanças e
- * impacto; quem grava é PrevisaoLote, a partir de celulas(), depois do clique do casal.
+ * Sugestão de divisão do Dia a dia. Nunca grava nada: devolve valores, mudanças e
+ * impacto; quem grava é PrevisaoLote, a partir de celulas(), depois do clique da pessoa.
  *
- * Algoritmo (§4.2): essenciais = ceil10(max(referência, previsão de k0 — ou de k1 com k0 aberto)); o "livre" (Delivery,
+ * Algoritmo: essenciais = ceil10(max(referência, previsão de k0 — ou de k1 com k0 aberto)); o "livre" (Delivery,
  * Lanches, Lazer) é nivelado max-min em múltiplos de 10, com o motor puro dentro do laço
  * (bisseção), respeitando piso da reserva, meta e/ou quitação conforme o objetivo:
  *   1 os dois (meta e quitação, regra atual) · 2 só quitar · 3 só a meta (sem amortização automática).
@@ -120,7 +120,7 @@ final class SugestaoAlocacao
      * @param int  $objetivo 1 os dois · 2 só quitar · 3 só a meta
      * @param bool $colchao  true: nos meses em que o essencial já fura a reserva, o piso vira 0
      * @param array $opts    ['hoje'=>?string, 'tratarComoReal'=>string[]]
-     * @return array contrato da §11 (P2) + extras: ref, previsao, real_k0, k0, aberto, essenciais,
+     * @return array dados da sugestão: ref, previsao, real_k0, k0, aberto, essenciais,
      *               abaixo_reserva, inviavel{meta,quitacao}
      */
     public static function calcular(string $mesInicio, int $objetivo, bool $colchao, array $opts = []): array

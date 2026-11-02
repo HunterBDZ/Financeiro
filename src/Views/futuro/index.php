@@ -6,7 +6,7 @@
  *  · Gráfico da conta no fim de cada mês: linha reta com um ponto por mês (● fechado, ◐ aberto,
  *    ○ previsto), sólida no que já fechou e tracejada na previsão; faixa âmbar abaixo da reserva,
  *    vermelha abaixo de zero; "hoje" marcado e poucos números anotados. O título diz a conclusão.
- *    No celular só ficam os pontos de hoje, do mês mais apertado e do fim (o casal achou os 16 ruins).
+ *    No celular só ficam os pontos de hoje, do mês mais apertado e do fim, porque os 16 embolavam.
  *    A dívida vai junto, em cinza: enquanto a conta fica parada na reserva, é ela que cai.
  *  · Mês a mês: tabela por ano com o total do ano. No celular só Balanço e Conta no fim (o resto
  *    ao abrir a linha); no computador largo, "o que mudou" em relação ao mês anterior na linha. A
@@ -499,7 +499,7 @@ $opcoesMes = static function (string $sel) use ($se): string {
                             <div class="fu-conta num">
                                 <p><span><?= e(t('Começou o mês com')) ?></span> <?= e($valor2((float) $l['antes'])) ?></p>
                                 <p><span>+ <?= e(t('Entradas')) ?></span> <?= e(num($l['entra_op'])) ?></p>
-                                <?php if ($l['consignado'] > 0.004): ?><p class="fu-conta-sub"><span><?= e(t('salário de {bruto} menos {parcela} da parcela do empréstimo', ['bruto' => num($l['entra_bruto']), 'parcela' => num($l['consignado'])])) ?></span></p><?php endif; ?>
+                                <?php if ($l['desconto'] > 0.004): ?><p class="fu-conta-sub"><span><?= e(t('salário de {bruto} menos {parcela} da parcela do empréstimo', ['bruto' => num($l['entra_bruto']), 'parcela' => num($l['desconto'])])) ?></span></p><?php endif; ?>
                                 <?php if ($l['simulado'] > 0.004): ?><p class="fu-conta-sub"><span><?= t('inclui {valor} do "e se"', ['valor' => e(num($l['simulado']))]) ?></span></p><?php endif; ?>
                                 <?php if ($l['cred'] > 0.004): ?><p><span>+ <?= e(t('Crédito do empréstimo')) ?></span> <?= e(num($l['cred'])) ?></p><?php endif; ?>
                                 <?php if ($l['poup'] > 0.004): ?><p><span>+ <?= e(t('Tirado da poupança')) ?></span> <?= e(num($l['poup'])) ?></p><?php endif; ?>

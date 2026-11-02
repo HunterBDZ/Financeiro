@@ -1,6 +1,6 @@
 <?php
 /**
- * /lancar (P4, SPEC §2.2): o mesmo partial do diálogo, numa página. Fallback sem JS do "+",
+ * /lancar: o mesmo partial do diálogo, numa página. Fallback sem JS do "+",
  * dos PAGAR, e a volta de erros e duplicados (preenchida, com o aviso em linha).
  * Variáveis: $form (dados do partial).
  */

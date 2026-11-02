@@ -1,4 +1,4 @@
-// Tema (P1). Roda no <head>, antes do CSS pintar: sem "piscar" de tema. Logado com tema escolhido, ele vem no HTML e
+// Tema. Roda no <head>, antes do CSS pintar: sem "piscar" de tema. Logado com tema escolhido, ele vem no HTML e
 // vale em qualquer aparelho, e aqui só fica a cópia para a tela de login. Sem escolha, vale o que estiver guardado
 // neste aparelho: "light", "dark" ou "id:modo". localStorage só guarda 'tema' (invariante 12). "Esconder valores"
 // (o olho do saldo) vale só para a aba aberta: fica no sessionStorage e some ao fechar.

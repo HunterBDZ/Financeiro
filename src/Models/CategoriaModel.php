@@ -31,7 +31,7 @@ final class CategoriaModel
         return $grupos;
     }
 
-    /** As categorias ativas do Dia a dia (ids 14–19 hoje), na ordem da planilha. */
+    /** As categorias ativas do Dia a dia na ordem cadastrada. */
     public static function diaADia(): array
     {
         $pdo = Database::connection();

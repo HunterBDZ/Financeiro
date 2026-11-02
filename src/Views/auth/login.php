@@ -1,8 +1,8 @@
 <?php
 /**
- * Login (P4, SPEC §2.9). Página sem o layout. Variáveis: $erro (?string), $expirou (bool),
- * $login (string, o que foi digitado), $lembrar (bool; marcado por padrão — decisão pendente
- * do casal, PESQUISA §5: trocar o padrão é mudar o `checked`).
+ * Login. Página sem o layout. Variáveis: $erro (?string), $expirou (bool),
+ * $login (string, o que foi digitado), $lembrar (bool; marcado por padrão: trocar o padrão
+ * é mudar o `checked`).
  * Visual: linhas abstratas na página inteira, a marca com o ícone do site, o título à esquerda
  * (computador) e o cartão de entrar, com o ícone escolhido espiando por cima da borda.
  */

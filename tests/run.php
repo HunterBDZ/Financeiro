@@ -1,8 +1,9 @@
 <?php
 /**
- * Testes de fumaça e invariantes do motor, contra o banco real. O que grava (meta, previsão)
+ * Testes de fumaça e invariantes do motor, contra o banco de config/.env. O que grava (meta, previsão)
  * roda dentro de uma transação desfeita no fim do teste: o banco não muda.
- * Uso: cd /var/www/financeiro && php tests/run.php   (deploy.sh roda isto depois de publicar)
+ * Para desenvolver, use um banco de demonstração local (CONTRIBUTING.md).
+ * Uso: php tests/run.php   (o atualizador roda isto no ensaio e depois de aplicar uma versão)
  * Sai com 1 se algo falhar.
  */
 declare(strict_types=1);
@@ -247,7 +248,8 @@ $check('ícone: o enviado passa a valer no endereço e pode ser desfeito', SiteI
 SiteIcone::remover();
 $pdo->rollBack();
 $check('ícone: arquivo que não é imagem é recusado', LinkProduto::fotoValida('<?php echo 1;') === null);
-$check('ícone: a imagem individual não está no código', !is_file(__DIR__ . '/../public/assets/img/spitz.png') && !str_contains((string) file_get_contents(__DIR__ . '/../src/Views/layout/app.php'), 'spitz'));
+$imagensApp = array_values(array_diff(scandir(__DIR__ . '/../public/assets/img') ?: [], ['.', '..']));
+$check('ícone: nenhuma imagem individual no código, só as do app', $imagensApp === ['icone-180.png', 'icone-32.png', 'icone-64.png', 'icones.webp', 'linhas-cartao.svg', 'linhas-fundo.svg', 'marca.svg'], implode(', ', $imagensApp));
 
 // ---- 3f. meses sem fim, início em data real e recursos opcionais
 $mesHojeT = date('Y-m-01');
@@ -314,12 +316,12 @@ foreach ($planoS as $m => $l) {
     $difCaixa = max($difCaixa, abs($l['fica_na_conta'] - $planoP[$m]['fica_na_conta']), abs($l['falta_pagar'] - $planoP[$m]['falta_pagar']));
 }
 $linhaP = $planoP[$mesMetaT]; $linhaS = $planoS[$mesMetaT];
-$check('parcela à parte: a conta e a dívida ficam iguais, sem mexer no salário', $difCaixa < 0.01 && $linhaP['parcela_consignado'] == 0.0 && $linhaP['parcela_parte'] > 0 && abs($linhaP['entra'] - $linhaS['entra_bruto']) < 0.01 && abs(MotorFinanceiro::balancoTotal($linhaP)[2] - MotorFinanceiro::balancoTotal($linhaS)[2]) < 0.01);
+$check('parcela à parte: a conta e a dívida ficam iguais, sem mexer no salário', $difCaixa < 0.01 && $linhaP['parcela_descontada'] == 0.0 && $linhaP['parcela_parte'] > 0 && abs($linhaP['entra'] - $linhaS['entra_bruto']) < 0.01 && abs(MotorFinanceiro::balancoTotal($linhaP)[2] - MotorFinanceiro::balancoTotal($linhaS)[2]) < 0.01);
 $pdo->beginTransaction();
 AjusteModel::setValor('usa_emprestimo', 0.0);
 MotorFinanceiro::limparCache();
 $semEmp = MotorFinanceiro::calcularPlano();
-$check('sem empréstimo: nenhuma dívida nem parcela no plano', max(array_map(static fn($l) => abs($l['falta_pagar']) + $l['parcela_consignado'] + $l['parcela_parte'], $semEmp)) < 0.01);
+$check('sem empréstimo: nenhuma dívida nem parcela no plano', max(array_map(static fn($l) => abs($l['falta_pagar']) + $l['parcela_descontada'] + $l['parcela_parte'], $semEmp)) < 0.01);
 $check('sem empréstimo: a aba sai do menu', !str_contains($pagina(MetaController::class, 'index', '/meta'), 'href="/emprestimo"'));
 AjusteModel::setValor('usa_cartao', 0.0);
 $check('sem cartão: a aba sai e o Relatório vai para a barra', (static function (string $h): bool { return !str_contains($h, 'href="/cartao"') && str_contains($h, 'class="tab" href="/relatorio"'); })($pagina(MetaController::class, 'index', '/meta')));
@@ -665,8 +667,8 @@ $check('ícones: o sprite tem o tamanho do catálogo (célula + respiro)', is_ar
     && $dim[0] === $lic['colunas'] * $lic['passo'] && $dim[1] === $lic['linhas'] * $lic['passo']
     && $lic['passo'] > $lic['tamanho'] && count($lic['icones']) <= $lic['colunas'] * $lic['linhas']);
 $esperado = ['Farmácia e saúde' => 'pilula', 'Mercado' => 'prato', 'Combustível' => 'combustivel',
-             'Imposto de renda' => 'leao', 'Gastos mesada Matheus' => 'nota', 'Seguro do carro' => 'carro',
-             'Licenciamento do carro' => 'documento', 'Ração do Bob' => 'cachorro', 'Barbeiro' => 'barbearia'];
+             'Imposto de renda' => 'leao', 'Gastos mesada filho' => 'nota', 'Seguro do carro' => 'carro',
+             'Licenciamento do carro' => 'documento', 'Ração do pet' => 'cachorro', 'Barbeiro' => 'barbearia'];
 $erradas = [];
 foreach ($esperado as $nomeCat => $k) {
     if (Icones::sugerir($nomeCat, 'Dia a dia') !== $k) {
@@ -741,7 +743,7 @@ $check('Simular: fica aceso ele mesmo, no menu lateral e no botão Menu', str_co
 
 // ---- 13. Anual: marcos do plano e o que mudou em cada mês (AnualResumo, dados de mentira)
 $pl = static fn(string $m, float $fica, bool $quit = false, float $parc = 0.0): array => ['mes' => $m, 'estado' => 'previsto',
-    'fica_na_conta' => $fica, 'quitado' => $quit, 'bateu_meta' => false, 'parcela_consignado' => $parc];
+    'fica_na_conta' => $fica, 'quitado' => $quit, 'bateu_meta' => false, 'parcela_descontada' => $parc];
 $planoT = [];
 foreach ([['2027-01-01', 5000], ['2027-02-01', 2000], ['2027-03-01', -100], ['2027-04-01', -50], ['2027-05-01', 2500],
           ['2027-06-01', 3500, true], ['2027-07-01', 4000, true]] as $r) {
@@ -967,8 +969,8 @@ if (!str_contains($htmlEmp, 'Empréstimo quitado')) {
 $htmlOk = $render(EmprestimoController::class, 'index', ['valor' => '100,00']);
 $check('empréstimo: simular mostra o resultado e não grava nada', (str_contains($htmlOk, 'Falta depois') || str_contains($htmlEmp, 'Empréstimo quitado'))
     && (int) $pdo->query('SELECT COUNT(*) FROM lancamentos')->fetchColumn() === $antesEmp);
-$lido = AjustesController::lerValores(['juros_mes' => '1,9143', 'parcela_mensal' => '314,28', 'n_parcelas' => '96', 'consignado_inicio' => '2026-11', 'reserva_minima' => '1,00'], AjusteModel::DO_EMPRESTIMO);
-$check('dados do empréstimo: lê os campos e ignora o que não é do empréstimo', $lido['erro'] === null && abs($lido['valores']['juros_mes'] - 0.019143) < 1e-9
+$lido = AjustesController::lerValores(['juros_mes' => '1,5000', 'parcela_mensal' => '300,00', 'n_parcelas' => '60', 'consignado_inicio' => '2026-11', 'reserva_minima' => '1,00'], AjusteModel::DO_EMPRESTIMO);
+$check('dados do empréstimo: lê os campos e ignora o que não é do empréstimo', $lido['erro'] === null && abs($lido['valores']['juros_mes'] - 0.015) < 1e-9
     && $lido['valores']['consignado_inicio'] === 202611.0 && !isset($lido['valores']['reserva_minima']), json_encode($lido));
 $check('dados do empréstimo: recusa parcela zero, número de parcelas quebrado e mês inválido',
     AjustesController::lerValores(['parcela_mensal' => '0'], AjusteModel::DO_EMPRESTIMO)['erro'] === 'parcela_mensal'
@@ -1065,11 +1067,11 @@ $check('wishlist: a simulação não mexe nos dados', MotorFinanceiro::calcular(
 $check('link: aceita o texto do compartilhar e endereço sem https', LinkProduto::normalizar('Olha isso: https://loja.exemplo/p/1?a=b') === 'https://loja.exemplo/p/1?a=b' && LinkProduto::normalizar('loja.exemplo/p/1') === 'https://loja.exemplo/p/1');
 $check('link: recusa esquema, porta, usuário e formatos ambíguos', LinkProduto::normalizar('ftp://loja.exemplo/a') === null && LinkProduto::normalizar('file:///etc/passwd') === null && LinkProduto::normalizar('javascript:alert(1)') === null
     && LinkProduto::normalizar('http://loja.exemplo:8080/a') === null && LinkProduto::normalizar('http://x:y@loja.exemplo/') === null && LinkProduto::normalizar('http://loja.exemplo\\@interno/') === null);
-foreach (['127.0.0.1', '10.0.0.1', '172.16.0.1', '192.168.0.154', '169.254.169.254', '100.64.0.1', '0.0.0.0', '224.0.0.1', '198.18.0.1', '::1', 'fc00::1'] as $ipRuim) {
+foreach (['127.0.0.1', '10.0.0.1', '172.16.0.1', '192.168.1.10', '169.254.169.254', '100.64.0.1', '0.0.0.0', '224.0.0.1', '198.18.0.1', '::1', 'fc00::1'] as $ipRuim) {
     $check("link: IP fora da internet recusado ({$ipRuim})", !LinkProduto::ipPublico($ipRuim));
 }
 $check('link: IP público aceito', LinkProduto::ipPublico('8.8.8.8'));
-foreach (['http://127.0.0.1/', 'http://169.254.169.254/latest/meta-data/', 'http://192.168.0.154/', 'http://2130706433/', 'http://0x7f.0.0.1/', 'http://localhost/'] as $urlRuim) {
+foreach (['http://127.0.0.1/', 'http://169.254.169.254/latest/meta-data/', 'http://192.168.1.10/', 'http://2130706433/', 'http://0x7f.0.0.1/', 'http://localhost/'] as $urlRuim) {
     $check("link: não conecta em endereço interno ({$urlRuim})", LinkProduto::buscar($urlRuim, 1024) === null);
 }
 $htmlP = '<html><head><title>Título ruim</title><meta property="og:title" content="Nome do OG"><meta property="og:image" content="/img/og.jpg"><script type="application/ld+json">{"@graph":[{"@type":"WebSite"},{"@type":"Product","name":"Sofá &amp; Cia","image":["https://cdn.exemplo/a.jpg"],"offers":{"@type":"Offer","price":"1299.90","priceCurrency":"BRL"}}]}</script></head></html>';
@@ -1247,31 +1249,42 @@ $check('conta nova: login repetido não passa', UsuarioModel::erroNovaConta('Alg
 $check('conta nova: dados certos passam', UsuarioModel::erroNovaConta('Alguém', 'login-livre-' . bin2hex(random_bytes(3)), 'senha-longa') === null);
 $check('conta nova: com conta no banco, a tela de criar some', !UsuarioModel::nenhum());
 
-// ---- 19. nome de instituição financeira não entra no projeto (a palavra fica dividida para este arquivo passar)
-$proibidas = ['pou' . 'pex', 'ouro' . 'card'];
+// ---- 19. nome de instituição financeira não entra no projeto. Só os SHA-256 ficam aqui, para este arquivo não
+// citar nenhum nome; para acrescentar um: printf %s 'palavra em minúsculas' | sha256sum
+$proibidas = [
+    'de5ce798a166af199765b83b7e6fe89d3f251093e2d1721a4ab38a99b92c12e9',
+    'd7412e52cbe5b676ecdc0383c60539c604d0a4089209ab508edbc8d008de1a5b',
+];
+$temProibida = static function (string $texto, array $resumos): bool {
+    foreach (array_unique(preg_split('/[^\p{L}\p{N}]+/u', mb_strtolower($texto), -1, PREG_SPLIT_NO_EMPTY) ?: []) as $palavra) {
+        if (in_array(hash('sha256', $palavra), $resumos, true)) {
+            return true;
+        }
+    }
+    return false;
+};
+$check('nomes proibidos: compara palavra a palavra, sem diferenciar maiúsculas', $temProibida('Pago com a EXEMPLO, hoje.', [hash('sha256', 'exemplo')])
+    && !$temProibida('sem exemplos aqui', [hash('sha256', 'exemplo')]));
 $raiz = dirname(__DIR__);
 $achados = [];
-$arquivos = [$raiz . '/README.md', $raiz . '/CHANGELOG.md'];
-foreach (['src', 'public/assets/js', 'public/assets/css', 'docs', 'database/migrations', 'tools', 'tests'] as $pasta) {
+$arquivos = array_merge(glob($raiz . '/*.md') ?: [], [$raiz . '/instalar.sh']);
+foreach (['src', 'public/assets/js', 'public/assets/css', 'docs', 'database', 'tools', 'tests', '.github'] as $pasta) {
     if (is_dir($raiz . '/' . $pasta)) {
         foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($raiz . '/' . $pasta, FilesystemIterator::SKIP_DOTS)) as $f) {
-            if (preg_match('/\.(php|md|sql|js|css|sh)$/', $f->getFilename())) {
+            if (preg_match('/\.(php|md|sql|js|css|sh|py|json|yml)$/', $f->getFilename())) {
                 $arquivos[] = $f->getPathname();
             }
         }
     }
 }
 foreach ($arquivos as $arq) {
-    $conteudo = is_file($arq) ? (string) file_get_contents($arq) : '';
-    foreach ($proibidas as $termo) {
-        if (stripos($conteudo, $termo) !== false) {
-            $achados[] = substr($arq, strlen($raiz) + 1);
-        }
+    if (is_file($arq) && $temProibida((string) file_get_contents($arq), $proibidas)) {
+        $achados[] = substr($arq, strlen($raiz) + 1);
     }
 }
 $check('nenhum arquivo cita instituição financeira', $achados === [], implode(', ', $achados));
 
-// ---- 20. o selo do README acompanha o VERSION (o README do repositório é privado: o selo é fixo)
+// ---- 20. o selo do README acompanha o VERSION
 $arqVersao = __DIR__ . '/../VERSION';
 $arqReadme = __DIR__ . '/../README.md';
 if (is_file($arqVersao) && is_file($arqReadme)) {

@@ -1,6 +1,6 @@
 <?php
 /**
- * Formulário de lançar/editar (P4, SPEC §2.2). Simplificado: dropdown de categoria,
+ * Formulário de lançar/editar. Simplificado: dropdown de categoria,
  * calendário para data, descrição, botão lançar no final.
  * Com o cartão cadastrado: "Pagou com: Conta | Cartão". Cartão mostra as vezes, a prévia das faturas
  * que sobem (cartao.js) e "mais opções" (outra quantidade de vezes, compra antiga); o bloco some só

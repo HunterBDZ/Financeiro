@@ -1,6 +1,6 @@
 <?php
 /**
- * Extrato (P4, SPEC §2.3). Variáveis: $mes, $meses, $situacao, $estado, $hoje, $usuarios, $f, $quem,
+ * Extrato. Variáveis: $mes, $meses, $situacao, $estado, $hoje, $usuarios, $f, $quem,
  * $categoria (?array), $categorias (array), $q, $params (filtros ativos, com mes), $limite, $linhas,
  * $totais, $filtrado, $renda (?float, só sem filtro), $urlAtual, $form (partial de lançar da coluna do desktop).
  */

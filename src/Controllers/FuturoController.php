@@ -8,7 +8,7 @@ use Financeiro\Services\MotorFinanceiro;
 use Financeiro\View;
 
 /**
- * Simular (a antiga aba Anual, SPEC §2.7): a conta mês a mês pelo plano do motor — linha do saldo projetado e a tabela
+ * Simular (a antiga aba Anual): a conta mês a mês pelo plano do motor — linha do saldo projetado e a tabela
  * entradas / saídas / balanço. "balanço" só de MotorFinanceiro::balancoTotal(). Os marcos do plano
  * e o "o que mudou" de cada mês vêm de AnualResumo.
  *
@@ -61,7 +61,7 @@ final class FuturoController
                 'mes' => $m, 'estado' => $l['estado'] ?? estadoMes($m, $l['situacao'], $hoje),
                 'antes' => (float) $l['sobrou_mes_anterior'], 'entra_op' => (float) $l['entra'],
                 'entra' => round($entradas, 2), 'entra_bruto' => (float) $l['entra_bruto'],
-                'consignado' => (float) $l['parcela_consignado'],
+                'desconto' => (float) $l['parcela_descontada'],
                 'sai' => round($saidas, 2), 'gastos' => (float) $l['sai'], 'amort' => (float) $l['amortizacao_extra'],
                 'sobra' => (float) $l['resultado_op'], 'mudou' => $mudou[$m] ?? [], 'simulado' => (float) ($se['extra'][$m] ?? 0.0),
                 'cred' => (float) $l['credito_emprestimo'], 'poup' => -(float) $l['poupanca_liquido'], 'inv' => -(float) ($l['invest_liquido'] ?? 0.0), 'parte' => (float) ($l['parcela_parte'] ?? 0.0),
