@@ -22,7 +22,7 @@
 .imp-arquivo { gap: 8px; }
 .imp-continuar { justify-self: start; min-width: 160px; }
 .imp-check { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 650; cursor: pointer; }
-.imp-colunas { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.imp-colunas { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); align-items: end; gap: 12px; }
 .imp-duas { display: grid; gap: 12px; }
 .imp-duas > summary { color: var(--text); font-size: 14px; font-weight: 700; min-height: var(--tap); display: flex; align-items: center; }
 .imp-duas[open] > summary { margin-bottom: 4px; }
@@ -117,7 +117,7 @@
     .imp-tabela, .imp-tabela tbody { display: block; }
     .imp-tabela tr {
         display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
-        grid-template-areas: "m desc valor" "m data data" "cat cat cat";
+        grid-template-areas: "m data valor" "m desc desc" "cat cat cat";
         gap: 2px 12px; padding: 14px 16px; border-bottom: 1px solid var(--line);
     }
     .imp-tabela tbody tr:last-child { border-bottom: 0; }
@@ -125,7 +125,7 @@
     .imp-c-marca { grid-area: m; padding-top: 2px !important; }
     .imp-c-desc { grid-area: desc; }
     .imp-c-valor { grid-area: valor; }
-    .imp-c-data { grid-area: data; font-size: 13px; }
+    .imp-c-data { grid-area: data; align-self: center; font-size: 13px; }
     .imp-c-cat { grid-area: cat; margin-top: 8px; }
     .imp-l.is-aviso td:first-child { box-shadow: none; }
     .imp-l.is-aviso { box-shadow: inset 3px 0 0 var(--warn); }
