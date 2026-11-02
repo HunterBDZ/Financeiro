@@ -58,8 +58,8 @@ Pronto! O Financeiro está no ar.
   3. Crie a sua conta na tela que aparecer.
 
 Dica: reserve o IP ${ip:-deste servidor} para esta máquina no roteador, para o endereço não mudar.
-Para atualizar no futuro: sudo financeiro-atualizar
 MSG
+    if command -v financeiro-atualizar >/dev/null; then echo "Para atualizar no futuro: sudo financeiro-atualizar"; fi
 }
 
 # ---- antes de mexer em qualquer coisa
@@ -67,7 +67,7 @@ MSG
 command -v apt-get >/dev/null || para "este instalador funciona em Ubuntu 24.04 ou mais novo."
 
 if [ -f "$DEST/config/.env" ] && [ ! -f "$ANDAMENTO" ]; then
-    printf 'O Financeiro já está instalado aqui: %s\nPara atualizar: sudo financeiro-atualizar\n' "$DEST"
+    printf 'O Financeiro já está instalado aqui: %s\n' "$DEST"
     exit 0
 fi
 
@@ -100,17 +100,24 @@ mkdir -p "$(dirname "$ANDAMENTO")"; touch "$ANDAMENTO"
 etapa 2 "Baixando o Financeiro"
 # rodando de dentro de um clone, usa ele mesmo; se veio por curl, baixa
 AQUI=$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd)
+PACOTE=0
 if [ -n "$AQUI" ] && [ -d "$AQUI/.git" ] && [ -f "$AQUI/database/schema.sql" ]; then
     CLONE=$AQUI
+elif [ -n "$AQUI" ] && [ -f "$AQUI/database/schema.sql" ]; then
+    PACOTE=1 # veio de um pacote, sem o repositório: copia direto, e as atualizações vêm em outro pacote
 elif [ ! -d "$CLONE/.git" ]; then
     rode git clone -q "$REPO_URL" "$CLONE"
 fi
-dono=$(stat -c %U "$CLONE")
-git_c() { sudo -H -u "$dono" git -C "$CLONE" "$@"; }
-versao=${FIN_VERSAO:-$(git_c tag --list 'v[0-9]*' --sort=-v:refname | head -1)}
 if [ ! -f "$DEST/VERSION" ]; then
     mkdir -p "$DEST"
-    git_c archive "${versao:-HEAD}" | tar -x -C "$DEST" || falhou
+    if [ "$PACOTE" = 1 ]; then
+        rode rsync -a --exclude instalar.sh --exclude LEIA-ME.txt "$AQUI/" "$DEST/"
+    else
+        dono=$(stat -c %U "$CLONE")
+        git_c() { sudo -H -u "$dono" git -C "$CLONE" "$@"; }
+        versao=${FIN_VERSAO:-$(git_c tag --list 'v[0-9]*' --sort=-v:refname | head -1)}
+        git_c archive "${versao:-HEAD}" | tar -x -C "$DEST" || falhou
+    fi
 fi
 
 etapa 3 "Criando o banco de dados"
@@ -174,10 +181,12 @@ rode apache2ctl configtest
 if [ -d /run/systemd/system ]; then rode systemctl restart apache2; else rode service apache2 restart; fi
 
 etapa 5 "Ativando o backup diário e as atualizações"
-rode install -m 755 "$CLONE/tools/financeiro-backup.sh" /usr/local/bin/financeiro-backup.sh
+rode install -m 755 "$DEST/tools/financeiro-backup.sh" /usr/local/bin/financeiro-backup.sh
 echo '30 3 * * * root /usr/local/bin/financeiro-backup.sh' > /etc/cron.d/financeiro-backup
-rode install -m 755 "$CLONE/tools/financeiro-atualizar.sh" /usr/local/bin/financeiro-atualizar
-echo "REPO=$CLONE" > /etc/financeiro-atualizar.conf
+if [ "$PACOTE" = 0 ]; then
+    rode install -m 755 "$DEST/tools/financeiro-atualizar.sh" /usr/local/bin/financeiro-atualizar
+    echo "REPO=$CLONE" > /etc/financeiro-atualizar.conf
+fi
 
 codigo=000
 for _ in $(seq 1 15); do

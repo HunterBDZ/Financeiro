@@ -9,10 +9,11 @@ use Financeiro\Models\ContaRecorrenteModel;
 use Financeiro\Models\MesModel;
 use Financeiro\Models\PrevisaoModel;
 use Financeiro\Services\Horizonte;
+use Financeiro\Site;
 use Financeiro\View;
 
 /**
- * A primeira configuração, no site: início e saldos, renda, contas fixas e o que a pessoa usa. Só o 1º
+ * A primeira configuração, no site: moeda, fuso, início e saldos, renda, o que a pessoa usa e contas fixas. Só o 1º
  * passo é obrigatório. Num início no meio do mês, o que venceu antes dele não entra na previsão daquele mês.
  */
 final class ComecarController
@@ -32,7 +33,9 @@ final class ComecarController
         View::renderAuth('comecar/index', [
             'passo' => $passo, 'total' => self::PASSOS, 'hoje' => date('Y-m-d'),
             'inicio' => AjusteModel::dataInicio() ?? date('Y-m-d'),
-            'contas' => $passo === 3 ? self::contasFixas() : [],
+            'contas' => $passo === 4 ? self::contasFixas() : [],
+            'usos' => is_array($_SESSION['comecar_usos'] ?? null) ? $_SESSION['comecar_usos'] : [],
+            'moeda' => Site::moeda(), 'fuso' => Site::fuso(), 'fusoEscolhido' => Site::fusoGravado(),
             'erro' => self::erro(),
         ]);
     }
@@ -47,7 +50,7 @@ final class ComecarController
         $passo = (int) ($_POST['passo'] ?? 1);
         match ($passo) {
             2 => self::salvarRenda(),
-            3 => self::salvarContas(),
+            3 => self::salvarUsos(),
             4 => self::concluir(),
             default => self::salvarInicio(),
         };
@@ -56,9 +59,17 @@ final class ComecarController
 
     private static function salvarInicio(): void
     {
+        // o fuso vem antes da data: "hoje" é o do fuso escolhido
+        $moeda = (string) ($_POST['moeda'] ?? '');
+        $fuso = (string) ($_POST['fuso'] ?? '');
+        if (!Site::moedaValida($moeda) || !Site::fusoValido($fuso)) {
+            self::voltarComErro(1, t('Escolha a moeda e o fuso horário.'));
+        }
+        Site::usarMoeda($moeda);
+        Site::usarFuso($fuso);
         $data = is_string($_POST['data_inicio'] ?? null) ? $_POST['data_inicio'] : '';
         $ok = preg_match('/^(\d{4})-(\d{2})-(\d{2})$/D', $data, $m) === 1 && checkdate((int) $m[2], (int) $m[3], (int) $m[1]);
-        $problema = $ok ? Horizonte::problemaNaData($data) : t('data?');
+        $problema = $ok ? Horizonte::problemaNaData($data) : t('Escolha uma data válida.');
         $valores = [];
         foreach (['saldo_ini', 'poupanca_ini', 'investimentos_ini'] as $chave) {
             $bruto = trim((string) ($_POST[$chave] ?? ''));
@@ -71,6 +82,8 @@ final class ComecarController
         if ($problema !== null) {
             self::voltarComErro(1, $problema);
         }
+        Site::salvarMoeda($moeda);
+        Site::salvarFuso($fuso);
         foreach ($valores as $chave => $v) {
             AjusteModel::setValor($chave, round($v, 4));
         }
@@ -108,7 +121,7 @@ final class ComecarController
             $v = parseMoedaBr($bruto);
             $dia = self::dia($dias[$id] ?? '');
             if ($v === null || $v < 0 || $dia === false) {
-                self::voltarComErro(3, t('Confira os valores: use números como 1.200,50.'));
+                self::voltarComErro(4, t('Confira os valores: use números como 1.200,50.'));
             }
             self::preverEmTodos($id, $v, $dia);
             if ($dia !== null) {
@@ -117,16 +130,38 @@ final class ComecarController
         }
     }
 
+    private static function salvarUsos(): void
+    {
+        $usos = [
+            'cartao' => ($_POST['usa_cartao'] ?? '') === '1',
+            'emprestimo' => ($_POST['usa_emprestimo'] ?? '') === '1',
+            'carro' => ($_POST['tem_carro'] ?? '') === '1',
+            'parcela' => ($_POST['parcela_modo'] ?? '') === '1' ? 1 : 2,
+            'objetivo' => ($_POST['objetivo'] ?? '') === '1' ? 1 : 3,
+        ];
+        AjusteModel::setValor('usa_cartao', $usos['cartao'] ? 1.0 : 0.0);
+        AjusteModel::setValor('usa_emprestimo', $usos['emprestimo'] ? 1.0 : 0.0);
+        AjusteModel::setValor('parcela_modo', (float) $usos['parcela']);
+        AjusteModel::setValor('objetivo', (float) $usos['objetivo']);
+        AjusteModel::setValor('usa_carro', $usos['carro'] ? 1.0 : 0.0);
+        CategoriaModel::marcarCarro($usos['carro']);
+        $_SESSION['comecar_usos'] = $usos;   // Voltar mostra o que foi marcado
+    }
+
+    /** Último passo: as contas fixas (ou nada, em "Pular") e o caminho até o primeiro uso. */
     private static function concluir(): void
     {
-        $emprestimo = ($_POST['usa_emprestimo'] ?? '') === '1';
-        AjusteModel::setValor('usa_emprestimo', $emprestimo ? 1.0 : 0.0);
-        AjusteModel::setValor('usa_cartao', ($_POST['usa_cartao'] ?? '') === '1' ? 1.0 : 0.0);
-        AjusteModel::setValor('parcela_modo', ($_POST['parcela_modo'] ?? '') === '2' ? 2.0 : 1.0);
-        AjusteModel::setValor('objetivo', ($_POST['objetivo'] ?? '') === '1' ? 1.0 : 3.0);
+        if (($_POST['pular'] ?? '') !== '1') {
+            self::salvarContas();
+        }
         AjusteModel::setValor('configurado', 1.0);
-        flash('success', t('Tudo pronto. O resto você ajusta quando quiser, em Ajustes.'));
-        redirecionar($emprestimo ? '/emprestimo?dados=1#emp-dados' : '/', 303);
+        unset($_SESSION['comecar_usos']);
+        if (AjusteModel::usa('usa_emprestimo')) {
+            flash('success', t('Tudo pronto. Agora informe os dados do empréstimo. Os primeiros passos estão no Início.'));
+            redirecionar('/emprestimo?dados=1#emp-dados', 303);
+        }
+        flash('success', t('Tudo pronto. Os primeiros passos estão no Início.'));
+        redirecionar('/', 303);
     }
 
     /** Mesmo valor em todos os meses; no 1º, zero se a data dele já passou quando o plano começou. */
@@ -150,13 +185,17 @@ final class ComecarController
         return ctype_digit($s) && (int) $s >= 1 && (int) $s <= 31 ? (int) $s : false;
     }
 
-    /** @return list<array{id:int, nome:string}> */
+    /**
+     * As contas que se aplicam: as fixas e, para quem marcou cartão, a fatura.
+     * @return list<array{id:int, nome:string}>
+     */
     private static function contasFixas(): array
     {
         $out = [];
-        $st = Database::connection()->query("SELECT id, nome, apelido FROM categorias WHERE grupo = 'Fixos' AND ativo = 1 ORDER BY ordem, nome");
+        $grupos = AjusteModel::usa('usa_cartao') ? "'Fixos', 'Cartao'" : "'Fixos'";
+        $st = Database::connection()->query("SELECT id, nome, apelido, grupo FROM categorias WHERE grupo IN ({$grupos}) AND ativo = 1 ORDER BY ordem, nome");
         foreach ($st as $c) {
-            $out[] = ['id' => (int) $c['id'], 'nome' => nomeCurto($c)];
+            $out[] = ['id' => (int) $c['id'], 'nome' => $c['grupo'] === 'Cartao' ? nomeCategoria((string) $c['nome']) : nomeCurto($c)];   // "Fatura" sozinha não diz de quê
         }
         return $out;
     }

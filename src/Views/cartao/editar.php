@@ -18,7 +18,7 @@ $ultima = $ps[count($ps) - 1][0];
     <form class="card ct-form" method="post" action="/cartao/compras/<?= (int) $c['id'] ?>">
         <?= csrfField() ?>
         <?php if ($erro !== ''): ?><p class="aviso aviso-error" role="alert"><?= e($erro) ?></p><?php endif; ?>
-        <label><span><?= e(t('O que foi')) ?></span><input type="text" name="descricao" maxlength="255" value="<?= e($c['descricao']) ?>"></label>
+        <label><span><?= e(t('O que foi')) ?></span><input type="text" name="descricao" maxlength="255" value="<?= e(descricaoTela((string) $c['descricao'], ['nome' => $c['categoria_nome'] ?? '', 'apelido' => $c['categoria_apelido'] ?? ''])) ?>"></label>
         <label><span><?= e(t('Categoria')) ?></span>
             <select name="categoria_id" required>
                 <?php foreach ($categorias as $cat): ?>
@@ -40,7 +40,7 @@ $ultima = $ps[count($ps) - 1][0];
         </div>
         <button class="btn btn-primary" type="submit"><?= e(t('Salvar')) ?></button>
     </form>
-    <form method="post" action="/cartao/compras/<?= (int) $c['id'] ?>/excluir" class="ct-excluir" data-confirm="<?= e(t('Excluir a compra {descricao}?', ['descricao' => $c['descricao']])) ?>">
+    <form method="post" action="/cartao/compras/<?= (int) $c['id'] ?>/excluir" class="ct-excluir" data-confirm="<?= e(t('Excluir a compra {descricao}?', ['descricao' => nomeCategoria((string) $c['descricao'])])) ?>">
         <?= csrfField() ?><input type="hidden" name="volta" value="/cartao?fatura=<?= e($c['primeira_fatura']) ?>#fatura">
         <button type="submit" class="btn-link-danger"><?= e(t('Excluir compra')) ?></button>
     </form>

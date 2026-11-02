@@ -1,6 +1,8 @@
 <?php
 namespace Financeiro\Services;
 
+use Financeiro\Site;
+
 /**
  * Lê o nome, o preço e a foto da página de um produto. Quem manda o endereço é a pessoa, então o
  * servidor só fala com endereços públicos: esquema e porta permitidos, todo IP resolvido é conferido, a
@@ -147,7 +149,7 @@ final class LinkProduto
      */
     public static function ler(string $url): array
     {
-        $vazio = ['nome' => null, 'valor' => null, 'moeda' => 'BRL', 'foto' => null, 'lido' => false];
+        $vazio = ['nome' => null, 'valor' => null, 'moeda' => Site::moeda(), 'foto' => null, 'lido' => false];
         $r = self::buscar($url, self::MAX_HTML);
         if ($r === null || $r['status'] !== 200 || !str_contains($r['tipo'] . 'html', 'html') || !class_exists(\DOMDocument::class)) {
             return $vazio;
@@ -205,11 +207,11 @@ final class LinkProduto
         }
 
         $valor = null;
-        $moedaLida = 'BRL';
-        // devolve a moeda, ou null se o app não a tem; sem moeda declarada, vale real
+        $moedaLida = Site::moeda();
+        // devolve a moeda, ou null se o app não a tem; sem moeda declarada, vale a do site
         $moedaDe = static function (mixed $m): ?string {
             $c = strtoupper(trim((string) $m));
-            $c = $c === '' ? 'BRL' : $c;
+            $c = $c === '' ? Site::moeda() : $c;
             return Cotacao::valida($c) ? $c : null;
         };
         if ($produto !== null) {
@@ -234,7 +236,7 @@ final class LinkProduto
 
         // sem dados estruturados: a marcação usual das páginas de produto grandes
         if ($valor === null) {
-            $moedaLida = 'BRL';
+            $moedaLida = Site::moeda();
             $valor = self::preco(trim((string) $xp->evaluate('string((//*[starts-with(@id,"corePrice")]//span[contains(concat(" ",@class," ")," a-offscreen ")])[1])')));
         }
         if ($valor === null) {
@@ -255,7 +257,7 @@ final class LinkProduto
                 }
             }
         }
-        return ['nome' => $nome, 'valor' => $valor, 'moeda' => $valor !== null ? $moedaLida : 'BRL', 'imagem' => $imagem];
+        return ['nome' => $nome, 'valor' => $valor, 'moeda' => $valor !== null ? $moedaLida : Site::moeda(), 'imagem' => $imagem];
     }
 
     /** Procura um Product em qualquer nível do JSON-LD (listas e @graph). */
@@ -285,7 +287,7 @@ final class LinkProduto
         } else {
             return null;
         }
-        return $v !== null && $v > 0 && $v <= 1000000 ? round($v, 2) : null;
+        return $v !== null && $v > 0 && $v <= valorMaximo() ? round($v, 2) : null;
     }
 
     private static function absoluta(string $url, string $base): ?string

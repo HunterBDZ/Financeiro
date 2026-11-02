@@ -13,8 +13,7 @@ namespace Financeiro\Services;
 final class PrevisaoEdicao
 {
     public const ACOES = ['salvar', 'tirar', 'meta'];
-    public const VALOR_MAX = 1000000.0;
-    public const ERRO_VALOR = 'valor? ex.: 1.200 ou 1.200,50';
+    public const ERRO_VALOR = 'Digite um valor, por exemplo 1.200 ou 1.200,50.';
 
     /** Só categorias operacionais (renda e gasto): empréstimo e poupança ficam com o motor. */
     public static function editavel(?array $cat): bool
@@ -36,10 +35,10 @@ final class PrevisaoEdicao
     public static function celulas(array $d, int $cat, string $mes, string $acao, ?float $valor, bool $propagar): array
     {
         if (!self::editavel($d['cats'][$cat] ?? null)) {
-            throw new \InvalidArgumentException(t('categoria?'));
+            throw new \InvalidArgumentException(t('Escolha uma categoria.'));
         }
         if (!in_array($acao, self::ACOES, true)) {
-            throw new \InvalidArgumentException(t('ação?'));
+            throw new \InvalidArgumentException(t('Algo deu errado. Tente de novo.'));
         }
 
         $situacao = null;
@@ -54,7 +53,7 @@ final class PrevisaoEdicao
             }
         }
         if ($situacao === null) {
-            throw new \InvalidArgumentException(t('mês?'));
+            throw new \InvalidArgumentException(t('Não encontramos esse mês. Volte e tente de novo.'));
         }
         if ($situacao !== 'PREVISAO') {
             throw new \InvalidArgumentException(t('{mes} está fechado', ['mes' => monthLabel($mes)]));
@@ -63,8 +62,8 @@ final class PrevisaoEdicao
         $meta = self::meta($d, $cat);
         switch ($acao) {
             case 'salvar':
-                if ($valor === null || $valor < 0 || $valor > self::VALOR_MAX) {
-                    // i18n: t('valor? ex.: 1.200 ou 1.200,50')
+                if ($valor === null || $valor < 0 || $valor > valorMaximo()) {
+                    // i18n: t('Digite um valor, por exemplo 1.200 ou 1.200,50.')
                     throw new \InvalidArgumentException(t(self::ERRO_VALOR));
                 }
                 $v = round($valor, 2);

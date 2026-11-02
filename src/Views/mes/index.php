@@ -28,7 +28,7 @@ $metaBarra = static function (float $gasto, ?float $meta) use ($pct, $metaEstado
     if ($m === null) {
         return '';
     }
-    $ref = $m['fora'] ? t('passou de {valor}', ['valor' => num($m['meta'], 0)]) : t('meta {valor}', ['valor' => num($m['meta'], 0)]);
+    $ref = $m['fora'] ? t('passou de {valor}', ['valor' => num($m['meta'], 0)]) : t('{gasto} de {meta}', ['gasto' => num($gasto, 0), 'meta' => num($m['meta'], 0)]);
     return '<span class="mes-l2 meta-barra ' . $m['cls'] . '">'
         . '<span class="bullet bullet-sm meta-bar" style="--pct:' . $pct($m['frac']) . '"><span class="bullet-fill"></span></span>'
         . '<span class="meta-ref num">' . e($ref) . '</span></span>';
@@ -123,6 +123,7 @@ $painel = static function (array $l, string $tipo) use ($csrf, $mes, $mesLbl, $e
     if ($tipo === 'entrada' && $l['nome_completo'] === 'Salário' && $consignado > 0.004) {
         $info[] = t('Valor bruto. A parcela do empréstimo ({valor}) sai deste valor.', ['valor' => MENOS . $fmt($consignado)]);
     }
+    $info[] = $tipo === 'entrada' ? t('Muda só a previsão. O que você já recebeu continua igual.') : t('Muda só a previsão. O que você já gastou continua igual.');
     $temAcoes = ($meta !== null && $l['ajuste']) || $l['prev'] > 0.004; ?>
     <form class="mes-form" method="post" action="/mes/previsao">
         <?= $csrf ?>
@@ -144,7 +145,7 @@ $painel = static function (array $l, string $tipo) use ($csrf, $mes, $mesLbl, $e
         <?php if ($temAcoes): ?>
             <div class="mes-form-acoes">
                 <?php if ($meta !== null && $l['ajuste']): ?><button type="submit" name="acao" value="meta" class="btn-link"><?= e(t('Voltar à meta ({valor})', ['valor' => $fmt((float) $meta)])) ?></button><?php endif; ?>
-                <?php if ($l['prev'] > 0.004): ?><button type="submit" name="acao" value="tirar" class="btn-link-danger"><?= e(t('Tirar deste mês')) ?></button><?php endif; ?>
+                <?php if ($l['prev'] > 0.004): ?><button type="submit" name="acao" value="tirar" class="btn-link mes-tirar"><?= e(t('Tirar deste mês')) ?></button><?php endif; ?>
             </div>
         <?php endif; ?>
     </form>
@@ -180,7 +181,7 @@ $linhaConta = static function (array $l) use ($estado, $valorConta, $fmt, $metaB
         $v = $valorConta($l); ?>
         <a class="mes-linha mes-ro mes-do-cartao" href="/cartao?fatura=<?= e($mes) ?>#fatura">
             <?= iconeCategoria((int) $l['id'], (string) ($l['nome_completo'] ?? $l['nome']), (string) ($l['grupo'] ?? ''), 40, 'mes-ic') ?>
-            <span class="mes-sum"><span class="mes-l1"><span class="mes-nome"><?= e($l['nome_completo']) ?></span><span class="mes-val num"><?= e(num($v, fmod(abs($v), 1) > 0.004 ? 2 : 0)) ?></span></span>
+            <span class="mes-sum"><span class="mes-l1"><span class="mes-nome"><?= e(nomeCategoria($l['nome_completo'])) ?></span><span class="mes-val num"><?= e(num($v, fmod(abs($v), 1) > 0.004 ? 2 : 0)) ?></span></span>
             <span class="mes-l2"><span class="mes-status mes-status-previsto"><?= e(t('Vem do Cartão · ver a fatura')) ?></span></span></span>
         </a>
         <?php return;
@@ -212,7 +213,7 @@ $linhaConta = static function (array $l) use ($estado, $valorConta, $fmt, $metaB
     $abreLinha($l); ?>
         <span class="mes-sum">
             <span class="mes-l1">
-                <span class="mes-nome"><?= e($l['nome_completo']) ?></span>
+                <span class="mes-nome"><?= e(nomeCategoria($l['nome_completo'])) ?></span>
                 <span class="mes-val num<?= $metaValCls($gastoConta, $metaConta) ?>"><?= e($fmt($valorConta($l))) ?></span>
             </span>
             <?php if ($selo !== ''): ?><span class="mes-l2"><span class="mes-status mes-status-<?= e($seloCls) ?>"><?= e($selo) ?></span></span><?php endif; ?>
@@ -261,7 +262,7 @@ $incluirConta = static function () use ($incluir, $csrf, $mes, $mesLbl, $erroLin
                     <?php foreach ($porGrupo as $g => $ls): ?>
                         <optgroup label="<?= e($g) ?>">
                             <?php foreach ($ls as $l): ?>
-                                <option value="<?= (int) $l['id'] ?>"<?= $erro !== null && (int) $erro['cat'] === (int) $l['id'] ? ' selected' : '' ?>><?= e($l['nome_completo']) ?></option>
+                                <option value="<?= (int) $l['id'] ?>"<?= $erro !== null && (int) $erro['cat'] === (int) $l['id'] ? ' selected' : '' ?>><?= e(nomeCategoria($l['nome_completo'])) ?></option>
                             <?php endforeach; ?>
                         </optgroup>
                     <?php endforeach; ?>
@@ -270,7 +271,7 @@ $incluirConta = static function () use ($incluir, $csrf, $mes, $mesLbl, $erroLin
             <div class="mes-form-l1">
                 <label class="mes-form-campo">
                     <span><?= e(t('previsto em {mes}', ['mes' => $mesLbl])) ?></span>
-                    <input type="text" name="valor" inputmode="decimal" autocomplete="off" enterkeyhint="done" placeholder="0,00"
+                    <input type="text" name="valor" inputmode="decimal" autocomplete="off" enterkeyhint="done" placeholder="<?= e(numInput(0)) ?>"
                            value="<?= e($erro !== null ? (string) $erro['valor'] : '') ?>"<?= $erro !== null ? ' aria-invalid="true" data-autofocus' : '' ?>>
                 </label>
                 <button type="submit" name="acao" value="salvar" class="btn btn-primary btn-sm mes-salvar"><?= e(t('Incluir')) ?></button>
@@ -286,7 +287,7 @@ $incluirConta = static function () use ($incluir, $csrf, $mes, $mesLbl, $erroLin
 $linhaLeitura = static function (array $l, float $v): void { ?>
     <li class="mes-ro">
         <?= iconeCategoria((int) $l['id'], (string) ($l['nome_completo'] ?? $l['nome']), (string) ($l['grupo'] ?? ''), 40, 'mes-ic') ?>
-        <span class="mes-nome"><?= e(in_array($l['grupo'] ?? '', ['Fixos', 'Cartao', 'Ano'], true) ? $l['nome_completo'] : $l['nome']) ?></span>
+        <span class="mes-nome"><?= e(in_array($l['grupo'] ?? '', ['Fixos', 'Cartao', 'Ano'], true) ? nomeCategoria($l['nome_completo']) : $l['nome']) ?></span>
         <span class="num"><?= e(num($v, fmod(abs($v), 1) > 0.004 ? 2 : 0)) ?></span>
     </li>
 <?php };
@@ -295,13 +296,10 @@ $linhaLeitura = static function (array $l, float $v): void { ?>
 
     <header class="mes-topo">
         <?php View::partial('partials/mes_nav', ['mes' => $mes, 'meses' => $meses, 'href' => '/mes?mes=', 'hoje' => $hoje, 'anual' => true]); ?>
-        <?php if ($menu['fechar'] || $menu['reabrir'] || $menu['desfazer']): ?>
+        <?php if ($menu['reabrir'] || $menu['desfazer']): ?>
             <details class="menu mes-menu">
                 <summary aria-label="<?= e(t('mais ações')) ?>"><?= svgIcon('more', 20) ?></summary>
                 <div class="menu-painel">
-                    <?php if ($menu['fechar']): ?>
-                        <a class="menu-item" href="/mes/fechar?mes=<?= e($mes) ?>"><?= svgIcon('check', 18) ?><?= e(t('Fechar {mes}', ['mes' => $mesLbl])) ?></a>
-                    <?php endif; ?>
                     <?php if ($menu['reabrir']): ?>
                         <a class="menu-item" href="/relatorio?tipo=mensal&amp;mes=<?= e($mes) ?>"><?= svgIcon('relatorio', 18) ?><?= e(t('Relatório de {mes}', ['mes' => $mesLbl])) ?></a>
                         <form method="post" action="/mes/reabrir">
@@ -322,23 +320,41 @@ $linhaLeitura = static function (array $l, float $v): void { ?>
         <?php endif; ?>
     </header>
 
+    <?php if ($menu['fechar'] && substr($mes, 0, 7) < substr((string) $hoje, 0, 7)): ?>
+        <p class="mes-fechar">
+            <span><?= e(t('{mes} já terminou.', ['mes' => mb_convert_case(mesExtenso($mes), MB_CASE_TITLE)])) ?></span>
+            <a class="btn btn-primary" href="/mes/fechar?mes=<?= e($mes) ?>"><?= e(t('Fechar {mes}', ['mes' => $mesLbl])) ?></a>
+        </p>
+    <?php endif; ?>
+
     <div class="mes-grade">
     <div class="mes-col mes-esq">
 
         <!-- resumo: o saldo no cartão escuro (o estado vem na etiqueta) e a previsão para o fim do mês -->
         <?php
         $txtConta  = num($emConta);
-        $virgula   = strrpos($txtConta, ',');
+        $virgula   = strrpos($txtConta, sepDecimal());
         $estadoTxt = $emConta < -0.004 ? t('No vermelho')
             : ($reserva <= 0.004 ? '' : ($emConta < $reserva - 0.004 ? t('{valor} abaixo da reserva', ['valor' => num($reserva - $emConta, 0)]) : t('{valor} acima da reserva', ['valor' => num($emConta - $reserva, 0)])));
         ?>
         <section class="saldo mes-resumo <?= $emConta < -0.004 ? 'is-vermelho' : $nivel ?>" aria-labelledby="mes-res-t">
             <div class="saldo-l1"><h2 id="mes-res-t"><?= substr((string) $hoje, 0, 7) === substr($mes, 0, 7) ? e(t('Em conta hoje')) : e(t('Conta no fim do mês')) ?></h2><?php if ($estadoTxt !== ''): ?><span class="saldo-estado num"><?= e($estadoTxt) ?></span><?php endif; ?></div>
-            <p class="saldo-v num"><small>R$</small><?= e($virgula === false ? $txtConta : substr($txtConta, 0, $virgula)) ?><span><?= e($virgula === false ? '' : substr($txtConta, $virgula)) ?></span></p>
+            <p class="saldo-v num"><small><?= e(moedaSimbolo()) ?></small><?= e($virgula === false ? $txtConta : substr($txtConta, 0, $virgula)) ?><span><?= e($virgula === false ? '' : substr($txtConta, $virgula)) ?></span></p>
             <?php if ($estado === 'aberto' && isset($linha['fica_na_conta'])): ?>
                 <p class="saldo-prev num" data-previsao-fim><?= t('Previsão para o fim de {mes}: {valor}', ['mes' => e(mesExtenso($mes)), 'valor' => '<b>' . e(num((float) $linha['fica_na_conta'], 0)) . '</b>']) ?></p>
             <?php endif; ?>
         </section>
+
+        <!-- o resumo das listas abaixo, antes delas -->
+        <dl class="card mes-conta-rap num">
+            <div><dt><?= e(t('Entradas')) ?></dt><dd class="pos"><?= e(num($totalEntrou, 0)) ?></dd></div>
+            <div><dt><?= e(t('Saídas')) ?></dt><dd class="neg"><?= e(num($totalSaidas, 0)) ?></dd></div>
+            <div><dt><?= e(t('Diferença')) ?></dt><dd class="<?= $balanco < -0.004 ? 'neg' : 'pos' ?>"><?= e(($balanco < -0.004 ? MENOS : '') . num(abs($balanco), 0)) ?></dd></div>
+        </dl>
+
+        <?php if ($menu['fechar'] && substr($mes, 0, 7) === substr((string) $hoje, 0, 7)): ?>
+            <a class="mes-fechar-link" href="/mes/fechar?mes=<?= e($mes) ?>"><?= e(t('Fechar este mês')) ?></a>
+        <?php endif; ?>
 
         <!-- entradas -->
         <section class="card mes-sec" id="entradas">

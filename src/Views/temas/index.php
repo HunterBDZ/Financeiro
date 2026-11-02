@@ -17,7 +17,7 @@ foreach ($temas as $id => $t) {
 <div class="tms">
     <header class="tms-topo">
         <h1><?= e(t('Temas')) ?></h1>
-        <p><?= e(t('Toque num tema para ver no app inteiro. Ele só fica quando você salvar, e vale para a sua conta em qualquer aparelho.')) ?></p>
+        <p><?= e(t('Toque para experimentar. Salve para manter em todos os seus aparelhos.')) ?></p>
     </header>
     <section aria-labelledby="tm-g-auto">
         <h2 class="tm-grupo" id="tm-g-auto"><?= e(t('Automático')) ?></h2>

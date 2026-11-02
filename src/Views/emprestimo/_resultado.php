@@ -14,12 +14,12 @@ if ($sim === null): ?>
     <section class="card emp-convite"><p><?= e(t('Digite um valor para ver quanto falta depois, quando o empréstimo acaba e quanto de juros deixa de pagar.')) ?></p></section>
 <?php return; endif;
 
-$rot = monthLabel($sim['mes']);
+$rot = mesAno($sim['mes']);
 $quitaAgora = $sim['falta'] <= 0.01;
 $antes = $sim['mesesAntes'];
 $antesTxt = $antes === null || $antes < 1 ? '' : ($antes >= 24 && $antes % 12 === 0 ? t('{n} anos antes', ['n' => $antes / 12]) : tn($antes, '1 mês antes', '{n} meses antes'));
 $anuncio = $sim['quita'] !== null
-    ? t('Com {valor} em {mes}, falta {falta} e termina em {fim}.', ['valor' => money((float) $sim['aplicado']), 'mes' => $rot, 'falta' => money((float) $sim['falta']), 'fim' => monthLabel($sim['quita'])])
+    ? t('Com {valor} em {mes}, falta {falta} e termina em {fim}.', ['valor' => money((float) $sim['aplicado']), 'mes' => $rot, 'falta' => money((float) $sim['falta']), 'fim' => mesAno($sim['quita'])])
     : t('Com {valor} em {mes}, falta {falta}.', ['valor' => money((float) $sim['aplicado']), 'mes' => $rot, 'falta' => money((float) $sim['falta'])]);
 
 // gráfico: dívida de hoje até acabar, com e sem o adiantamento (linhas de estilos diferentes)
@@ -55,7 +55,7 @@ foreach ($curva as $i => $c) {
     <p class="emp-res-v num"><small><?= e(t('Falta depois')) ?></small><b><?= $quitaAgora ? e(t('Nada: quitado')) : e(money((float) $sim['falta'])) ?></b></p>
     <dl class="emp-dl num">
         <div><dt><?= e(t('Termina em')) ?></dt><dd><?= $sim['quita'] !== null ? e(monthLabel($sim['quita'])) : e(t('não dá para dizer')) ?><?php if ($antesTxt !== ''): ?><small class="pos"><?= e($antesTxt) ?></small><?php endif; ?></dd></div>
-        <div><dt><?= e(t('Juros a menos')) ?></dt><dd<?= $sim['jurosMenos'] !== null ? ' class="pos"' : '' ?>><?= $sim['jurosMenos'] !== null ? 'R$' . NBSP . e(num((float) $sim['jurosMenos'], 0)) : '—' ?></dd></div>
+        <div><dt><?= e(t('Juros a menos')) ?></dt><dd<?= $sim['jurosMenos'] !== null ? ' class="pos"' : '' ?>><?= $sim['jurosMenos'] !== null ? moedaSimbolo() . NBSP . e(num((float) $sim['jurosMenos'], 0)) : '—' ?></dd></div>
         <div><dt><?= e(t('Conta no fim de {mes}', ['mes' => $rot])) ?></dt><dd<?= $sim['contaDepois'] < -0.004 ? ' class="neg"' : '' ?>><?= e(num((float) $sim['contaDepois'], 0)) ?><small><?= e(t('sem adiantar, {valor}', ['valor' => num((float) $sim['contaAntes'], 0)])) ?></small></dd></div>
     </dl>
 
@@ -94,11 +94,11 @@ foreach ($curva as $i => $c) {
     <?php if ($sim['menorParcela'] !== null): ?>
         <details class="dobra emp-anos">
             <summary><?= e(t('Se a instituição baixar a parcela em vez do prazo')) ?></summary>
-            <p class="emp-parc"><?= t('A parcela vai a cerca de {parcela}, termina em {fim} e os juros caem cerca de {juros}. Encurtar o prazo economiza mais; aliviar a parcela sobra mais por mês.', ['parcela' => '<b>' . e(money((float) $sim['menorParcela']['parcela'])) . '</b>', 'fim' => e(monthLabel($sim['menorParcela']['quita'])), 'juros' => 'R$' . NBSP . e(num((float) $sim['menorParcela']['jurosMenos'], 0))]) ?></p>
+            <p class="emp-parc"><?= t('A parcela vai a cerca de {parcela}, termina em {fim} e os juros caem cerca de {juros}. Encurtar o prazo economiza mais; aliviar a parcela sobra mais por mês.', ['parcela' => '<b>' . e(money((float) $sim['menorParcela']['parcela'])) . '</b>', 'fim' => e(monthLabel($sim['menorParcela']['quita'])), 'juros' => moedaSimbolo() . NBSP . e(num((float) $sim['menorParcela']['jurosMenos'], 0))]) ?></p>
         </details>
     <?php endif; ?>
 
     <?php if ($catAmort !== null): ?>
-        <a class="btn btn-ghost btn-block" href="#emp-consolidar"><?= e(t('Já paguei: consolidar este adiantamento')) ?></a>
+        <a class="btn btn-ghost btn-block emp-ja-paguei" href="/emprestimo?<?= e(http_build_query(['valor' => numInput((float) $sim['aplicado']), 'mes' => $sim['mes'], 'pago' => numInput((float) $sim['aplicado'])])) ?>#emp-consolidar"><?= e(t('Já paguei: consolidar este adiantamento')) ?></a>
     <?php endif; ?>
 </section>

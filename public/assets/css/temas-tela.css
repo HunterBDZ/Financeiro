@@ -25,7 +25,7 @@
 .tm-n small { display: block; color: var(--text-2); font-size: 12px; font-weight: 600; }
 .tm-par { display: grid; grid-template-columns: 1fr 1fr; flex: 1 1 auto; }
 .tm-par .tm-am { padding: 7px 5px; }
-.tm-par .tm-cofre { padding: 7px 5px; font-size: 11px; }
+.tm-par .tm-cofre { padding: 7px 5px; font-size: 12px; }
 .tm-par .tm-b { height: 14px; }
 .tm-par .tm-d { width: 10px; height: 10px; }
 .tm-barra { position: fixed; z-index: 40; right: 12px; left: 12px; bottom: calc(86px + env(safe-area-inset-bottom, 0px)); display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 16px; background: var(--card); box-shadow: var(--sombra-flutua), 0 0 0 1px var(--line-2); }

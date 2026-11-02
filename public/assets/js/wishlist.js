@@ -48,18 +48,15 @@
         var temFotoNova = false;
         var timer = null;
 
-        // prévia em reais; quem converte de verdade é o servidor, ao mostrar a lista
+        // prévia na moeda do site; quem converte de verdade é o servidor, ao mostrar a lista
         function numero(texto) {
-            var t = texto.trim().replace(/^R\$/, '').trim();
-            if (/^\d{1,3}(\.\d{3})+(,\d{1,2})?$/.test(t) || /^\d+(,\d{1,2})?$/.test(t)) {
-                return parseFloat(t.replace(/\./g, '').replace(',', '.'));
-            }
-            return null;
+            var t = texto.trim().split(FIN.simbolo).join('').trim();
+            return FIN.pronto(t) ? FIN.ler(t) : null;
         }
         function converter() {
             var m = moeda.value;
             var v = numero(valor.value);
-            if (m === 'BRL') {
+            if (m === FIN.moeda) {
                 conv.hidden = true;
                 return;
             }
@@ -67,9 +64,9 @@
             if (!taxas[m]) {
                 conv.textContent = T('Sem cotação de {moeda} agora.', { moeda: m });
             } else if (v === null || v <= 0) {
-                conv.textContent = T('1 {moeda} = R$ {valor}, cotação de {data}', { moeda: m, valor: taxas[m].v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 }), data: taxas[m].d });
+                conv.textContent = T('1 {moeda} = {simbolo} {valor}, cotação de {data}', { moeda: m, simbolo: FIN.simbolo, valor: FIN.num(taxas[m].v, 2, 4), data: taxas[m].d });
             } else {
-                conv.textContent = T('≈ R$ {valor}, cotação de {data}', { valor: (v * taxas[m].v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), data: taxas[m].d });
+                conv.textContent = T('≈ {simbolo} {valor}, cotação de {data}', { simbolo: FIN.simbolo, valor: FIN.num(v * taxas[m].v), data: taxas[m].d });
             }
         }
         function mostrar(dados) {

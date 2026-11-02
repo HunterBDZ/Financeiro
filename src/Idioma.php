@@ -59,6 +59,12 @@ final class Idioma
         return self::LISTA[self::atual()]['html'];
     }
 
+    /** [decimal, milhar]: pt e es escrevem 1.234,56; en, 1,234.56. */
+    public static function separadores(): array
+    {
+        return self::atual() === 'en' ? ['.', ','] : [',', '.'];
+    }
+
     public static function traduzir(string $texto): string
     {
         $id = self::atual();

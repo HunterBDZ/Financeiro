@@ -120,7 +120,7 @@ foreach ($linhas as $l) {
         $nAbaixo++;
     }
 }
-$volta = $marcos['volta'] !== null ? monthLabel($marcos['volta']) : null;
+$volta = $marcos['volta'] !== null ? mesAno($marcos['volta']) : null;
 if ($negMeses !== []) {
     $titulo = $volta !== null
         ? t('A conta fica no vermelho em {meses} e volta à reserva em {volta}.', ['meses' => $listaMeses($negMeses), 'volta' => $volta])
@@ -133,9 +133,9 @@ if ($negMeses !== []) {
     $titulo = t('A conta não fica abaixo da reserva em nenhum mês.');
 }
 if ($bate !== null) {
-    $metaTxt = t('Bate a meta de {meta} em {mes}.', ['meta' => num($meta, 0), 'mes' => monthLabel($bate)]);
+    $metaTxt = t('Você chega a {meta} em {mes}.', ['meta' => num($meta, 0), 'mes' => mesAno($bate)]);
 } elseif ($meta > 0.004 && $metaMes !== null && isset($porMes[$metaMes])) {
-    $metaTxt = t('Meta de {meta} em {mes}: faltam {falta}.', ['meta' => num($meta, 0), 'mes' => monthLabel($metaMes), 'falta' => num(max(0.0, $meta - $porMes[$metaMes]['fica']), 0)]);
+    $metaTxt = t('Meta de {meta} em {mes}: faltam {falta}.', ['meta' => num($meta, 0), 'mes' => mesAno($metaMes), 'falta' => num(max(0.0, $meta - $porMes[$metaMes]['fica']), 0)]);
 } elseif ($meta > 0.004 && $fim['fica'] < $meta) {
     $metaTxt = t('Meta de {meta}: faltam {falta}.', ['meta' => num($meta, 0), 'falta' => num($meta - $fim['fica'], 0)]);
 } else {
@@ -317,7 +317,7 @@ $opcoesMes = static function (string $sel) use ($se): string {
     <!-- resumo: como termina e os marcos -->
     <section class="card fu-res" aria-labelledby="fu-res-t">
         <h2 class="fu-res-t" id="fu-res-t"><?= e(t('Fim de {mes}', ['mes' => monthLabel($fim['mes'])])) ?></h2>
-        <p class="fu-res-v num"><b>R$ <?= e($valor((float) $fim['fica'])) ?></b><span class="<?= $fim['desde'] >= 0 ? 'pos' : 'neg' ?>"><?= e(t('{valor} desde {mes}', ['valor' => $sinal((float) $fim['desde']), 'mes' => monthLabel($ref)])) ?></span></p>
+        <p class="fu-res-v num"><b><?= e(moedaSimbolo()) ?> <?= e($valor((float) $fim['fica'])) ?></b><span class="<?= $fim['desde'] >= 0 ? 'pos' : 'neg' ?>"><?= e(t('{valor} desde {mes}', ['valor' => $sinal((float) $fim['desde']), 'mes' => monthLabel($ref)])) ?></span></p>
         <?php if ($metaTxt !== ''): ?><p class="fu-res-meta num"><?= e($metaTxt) ?></p><?php endif; ?>
         <?php if ($itens !== []): ?>
             <ol class="fu-marcos">
@@ -368,13 +368,13 @@ $opcoesMes = static function (string $sel) use ($se): string {
             <div class="fu-ese-l" role="group" aria-labelledby="fu-ese-mensal">
                 <span class="fu-ese-rot" id="fu-ese-mensal"><?= e(t('Todo mês')) ?></span>
                 <select name="mensal_tipo" aria-label="<?= e(t('Economizar ou gastar a mais')) ?>"><option value="economizar"<?= $se['mensalTipo'] === 'economizar' ? ' selected' : '' ?>><?= e(t('Economizar')) ?></option><option value="gastar"<?= $se['mensalTipo'] === 'gastar' ? ' selected' : '' ?>><?= e(t('Gastar a mais')) ?></option></select>
-                <input name="mensal" inputmode="decimal" autocomplete="off" placeholder="0,00" aria-label="<?= e(t('Valor todo mês')) ?>" value="<?= $se['mensal'] > 0 ? e(numInput($se['mensal'])) : '' ?>">
+                <input name="mensal" inputmode="decimal" autocomplete="off" placeholder="<?= e(numInput(0)) ?>" aria-label="<?= e(t('Valor todo mês')) ?>" value="<?= $se['mensal'] > 0 ? e(numInput($se['mensal'])) : '' ?>">
                 <label class="fu-ese-mes"><?= t('a partir de {campo}', ['campo' => '<select name="mensal_de">' . $opcoesMes($se['mensalDe']) . '</select>']) ?></label>
             </div>
             <div class="fu-ese-l" role="group" aria-labelledby="fu-ese-uma">
                 <span class="fu-ese-rot" id="fu-ese-uma"><?= e(t('Uma vez')) ?></span>
                 <select name="uma_tipo" aria-label="<?= e(t('Gasto ou entrada')) ?>"><option value="gasto"<?= $se['umaTipo'] === 'gasto' ? ' selected' : '' ?>><?= e(t('Um gasto')) ?></option><option value="entrada"<?= $se['umaTipo'] === 'entrada' ? ' selected' : '' ?>><?= e(t('Uma entrada')) ?></option></select>
-                <input name="uma" inputmode="decimal" autocomplete="off" placeholder="0,00" aria-label="<?= e(t('Valor uma vez')) ?>" value="<?= $se['uma'] > 0 ? e(numInput($se['uma'])) : '' ?>">
+                <input name="uma" inputmode="decimal" autocomplete="off" placeholder="<?= e(numInput(0)) ?>" aria-label="<?= e(t('Valor uma vez')) ?>" value="<?= $se['uma'] > 0 ? e(numInput($se['uma'])) : '' ?>">
                 <label class="fu-ese-mes"><?= t('em {campo}', ['campo' => '<select name="uma_mes">' . $opcoesMes($se['umaMes']) . '</select>']) ?></label>
             </div>
             <?php if ($temDivida): ?>
@@ -392,7 +392,7 @@ $opcoesMes = static function (string $sel) use ($se): string {
     <!-- conta no fim de cada mês -->
     <section class="card fu-graf" aria-labelledby="fu-graf-t">
         <h2 class="fu-graf-t" id="fu-graf-t"><?= e($titulo) ?></h2>
-        <p class="fu-graf-sub"><?= $sim ? e(t('Simulação tracejada e o plano em cinza (linha cheia).')) . ' ' : '' ?><?= $comDivida ? e(t('Conta no fim de cada mês e a dívida do empréstimo, em R$')) : e(t('Conta no fim de cada mês, em R$')) ?></p>
+        <p class="fu-graf-sub"><?= $sim ? e(t('Simulação tracejada e o plano em cinza (linha cheia).')) . ' ' : '' ?><?= $comDivida ? e(t('Conta no fim de cada mês e a dívida do empréstimo, em {moeda}', ['moeda' => moedaSimbolo()])) : e(t('Conta no fim de cada mês, em {moeda}', ['moeda' => moedaSimbolo()])) ?></p>
         <figure class="fu-fig is-denso" role="img" aria-label="<?= e($titulo . ' ' . ($comDivida ? t('Conta no fim de cada mês e dívida do empréstimo, de {de} a {ate}. Os valores estão na tabela mês a mês.', ['de' => monthLabel($linhas[0]['mes']), 'ate' => monthLabel($ultimo)]) : t('Conta no fim de cada mês, de {de} a {ate}. Os valores estão na tabela mês a mês.', ['de' => monthLabel($linhas[0]['mes']), 'ate' => monthLabel($ultimo)]))) ?>">
             <div class="fu-plot" aria-hidden="true">
                 <svg class="fu-svg" viewBox="0 0 <?= $VW ?> <?= $VH ?>" preserveAspectRatio="none" focusable="false">
@@ -457,7 +457,7 @@ $opcoesMes = static function (string $sel) use ($se): string {
     <summary class="btn btn-ghost"><?= e(t('Ver mês a mês')) ?></summary>
     <section class="card fu-meses" id="meses" aria-labelledby="fu-meses-t">
         <div class="fu-meses-cab">
-            <h2 class="titulo" id="fu-meses-t"><?= e(t('Mês a mês')) ?> <span class="fu-unid"><?= e(t('em R$')) ?></span></h2>
+            <h2 class="titulo" id="fu-meses-t"><?= e(t('Mês a mês')) ?> <span class="fu-unid"><?= e(t('em {moeda}', ['moeda' => moedaSimbolo()])) ?></span></h2>
             <p class="fu-leg"><span><?= $marca('real') ?><?= e(t('Fechado: só o lançado')) ?></span><span><?= $marca('aberto') ?><?= e(t('Aberto: lançado até hoje e o previsto do que falta')) ?></span><span><?= $marca('previsto') ?><?= e(t('Previsto')) ?></span></p>
         </div>
         <div class="fu-tab">

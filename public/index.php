@@ -32,6 +32,7 @@ use Financeiro\Services\Horizonte;
 
 // os meses do plano não têm fim: se o mês virou, cria os que faltam
 try {
+    \Financeiro\Database::connection();   // antes de qualquer data: é ao conectar que o fuso do site passa a valer
     Horizonte::garantir();
     FotoPlano::garantir();
 } catch (\Throwable $e) {
@@ -52,6 +53,7 @@ $router->get('/', [DashboardController::class, 'index']);
 $router->post('/conferir', [DashboardController::class, 'conferir']);
 $router->post('/roteiro/dispensar', [DashboardController::class, 'dispensarRoteiro']);
 $router->get('/ajuda', [AjudaController::class, 'index']);
+$router->get('/ajuda/conexao', [AjudaController::class, 'conexao']);
 
 // ---- lançar e extrato
 $router->get('/lancar', [LancamentosController::class, 'lancarForm']);
@@ -134,6 +136,7 @@ $router->post('/ajustes/contas', [AjustesController::class, 'salvarConta']);
 $router->post('/ajustes/contas/{id}/remover', [AjustesController::class, 'removerConta']);
 $router->post('/ajustes/essenciais', [AjustesController::class, 'salvarEssenciais']);
 $router->post('/ajustes/inicio', [AjustesController::class, 'salvarInicio']);
+$router->post('/ajustes/regional', [AjustesController::class, 'salvarRegional']);
 $router->post('/ajustes/recursos', [AjustesController::class, 'salvarRecursos']);
 $router->post('/ajustes/icone', [AjustesController::class, 'salvarIcone']);
 $router->post('/ajustes/icone/remover', [AjustesController::class, 'removerIcone']);

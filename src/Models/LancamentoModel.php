@@ -58,7 +58,17 @@ final class LancamentoModel
         if ($q !== '') {
             // '!' como escape explícito: funciona igual com ou sem NO_BACKSLASH_ESCAPES
             $like = '%' . strtr($q, ['!' => '!!', '%' => '!%', '_' => '!_']) . '%';
-            $w[] = "(l.descricao LIKE :q1 ESCAPE '!' OR c.nome LIKE :q2 ESCAPE '!' OR c.apelido LIKE :q3 ESCAPE '!')";
+            // fora do português, a categoria também é achada pelo nome traduzido
+            $traduzidas = [];
+            foreach (categoriasPorTraducao($q) as $i => $nome) {
+                $traduzidas[] = ':qc' . $i;
+                $p['qc' . $i] = $nome;
+            }
+            $ouTraduzida = $traduzidas !== [] ? ' OR c.nome IN (' . implode(', ', $traduzidas) . ') OR c.apelido IN (' . implode(', ', array_map(static fn(string $k): string => $k . 'a', $traduzidas)) . ')' : '';
+            foreach ($traduzidas as $k) {
+                $p[substr($k, 1) . 'a'] = $p[substr($k, 1)];
+            }
+            $w[] = "(l.descricao LIKE :q1 ESCAPE '!' OR c.nome LIKE :q2 ESCAPE '!' OR c.apelido LIKE :q3 ESCAPE '!'" . $ouTraduzida . ')';
             $p['q1'] = $p['q2'] = $p['q3'] = $like;
         }
         return [implode(' AND ', $w), $p];

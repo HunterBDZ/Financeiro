@@ -241,13 +241,8 @@
     });
 
     // ---- aba meta: "livre pra alocar" e barras recalculam enquanto se digita
-    function parseBR(s) {
-        if (s == null) { return 0; }
-        s = String(s).replace(/[^\d.,-]/g, '').replace(/\./g, '').replace(',', '.');
-        var n = parseFloat(s);
-        return isFinite(n) ? n : 0;
-    }
-    function fmtBR(n) { return Math.round(n).toLocaleString('pt-BR'); }
+    function parseBR(s) { return FIN.ler(s); }
+    function fmtBR(n) { return FIN.num(Math.round(n), 0); }
     function clamp100(n) { return n < 0 ? 0 : (n > 100 ? 100 : n); }
 
     function metaRecalc(pg) {
@@ -519,6 +514,18 @@
         }
     });
 
+    // ---- [data-arquivo]: o botão próprio de escolher arquivo mostra o nome escolhido
+    document.addEventListener('change', function (ev) {
+        var campo = ev.target;
+        if (!(campo instanceof Element) || !campo.matches('[data-arquivo]')) {
+            return;
+        }
+        var nome = campo.form && campo.form.querySelector('[data-arquivo-nome]');
+        if (nome) {
+            nome.textContent = campo.files && campo.files[0] ? campo.files[0].name : '';
+        }
+    });
+
     // ---- ao carregar
     function iniciar() {
         syncTodosQuando();
@@ -530,12 +537,18 @@
         if (autofocus && typeof autofocus.focus === 'function' && (fino || autofocus.getAttribute('aria-invalid') === 'true')) {
             autofocus.focus();
         }
-        // o aviso já vem na página: reescreve o texto para o leitor de tela anunciar
+        // o aviso já vem na página: uma cópia invisível entra depois, para o leitor de tela anunciar.
+        // O texto à vista não sai do lugar (apagar e repor deixava a caixa vazia por um instante).
         var toastMsg = document.querySelector('[data-toast] .toast-msg');
         if (toastMsg) {
-            var html = toastMsg.innerHTML;
-            toastMsg.innerHTML = '';
-            setTimeout(function () { toastMsg.innerHTML = html; }, 120);
+            var linhas = toastMsg.querySelector('.toast-linhas');
+            var copia = document.createElement('span');
+            copia.className = 'sr-only';
+            toastMsg.appendChild(copia);
+            setTimeout(function () {
+                copia.textContent = linhas.textContent;
+                linhas.setAttribute('aria-hidden', 'true');
+            }, 120);
         }
     }
     // link para uma linha dentro de um grupo recolhido do Mês: abre o grupo

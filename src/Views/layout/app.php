@@ -3,9 +3,8 @@
  * Layout (P1). Variáveis: $content, $pageTitle, $active (inicio|extrato|meta|mes|cartao|relatorio|emprestimo|wishlist|temas|ajustes),
  * $semDialogoLancar (true = não renderiza o <dialog id="lancar">).
  * Computador: menu lateral (marca, Lançar, abas, Claro/Escuro, quem está e sair).
- * Celular: barra de cima (marca, sol/lua, menu do avatar) e barra flutuante embaixo com o "+" no
- * meio de 4 abas (Início, Extrato, +, Mês, Cartão). O Relatório abre pelo seletor de meses do Mês
- * e pelo menu do avatar; as Metas, o Empréstimo, os Investimentos e a Wishlist, pelo menu do avatar (ao lado de Ajustes).
+ * Celular: barra de cima (marca, sol/lua, botão Menu) e barra flutuante embaixo com o "+" no
+ * meio de 4 abas (Início, Extrato, +, Mês, Cartão). O resto das abas fica no botão Menu, junto com a conta.
  * CSS/JS dos pacotes entram só se o arquivo existir (D19): nenhum 404 durante o build.
  */
 use Financeiro\Auth;
@@ -24,6 +23,7 @@ $abas = [
     'mes'     => ['/mes', t('Mês'), 'calendar'],
     'cartao'  => ['/cartao', t('Cartão'), 'cartao'],
     'relatorio' => ['/relatorio', t('Relatório'), 'relatorio'],
+    'simular' => ['/futuro', t('Simular'), 'trend'],
     'emprestimo' => ['/emprestimo', t('Empréstimo'), 'emprestimo'],
     'investimentos' => ['/investimentos', t('Investimentos'), 'invest'],
     'wishlist' => ['/wishlist', t('Wishlist'), 'gift'],
@@ -44,7 +44,7 @@ if (!$usaEmprestimo) {
 $publico = __DIR__ . '/../../../public';
 $existe  = static fn(string $p): bool => is_file($publico . $p);
 $estilos = array_filter(['/assets/css/style.css', '/assets/css/inicio.css', '/assets/css/lancar.css', '/assets/css/mes.css', '/assets/css/investimentos.css', '/assets/css/relatorio.css', '/assets/css/cartao.css', '/assets/css/emprestimo.css', '/assets/css/wishlist.css', '/assets/css/temas-tela.css', '/assets/css/temas.css'], $existe);
-$scripts = array_filter(['/assets/js/app.js', '/assets/js/lancar.js', '/assets/js/mes.js', '/assets/js/cartao.js', '/assets/js/emprestimo.js', '/assets/js/wishlist.js', '/assets/js/temas.js', '/assets/js/relatorio.js'], $existe);
+$scripts = array_filter(['/assets/js/app.js', '/assets/js/lancar.js', '/assets/js/mes.js', '/assets/js/cartao.js', '/assets/js/emprestimo.js', '/assets/js/wishlist.js', '/assets/js/temas.js', '/assets/js/relatorio.js', '/assets/js/fuso.js'], $existe);
 
 $uri     = (string) ($_SERVER['REQUEST_URI'] ?? '/');
 $volta   = voltaSegura($uri, '/');
@@ -70,7 +70,7 @@ $atual = static function (string $chave) use ($activePage): string {
     return $activePage === $chave ? ' aria-current="page"' : '';
 };
 // barra do celular: Início, Extrato, +, Mês, Cartão. Com cartão, o Relatório abre pelo menu e quem fica acesa nele é a do Mês; sem cartão, ele toma o lugar
-$barra = array_diff_key($abas, ($usaCartao ? ['relatorio' => true] : []) + ['meta' => true, 'emprestimo' => true, 'investimentos' => true, 'wishlist' => true, 'temas' => true]);
+$barra = array_diff_key($abas, ($usaCartao ? ['relatorio' => true] : []) + ['simular' => true, 'meta' => true, 'emprestimo' => true, 'investimentos' => true, 'wishlist' => true, 'temas' => true]);
 $acesaNaBarra = $usaCartao && $activePage === 'relatorio' ? 'mes' : $activePage;
 // o tema da conta vem no HTML: nada de piscar, e vale em qualquer aparelho. Null = automático (theme.js)
 $temaConta = Temas::doUsuario();
@@ -105,7 +105,7 @@ $marca = '<span class="marca"><img src="' . e(SiteIcone::url()) . '" alt="" widt
 <?php if (Idioma::atual() !== Idioma::PADRAO): ?>
 <script src="<?= e(asset('/assets/js/i18n-' . Idioma::atual() . '.js')) ?>"></script>
 <?php endif; ?>
-<script src="<?= e(asset('/assets/js/i18n.js')) ?>"></script>
+<script src="<?= e(asset('/assets/js/i18n.js')) ?>" data-dec="<?= e(sepDecimal()) ?>" data-mil="<?= e(Idioma::separadores()[1]) ?>" data-moeda="<?= e(\Financeiro\Site::moeda()) ?>" data-simbolo="<?= e(moedaSimbolo()) ?>"<?= Idioma::atual() === 'en' ? ' data-meses="' . e(implode(',', array_map([Idioma::class, 'mesCurto'], range(1, 12)))) . '"' : '' ?>></script>
 <?php foreach ($estilos as $css): ?>
 <link rel="stylesheet" href="<?= e(asset($css)) ?>">
 <?php endforeach; ?>
@@ -146,18 +146,19 @@ $marca = '<span class="marca"><img src="' . e(SiteIcone::url()) . '" alt="" widt
 <header class="topbar">
     <a class="topbar-marca" href="/"><?= $marca ?><b translate="no">financeiro</b></a>
     <?php if ($ladosTema !== null): ?><button type="button" class="ic" data-theme-toggle<?= $dadosAtalho ?> aria-label="<?= e(t('trocar tema')) ?>"><?= svgIcon('sun', 19, 'so-escuro') ?><?= svgIcon('moon', 19, 'so-claro') ?></button><?php else: ?><a class="ic" href="/temas" aria-label="<?= e(t('Temas')) ?>"><?= svgIcon('paleta', 19) ?></a><?php endif; ?>
-    <details class="menu menu-avatar">
-        <summary aria-label="<?= e(t('menu')) ?>"><span class="avatar<?= in_array($activePage, ['ajuda', 'ajustes', 'meta', 'emprestimo', 'investimentos', 'wishlist', 'temas'], true) ? ' is-active' : '' ?>"><?= e($inicial) ?></span></summary>
+    <details class="menu menu-geral">
+        <summary class="menu-botao<?= in_array($activePage, ['ajuda', 'ajustes', 'simular', 'meta', 'emprestimo', 'investimentos', 'wishlist', 'temas'], true) ? ' is-active' : '' ?>"><?= svgIcon('menu', 19) ?><span><?= e(t('Menu')) ?></span></summary>
         <div class="menu-painel">
             <?php if ($nome): ?><div class="menu-quem"><?= e($nome) ?></div><?php endif; ?>
             <a class="menu-item<?= $activePage === 'relatorio' ? ' is-active' : '' ?>" href="/relatorio"<?= $atual('relatorio') ?>><?= svgIcon('relatorio', 18) ?><?= e(t('Relatório')) ?></a>
+            <a class="menu-item<?= $activePage === 'simular' ? ' is-active' : '' ?>" href="/futuro"<?= $atual('simular') ?>><?= svgIcon('trend', 18) ?><?= e(t('Simular')) ?></a>
             <a class="menu-item<?= $activePage === 'meta' ? ' is-active' : '' ?>" href="/meta"<?= $atual('meta') ?>><?= svgIcon('target', 18) ?><?= e(t('Metas')) ?></a>
             <?php if ($usaEmprestimo): ?><a class="menu-item<?= $activePage === 'emprestimo' ? ' is-active' : '' ?>" href="/emprestimo"<?= $atual('emprestimo') ?>><?= svgIcon('emprestimo', 18) ?><?= e(t('Empréstimo')) ?></a><?php endif; ?>
             <a class="menu-item<?= $activePage === 'investimentos' ? ' is-active' : '' ?>" href="/investimentos"<?= $atual('investimentos') ?>><?= svgIcon('invest', 18) ?><?= e(t('Investimentos')) ?></a>
             <a class="menu-item<?= $activePage === 'wishlist' ? ' is-active' : '' ?>" href="/wishlist"<?= $atual('wishlist') ?>><?= svgIcon('gift', 18) ?><?= e(t('Wishlist')) ?></a>
             <a class="menu-item<?= $activePage === 'temas' ? ' is-active' : '' ?>" href="/temas"<?= $atual('temas') ?>><?= svgIcon('paleta', 18) ?><?= e(t('Temas')) ?></a>
-            <a class="menu-item<?= $activePage === 'ajuda' ? ' is-active' : '' ?>" href="/ajuda"><?= svgIcon('ajuda', 18) ?><?= e(t('Ajuda')) ?></a>
-            <a class="menu-item<?= $activePage === 'ajustes' ? ' is-active' : '' ?>" href="/ajustes"><?= svgIcon('settings', 18) ?><?= e(t('Ajustes')) ?></a>
+            <a class="menu-item<?= $activePage === 'ajuda' ? ' is-active' : '' ?>" href="/ajuda"<?= $atual('ajuda') ?>><?= svgIcon('ajuda', 18) ?><?= e(t('Ajuda')) ?></a>
+            <a class="menu-item<?= $activePage === 'ajustes' ? ' is-active' : '' ?>" href="/ajustes"<?= $atual('ajustes') ?>><?= svgIcon('settings', 18) ?><?= e(t('Ajustes')) ?></a>
             <form method="post" action="/logout">
                 <?= csrfField() ?>
                 <button type="submit" class="menu-item"><?= svgIcon('logout', 18) ?><?= e(t('Sair')) ?></button>

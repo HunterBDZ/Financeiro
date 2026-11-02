@@ -33,11 +33,49 @@ function _centavos(float $v, int $dec = 2): array
     return [$r < 0, abs($r)];
 }
 
-/** `R$ 1.234,56` (NBSP depois do R$); negativo `−R$ 1.234,56` (U+2212). */
+/** O separador decimal do idioma: `,` em pt e es, `.` em en. */
+function sepDecimal(): string
+{
+    return \Financeiro\Idioma::separadores()[0];
+}
+
+/** Número no formato do idioma: pt e es `1.234,56`; en `1,234.56`. Toda saída de número passa por aqui. */
+function _numero(float $abs, int $dec): string
+{
+    [$decimal, $milhar] = \Financeiro\Idioma::separadores();
+    return number_format($abs, $dec, $decimal, $milhar);
+}
+
+/** O símbolo da moeda do site: `R$`, `US$`, `€`. Sem conversão: o valor gravado é o mesmo. */
+function moedaSimbolo(): string
+{
+    return \Financeiro\Services\Cotacao::MOEDAS[\Financeiro\Site::moeda()][1];
+}
+
+/** A moeda do site no plural, para as frases: `reais`, `dólares`. */
+function moedaPlural(): string
+{
+    return match (\Financeiro\Site::moeda()) {
+        'USD' => t('dólares'),
+        'EUR' => t('euros'),
+        'GBP' => t('libras'),
+        'PEN' => t('soles'),
+        'ARS', 'MXN', 'CLP', 'COP', 'UYU' => t('pesos'),
+        default => t('reais'),
+    };
+}
+
+/** O maior valor aceito num campo: moedas de valor unitário baixo precisam de mais espaço (um salário em pesos passa de 1 milhão). */
+function valorMaximo(): float
+{
+    return in_array(\Financeiro\Site::moeda(), ['BRL', 'USD', 'EUR', 'GBP'], true) ? 1000000.0 : 1000000000.0;
+}
+
+/** `R$ 1.234,56` (NBSP depois do símbolo); negativo `−R$ 1.234,56` (U+2212). */
 function money(float $v): string
 {
     [$neg, $abs] = _centavos($v);
-    return ($neg ? MENOS : '') . 'R$' . NBSP . number_format($abs, 2, ',', '.');
+    return ($neg ? MENOS : '') . moedaSimbolo() . NBSP . _numero($abs, 2);
 }
 
 /** `+R$ 1,00` / `−R$ 1,00` / `R$ 0,00`. */
@@ -54,14 +92,14 @@ function moneySigned(float $v): string
 function num(float $v, int $dec = 2): string
 {
     [$neg, $abs] = _centavos($v, $dec);
-    return ($neg ? MENOS : '') . number_format($abs, $dec, ',', '.');
+    return ($neg ? MENOS : '') . _numero($abs, $dec);
 }
 
-/** `1.234,56` / `-8.233,11`: hífen ASCII, sem NBSP. Obrigatório em todo `<input value>` de dinheiro. */
+/** `1.234,56` / `-8.233,11`: hífen ASCII, sem NBSP. Obrigatório em todo `<input value>` de dinheiro. parseMoedaBr() lê de volta em qualquer idioma. */
 function numInput(float $v, int $dec = 2): string
 {
     [$neg, $abs] = _centavos($v, $dec);
-    return ($neg ? '-' : '') . number_format($abs, $dec, ',', '.');
+    return ($neg ? '-' : '') . _numero($abs, $dec);
 }
 
 /** `940` · `10 mil` · `16,8 mil` · `1,5 mi` (NBSP antes de mil/mi, sem `,0`). */
@@ -70,11 +108,11 @@ function moneyCompact(float $v): string
     $sinal = round($v) < 0 ? MENOS : '';
     $a = abs($v);
     $fmt = static function (float $x): string {
-        $s = number_format($x, 1, ',', '.');
-        return str_ends_with($s, ',0') ? substr($s, 0, -2) : $s;
+        $s = _numero($x, 1);
+        return str_ends_with($s, sepDecimal() . '0') ? substr($s, 0, -2) : $s;
     };
     if (round($a) < 1000) {
-        return $sinal . number_format(round($a), 0, ',', '.');
+        return $sinal . _numero(round($a), 0);
     }
     $mil = round($a / 1000, 1);
     if ($mil < 1000) {
@@ -96,7 +134,7 @@ function parseMoedaBr(?string $input, bool $dinheiro = true): ?float
 {
     $s = (string) $input;
     // espaços de todo tipo (inclusive NBSP e o fino U+202F) e o "R$" não contam
-    $s = str_replace([NBSP, "\u{202F}", "\u{2009}", 'R$', 'r$'], '', $s);
+    $s = str_replace([NBSP, "\u{202F}", "\u{2009}", 'R$', 'r$', moedaSimbolo()], '', $s);
     $s = trim($s);
     if ($s === '') {
         return null;
@@ -136,12 +174,15 @@ function parseMoedaBr(?string $input, bool $dinheiro = true): ?float
         }
     } elseif ($ponto !== false) {
         if (preg_match('/^\d{1,3}(\.\d{3})+$/', $s)) {
-            // "1.500" em inglês pode ser 1,5: recusa; nos outros idiomas, é milhar
-            if ($dinheiro && $idioma === 'en') {
-                return null;
+            // "1.500" em inglês pode ser 1,5: recusa o dinheiro; numa taxa, é decimal. Nos outros idiomas, é milhar
+            if ($idioma === 'en') {
+                if ($dinheiro || substr_count($s, '.') > 1) {
+                    return null;
+                }
+            } else {
+                $s = str_replace('.', '', $s);
             }
-            $s = str_replace('.', '', $s);
-        } elseif ($idioma === 'pt' || !preg_match('/^\d+\.\d{1,2}$/', $s)) {
+        } elseif ($idioma === 'pt' || !preg_match($idioma === 'en' ? '/^\d+\.\d+$/' : '/^\d+\.\d{1,2}$/', $s)) {
             return null;
         }
     }
@@ -198,18 +239,48 @@ function mesExtenso(string $mes): string
     return $ts ? \Financeiro\Idioma::mesExtenso((int) date('n', $ts)) : '';
 }
 
-/** `24/09`. */
+/** `outubro de 2026`, para as frases: a forma curta (`out/26`) fica para tabelas e gráficos. */
+function mesAno(string $mes): string
+{
+    $ts = strtotime($mes);
+    return $ts ? t('{mes} de {ano}', ['mes' => mesExtenso($mes), 'ano' => date('Y', $ts)]) : '';
+}
+
+/** `24/09`; em inglês, `Sep 24`. A data numérica curta do app inteiro (no JS: FIN.diaMes). */
 function diaMes(string $data): string
 {
     $ts = strtotime($data);
-    return $ts ? date('d/m', $ts) : '';
+    if (!$ts) {
+        return '';
+    }
+    return \Financeiro\Idioma::atual() === 'en' ? mesCurto($data) . ' ' . date('j', $ts) : date('d/m', $ts);
 }
 
-/** `29/09 14:02`. */
+/** `29/09 14:02`; em inglês, `Sep 29 14:02`. */
 function diaMesHora(string $datetime): string
 {
     $ts = strtotime($datetime);
-    return $ts ? date('d/m H:i', $ts) : '';
+    return $ts ? diaMes($datetime) . ' ' . date('H:i', $ts) : '';
+}
+
+/** `24/09/2026`; em inglês, `Sep 24, 2026`. */
+function diaMesAno(string $data): string
+{
+    $ts = strtotime($data);
+    if (!$ts) {
+        return '';
+    }
+    return \Financeiro\Idioma::atual() === 'en' ? diaMes($data) . ', ' . date('Y', $ts) : date('d/m/Y', $ts);
+}
+
+/** `20 nov`; em inglês, `Nov 20`. */
+function diaMesCurto(string $data): string
+{
+    $ts = strtotime($data);
+    if (!$ts) {
+        return '';
+    }
+    return \Financeiro\Idioma::atual() === 'en' ? diaMes($data) : (int) date('j', $ts) . ' ' . mesCurto($data);
 }
 
 function diasNoMes(string $mes): int
@@ -293,11 +364,55 @@ function iconeCategoria(int $id, string $nome = '', string $grupo = '', int $px 
     return \Financeiro\Icones::html(\Financeiro\Icones::daCategoria($id, $nome, $grupo), $px, $classe);
 }
 
-/** Apelido da categoria quando existe (`Delivery`), senão o nome completo. */
-function nomeCurto(array $cat): string
+const CATEGORIAS_FABRICA = [
+    'Salário', 'Outras entradas (13º, Pix, reembolsos)', 'Outras entradas', 'Crédito do empréstimo', 'Resgate da poupança', 'Aluguel e condomínio', 'Aluguel', 'Luz', 'Internet', 'Celular', 'Seguro do carro', 'Mercado', 'Combustível', 'Farmácia e saúde', 'Farmácia', 'Delivery / comer fora', 'Delivery', 'Lazer e outros', 'Lazer', 'Fatura do cartão', 'Fatura', 'Juros do cheque especial', 'Juros', 'IPVA', 'Licenciamento do carro', 'Licenciamento', 'Revisão do carro', 'Revisão', 'Imposto de renda', 'Outros gastos pontuais', 'Amortização extra do empréstimo', 'Amortização extra', 'Parcela do empréstimo', 'Guardar na poupança', 'Resgate de investimentos', 'Aplicar em investimentos',
+];
+
+/**
+ * O nome de categoria para mostrar: as de fábrica (database/instalar.php) e os apelidos delas vêm dos dicionários;
+ * o que a pessoa criou ou renomeou aparece como está. O banco e as comparações do motor continuam em português.
+ */
+function nomeCategoria(string $nome): string
+{
+    // i18n: t('Salário') t('Outras entradas (13º, Pix, reembolsos)') t('Outras entradas') t('Crédito do empréstimo') t('Resgate da poupança') t('Aluguel e condomínio') t('Aluguel') t('Luz') t('Internet') t('Celular') t('Seguro do carro') t('Mercado') t('Combustível') t('Farmácia e saúde') t('Farmácia') t('Delivery / comer fora') t('Delivery') t('Lazer e outros') t('Lazer') t('Fatura do cartão') t('Fatura') t('Juros do cheque especial') t('Juros') t('IPVA') t('Licenciamento do carro') t('Licenciamento') t('Revisão do carro') t('Revisão') t('Imposto de renda') t('Outros gastos pontuais') t('Amortização extra do empréstimo') t('Amortização extra') t('Parcela do empréstimo') t('Guardar na poupança') t('Resgate de investimentos') t('Aplicar em investimentos')
+    return in_array($nome, CATEGORIAS_FABRICA, true) ? t($nome) : $nome;
+}
+
+/** Os nomes de fábrica cuja tradução contém o texto buscado: a busca do Extrato acha "Groceries". @return list<string> */
+function categoriasPorTraducao(string $busca): array
+{
+    if (\Financeiro\Idioma::atual() === \Financeiro\Idioma::PADRAO || $busca === '') {
+        return [];
+    }
+    $out = [];
+    foreach (CATEGORIAS_FABRICA as $nome) {
+        if (mb_stripos(t($nome), $busca) !== false) {
+            $out[] = $nome;
+        }
+    }
+    return $out;
+}
+
+/** O apelido como está no banco, senão o nome: para gravar. Na tela, use nomeCurto(). */
+function nomeCurtoBanco(array $cat): string
 {
     $apelido = trim((string) ($cat['apelido'] ?? ''));
     return $apelido !== '' ? $apelido : (string) ($cat['nome'] ?? '');
+}
+
+/** Apelido da categoria quando existe (`Delivery`), senão o nome completo; no idioma de quem vê. */
+function nomeCurto(array $cat): string
+{
+    return nomeCategoria(nomeCurtoBanco($cat));
+}
+
+/** A descrição de um lançamento: a que foi gravada sozinha com o nome da categoria acompanha o idioma; a escrita pela pessoa fica como está. */
+function descricaoTela(string $descricao, array $cat): string
+{
+    if ($descricao === 'Adiantamento do empréstimo') {
+        return t('Adiantamento do empréstimo');
+    }
+    return $descricao === (string) ($cat['nome'] ?? '') || $descricao === (string) ($cat['apelido'] ?? '') ? nomeCategoria($descricao) : $descricao;
 }
 
 /* ------------------------------------------------------------------ usuário */
@@ -414,6 +529,8 @@ function svgIcon(string $name, int $size = 14, string $class = ''): string
         'topo'     => '<path d="M5 4.5h14"/><path d="M12 20V9"/><path d="M6.5 14.5 12 9l5.5 5.5"/>',
         'paleta'   => '<path d="M12 3.5a8.5 8.5 0 1 0 0 17c1.4 0 2-1 2-2 0-1.4-1-1.8-1-3 0-1.1.9-2 2-2h2.2c1.7 0 3.3-1.2 3.3-3.3 0-3.8-3.8-6.7-8.5-6.7Z"/><circle cx="7.8" cy="11" r="1.1" fill="currentColor"/><circle cx="10" cy="7.5" r="1.1" fill="currentColor"/><circle cx="14.4" cy="7.5" r="1.1" fill="currentColor"/>',
         'cartao'   => '<rect x="3" y="5.5" width="18" height="13" rx="2.5"/><path d="M3 10h18"/><path d="M7 15h3"/>',
+        'menu'     => '<path d="M4 6.5h16"/><path d="M4 12h16"/><path d="M4 17.5h16"/>',
+        'relogio'  => '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
         'more'     => '<circle cx="5.5" cy="12" r="1.2" fill="currentColor"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/><circle cx="18.5" cy="12" r="1.2" fill="currentColor"/>',
         'user'     => '<circle cx="12" cy="8.5" r="4"/><path d="M4.5 20.5a7.5 7.5 0 0 1 15 0"/>',
         'x'        => '<path d="M18 6 6 18"/><path d="M6 6l12 12"/>',

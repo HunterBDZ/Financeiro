@@ -6,7 +6,7 @@
     var MESES = [T('jan'), T('fev'), T('mar'), T('abr'), T('mai'), T('jun'), T('jul'), T('ago'), T('set'), T('out'), T('nov'), T('dez')];
     var EXT = [T('janeiro'), T('fevereiro'), T('março'), T('abril'), T('maio'), T('junho'), T('julho'), T('agosto'), T('setembro'), T('outubro'), T('novembro'), T('dezembro')];
 
-    function brl(v) { return v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+    function brl(v) { return FIN.num(v); }
     function partes(m) { return [parseInt(m.slice(0, 4), 10), parseInt(m.slice(5, 7), 10) - 1]; }       // [ano, 0-11]
     function mesStr(a, m) { var d = new Date(a, m, 1); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-01'; }
     function soma(mes, n) { var p = partes(mes); return mesStr(p[0], p[1] + n); }
@@ -23,6 +23,11 @@
     /* ---- a escada escolhe a fatura */
     var degraus = document.querySelectorAll('.ct-cima .ct-degrau[data-fatura]');
     var leg = document.querySelector('[data-escada-leg]');
+    // a escada rola para o lado: abre com a fatura escolhida à vista
+    var escolhido = document.querySelector('.ct-cima .ct-degrau[aria-current="true"]');
+    if (escolhido && escolhido.parentNode.scrollWidth > escolhido.parentNode.clientWidth) {
+        escolhido.parentNode.scrollLeft = escolhido.offsetLeft - escolhido.parentNode.offsetLeft - 44;
+    }
     for (var i = 0; i < degraus.length; i++) {
         degraus[i].addEventListener('click', function (ev) {
             if (ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.button !== 0) { return; }
@@ -64,9 +69,7 @@
 
         function noCartao() { var r = form.querySelector('input[name="pagou"]:checked'); return !!r && r.value === 'cartao'; }
         function lerValor() {
-            var s = (valor && valor.value || '').trim();
-            s = !/,/.test(s) && /\.\d{1,2}$/.test(s) ? s : s.replace(/\./g, '').replace(',', '.');
-            var v = parseFloat(s); return isFinite(v) && v > 0 ? v : 0;
+            var v = FIN.ler((valor && valor.value || '').trim()); return v > 0 ? v : 0;
         }
         function vezes() {
             var o = parseInt(outro && outro.value || '', 10);
@@ -100,7 +103,7 @@
             // só números e nomes de mês entram nestas frases: dá para montar com innerHTML
             var frase = antiga                 // as faturas de antes da aberta já foram pagas
                 ? T('A parcela {parcela} está na fatura aberta, de {mes}.', { parcela: '<b class="num">' + T('{k} de {n}', { k: k, n: n }) + '</b>', mes: '<b>' + EXT[partes(cfg.aberta)[1]] + '</b>' })
-                : T('Cai na fatura de {mes}, que vence em {data}.', { mes: '<b>' + EXT[pf[1]] + '</b>', data: venceDia + '/' + String(pf[1] + 1).padStart(2, '0') });
+                : T('Cai na fatura de {mes}, que vence em {data}.', { mes: '<b>' + EXT[pf[1]] + '</b>', data: FIN.diaMes(venceDia, pf[1]) });
             var plano = '<b class="num">' + (n === 1 ? T('À vista, {valor}', { valor: brl(v) }) : n + ' × ' + brl(base / 100)) + '</b>';
             out.innerHTML = frase + ' ' + (n > 1 ? T('{plano}, de {inicio} a {fim}.', { plano: plano, inicio: rot(primeira), fim: rot(ultima) }) : plano + '.');
             var faltam = n - k + 1;

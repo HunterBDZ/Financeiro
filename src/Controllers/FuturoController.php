@@ -19,7 +19,6 @@ use Financeiro\View;
 final class FuturoController
 {
     /** Teto de cada valor simulado (evita número sem sentido na URL). */
-    private const MAX_SIMULADO = 1000000.0;
 
     public function index(): void
     {
@@ -27,7 +26,7 @@ final class FuturoController
         $hoje  = date('Y-m-d');
         $base  = MotorFinanceiro::calcularPlano();
         if ($base === []) {
-            View::render('dashboard/vazio', ['pageTitle' => t('simular · financeiro')], 'relatorio');
+            View::render('dashboard/vazio', ['pageTitle' => t('simular · financeiro')], 'simular');
             return;
         }
         $dados    = MotorFinanceiro::dados();
@@ -97,7 +96,7 @@ final class FuturoController
                 'se'    => AnualResumo::numeros($plano, $reserva, $ref, $parcela, $jurosMes),
             ] : null,
             'temDivida' => (float) ($base[$ref]['falta_pagar'] ?? reset($base)['falta_pagar']) > 0.004,
-        ], 'relatorio');
+        ], 'simular');
     }
 
     /**
@@ -122,7 +121,7 @@ final class FuturoController
                 return 0.0;
             }
             $v = parseMoedaBr($bruto);
-            if ($v === null || $v < 0 || $v > self::MAX_SIMULADO) {
+            if ($v === null || $v < 0 || $v > valorMaximo()) {
                 $erros[] = t('Valor inválido em "{campo}": use um número como 500 ou 1.250,00.', ['campo' => $nome]);
                 return 0.0;
             }

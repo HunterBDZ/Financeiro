@@ -48,8 +48,8 @@ $css = array_filter(['/assets/css/style.css', '/assets/css/lancar.css', '/assets
             </label>
             <label class="lg-campo">
                 <?= svgIcon('user', 19) ?>
-                <span class="sr-only"><?= e(t('Login')) ?></span>
-                <input type="text" name="login" value="<?= e($login) ?>" required maxlength="100" placeholder="<?= e(t('Login')) ?>" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="next">
+                <span class="sr-only"><?= e(t('Nome de usuário')) ?></span>
+                <input type="text" name="login" value="<?= e($login) ?>" required maxlength="100" placeholder="<?= e(t('Nome de usuário')) ?>" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="next">
             </label>
             <label class="lg-campo">
                 <?= svgIcon('lock', 19) ?>

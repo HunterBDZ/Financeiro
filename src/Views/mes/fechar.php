@@ -30,7 +30,9 @@ $total = $real ? 2 : ($previa !== null ? 4 : 3);
 $contaTxt = num($contaAntes) . NBSP . '→' . NBSP . num($contaDepois);   // nunca quebra: a célula ocupa 2 colunas
 $sinal = static fn(float $v): string => ($v > 0.004 ? '+' : '') . num($v);
 ?>
-    <?php if (!$real): ?><form class="fe-form" method="post" action="/mes/fechar" data-confirm="<?= e(t('Fechar {mes}? Dá para reabrir depois.', ['mes' => $mesLbl])) ?>"><?= $csrf ?><input type="hidden" name="mes" value="<?= e($mes) ?>"><?php endif; ?>
+    <?php if (!$real): ?><form class="fe-form" method="post" action="/mes/fechar" data-confirm="<?= e($faltam > 0 ? tn($faltam, 'Ainda falta 1 dia em {mes}. Fechar agora? Dá para reabrir depois.', 'Ainda faltam {n} dias em {mes}. Fechar agora? Dá para reabrir depois.', ['mes' => $mesLbl]) : t('Fechar {mes}? Dá para reabrir depois.', ['mes' => $mesLbl])) ?>"><?= $csrf ?><input type="hidden" name="mes" value="<?= e($mes) ?>"><?php endif; ?>
+
+    <?php if (!$real): ?><p class="fe-intro"><?= e(t('Fechar é conferir o mês e guardar o resultado. Você pode reabrir depois.')) ?></p><?php endif; ?>
 
     <div class="fe-blocos">
         <!-- 1: os números do mês -->
@@ -54,11 +56,18 @@ $sinal = static fn(float $v): string => ($v > 0.004 ? '+' : '') . num($v);
             <?php else: ?>
                 <ul class="fe-desvios">
                     <?php foreach ($desvios as $dv):
-                        $ruim = $dv['sinal'] === -1 ? $dv['dif'] > 0 : $dv['dif'] < 0; ?>
+                        $ruim = $dv['sinal'] === -1 ? $dv['dif'] > 0 : $dv['dif'] < 0;
+                        $difV = num(abs($dv['dif']), 0);
+                        // com dias pela frente, gastar menos ainda não é resultado: só fica colorido o que já acabou
+                        $acabou = $real || $faltam === 0;
+                        $difTxt = $acabou
+                            ? ($dv['dif'] > 0 ? t('{valor} a mais.', ['valor' => $difV]) : t('{valor} a menos.', ['valor' => $difV]))
+                            : ($dv['dif'] > 0 ? t('Até agora, {valor} a mais.', ['valor' => $difV]) : t('Até agora, {valor} a menos.', ['valor' => $difV]));
+                        $difCls = $ruim ? 'neg' : ($acabou ? 'pos' : 'dim'); ?>
                         <li>
                             <span class="fe-dv-nome"><?= e($dv['nome']) ?></span>
-                            <span class="num dim"><?= e(num($dv['real'], 0) . ' / ' . num($dv['prev'], 0)) ?></span>
-                            <span class="num fe-dv-dif <?= $ruim ? 'neg' : 'pos' ?>"><?= e(($dv['dif'] > 0 ? '+' : '') . num($dv['dif'], 0)) ?></span>
+                            <span class="num dim"><?= e(t('{gasto} de {meta}', ['gasto' => num($dv['real'], 0), 'meta' => num($dv['prev'], 0)])) ?></span>
+                            <span class="num fe-dv-dif <?= $difCls ?>"><?= e($difTxt) ?></span>
                         </li>
                     <?php endforeach; ?>
                 </ul>
@@ -93,8 +102,8 @@ $sinal = static fn(float $v): string => ($v > 0.004 ? '+' : '') . num($v);
                 <span class="dim"><?= e(t('Com base em {base}.', ['base' => $previa['base']])) ?></span>
             </p>
             <label class="fe-aplicar">
-                <input type="checkbox" name="aplicar" value="1" checked>
-                <span><?= e(t('Aplicar em {mes}', ['mes' => monthLabel($previa['mes'])])) ?><small class="fe-aplicar-nota"><?= e(t('O dia a dia de {mes} fica com os valores sugeridos, no lugar das metas, só nesse mês.', ['mes' => mesCurto($previa['mes'])])) ?></small></span>
+                <input type="checkbox" name="aplicar" value="1">
+                <span><?= e(t('Aplicar em {mes}', ['mes' => monthLabel($previa['mes'])])) ?><small class="fe-aplicar-nota"><?= e(t('Em {mes}, usar estes valores em vez das suas metas. Vale só para {mes}.', ['mes' => mesExtenso($previa['mes'])])) ?></small></span>
             </label>
         </section>
         <?php endif; ?>

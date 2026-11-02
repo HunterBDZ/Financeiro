@@ -10,12 +10,15 @@ final class Ajuda
         $grupos = [
             ['titulo' => t('Começar'), 'itens' => [
                 ['id' => 'comecar', 'pergunta' => t('Como começo a usar?'), 'resposta' => t('Registre o que entra e o que sai em Lançar. Depois, veja em Mês como ele deve terminar.')],
-                ['id' => 'inicio-errado', 'pergunta' => t('Errei os valores do começo. E agora?'), 'resposta' => t('Corrija em Ajustes, em Ponto de partida.')],
+                ['id' => 'inicio-errado', 'pergunta' => t('Errei os valores do começo. E agora?'), 'resposta' => t('Corrija em Ajustes, em Avançado, em Ponto de partida.')],
+                ['id' => 'moeda', 'pergunta' => t('Posso trocar a moeda?'), 'resposta' => t('Sim, em Ajustes. Muda o símbolo em todo o app, para todas as pessoas. Os valores já lançados não são convertidos: 100 continua 100. O formato do número segue o seu idioma.')],
+                ['id' => 'fuso', 'pergunta' => t('O dia está errado. Como acerto o fuso?'), 'resposta' => t('Em Ajustes, em Moeda e fuso horário. O fuso decide o que é hoje: a data que já vem no Lançar, os vencimentos e a virada do mês.')],
+                ['id' => 'carro', 'pergunta' => t('Não tenho carro. Preciso das categorias de carro?'), 'resposta' => t('Não. Desmarque Carro em Ajustes, em O que você usa: as categorias de carro sem nenhum uso saem das listas. Marque de novo para trazê-las de volta.')],
             ]],
             ['titulo' => t('Dia a dia'), 'itens' => [
-                ['id' => 'valor', 'pergunta' => t('Como digito o valor?'), 'resposta' => t('Digite como você fala: 45 é R$ 45,00. Para centavos, use vírgula: 45,90.')],
+                ['id' => 'valor', 'pergunta' => t('Como digito o valor?'), 'resposta' => t('Digite como você fala: 45 é {valor}. Para centavos, use vírgula: {exemplo}.', ['valor' => money(45), 'exemplo' => num(45.9)])],
                 ['id' => 'corrigir', 'pergunta' => t('Errei um lançamento. Como corrijo?'), 'resposta' => t('Abra o Extrato, escolha o lançamento e edite ou apague.')],
-                ['id' => 'categoria', 'pergunta' => t('Como crio uma categoria?'), 'resposta' => t('Abra o Extrato e use a parte Categorias.')],
+                ['id' => 'categoria', 'pergunta' => t('Como crio uma categoria?'), 'resposta' => t('Em Ajustes, abra Categorias. O formulário de Lançar tem um atalho para lá.')],
             ]],
             ['titulo' => t('Entender os números'), 'itens' => [
                 ['id' => 'em-conta', 'pergunta' => t('O que é "Em conta hoje"?'), 'resposta' => t('É o que a conta deve ter agora: o valor inicial, mais o que entrou, menos o que saiu. Para ver se está certo, compare com o saldo do banco.')],
@@ -26,7 +29,7 @@ final class Ajuda
             ]],
             ['titulo' => t('Mês e metas'), 'itens' => [
                 ['id' => 'metas', 'pergunta' => t('O que é uma meta?'), 'resposta' => t('É quanto você quer gastar por mês em uma categoria. Ela vale para todos os meses em aberto. Para mudar só um mês, ajuste o valor em Mês.')],
-                ['id' => 'fechar', 'pergunta' => t('O que é fechar o mês?'), 'resposta' => t('É trocar o que estava previsto pelo que foi lançado. Faça depois de conferir o saldo com o banco. Dá para reabrir depois.')],
+                ['id' => 'fechar', 'pergunta' => t('O que é fechar o mês?'), 'resposta' => t('É conferir o mês e guardar o resultado: o previsto dá lugar ao que foi lançado. O botão aparece em Mês. Dá para reabrir depois, e isso não desfaz um ajuste aplicado no mês seguinte.')],
             ]],
             ['titulo' => t('Cartão'), 'itens' => [
                 ['id' => 'cartao', 'pergunta' => t('Registro a compra ou a fatura?'), 'resposta' => t('Cadastre o cartão na aba Cartão e registre as compras em Lançar. Elas formam as próximas faturas. No mês em que vence, só a fatura conta, sem repetir o gasto.')],
@@ -34,21 +37,21 @@ final class Ajuda
             ['titulo' => t('Empréstimo'), 'itens' => [
                 ['id' => 'simular', 'pergunta' => t('Como simulo um adiantamento?'), 'resposta' => t('Na aba Empréstimo, digite o valor e o mês. O app mostra quanto falta, quando termina e os juros a menos. Nada é gravado.')],
                 ['id' => 'sobra', 'pergunta' => t('O que acontece com o que sobra?'), 'resposta' => t('Em Ajustes, em O que você usa, escolha entre deixar na conta e adiantar o empréstimo. Isso só muda a previsão: nenhum pagamento é feito.')],
-                ['id' => 'consolidar', 'pergunta' => t('Paguei um adiantamento. Como registro?'), 'resposta' => t('Na aba Empréstimo, use Já paguei e informe o valor e a data.')],
+                ['id' => 'consolidar', 'pergunta' => t('Paguei um adiantamento. Como registro?'), 'resposta' => t('Na aba Empréstimo, abra Já paguei e informe o valor e a data.')],
             ]],
             ['titulo' => t('Planejar'), 'itens' => [
                 ['id' => 'investimentos', 'pergunta' => t('Por que os rendimentos não aparecem em Investimentos?'), 'resposta' => t('A aba soma só o que você registrou ao guardar, aplicar ou resgatar. Rendimentos não entram.')],
-                ['id' => 'simulador', 'pergunta' => t('O que a tela Simular faz?'), 'resposta' => t('Mostra os próximos meses e testa mudanças. Nada é salvo. Ela abre pelo Relatório e pelo Mês.')],
+                ['id' => 'simulador', 'pergunta' => t('O que a tela Simular faz?'), 'resposta' => t('Mostra os próximos meses e testa mudanças. Nada é salvo. Ela fica no menu, com o nome Simular.')],
                 ['id' => 'melhor-mes', 'pergunta' => t('O que é o melhor mês da Wishlist?'), 'resposta' => t('É o mês em que a compra cabe sem deixar a conta abaixo da reserva nem atrasar o empréstimo. É uma estimativa, que muda junto com os seus números.')],
-                ['id' => 'cotacao', 'pergunta' => t('Como funciona a cotação de outra moeda?'), 'resposta' => t('A compra é convertida para reais pela cotação comercial, sem impostos nem taxa do cartão. Em fim de semana e feriado, vale o último fechamento.')],
+                ['id' => 'cotacao', 'pergunta' => t('Como funciona a cotação de outra moeda?'), 'resposta' => t('A compra é convertida para {moeda} pela cotação comercial, sem impostos nem taxa do cartão. Em fim de semana e feriado, vale o último fechamento.', ['moeda' => moedaPlural()])],
                 ['id' => 'relatorio', 'pergunta' => t('Como baixo o relatório?'), 'resposta' => t('Na aba Relatório, escolha mensal ou anual, escolha o período e use Baixar PDF.')],
             ]],
             ['titulo' => t('Conta e dados'), 'itens' => [
                 ['id' => 'senha', 'pergunta' => t('Esqueci a senha. E agora?'), 'resposta' => t('Outra pessoa com conta pode definir uma senha nova em Ajustes, em Pessoas. Se não houver outra pessoa, peça a quem instalou o app.')],
-                ['id' => 'pessoas', 'pergunta' => t('Como dou acesso a outra pessoa?'), 'resposta' => t('Em Ajustes, em Pessoas, informe nome, login e senha. Todas as pessoas veem os mesmos dados.')],
+                ['id' => 'pessoas', 'pergunta' => t('Como dou acesso a outra pessoa?'), 'resposta' => t('Em Ajustes, em Pessoas, informe nome, nome de usuário e senha. Todas as pessoas veem os mesmos dados.')],
                 ['id' => 'aparencia', 'pergunta' => t('Como troco o idioma ou o tema?'), 'resposta' => t('O idioma fica em Ajustes, e o tema, na tela Temas. Cada conta tem os seus.')],
                 ['id' => 'dados', 'pergunta' => t('Onde ficam os meus dados?'), 'resposta' => t('No computador onde o app foi instalado. Só a Wishlist usa a internet: o servidor abre os links colados e busca a cotação.')],
-                ['id' => 'aviso', 'pergunta' => t('Por que o navegador diz que a conexão não é segura?'), 'resposta' => t('Esse aviso é esperado: o app roda só na sua rede local, com certificado próprio. Os dados não saem da sua rede.')],
+                ['id' => 'aviso', 'pergunta' => t('Por que o navegador diz que a conexão não é segura?'), 'resposta' => t('Esse aviso é esperado: o app roda só na sua rede local, com certificado próprio. Escolha Avançado (ou Detalhes) e depois Continuar ou Prosseguir. Os dados não saem da sua rede.')],
             ]],
         ];
         // sem cartão ou sem empréstimo, as perguntas deles somem junto com a aba

@@ -86,5 +86,5 @@ sudo -u www-data php /var/www/financeiro/tools/redefinir-senha.php LOGIN
 
 ## Personalizar
 
-- **Fuso horário:** o app usa o horário de Brasília (`src/bootstrap.php` e `src/Database.php`).
+- **Moeda e fuso horário:** ficam em Ajustes e na primeira configuração, no site. Trocar a moeda muda só o símbolo: nada é convertido. O fuso não depende das tabelas de fuso do MySQL.
 - **Categorias:** crie novas no Extrato. Não renomeie as de empréstimo e poupança, `Salário` e `Fatura do cartão`: o cálculo as encontra pelo nome.

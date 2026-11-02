@@ -1,5 +1,6 @@
 // mes.js: comportamento da aba Mês. Sem nada inline (CSP script-src 'self'); sem JS tudo funciona.
-// - abrir uma linha (details.mes-ed) fecha as outras e põe o cursor no valor, já selecionado.
+// - abrir uma linha (details.mes-ed) fecha as outras; no computador, põe o cursor no valor, já selecionado.
+//   No celular não: o teclado abriria sozinho, com o valor em destaque, em quem só queria olhar.
 // (O seletor de meses do título é um details.menu: app.js fecha ao clicar fora e com Esc.)
 (function () {
     'use strict';
@@ -15,7 +16,7 @@
                 abertos[i].removeAttribute('open');
             }
         }
-        var campo = d.querySelector('[data-mes-valor], select');
+        var campo = window.matchMedia('(max-width: 1023px)').matches ? null : d.querySelector('[data-mes-valor], select');
         if (campo && typeof campo.focus === 'function') {
             campo.focus({ preventScroll: true });
             if (typeof campo.select === 'function') {

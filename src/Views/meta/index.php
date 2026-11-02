@@ -92,12 +92,12 @@ $temAdd = $addEss !== [] || $addNao !== [];
     <!-- orçamento do mês: dê função a cada real -->
     <section class="card meta-top">
         <div class="meta-top-head">
-            <span class="rotulo"><?= e(t('Disponível no mês')) ?> <small class="meta-renda-nota"><?= e(t('entradas + sobra anterior')) ?></small></span>
+            <span class="rotulo"><?= e(t('Para usar neste mês')) ?> <small class="meta-renda-nota"><?= e(t('o que entrou e o que já estava na conta')) ?></small></span>
             <span class="meta-renda num"><?= e(num($renda, 0)) ?></span>
         </div>
 
         <?php if ($temBar): ?>
-            <button type="button" class="meta-aloc" data-meta-aloc aria-expanded="false" aria-label="<?= e(t('Como o disponível foi usado. Toque para ver cada meta.')) ?>">
+            <button type="button" class="meta-aloc" data-meta-aloc aria-expanded="false" aria-label="<?= e(t('Como esse valor foi usado. Toque para ver cada meta.')) ?>">
                 <span class="meta-aloc-seg seg-metas" data-seg-metas style="--w:<?= $pct($pctMetas) ?>"></span>
                 <span class="meta-aloc-seg seg-gasto" data-seg-gasto style="--w:<?= $pct($pctGasto) ?>"></span>
                 <span class="meta-aloc-seg seg-conta" data-seg-conta style="--w:<?= $pct($pctConta) ?>"></span>
@@ -123,7 +123,7 @@ $temAdd = $addEss !== [] || $addNao !== [];
         <?php endif; ?>
     </section>
 
-    <p class="meta-dica meta-previsao"><?= t('A meta também é a previsão de todos os meses e entra no plano. Num mês diferente (férias, presente, conta extra), ajuste o valor na aba {link}.', ['link' => '<a href="/mes">' . e(t('Mês')) . '</a>']) ?></p>
+    <p class="meta-dica meta-previsao"><?= t('A meta vale para todos os meses. Mês diferente, como férias? Mude só ele na tela {link}.', ['link' => '<a href="/mes">' . e(t('Mês')) . '</a>']) ?></p>
 
     <!-- escolher quais categorias terão meta -->
     <form class="card meta-add" method="get" action="/meta" data-meta-add-form>

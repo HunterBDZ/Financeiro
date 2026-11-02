@@ -21,7 +21,7 @@ $abaixo   = $dif < -0.004;
 $vermelho = $conta < -0.004;
 
 $prog = null;
-if ($mesRef === $mesCal) {
+if ($mesRef === $mesCal && $estadoRef !== 'real') {
     $dia  = (int) substr($hoje, 8, 2);
     $dias = diasNoMes($mesRef);
     $prog = ['dia' => $dia, 'dias' => $dias, 'pct' => (int) round($dia / $dias * 100)];
@@ -44,7 +44,7 @@ $estadoSaldo = $vermelho ? t('No vermelho') : ($abaixo ? t('Abaixo da reserva') 
 $clsSaldo    = $vermelho ? 'is-vermelho' : ($abaixo ? 'is-abaixo' : 'is-acima');
 $pReserva    = $reserva > 0.004 ? max(0.0, min(1.0, $conta / $reserva)) * 100 : ($conta >= 0 ? 100.0 : 0.0);
 $txtConta    = num($conta);
-$virgula     = strrpos($txtConta, ',');
+$virgula     = strrpos($txtConta, sepDecimal());
 $contaInt    = $virgula === false ? $txtConta : substr($txtConta, 0, $virgula);
 $contaCent   = $virgula === false ? '' : substr($txtConta, $virgula);
 $quandoFoi   = static function (string $data) use ($hoje): string {
@@ -54,7 +54,7 @@ $quandoFoi   = static function (string $data) use ($hoje): string {
     if ($data === date('Y-m-d', strtotime($hoje . ' -1 day'))) {
         return t('Ontem');
     }
-    return (int) date('j', (int) strtotime($data)) . ' ' . mesCurto($data);
+    return diaMesCurto($data);
 };
 ?>
 <div class="dash">
@@ -70,7 +70,7 @@ $quandoFoi   = static function (string $data) use ($hoje): string {
             <?php foreach ($alertas as $a): ?>
                 <a class="dash-alerta" href="/mes/fechar?mes=<?= e(rawurlencode($a['mes'])) ?>">
                     <span class="dash-alerta-ic"><?= svgIcon('alert', 18) ?></span>
-                    <span class="dash-alerta-txt"><b><?= e(t('{mes} terminou e ainda está aberto.', ['mes' => monthLabel($a['mes'])])) ?></b><small><?= e(t('Feche o mês para conferir com o banco.')) ?></small></span>
+                    <span class="dash-alerta-txt"><b><?= e(t('{mes} terminou e ainda está aberto.', ['mes' => mesAno($a['mes'])])) ?></b><small><?= e(t('Feche o mês para conferir com o banco.')) ?></small></span>
                     <span class="dash-alerta-acao"><?= e(t('Fechar')) ?> <?= svgIcon('chevron', 16) ?></span>
                 </a>
             <?php endforeach; ?>
@@ -101,12 +101,12 @@ $quandoFoi   = static function (string $data) use ($hoje): string {
                 <button type="button" class="saldo-olho" data-ocultar aria-pressed="false" aria-label="<?= e(t('esconder valores')) ?>"><?= svgIcon('eye', 18, 'olho-aberto') ?><?= svgIcon('eye-off', 18, 'olho-fechado') ?></button>
                 <?php if ($estadoSaldo !== ''): ?><span class="saldo-estado"><?= e($estadoSaldo) ?></span><?php endif; ?>
             </div>
-            <p class="saldo-v num"><small>R$</small><?= e($contaInt) ?><span><?= e($contaCent) ?></span></p>
+            <p class="saldo-v num"><small><?= e(moedaSimbolo()) ?></small><?= e($contaInt) ?><span><?= e($contaCent) ?></span></p>
             <div class="saldo-medidor" aria-hidden="true"><i style="--p:<?= e(number_format($pReserva, 1, '.', '')) ?>%"></i></div>
             <?php if ($reserva > 0.004 || $vermelho): ?>
             <p class="saldo-rod num">
                 <span><?php if ($vermelho): ?><?= t('Faltam {valor} para zerar', ['valor' => '<b>' . e(num(abs($conta))) . '</b>']) ?><?php elseif ($abaixo): ?><?= t('Faltam {valor} para a reserva', ['valor' => '<b>' . e(num(abs($dif))) . '</b>']) ?><?php else: ?><?= t('{valor} acima da reserva', ['valor' => '<b>' . e(num($dif)) . '</b>']) ?><?php endif; ?></span>
-                <span><?= t('Reserva {valor}', ['valor' => '<b>' . e(num($reserva, 0)) . '</b>']) ?></span>
+                <span><?= t('Reserva {valor}', ['valor' => '<b>' . e(num($reserva, 0)) . '</b>']) ?> <?= dica('reserva', t('Reserva')) ?></span>
             </p>
             <?php endif; ?>
             <?php if ($previsaoFim !== null): ?>
@@ -148,7 +148,7 @@ $quandoFoi   = static function (string $data) use ($hoje): string {
         <!-- para onde foi -->
         <section class="card dash-gastos" aria-labelledby="dash-top-t">
             <div class="card-head">
-                <h2 class="titulo" id="dash-top-t"><?= e(t('Para onde foi')) ?></h2>
+                <h2 class="titulo" id="dash-top-t"><?= e(t('Para onde foi')) ?> <small class="dash-tit-nota"><?= e(t('% dos gastos')) ?></small></h2>
                 <a class="card-acao" href="/lancamentos?mes=<?= e($mesRef) ?>"><?= e(t('Extrato')) ?> <?= svgIcon('chevron', 15) ?></a>
             </div>
             <?php if ($p['top'] === []): ?>
@@ -158,7 +158,7 @@ $quandoFoi   = static function (string $data) use ($hoje): string {
                     <?php foreach ($p['top'] as $t): ?>
                         <li>
                             <a class="barras-i" href="/lancamentos?mes=<?= e($mesRef) ?>&amp;cat=<?= (int) $t['id'] ?>">
-                                <?= iconeCategoria((int) $t['id'], (string) $t['nome'], '', 40, 'barras-ic') ?>
+                                <?= iconeCategoria((int) $t['id'], (string) $t['nome_banco'], '', 40, 'barras-ic') ?>
                                 <span class="barras-n"><?= e($t['nome']) ?></span>
                                 <span class="barras-v num"><?= e(num($t['valor'], 0)) ?><small><?= $share($t['valor'], $p['saidas']) ?>%</small></span>
                                 <span class="trilho" aria-hidden="true"><i style="--w:<?= $topMax > 0 ? round($t['valor'] / $topMax * 100, 1) : 0 ?>%"></i></span>
@@ -223,7 +223,7 @@ $quandoFoi   = static function (string $data) use ($hoje): string {
                         $txt = $mov ? '⇄ ' . num($v) : ($ent ? '+' . num($v) : MENOS . num($v));
                         $cls = $mov ? 'dim' : ($ent ? 'pos' : 'neg');
                         $cat = ['nome' => $r['categoria_nome'], 'apelido' => $r['apelido']];
-                        $desc = trim((string) $r['descricao']);
+                        $desc = descricaoTela(trim((string) $r['descricao']), $cat);
                         ?>
                         <li>
                             <a class="lista-i" href="/lancamentos/<?= (int) $r['id'] ?>/editar?volta=%2F">

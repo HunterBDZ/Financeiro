@@ -8,6 +8,7 @@ use Financeiro\Services\Cotacao;
 use Financeiro\Services\LinkProduto;
 use Financeiro\Services\MotorFinanceiro;
 use Financeiro\Services\WishlistPrevisao;
+use Financeiro\Site;
 use Financeiro\View;
 
 /**
@@ -31,8 +32,8 @@ final class WishlistController
         $dados = MotorFinanceiro::dados();
         $prev  = null;
         $parcelas = in_array((int) ($_GET['parcelas'] ?? 1), WishlistPrevisao::PARCELAS, true) ? (int) ($_GET['parcelas'] ?? 1) : 1;
-        if ($itens !== [] && $itens[0]['valor_brl'] !== null && $dados['meses'] !== []) {
-            $prev = WishlistPrevisao::calcular($dados, MesModel::referencia($hoje), (float) $itens[0]['valor_brl'], $parcelas, $hoje);
+        if ($itens !== [] && $itens[0]['valor_site'] !== null && $dados['meses'] !== []) {
+            $prev = WishlistPrevisao::calcular($dados, MesModel::referencia($hoje), (float) $itens[0]['valor_site'], $parcelas, $hoje);
         }
         $pedido = is_string($_GET['mes'] ?? null) ? $_GET['mes'] : '';
         $mes = $prev === null ? '' : (isset($prev['meses'][$pedido]) ? $pedido : ($prev['melhor'] ?? (string) array_key_first($prev['meses'])));
@@ -49,11 +50,11 @@ final class WishlistController
         View::render('wishlist/index', $data, 'wishlist');
     }
 
-    /** Acrescenta `valor_brl` (null sem valor ou sem cotação). */
+    /** Acrescenta `valor_site` (null sem valor ou sem cotação). */
     private static function comReais(array $itens, array $taxas): array
     {
         foreach ($itens as $k => $i) {
-            $itens[$k]['valor_brl'] = $i['valor'] === null ? null : Cotacao::emReais((float) $i['valor'], (string) $i['moeda'], $taxas);
+            $itens[$k]['valor_site'] = $i['valor'] === null ? null : Cotacao::naMoedaDoSite((float) $i['valor'], (string) $i['moeda'], $taxas);
         }
         return $itens;
     }
@@ -193,8 +194,8 @@ final class WishlistController
         $brutoValor = trim((string) ($in['valor'] ?? ''));
         $valor = null;
         $erro = null;
-        $moeda = (string) ($in['moeda'] ?? 'BRL');
-        $moeda = Cotacao::valida($moeda) ? $moeda : 'BRL';
+        $moeda = (string) ($in['moeda'] ?? Site::moeda());
+        $moeda = Cotacao::valida($moeda) ? $moeda : Site::moeda();
         $teto = $moeda === 'BRL' ? self::MAX_VALOR : self::MAX_VALOR_FORA;
         if ($brutoUrl !== '' && $url === null) {
             $erro = t('Esse link não é válido: copie o endereço completo da página do produto.');
@@ -251,7 +252,7 @@ final class WishlistController
         flash('success', t('{nome} saiu da lista · Lance o gasto para ele entrar no Extrato', ['nome' => $item['nome']]),
             ['url' => self::VOLTA . '/' . (int) $id . '/devolver', 'label' => t('desfazer')]);
         $q = ['descricao' => (string) $item['nome'], 'volta' => self::VOLTA];
-        $reais = $item['valor'] === null ? null : Cotacao::emReais((float) $item['valor'], (string) $item['moeda'], Cotacao::atuais());
+        $reais = $item['valor'] === null ? null : Cotacao::naMoedaDoSite((float) $item['valor'], (string) $item['moeda'], Cotacao::atuais());
         if ($reais !== null) {
             $q['valor'] = numInput($reais);
         }

@@ -1,8 +1,6 @@
 <?php
 declare(strict_types=1);
 
-date_default_timezone_set('America/Sao_Paulo');
-
 spl_autoload_register(function (string $class): void {
     $prefix = 'Financeiro\\';
     if (!str_starts_with($class, $prefix)) {
@@ -16,6 +14,9 @@ spl_autoload_register(function (string $class): void {
 });
 
 require __DIR__ . '/helpers.php';
+
+// até o banco conectar; ao conectar, vale o fuso escolhido no site (Financeiro\Site)
+date_default_timezone_set(Financeiro\Site::FUSO_PADRAO);
 
 use Financeiro\Config;
 

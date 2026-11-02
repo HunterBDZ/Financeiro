@@ -53,6 +53,9 @@
 .wl-prev-t { color: var(--text-2); font-size: var(--t-peq); font-weight: 650; }
 .wl-resposta { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.25; }
 .wl-resposta a { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 4px; }
+.wl-detalhes { display: flex; flex-direction: column; gap: 10px; }
+.wl-detalhes > summary { display: flex; align-items: center; min-height: var(--tap); font-size: 14px; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.wl-detalhes[open] > * + * { margin-top: 10px; }
 .wl-resposta-2, .wl-sem-valor { color: var(--text-2); font-size: 14px; line-height: 1.45; }
 .wl-resposta-2 a, .wl-sem-valor a, .wl-ver-anual { color: var(--text); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
 .wl-sem-valor { margin-top: 14px; padding-top: 16px; border-top: 1px solid var(--line); }
@@ -68,7 +71,7 @@
 .wl-mes:focus-visible { outline: 2px solid var(--foco); outline-offset: 2px; }
 .wl-mes-n { font-size: 13px; }
 .wl-mes-s { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; font-size: 15px; line-height: 1; }
-.wl-mes-a { color: var(--text-2); font-size: 11px; font-weight: 600; line-height: 1; }
+.wl-mes-a { color: var(--text-2); font-size: 12px; font-weight: 600; line-height: 1; }
 .is-ok > .wl-mes-s, .wl-legenda .is-ok > span { background: var(--pos-bg); color: var(--pos); }
 .is-custo > .wl-mes-s, .wl-legenda .is-custo > span { background: var(--card-3); color: var(--text-2); }
 .is-warn > .wl-mes-s, .wl-legenda .is-warn > span { background: var(--warn-bg); color: var(--warn); }

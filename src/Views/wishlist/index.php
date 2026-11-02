@@ -3,10 +3,11 @@
  * Aba Wishlist. O 1º da lista fica em destaque, com a foto grande e a previsão de quando comprar; os
  * outros vêm numerados, porque a ordem é o que decide quem é o próximo. Reordenar é por botão, sem arrastar.
  * Fora de real, o valor original vem primeiro e a conversão do dia logo abaixo.
- * Variáveis: $itens (com valor_brl), $comprados, $prev, $mes, $parcelas, $form, $taxas.
+ * Variáveis: $itens (com valor_site), $comprados, $prev, $mes, $parcelas, $form, $taxas.
  */
 use Financeiro\Services\Cotacao;
 use Financeiro\Services\LinkProduto;
+use Financeiro\Site;
 use Financeiro\View;
 
 $csrf = csrfField();
@@ -25,17 +26,17 @@ $mover = static function (int $id, string $para, string $rotulo, string $icone, 
 };
 // "≈ R$ 1.627,00 hoje", com a data da cotação; sem cotação, avisa
 $conversao = static function (array $i) use ($taxas): string {
-    if ($i['valor'] === null || $i['moeda'] === 'BRL') {
+    if ($i['valor'] === null || $i['moeda'] === Site::moeda()) {
         return '';
     }
-    if ($i['valor_brl'] === null) {
+    if ($i['valor_site'] === null) {
         return t('Sem cotação agora');
     }
-    return t('{valor}, cotação de {data}', ['valor' => '≈' . NBSP . money((float) $i['valor_brl']), 'data' => date('d/m', strtotime($taxas[$i['moeda']]['data']))]);
+    return t('{valor}, cotação de {data}', ['valor' => '≈' . NBSP . money((float) $i['valor_site']), 'data' => diaMes(Cotacao::dataDe((string) $i['moeda'], $taxas))]);
 };
 $preco = static fn(array $i): string => $i['valor'] !== null ? Cotacao::formatar((float) $i['valor'], (string) $i['moeda']) : t('Sem valor');
-$total = array_sum(array_map(static fn(array $i): float => (float) $i['valor_brl'], $itens));
-$algumFora = array_filter($itens, static fn(array $i): bool => $i['moeda'] !== 'BRL' && $i['valor'] !== null) !== [];
+$total = array_sum(array_map(static fn(array $i): float => (float) $i['valor_site'], $itens));
+$algumFora = array_filter($itens, static fn(array $i): bool => $i['moeda'] !== Site::moeda() && $i['valor'] !== null) !== [];
 $n = count($itens);
 $primeiro = $itens[0] ?? null;
 $resto = array_slice($itens, 1);
@@ -104,7 +105,7 @@ $abrirNovo = $itens === [] || !empty($form);
                 <?php foreach ($comprados as $c): ?>
                     <li>
                         <span class="wl-comprado-foto"><?= $foto($c, 20) ?></span>
-                        <span class="wl-comprado-txt"><b><?= e((string) $c['nome']) ?></b><small class="num"><?= e(date('d/m/Y', strtotime((string) $c['comprado_em']))) ?><?= $c['valor'] !== null ? ', ' . e(Cotacao::formatar((float) $c['valor'], (string) $c['moeda'])) : '' ?></small></span>
+                        <span class="wl-comprado-txt"><b><?= e((string) $c['nome']) ?></b><small class="num"><?= e(diaMesAno((string) $c['comprado_em'])) ?><?= $c['valor'] !== null ? ', ' . e(Cotacao::formatar((float) $c['valor'], (string) $c['moeda'])) : '' ?></small></span>
                         <form method="post" action="/wishlist/<?= (int) $c['id'] ?>/devolver"><?= $csrf ?><button class="btn-link" type="submit"><?= e(t('Voltar para a lista')) ?></button></form>
                     </li>
                 <?php endforeach; ?>

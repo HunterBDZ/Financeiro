@@ -53,7 +53,7 @@ final class CartaoController
             $nome === '' || mb_strlen($nome) > 60 => t('Dê um nome ao cartão, com até 60 letras.'),
             $fecha < 1 || $fecha > 31             => t('O dia do fechamento vai de 1 a 31.'),
             $vence < 1 || $vence > 31             => t('O dia do vencimento vai de 1 a 31.'),
-            $limTxt !== '' && ($limite === null || $limite <= 0 || $limite > 10000000) => t('Limite inválido: use um número como 15.000.'),
+            $limTxt !== '' && ($limite === null || $limite <= 0 || $limite > min(valorMaximo() * 10, 9999999999.0)) => t('Limite inválido: use um número como 15.000.'),
             default => null,
         };
         if ($erro !== null) {
@@ -118,7 +118,7 @@ final class CartaoController
         $c = CartaoModel::acharCompra((int) $id);
         $cartao = CartaoModel::ativo();
         if ($c === null || $cartao === null) {
-            renderErro(404, t('compra não encontrada'), t('pode ter sido excluída'));
+            renderErro(404, t('Compra não encontrada'), t('Pode ter sido excluída.'));
         }
         $erro = $_SESSION['cartao_erro'] ?? null;
         unset($_SESSION['cartao_erro']);
@@ -141,13 +141,13 @@ final class CartaoController
         $c = CartaoModel::acharCompra((int) $id);
         $cartao = CartaoModel::ativo();
         if ($c === null || $cartao === null) {
-            renderErro(404, t('compra não encontrada'), t('pode ter sido excluída'));
+            renderErro(404, t('Compra não encontrada'), t('Pode ter sido excluída.'));
         }
         $in = $_POST;
         $prim = is_string($in['primeira_fatura'] ?? null) && preg_match('/^\d{4}-\d{2}-01$/D', $in['primeira_fatura']) ? $in['primeira_fatura'] : null;
         [$erro, $d] = self::validarCompra($in + ['parcela_atual' => ''], $cartao, date('Y-m-d'));
         if ($erro === null && $prim === null) {
-            $erro = t('fatura da 1ª parcela?');
+            $erro = t('Escolha a fatura da 1ª parcela.');
         }
         if ($erro !== null) {
             $_SESSION['cartao_erro'] = ['msg' => $erro];
@@ -155,7 +155,7 @@ final class CartaoController
         }
         CartaoModel::atualizarCompra((int) $id, $d['data'], $d['descricao'], $d['categoria_id'], $d['valor'], $d['parcelas'], (string) $prim);
         CartaoFatura::sincronizarPlano((int) Auth::id());
-        flash('success', t('Compra salva · {descricao}', ['descricao' => $d['descricao']]));
+        flash('success', t('Compra salva · {descricao}', ['descricao' => nomeCategoria((string) $d['descricao'])]));
         redirecionar('/cartao?fatura=' . $prim, 303);
     }
 
@@ -170,14 +170,14 @@ final class CartaoController
         }
         $c = CartaoModel::acharCompra((int) $id);
         if ($c === null) {
-            flash('warn', t('já tinha sido excluída'));
+            flash('warn', t('Essa compra já tinha sido excluída.'));
             redirecionar($volta);
         }
         CartaoModel::excluirCompra($c['id']);
         CartaoFatura::sincronizarPlano((int) Auth::id());
         $token = bin2hex(random_bytes(12));
         $_SESSION['cartao_desfazer'] = ['token' => $token, 'compra' => $c];
-        flash('success', t('Compra excluída · {descricao}', ['descricao' => $c['descricao']]), [
+        flash('success', t('Compra excluída · {descricao}', ['descricao' => nomeCategoria((string) $c['descricao'])]), [
             'url' => '/cartao/compras/desfazer', 'label' => t('desfazer'), 'campos' => ['volta' => $volta, 'token' => $token],
         ]);
         redirecionar($volta);
@@ -192,13 +192,13 @@ final class CartaoController
         $d = $_SESSION['cartao_desfazer'] ?? null;
         $token = is_string($_POST['token'] ?? null) ? $_POST['token'] : '';
         if (!is_array($d) || !is_string($d['token'] ?? null) || !hash_equals($d['token'], $token)) {
-            flash('warn', t('nada para desfazer'));
+            flash('warn', t('Não há nada para desfazer.'));
             redirecionar($volta);
         }
         unset($_SESSION['cartao_desfazer']);
         CartaoModel::restaurarCompra($d['compra']);
         CartaoFatura::sincronizarPlano((int) Auth::id());
-        flash('success', t('Compra de volta · {descricao}', ['descricao' => $d['compra']['descricao']]));
+        flash('success', t('Compra de volta · {descricao}', ['descricao' => nomeCategoria((string) $d['compra']['descricao'])]));
         redirecionar($volta);
     }
 
@@ -213,24 +213,24 @@ final class CartaoController
         $s = static fn(string $k): string => is_string($in[$k] ?? null) ? trim($in[$k]) : '';
         $valor = parseMoedaBr($s('valor'));
         $valor = $valor === null ? null : round(abs($valor), 2);
-        if ($valor === null || $valor <= 0 || $valor > 1000000) {
-            return [t('valor?'), null];
+        if ($valor === null || $valor <= 0 || $valor > valorMaximo()) {
+            return [t('Digite um valor.'), null];
         }
         $cat = (int) $s('categoria_id') > 0 ? CategoriaModel::find((int) $s('categoria_id')) : null;
         $catFatura = CartaoModel::categoriaFatura();
         if ($cat === null) {
-            return [t('categoria?'), null];
+            return [t('Escolha uma categoria.'), null];
         }
         if ((int) $cat['sinal'] !== -1 || (int) $cat['operacional'] !== 1 || (int) $cat['id'] === $catFatura) {
             return [t('Escolha a categoria do que foi comprado (um gasto).'), null];
         }
         $data = LancamentosController::dataDoQuando($in, $hoje);
         if (!preg_match('/^(\d{4})-(\d{2})-(\d{2})$/D', $data, $m) || !checkdate((int) $m[2], (int) $m[3], (int) $m[1]) || $data < '2015-01-01') {
-            return [t('data?'), null];
+            return [t('Escolha uma data válida.'), null];
         }
         $ultimo = MesModel::ultimo();
         if ($ultimo !== null && $data > date('Y-m-t', strtotime($ultimo))) {
-            return [t('data depois de {mes}', ['mes' => monthLabel($ultimo)]), null];
+            return [t('A data é depois de {mes}. Escolha outra.', ['mes' => mesAno($ultimo)]), null];
         }
         $n = (int) ($s('parcelas_outro') !== '' ? $s('parcelas_outro') : $s('parcelas'));
         if ($n < 1 || $n > 48) {
@@ -245,10 +245,10 @@ final class CartaoController
             : CartaoFatura::faturaDe($data, $cartao['fecha'], $cartao['vence']);
         $descricao = trim((string) preg_replace('/[\x00-\x1F\x7F]+/', ' ', $s('descricao')));
         if (mb_strlen($descricao) > 255) {
-            return [t('descrição longa'), null];
+            return [t('Descrição muito longa. Use até 255 letras.'), null];
         }
         if ($descricao === '') {
-            $descricao = nomeCurto($cat);
+            $descricao = nomeCurtoBanco($cat);
         }
         return [null, ['valor' => $valor, 'categoria_id' => (int) $cat['id'], 'data' => $data, 'descricao' => $descricao,
                        'parcelas' => $n, 'primeira' => $primeira, 'cat' => $cat]];
@@ -260,7 +260,7 @@ final class CartaoController
         $ps = CartaoFatura::parcelas($d['valor'], $d['parcelas'], $d['primeira']);
         $quanto = $d['parcelas'] === 1 ? t('{valor} · fatura de {mes}', ['valor' => num($d['valor']), 'mes' => monthLabel($d['primeira'])])
             : t('{n} × {valor} · {de} a {ate}', ['n' => $d['parcelas'], 'valor' => num($ps[count($ps) - 1][2]), 'de' => monthLabel($d['primeira']), 'ate' => monthLabel($ps[count($ps) - 1][0])]);
-        return t('Compra no cartão · {descricao} · {quanto}', ['quanto' => $quanto, 'descricao' => $d['descricao']]);
+        return t('Compra no cartão · {descricao} · {quanto}', ['quanto' => $quanto, 'descricao' => nomeCategoria((string) $d['descricao'])]);
     }
 
     /** @return list<array> categorias de gasto ativas (sem a da fatura), para o editar */

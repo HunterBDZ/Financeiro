@@ -12,7 +12,7 @@
 .lf-titulo-col { font-size: 16px; font-weight: 750; margin-bottom: 2px; }
 .lf-x {
     display: inline-grid; place-items: center; flex: none;
-    width: 40px; height: 40px; padding: 0; border-radius: 50%;
+    width: var(--tap); height: var(--tap); padding: 0; border-radius: 50%;
     background: var(--card); color: var(--text); border: 1px solid var(--line); box-shadow: var(--sombra);
     transition: background-color .15s ease-out;
 }
@@ -34,6 +34,10 @@
 
 /* categoria: um select só */
 .lf-rot { color: var(--text-2); font-size: 13px; font-weight: 650; margin: 4px 0 -4px; }
+.lf-rot-linha { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 -12px; }
+.lf-rot-linha > .lf-rot { margin: 0; }
+.lf-criar-cat { display: inline-flex; align-items: center; min-height: var(--tap); color: var(--text-2); font-size: 13px; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+.lf-criar-cat:hover { color: var(--text); }
 
 .lf-dia { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 12px; padding-left: 14px; border-radius: 12px; background: var(--campo, var(--card-2)); box-shadow: inset 0 0 0 1px var(--line); }
 .lf-dia-lbl { color: var(--text-2); font-size: 14px; font-weight: 650; }
@@ -110,7 +114,7 @@
 }
 .ex-cat-rm { margin: 0; flex: none; }
 .ex-cat-x {
-    display: grid; place-items: center; width: 40px; height: 40px; padding: 0; border-radius: 50%;
+    display: grid; place-items: center; width: var(--tap); height: var(--tap); padding: 0; border-radius: 50%;
     background: none; border: 0; color: var(--text-2); transition: color .15s ease-out, background-color .15s ease-out;
 }
 .ex-cat-x:hover { color: var(--neg); background: var(--neg-bg); }
@@ -179,6 +183,9 @@
 .lg-cert { color: var(--text-2); font-size: 13px; padding: 0 4px; }
 .lg-cert > summary { min-height: 40px; display: flex; align-items: center; text-decoration: underline; text-underline-offset: 3px; }
 .lg-cert > p { margin-top: 4px; line-height: 1.5; }
+.lg-ajuda { display: flex; align-items: center; min-height: var(--tap); padding: 0 4px; color: var(--text-2); font-size: 13px; text-decoration: underline; text-underline-offset: 3px; }
+.lg-texto { display: flex; flex-direction: column; gap: 16px; max-width: 520px; }
+.lg-texto .lg-card { display: flex; flex-direction: column; gap: 14px; line-height: 1.5; }
 
 @media (min-width: 1024px) {
     .lg {
@@ -221,6 +228,9 @@
 .ic-opcao:has(input:focus-visible) { outline: 2px solid var(--foco); outline-offset: 2px; }
 .ic-opcao > .ci { background: none; }                   /* na grade, o emoji maior e sem o círculo */
 .ic-opcao > .ci > i { width: 82%; height: 82%; }
+.ic-escolher > summary { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; min-height: var(--tap); font-weight: 700; cursor: pointer; }
+.ic-escolher > summary > span { text-decoration: underline; text-underline-offset: 3px; }
+.ic-escolher > summary small { color: var(--text-2); font-size: 13px; font-weight: 500; }
 .ex-nova-form .ic-picker { margin-top: 2px; }
 
 .ic-pagina { width: 100%; max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }

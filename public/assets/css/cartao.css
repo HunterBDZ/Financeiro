@@ -40,12 +40,14 @@
 .ct-escada-cab { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .ct-escada-cab h2 { font-size: 16px; font-weight: 750; }
 .ct-escada-sub { margin-top: 2px; color: var(--text-2); font-size: 13px; line-height: 1.4; }
-.ct-escada { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); align-items: end; gap: 4px; height: 164px; margin-top: 16px; }
-.ct-degrau small { margin-top: -4px; color: var(--text-3); font-size: 10.5px; font-weight: 650; line-height: 1; }
+/* a escada rola para o lado: cada mês tem a largura de um toque, em vez de 15 colunas espremidas */
+.ct-escada { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(var(--tap), 1fr); align-items: end; gap: 4px; height: 164px; margin-top: 16px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; }
+.ct-escada-mini { grid-auto-columns: minmax(0, 1fr); overflow: hidden; }
+.ct-degrau small { margin-top: -4px; color: var(--text-3); font-size: 12px; font-weight: 650; line-height: 1; }
 .ct-degrau {
     position: relative; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 6px;
     height: 100%; padding: 0; border: 0; background: none; color: var(--text-3); cursor: pointer;
-    font-size: 11.5px; font-weight: 650;
+    font-size: 12px; font-weight: 650;
 }
 .ct-degrau-barra { display: flex; flex-direction: column; justify-content: flex-start; width: 100%; max-width: 30px; height: var(--h); border-radius: 6px 6px 3px 3px; background: var(--card-3); overflow: hidden; transition: background-color .15s ease-out; }
 .ct-degrau-novo { display: block; width: 100%; height: var(--n, 0%); background: var(--text); }
@@ -76,7 +78,6 @@
 .ct-linha-n small { color: var(--text-2); font-size: 13px; }
 .ct-linha-v { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; font-weight: 750; }
 .ct-linha-v small { color: var(--text-3); font-size: 12.5px; font-weight: 650; }
-.ct-vez { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 99px; background: var(--card-2); color: var(--text-2); font-size: 12px; font-weight: 750; vertical-align: 1px; }
 .ct-fat-total { display: flex; justify-content: space-between; gap: 12px; margin-top: 6px; padding-top: 10px; border-top: 1px solid var(--line-2); font-weight: 800; }
 .ct-fat-total span { color: var(--text-2); font-weight: 650; }
 
@@ -94,7 +95,7 @@
 .ct-parc-l1 { font-weight: 700; }
 .ct-parc-l1 span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ct-parc .trilho { margin: 4px 0 2px; }
-.ct-parc-l3 { flex-wrap: wrap; color: var(--text-2); font-size: 12.5px; }
+.ct-parc-l3 { flex-wrap: wrap; color: var(--text-2); font-size: 12.5px; white-space: normal; }
 .ct-dados { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; margin-top: 4px; }
 .ct-dados dt { color: var(--text-2); font-size: 12.5px; font-weight: 600; }
 .ct-dados dd { font-weight: 750; }
@@ -114,7 +115,8 @@
 .ct-previa output { font-size: 14.5px; font-weight: 650; line-height: 1.45; }
 .ct-previa output b { font-weight: 800; }
 .ct-previa .ct-escada { height: 74px; margin-top: 8px; gap: 3px; }
-.ct-previa .ct-degrau { font-size: 10.5px; gap: 4px; }
+.ct-previa .ct-degrau { font-size: 12px; gap: 4px; }
+.ct-previa .ct-degrau:nth-child(even) > span:last-child { visibility: hidden; }   /* na prévia estreita, um mês sim, um não */
 .ct-previa .ct-degrau-barra { border-radius: 4px 4px 2px 2px; background: var(--card-3); }
 .ct-previa small { color: var(--text-2); font-size: 12.5px; }
 .ct-antiga > summary { display: inline-flex; align-items: center; min-height: 40px; color: var(--text-2); font-size: 14px; font-weight: 700; list-style: none; cursor: pointer; }
@@ -134,6 +136,7 @@
     .ct { gap: 18px; }
     .ct-topo h1 { font-size: 26px; }
     .ct-cima { display: grid; grid-template-columns: minmax(320px, 400px) minmax(0, 1fr); gap: 16px; align-items: stretch; }
+    .ct-escada { grid-auto-columns: minmax(36px, 1fr); }
     .ct-cima > .card { display: flex; flex-direction: column; justify-content: flex-end; }
     .ct-escada { height: 170px; }
 }
@@ -173,8 +176,9 @@
 /* dados do cartão: o nome abre o configurar */
 .ct-config > summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 32px; list-style: none; cursor: pointer; }
 .ct-config > summary::-webkit-details-marker { display: none; }
-.ct-config > summary::after { content: "Configurar"; color: var(--text-2); font-size: 13px; font-weight: 700; }
-.ct-config[open] > summary::after { content: "Fechar"; }
+.ct-config-acao { display: inline-flex; align-items: center; min-height: var(--tap); color: var(--text-2); font-size: 13px; font-weight: 700; }
+.ct-config .se-aberto, .ct-config[open] .se-fechado { display: none; }
+.ct-config[open] .se-aberto { display: inline; }
 .ct-config[open] > .ct-form { margin: 10px 0 14px; }
 .ct-fat-ano { color: var(--text-3); font-weight: 650; }
 .ct-vazio-fat { margin: 14px 0 4px; color: var(--text-2); font-size: 14px; }

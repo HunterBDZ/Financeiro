@@ -34,10 +34,14 @@ final class DashboardController
 
         $meses    = MesModel::todos();
         $mesCal   = substr($hoje, 0, 7) . '-01';
-        $mesRef   = MesModel::referencia($hoje);
-        if (!isset($plano[$mesRef])) {
-            $mesRef = (string) array_key_last($plano);
+        // a previsão olha o próximo mês aberto; o resumo fica no mês do calendário enquanto ele dura,
+        // mesmo fechado antes do fim: o mês seguinte ainda não começou
+        $mesPrev  = MesModel::referencia($hoje);
+        if (!isset($plano[$mesPrev])) {
+            $mesPrev = (string) array_key_last($plano);
         }
+        $mesRef   = isset($plano[$mesCal]) && $plano[$mesCal]['situacao'] === 'REAL' ? $mesCal : $mesPrev;
+        $linhaPrev = $plano[$mesPrev];
         $linhaRef = $plano[$mesRef];
         $estadoRef = estadoMes($mesRef, (string) $linhaRef['situacao'], $hoje);
         $reserva  = AjusteModel::valor('reserva_minima');
@@ -80,9 +84,9 @@ final class DashboardController
             'mesCal'         => $mesCal,
             'estadoRef'      => $estadoRef,
             'reserva'        => $reserva,
-            'previsaoFim'    => $linhaRef['situacao'] !== 'REAL' ? (float) $linhaRef['fica_na_conta'] : null,
-            'previsaoSemAdiantar' => self::previsaoSemAdiantar($linhaRef, $mesRef),
-            'mesPrevisao'    => $mesRef,
+            'previsaoFim'    => $linhaPrev['situacao'] !== 'REAL' ? (float) $linhaPrev['fica_na_conta'] : null,
+            'previsaoSemAdiantar' => self::previsaoSemAdiantar($linhaPrev, $mesPrev),
+            'mesPrevisao'    => $mesPrev,
             'roteiro'        => self::roteiro(),
             'conta'          => $conta,
             'conf'           => $conf,
@@ -118,9 +122,9 @@ final class DashboardController
         $saldo = parseMoedaBr($bruto);
         $erro = null;
         if ($saldo === null) {
-            $erro = t('valor?');
+            $erro = t('Digite o saldo como aparece no banco, por exemplo 1.200,50.');
         } elseif (!in_array($quando, ['hoje', 'outro'], true) || !self::dataIso($data) || $data > $hoje || $data < $minimo) {
-            $erro = t('data?');
+            $erro = t('Escolha uma data válida.');
         }
         if ($erro !== null) {
             $_SESSION['conferir_erro'] = [
@@ -131,7 +135,7 @@ final class DashboardController
         }
 
         SaldoConferenciaModel::registrar($data, $saldo, (int) Auth::id());
-        flash('success', t('banco conferido · {data}', ['data' => diaMes($data)]));
+        flash('success', t('Saldo conferido com o banco em {data}.', ['data' => diaMes($data)]));
         redirecionar($volta, 303);
     }
 
@@ -196,7 +200,7 @@ final class DashboardController
             } else {
                 $naoess += $v;
             }
-            $top[] = ['id' => $c['id'], 'nome' => nomeCurto($c), 'valor' => round($v, 2), 'essencial' => $c['essencial'], 'n' => $c['n']];
+            $top[] = ['id' => $c['id'], 'nome' => nomeCurto($c), 'nome_banco' => $c['nome'], 'valor' => round($v, 2), 'essencial' => $c['essencial'], 'n' => $c['n']];
         }
         usort($top, fn($a, $b) => $b['valor'] <=> $a['valor']);
 

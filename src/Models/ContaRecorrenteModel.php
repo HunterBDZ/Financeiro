@@ -17,7 +17,7 @@ final class ContaRecorrenteModel
             'SELECT r.id, r.categoria_id, r.dia_vencimento, c.nome AS categoria_nome, c.grupo
              FROM contas_recorrentes r
              JOIN categorias c ON c.id = r.categoria_id
-             WHERE r.ativo = 1
+             WHERE r.ativo = 1' . (AjusteModel::usa('usa_cartao') ? '' : " AND c.grupo <> 'Cartao'") . '
              ORDER BY c.nome'
         );
         return $stmt->fetchAll();
@@ -47,7 +47,7 @@ final class ContaRecorrenteModel
         $stmt = $pdo->query(
             "SELECT id, nome, apelido, grupo
              FROM categorias
-             WHERE ativo = 1 AND grupo IN ('Fixos', 'Cartao', 'Ano')
+             WHERE ativo = 1 AND grupo IN ('Fixos', " . (AjusteModel::usa('usa_cartao') ? "'Cartao', " : '') . "'Ano')
              ORDER BY FIELD(grupo, 'Fixos', 'Cartao', 'Ano'), ordem, nome"
         );
         return array_map(static fn(array $c): array => [

@@ -4,7 +4,7 @@ $volta = rawurlencode('/investimentos');
 $parte = static function (string $titulo, string $rotEntra, string $rotSai, string $acaoEntra, array $p) use ($volta): void { ?>
     <section class="card inv-parte" aria-label="<?= e($titulo) ?>">
         <h2 class="titulo"><?= e($titulo) ?></h2>
-        <p class="inv-saldo num"><small>R$</small> <?= e(num($p['saldo'])) ?></p>
+        <p class="inv-saldo num"><small><?= e(moedaSimbolo()) ?></small> <?= e(num($p['saldo'])) ?></p>
         <dl class="inv-conta num">
             <div><dt><?= e(t('Valor de partida')) ?></dt><dd><?= e(num($p['inicio'])) ?></dd></div>
             <div><dt><?= e($rotEntra) ?></dt><dd>+<?= e(num($p['entrou'])) ?></dd></div>
@@ -21,7 +21,7 @@ $parte = static function (string $titulo, string $rotEntra, string $rotSai, stri
             <ul class="lista">
                 <?php foreach ($p['movimentos'] as $r):
                     $cat = ['nome' => $r['categoria_nome'], 'apelido' => $r['apelido']];
-                    $desc = trim((string) $r['descricao']);
+                    $desc = descricaoTela(trim((string) $r['descricao']), $cat);
                     $sub = $desc !== '' && mb_strtolower($desc) !== mb_strtolower(nomeCurto($cat)) ? nomeCurto($cat) : ''; ?>
                     <li>
                         <a class="lista-i" href="/lancamentos/<?= (int) $r['id'] ?>/editar?volta=<?= e($volta) ?>">
@@ -40,7 +40,7 @@ $parte = static function (string $titulo, string $rotEntra, string $rotSai, stri
     <h1 class="pg-titulo"><?= e(t('Investimentos')) ?></h1>
     <section class="saldo is-acima inv-total" aria-labelledby="inv-total-t">
         <div class="saldo-l1"><h2 id="inv-total-t"><?= e(t('Guardado e investido')) ?></h2></div>
-        <p class="saldo-v num"><small>R$</small><?= e(num($resumo['total'])) ?></p>
+        <p class="saldo-v num"><small><?= e(moedaSimbolo()) ?></small><?= e(num($resumo['total'])) ?></p>
         <p class="saldo-prev"><?= e(t('Vem dos lançamentos do Extrato e do valor de partida em Ajustes. Rendimentos não entram.')) ?></p>
     </section>
     <div class="inv-partes">

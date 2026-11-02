@@ -414,3 +414,37 @@ Passou por conselho (5 conselheiros, revisão anônima, síntese). A aba Anual s
 
 O atalho trocava qualquer tema por Claro ou Escuro, e um toque desfazia a escolha sem aviso. Agora `Temas::lados()` diz os dois lados de cada tema, e o atalho alterna entre eles. Tema de um modo só não tem atalho: aparece o nome dele, que leva à tela Temas. Automático continua indo para Claro ou Escuro.
 
+
+## 2026-11-01 — correções de uso, depois da auditoria de abertura
+
+Os nomes das abas e os termos Lançar, Metas, Wishlist, Extrato, Mês, Fechar, Reserva e Balanço ficam como estão, por decisão do dono. O Balanço continua sendo o fluxo completo; nenhum cálculo mudou.
+
+- **Menu do celular:** a barra segue Início, Extrato, +, Mês, Cartão. O círculo com a inicial virou o botão "Menu", com ícone e rótulo, com as mesmas opções e a conta.
+- **Simular:** tem item próprio no menu lateral e no botão Menu, e fica aceso nele mesmo.
+- **Fechar:** o botão saiu do "…". Mês terminado mostra um botão à vista; mês em andamento, o link "Fechar este mês". "Aplicar" vem desligado, a confirmação cita os dias que faltam e a mensagem diz o que mudou no mês seguinte. Reabrir não desfaz o ajuste do mês seguinte: quem desfaz é "Desfazer a última alteração", na tela Mês.
+- **Início com o mês fechado antes do fim:** o resumo fica no mês do calendário, e só a previsão olha o próximo mês aberto (`DashboardController`). O motor não mudou. A tela Mês, sem `?mes=`, ainda abre no próximo mês aberto (`MesModel::referencia`).
+- **Empréstimo:** simular não preenche mais "Valor pago". Só o "Já paguei" do resultado leva o valor (`?pago=`). O bloco de consolidar fica dobrado.
+- **Primeira configuração:** o que a pessoa usa vem antes das contas fixas (passo 3), e a lista de contas inclui a fatura só para quem marcou cartão. As perguntas da parcela e da sobra só aparecem com empréstimo marcado.
+- **Ajustes:** nova ordem: conta e senha, idioma, temas, o que usa, Dinheiro (antes Parâmetros), Contas fixas (antes Contas recorrentes), Categorias, Essenciais, Pessoas e Avançado (Ponto de partida, Ícone do site, Aparelhos). Só Dinheiro abre sozinho. Os links antigos `?aberto=` continuam valendo.
+- **Categorias:** saíram do Extrato e foram para Ajustes, com o atalho "Criar categoria" no Lançar. Os ícones ficam dobrados em "Escolher ícone".
+- **Aviso de conexão:** a explicação saiu do login e foi para `/ajuda/conexao`, que abre sem login, porque quem vê o aviso ainda não entrou.
+- **Áreas de toque e texto:** 44px nos botões redondos e nos links curtos, e nenhum texto abaixo de 12px (um teste varre o CSS). Na escada das faturas, cada mês tem largura mínima e a fileira rola para o lado.
+- **Em inglês e espanhol, a aba Extrato** agora é "Activity" e "Extracto", que cabem na barra em 320px.
+
+## 2026-11-01 — moeda, fuso, categorias e datas por idioma
+
+Quem usa em português com reais não vê diferença: as telas e o PDF foram comparados antes e depois. As mudanças valem para quem escolhe outra coisa.
+
+- **Moeda por site, sem conversão.** Trocar a moeda muda o símbolo; 100 continua 100. Uma conversão de todo o histórico por uma cotação do dia inventaria valores. O formato do número segue o idioma de quem vê (pt e es `1.234,56`, en `1,234.56`), e tudo passa por `money()`, `num()`, `numInput()` e, no navegador, por `FIN` em `i18n.js`.
+- **Moeda e fuso guardados como número em `ajustes`,** que só tem coluna numérica e dispensa migração: moeda pelo código da ISO 4217 e fuso pelo crc32 do nome. Um teste confere que o crc32 não repete entre os nomes. Sem o ajuste, valem real e Brasília.
+- **Uma leitura só.** `Database::connection()` chama `Site::carregar()`: uma consulta traz os dois ajustes e um `SET time_zone` ajusta a conexão. `public/index.php` conecta antes de qualquer data. O deslocamento vem do PHP a cada requisição, com o horário de verão, porque as tabelas de fuso do MySQL podem estar vazias. Efeito conhecido: um horário antigo gravado em `TIMESTAMP` é mostrado com o deslocamento de hoje, então pode aparecer 1 hora diferente em outra estação.
+- **Moedas sem centavos (CLP, COP, ARS na prática) ficam com duas casas.** O app inteiro e o banco supõem duas. Tirar as casas só nessas moedas mudaria o caminho de ida e volta dos campos.
+- **Limite dos campos de valor:** 1 milhão em BRL, USD, EUR e GBP, como sempre; 1 bilhão nas outras (`valorMaximo()`), porque um salário em pesos colombianos ou chilenos passa de 1 milhão.
+- **Símbolo:** a tabela é a de `Cotacao::MOEDAS`. Os pesos usam o código (`ARS`, `CLP`), porque `$` sozinho seria ambíguo.
+- **Cotação da Wishlist:** a fonte dá tudo em reais, então as moedas se cruzam pelo real (de USD a EUR passando por BRL). COP e PEN entraram na lista: a fonte principal tem; a reserva não tem ARS, CLP, COP, PEN nem UYU, e sem cotação a tela avisa. Um item gravado em reais num site em outra moeda é convertido de verdade, porque ele diz que é em reais.
+- **Categorias de fábrica traduzidas só ao mostrar** (`nomeCategoria()`), sem migração: o banco e as comparações do motor continuam em português. Vale para os nomes e apelidos de `database/instalar.php`, listados em `CATEGORIAS_FABRICA`. Quem cria uma categoria com um desses nomes vê a tradução também. A descrição gravada sozinha com o nome da categoria acompanha o idioma (`descricaoTela()`); a escrita pela pessoa fica como está. A busca do Extrato acha também pelo nome traduzido.
+- **Em en/es, os itens brasileiros viram equivalentes:** IPVA é "Vehicle tax"/"Impuesto del vehículo", Licenciamento é "Vehicle registration"/"Matrícula del vehículo".
+- **"Tenho carro":** sem marcar, as categorias de carro sem nenhum uso ficam com `ativo = 0`, nada é apagado, e voltam ao marcar. O mesmo item fica em Ajustes, senão quem compra um carro depois esbarraria em "já existe uma categoria" (nome único, inclusive inativa). Sem o ajuste `usa_carro`, conta como marcado.
+- **Sem cartão, a fatura sai das contas fixas:** da lista oferecida e do que já estava cadastrado, sem apagar nada.
+- **Datas curtas centralizadas:** `diaMes()`, `diaMesHora()`, `diaMesAno()`, `diaMesCurto()` e `FIN.diaMes()`. Em en, `Nov 22`.
+- **Termos em inglês:** "Lançar" virou "Add entry", para não se confundir com "Add item"; "Brasil e da casa" virou "Brazilian and original"; em es, "Consagrados" virou "Clásicos". Falta um falante nativo revisar "Account" contra "Card" e o tom geral.

@@ -18,7 +18,7 @@ $plastico = static function (string $titulo, string $sub, string $valor, string 
             <p class="ct-plastico-t"><?= e($titulo) ?><small><?= e($sub) ?></small></p>
             <span class="ct-chip" aria-hidden="true"></span>
         </div>
-        <p class="ct-plastico-v num"><small>R$&nbsp;</small><?= e($valor) ?></p>
+        <p class="ct-plastico-v num"><small><?= e(moedaSimbolo()) ?>&nbsp;</small><?= e($valor) ?></p>
         <div>
             <?php if ($status !== ''): ?><span class="ct-status"><i aria-hidden="true"></i><?= e($status) ?></span><?php endif; ?>
             <?php if ($pe !== []): ?>
@@ -38,7 +38,7 @@ $formConfig = static function (?array $cfg, ?array $erro, callable $campo, bool 
             <label><span><?= e(t('Fecha no dia')) ?></span><input type="text" name="dia_fechamento" inputmode="numeric" maxlength="2" required placeholder="25" value="<?= e($campo('fecha', isset($cfg['fecha']) ? (string) $cfg['fecha'] : '')) ?>"></label>
             <label><span><?= e(t('Vence no dia')) ?></span><input type="text" name="dia_vencimento" inputmode="numeric" maxlength="2" required placeholder="5" value="<?= e($campo('vence', isset($cfg['vence']) ? (string) $cfg['vence'] : '')) ?>"></label>
         </div>
-        <label><span><?= e(t('Limite (opcional)')) ?></span><input type="text" name="limite" inputmode="decimal" placeholder="0,00" value="<?= e($campo('limite', isset($cfg['limite']) ? numInput((float) $cfg['limite']) : '')) ?>"></label>
+        <label><span><?= e(t('Limite (opcional)')) ?></span><input type="text" name="limite" inputmode="decimal" placeholder="<?= e(numInput(0)) ?>" value="<?= e($campo('limite', isset($cfg['limite']) ? numInput((float) $cfg['limite']) : '')) ?>"></label>
         <?php if ($primeira): ?>
             <p><?= e(t('Com o fechamento e o vencimento, o app sabe em que fatura cada compra cai. Depois de lançar as compras parceladas que já estão no cartão, você liga o cartão ao plano e a previsão da Fatura do cartão passa a sair delas.')) ?></p>
         <?php endif; ?>
@@ -132,7 +132,7 @@ $hrefLancar = '/lancar?pagou=cartao&volta=' . rawurlencode('/cartao');
         <?php $plastico(t('Fatura de {mes}', ['mes' => mesExtenso($aberta)]), $cfg['nome'], num((float) $fAberta['total']), $statusTxt($fAberta), $pe); ?>
         <section class="card ct-escada-card" aria-labelledby="ct-esc-t">
             <div class="ct-escada-cab"><h2 id="ct-esc-t"><?= e(t('Próximas faturas')) ?></h2></div>
-            <p class="ct-escada-sub"><?= e(t('Só as parcelas que já estão no cartão. O que ainda for comprado entra por cima.')) ?></p>
+            <p class="ct-escada-sub"><?= e(t('Quanto já está comprometido em cada fatura. Novas compras somam a isso.')) ?></p>
             <div class="ct-escada">
                 <?php foreach ($faturas as $j => $f):
                     $v = max((float) $f['total'], (float) ($f['pago'] ?? 0.0));
@@ -160,15 +160,15 @@ $hrefLancar = '/lancar?pagou=cartao&volta=' . rawurlencode('/cartao');
                 <?php if ($p['parcelamentos'] !== []): ?><p class="num"><?= e(tn(count($p['parcelamentos']), '{valor} ainda a pagar em {n} compra', '{valor} ainda a pagar em {n} compras', ['valor' => num((float) $p['restante'])])) ?></p><?php endif; ?>
             </div>
             <?php if ($p['parcelamentos'] === []): ?>
-                <p class="ct-escada-sub" style="margin-top:8px"><?= e(t('Nenhuma compra parcelada lançada ainda.')) ?></p>
+                <p class="ct-escada-sub" style="margin-top:8px"><?= e(t('Nenhuma compra parcelada ainda. Compras parceladas aparecem aqui quando você as registra.')) ?></p>
             <?php else: ?>
                 <ul class="ct-parc">
                     <?php foreach ($p['parcelamentos'] as $pc): $c = $pc['compra']; ?>
                         <li><a class="ct-parc-i" href="/cartao/compras/<?= (int) $c['id'] ?>/editar">
                             <?= iconeCategoria((int) ($c['categoria_id'] ?? 0), (string) ($c['categoria_nome'] ?? $c['descricao']), (string) ($c['categoria_grupo'] ?? ''), 40) ?>
-                            <span class="ct-parc-l1"><span><?= e($c['descricao']) ?></span><span class="num"><?= e(num((float) $pc['valor'])) ?></span></span>
+                            <span class="ct-parc-l1"><span><?= e(descricaoTela((string) $c['descricao'], ['nome' => $c['categoria_nome'] ?? '', 'apelido' => $c['categoria_apelido'] ?? ''])) ?></span><span class="num"><?= e(num((float) $pc['valor'])) ?></span></span>
                             <span class="trilho" aria-hidden="true"><i style="--w:<?= (int) round(($pc['agora'] - 1) / $pc['n'] * 100) ?>%"></i></span>
-                            <span class="ct-parc-l3 num"><span><?= $pc['comeca'] > $aberta ? e(t('começa em {mes}', ['mes' => monthLabel($pc['comeca'])])) : e(t('{agora} de {n} · {faltam} a pagar, contando a aberta', ['agora' => $pc['agora'], 'n' => $pc['n'], 'faltam' => $pc['faltam']])) ?></span><span><?= e(t('última em {mes}', ['mes' => monthLabel($pc['ultima'])])) ?></span></span>
+                            <span class="ct-parc-l3 num"><span><?= $pc['comeca'] > $aberta ? e(t('começa em {mes}', ['mes' => monthLabel($pc['comeca'])])) : e(t('Parcela {agora} de {n}. Faltam {faltam}, incluindo a fatura atual.', ['agora' => $pc['agora'], 'n' => $pc['n'], 'faltam' => $pc['faltam']])) ?></span><span><?= e(t('última em {mes}', ['mes' => monthLabel($pc['ultima'])])) ?></span></span>
                         </a></li>
                     <?php endforeach; ?>
                 </ul>
@@ -177,7 +177,7 @@ $hrefLancar = '/lancar?pagou=cartao&volta=' . rawurlencode('/cartao');
 
         <section class="card ct-dados-card" aria-labelledby="ct-dados-t">
             <details class="ct-config"<?= $erro !== null ? ' open' : '' ?>>
-                <summary><h2 class="titulo" id="ct-dados-t"><?= e($cfg['nome']) ?></h2></summary>
+                <summary><h2 class="titulo" id="ct-dados-t"><?= e($cfg['nome']) ?></h2><span class="ct-config-acao"><span class="se-fechado"><?= e(t('Configurar')) ?></span><span class="se-aberto"><?= e(t('Fechar')) ?></span></span></summary>
                 <?php $formConfig($cfg, $erro, $campo, false); ?>
             </details>
             <dl class="ct-dados num">
@@ -185,7 +185,7 @@ $hrefLancar = '/lancar?pagou=cartao&volta=' . rawurlencode('/cartao');
                 <div><dt><?= e(t('Limite')) ?></dt><dd><?= $cfg['limite'] !== null ? e(num((float) $cfg['limite'], 0)) : '—' ?></dd></div>
                 <div><dt><?= e(t('No plano')) ?></dt><dd><?= $cfg['alimenta_plano'] ? e(t('pelas parcelas')) : e(t('previsão digitada')) ?></dd></div>
             </dl>
-            <p class="ct-escada-sub" style="margin-top:10px"><?= e(t('Cada fatura entra no plano no mês em que vence, como a categoria Fatura do cartão. As compras não contam de novo nas categorias.')) ?></p>
+            <p class="ct-escada-sub" style="margin-top:10px"><?= e(t('A fatura conta como um gasto no mês em que vence. As compras não são somadas duas vezes.')) ?></p>
         </section>
     </div>
 
@@ -205,9 +205,9 @@ $hrefLancar = '/lancar?pagou=cartao&volta=' . rawurlencode('/cartao');
                     <?php foreach ($lista as $it): $c = $it['compra']; ?>
                         <a class="ct-linha" href="/cartao/compras/<?= (int) $c['id'] ?>/editar">
                             <?= iconeCategoria((int) ($c['categoria_id'] ?? 0), (string) ($c['categoria_nome'] ?? $c['descricao']), (string) ($c['categoria_grupo'] ?? ''), 40) ?>
-                            <span class="ct-linha-n"><b><?= e($c['descricao']) ?><?php if ((int) $c['parcelas'] > 1): ?><span class="ct-vez num"><?= (int) $it['k'] ?>/<?= (int) $c['parcelas'] ?></span><?php endif; ?></b>
+                            <span class="ct-linha-n"><b><?= e(descricaoTela((string) $c['descricao'], ['nome' => $c['categoria_nome'] ?? '', 'apelido' => $c['categoria_apelido'] ?? ''])) ?></b>
                                 <small><?= e(implode(' · ', array_filter([nomeCurto(['apelido' => $c['categoria_apelido'], 'nome' => $c['categoria_nome'] ?? '']),
-                                    (int) $c['parcelas'] === 1 ? diaMes($c['data']) : ''], static fn($x) => $x !== ''))) ?></small></span>
+                                    (int) $c['parcelas'] === 1 ? diaMes($c['data']) : t('Parcela {k} de {n}', ['k' => (int) $it['k'], 'n' => (int) $c['parcelas']])], static fn($x) => $x !== ''))) ?></small></span>
                             <span class="ct-linha-v num"><?= e(num((float) $it['valor'])) ?></span>
                         </a>
                     <?php endforeach; ?>

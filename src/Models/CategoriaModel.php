@@ -5,6 +5,9 @@ use Financeiro\Database;
 
 final class CategoriaModel
 {
+    /** As categorias de fábrica que só fazem sentido para quem tem carro. */
+    private const DE_CARRO = ['Seguro do carro', 'Combustível', 'IPVA', 'Licenciamento do carro', 'Revisão do carro'];
+
     /** @return array<int, array> todas as categorias ativas, ordenadas por grupo/ordem (com apelido e essencial) */
     public static function ativas(): array
     {
@@ -52,6 +55,25 @@ final class CategoriaModel
              ORDER BY FIELD(grupo, "Fixos","Dia a dia","Cartao","Ano"), ordem, nome'
         );
         return $stmt->fetchAll();
+    }
+
+    /**
+     * "Tenho carro" na primeira configuração. Sem carro, as categorias de fábrica de carro sem nenhum uso saem das
+     * listas (ativo = 0, nada é apagado); com carro, voltam. A que já tem algum dado não é tocada.
+     */
+    public static function marcarCarro(bool $temCarro): void
+    {
+        $pdo = Database::connection();
+        $marcas = implode(', ', array_fill(0, count(self::DE_CARRO), '?'));
+        if ($temCarro) {
+            $pdo->prepare("UPDATE categorias SET ativo = 1 WHERE nome IN ({$marcas})")->execute(self::DE_CARRO);
+            return;
+        }
+        $semUso = '';
+        foreach (['lancamentos', 'previsao', 'metas', 'contas_recorrentes', 'cartao_compras'] as $tabela) {
+            $semUso .= " AND NOT EXISTS (SELECT 1 FROM {$tabela} t WHERE t.categoria_id = categorias.id)";
+        }
+        $pdo->prepare("UPDATE categorias SET ativo = 0 WHERE nome IN ({$marcas})" . $semUso)->execute(self::DE_CARRO);
     }
 
     /** Marca/desmarca uma categoria de gasto como essencial. Entradas e ⇄: exceção. */

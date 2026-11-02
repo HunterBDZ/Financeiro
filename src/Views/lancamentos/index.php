@@ -120,54 +120,6 @@ $catAtual = $categoria !== null ? (int) $categoria['id'] : 0;
             <?php endif; ?>
         </div>
 
-        <details class="card ex-nova" id="nova-categoria">
-            <summary class="ex-nova-sum"><?= svgIcon('settings', 16) ?><?= e(t('Categorias')) ?></summary>
-
-            <form class="ex-nova-form ex-nova-criar" method="post" action="/categorias">
-                <?= csrfField() ?>
-                <input type="hidden" name="volta" value="<?= e($urlAtual) ?>">
-                <label class="campo ex-nova-nome"><span><?= e(t('Nome da categoria')) ?></span>
-                    <input type="text" name="nome" maxlength="100" required autocomplete="off" placeholder="<?= e(t('ex.: Pet, Farmácia')) ?>">
-                </label>
-                <fieldset class="ex-nova-opts">
-                    <legend><?= e(t('Tipo')) ?></legend>
-                    <div class="chip-row">
-                        <label class="chip-r"><input type="radio" name="tipo" value="saida" checked><span><?= e(t('Saída')) ?></span></label>
-                        <label class="chip-r"><input type="radio" name="tipo" value="entrada"><span><?= e(t('Entrada')) ?></span></label>
-                    </div>
-                </fieldset>
-                <fieldset class="ex-nova-opts ex-nova-ess">
-                    <legend><?= e(t('Classe')) ?></legend>
-                    <div class="chip-row">
-                        <label class="chip-r"><input type="radio" name="essencial" value="1" checked><span><?= e(t('Essencial')) ?></span></label>
-                        <label class="chip-r"><input type="radio" name="essencial" value="0"><span><?= e(t('Não essencial')) ?></span></label>
-                    </div>
-                </fieldset>
-                <?php View::partial('partials/icone_picker', ['sugerir' => true, 'legenda' => t('Ícone')]); ?>
-                <button type="submit" class="btn btn-primary ex-nova-btn"><?= e(t('Criar categoria')) ?></button>
-            </form>
-
-            <div class="ex-cats">
-                <?php foreach ($classes as $cl): if ($cl['cats'] === []) { continue; } ?>
-                    <p class="ex-cats-grupo"><?= e($cl['rotulo']) ?></p>
-                    <ul class="ex-cats-lista">
-                        <?php foreach ($cl['cats'] as $c): ?>
-                            <li class="ex-cat-item">
-                                <a class="ex-cat-ic" href="/categorias/<?= (int) $c['id'] ?>/icone?volta=<?= e(rawurlencode($urlAtual . '#nova-categoria')) ?>" title="<?= e(t('Trocar o ícone')) ?>" aria-label="<?= e(t('trocar o ícone de {nome}', ['nome' => nomeCurto($c)])) ?>"><?= iconeCategoria((int) $c['id'], (string) $c['nome'], (string) ($c['grupo'] ?? ''), 40) ?></a>
-                                <span class="ex-cat-nome"><?= e(nomeCurto($c)) ?></span>
-                                <form method="post" action="/categorias/<?= (int) $c['id'] ?>/remover" class="ex-cat-rm"
-                                      data-confirm="<?= e(t('Remover a categoria {nome}? Se ela tiver lançamentos, só sai das listas.', ['nome' => nomeCurto($c)])) ?>">
-                                    <?= csrfField() ?>
-                                    <input type="hidden" name="volta" value="<?= e($urlAtual) ?>">
-                                    <button type="submit" class="ex-cat-x" aria-label="<?= e(t('remover {nome}', ['nome' => nomeCurto($c)])) ?>"><?= svgIcon('x', 16) ?></button>
-                                </form>
-                            </li>
-                        <?php endforeach; ?>
-                    </ul>
-                <?php endforeach; ?>
-            </div>
-        </details>
-
         <?php if ($linhas === []): ?>
             <div class="card ex-vazio">
                 <?php if ($q !== ''): ?>
@@ -175,8 +127,13 @@ $catAtual = $categoria !== null ? (int) $categoria['id'] : 0;
                 <?php elseif ($categoria !== null): ?>
                     <p><?= e(t('Nada de {categoria} em {mes}.', ['mes' => monthLabel($mes), 'categoria' => nomeCurto($categoria)])) ?></p>
                 <?php else: ?>
-                    <p><?= e(t('Nada lançado em {mes}.', ['mes' => monthLabel($mes)])) ?></p>
-                    <a class="btn btn-primary" href="/lancar?volta=<?= e($voltaEnc) ?>" data-lancar><?= e(t('Lançar')) ?></a>
+                    <?php if ($estado === 'previsto'): ?>
+                        <p><?= e(t('{mes} ainda não chegou. Veja a estimativa na tela Mês.', ['mes' => mb_convert_case(mesExtenso($mes), MB_CASE_TITLE)])) ?></p>
+                        <a class="btn btn-ghost" href="/mes?mes=<?= e($mes) ?>"><?= e(t('Mês')) ?></a>
+                    <?php else: ?>
+                        <p><?= e(t('Nada lançado em {mes}.', ['mes' => monthLabel($mes)])) ?></p>
+                        <a class="btn btn-primary" href="/lancar?volta=<?= e($voltaEnc) ?>" data-lancar><?= e(t('Lançar')) ?></a>
+                    <?php endif; ?>
                 <?php endif; ?>
             </div>
         <?php else: ?>
@@ -205,11 +162,11 @@ $catAtual = $categoria !== null ? (int) $categoria['id'] : 0;
                             $cls = $mov ? 'ex-v-mov' : ($ent ? 'ex-v-ent' : 'ex-v-gasto neg');
                             $cat = ['nome' => $r['categoria_nome'], 'apelido' => $r['apelido']];
                             ?>
-                            <?php $desc = trim((string) $r['descricao']); $rot = $desc !== '' ? $desc : nomeCurto($cat); ?>
+                            <?php $desc = descricaoTela(trim((string) $r['descricao']), $cat); $rot = $desc !== '' ? $desc : nomeCurto($cat); ?>
                             <li><a class="lista-i ex-linha" href="/lancamentos/<?= (int) $r['id'] ?>/editar?volta=<?= e($voltaEnc) ?>"<?= $i === $limite - 60 && $i > 0 ? ' id="ex-r' . $i . '"' : '' ?>>
                                 <?= iconeCategoria((int) $r['categoria_id'], (string) $r['categoria_nome'], (string) $r['grupo'], 40) ?>
                                 <span class="lista-n"><b><?= e($rot) ?></b><?php $mesmoNome = mb_strtolower($rot) === mb_strtolower(nomeCurto($cat)); $quando = $agrupado ? '' : \Financeiro\Idioma::diaSemana((int) date('w', strtotime($r['data']))) . ' ' . diaMes($r['data']); $sub = implode(', ', array_filter([$mesmoNome ? '' : nomeCurto($cat), $quando])); ?><?php if ($sub !== ''): ?><small><?= e($sub) ?></small><?php endif; ?></span>
-                                <span class="lista-v"><b class="num <?= $cls ?>"><?= e($txt) ?></b><?php if ($r['data'] > $hoje): ?><small class="ex-agendado"><?= e(t('agendado')) ?></small><?php endif; ?></span>
+                                <span class="lista-v"><b class="num <?= $cls ?>"><?= e($txt) ?></b><?php if ($mov): ?><small class="ex-mov"><?= e(t('Movimentação')) ?></small><?php endif; ?><?php if ($r['data'] > $hoje): ?><small class="ex-agendado"><?= e(t('agendado')) ?></small><?php endif; ?></span>
                             </a></li>
                             <?php $i++; ?>
                         <?php endforeach; ?>

@@ -3,7 +3,7 @@
  * Escolher o ícone de uma categoria: os ícones em pixel art, por grupo, como opções de rádio
  * (name="icone"). Funciona sem JS; com JS, em [data-ic-sugerir] o ícone acompanha o nome que
  * se digita até a pessoa escolher um (app.js).
- * Variáveis: $selecionado (?string, a chave marcada), $sugerir (bool), $legenda (string).
+ * Variáveis: $selecionado (?string, a chave marcada), $sugerir (bool), $semDica (bool: a dica já está à vista), $legenda (string).
  */
 use Financeiro\Icones;
 
@@ -13,7 +13,7 @@ $legenda     = (string) ($legenda ?? t('Ícone'));
 ?>
 <fieldset class="ic-picker"<?= $sugerir ? ' data-ic-sugerir data-ic-regras="' . e(Icones::regrasJson()) . '"' : '' ?>>
     <legend><?= e($legenda) ?></legend>
-    <?php if ($sugerir): ?><p class="ic-dica"><?= e(t('Sem escolher, o ícone vem do nome.')) ?></p><?php endif; ?>
+    <?php if ($sugerir && empty($semDica)): ?><p class="ic-dica"><?= e(t('Sem escolher, o ícone vem do nome.')) ?></p><?php endif; ?>
     <?php foreach (Icones::porGrupo() as $g => $grupo): if ($grupo['chaves'] === []) { continue; } ?>
         <p class="ic-grupo"><?= e($grupo['rotulo']) ?></p>
         <div class="ic-grade">

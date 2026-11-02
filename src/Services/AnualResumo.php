@@ -223,9 +223,9 @@ final class AnualResumo
     private static function nome(array $cat): string
     {
         if (!empty($cat['apelido'])) {
-            return (string) $cat['apelido'];
+            return nomeCategoria((string) $cat['apelido']);
         }
-        return trim((string) preg_replace('/\s*\(.*\)\s*$/u', '', (string) $cat['nome']));
+        return trim((string) preg_replace('/\s*\(.*\)\s*$/u', '', nomeCategoria((string) $cat['nome'])));
     }
 
     private static function seguinte(string $mes): string

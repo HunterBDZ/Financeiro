@@ -2,9 +2,11 @@
 namespace Financeiro\Services;
 
 use Financeiro\Database;
+use Financeiro\Site;
 
 /**
- * Moedas da Wishlist e a conversão para reais. A cotação fica guardada na tabela `cotacoes` e é renovada no
+ * Moedas da Wishlist e a conversão para a moeda do site. A fonte dá tudo em reais, então as outras moedas
+ * se cruzam pelo real (USD => EUR = USD => BRL => EUR). A cotação fica guardada na tabela `cotacoes` e é renovada no
  * máximo a cada 2 horas; se as fontes falharem, vale a última guardada, sempre com a data à vista. Em fim de
  * semana e feriado, a data é a do último fechamento. É a cotação comercial, sem IOF nem taxa do cartão.
  */
@@ -15,7 +17,7 @@ final class Cotacao
         'BRL' => ['Real', 'R$'], 'USD' => ['Dólar', 'US$'], 'EUR' => ['Euro', '€'], 'GBP' => ['Libra', '£'],
         'CAD' => ['Dólar canadense', 'C$'], 'AUD' => ['Dólar australiano', 'A$'], 'CHF' => ['Franco suíço', 'CHF'],
         'JPY' => ['Iene', '¥'], 'CNY' => ['Yuan', 'CN¥'], 'ARS' => ['Peso argentino', 'ARS'], 'CLP' => ['Peso chileno', 'CLP'],
-        'UYU' => ['Peso uruguaio', 'UYU'], 'MXN' => ['Peso mexicano', 'MXN'],
+        'UYU' => ['Peso uruguaio', 'UYU'], 'MXN' => ['Peso mexicano', 'MXN'], 'COP' => ['Peso colombiano', 'COP'], 'PEN' => ['Sol peruano', 'S/'],
     ];
     private const HORAS = 2;
     private const MAX_RESPOSTA = 262144;
@@ -25,22 +27,41 @@ final class Cotacao
         return isset(self::MOEDAS[$moeda]);
     }
 
-    /** "US$ 1.299,00"; real sai como no resto do app. */
+    /** "US$ 1.299,00"; no formato do idioma. */
     public static function formatar(float $valor, string $moeda): string
     {
-        return $moeda === 'BRL' ? money($valor) : (self::MOEDAS[$moeda][1] ?? $moeda) . NBSP . num($valor);
+        return (self::MOEDAS[$moeda][1] ?? $moeda) . NBSP . num($valor);
     }
 
     /**
-     * O valor em reais, ou null sem cotação.
+     * O valor na moeda do site, ou null sem cotação.
      * @param array<string, array{valor:float, data:string}> $taxas
      */
-    public static function emReais(float $valor, string $moeda, array $taxas): ?float
+    public static function naMoedaDoSite(float $valor, string $moeda, array $taxas): ?float
     {
-        if ($moeda === 'BRL') {
+        if ($moeda === Site::moeda()) {
             return $valor;
         }
-        return isset($taxas[$moeda]) ? round($valor * $taxas[$moeda]['valor'], 2) : null;
+        $taxa = self::taxaParaSite($moeda, $taxas);
+        return $taxa !== null ? round($valor * $taxa, 2) : null;
+    }
+
+    /**
+     * Quanto vale 1 unidade de $moeda na moeda do site, ou null sem cotação de uma das duas.
+     * @param array<string, array{valor:float, data:string}> $taxas moeda => reais por unidade
+     */
+    public static function taxaParaSite(string $moeda, array $taxas): ?float
+    {
+        $reais = static fn(string $m): ?float => $m === 'BRL' ? 1.0 : ($taxas[$m]['valor'] ?? null);
+        $de = $reais($moeda);
+        $para = $reais(Site::moeda());
+        return $de !== null && $para !== null ? $de / $para : null;
+    }
+
+    /** A data da cotação usada em taxaParaSite(): a da moeda, ou a da moeda do site quando a outra ponta é o real. */
+    public static function dataDe(string $moeda, array $taxas): string
+    {
+        return (string) ($taxas[$moeda]['data'] ?? $taxas[Site::moeda()]['data'] ?? '');
     }
 
     /** @return array<string, array{valor:float, data:string}> moeda => reais por unidade, com a data */

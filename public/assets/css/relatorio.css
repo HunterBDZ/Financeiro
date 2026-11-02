@@ -3,7 +3,7 @@
 .rl-achado li, .rl-nota, .rl-manchete { font-variant-numeric: tabular-nums; }
 .rl-topo { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
 .rl-tipo { display: inline-flex; gap: 4px; padding: 4px; border-radius: 14px; background: var(--card-2); }
-.rl-tipo-b { display: inline-flex; align-items: center; min-height: 40px; padding: 0 18px; border-radius: 10px; color: var(--text-2); font-weight: 700; }
+.rl-tipo-b { display: inline-flex; align-items: center; min-height: var(--tap); padding: 0 18px; border-radius: 10px; color: var(--text-2); font-weight: 700; }
 .rl-tipo-b.is-on { background: var(--card); color: var(--text); box-shadow: 0 0 0 1px var(--line-2); }
 .rl-tipo-b:focus-visible { outline: 2px solid var(--foco); outline-offset: 2px; }
 .rl-periodo { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; }

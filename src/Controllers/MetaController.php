@@ -132,7 +132,7 @@ final class MetaController
                 continue;
             }
             $v = parseMoedaBr($bruto);
-            if ($v === null || $v < 0 || $v > 1000000) {
+            if ($v === null || $v < 0 || $v > valorMaximo()) {
                 $erroCampo = $id;
                 break;
             }
@@ -140,7 +140,7 @@ final class MetaController
         }
 
         if ($erroCampo !== null) {
-            flash('error', t('meta?'));
+            flash('error', t('Algo deu errado. Tente de novo.'));
             redirecionar('/meta#c' . $erroCampo, 303);
         }
 
@@ -163,7 +163,7 @@ final class MetaController
                 $pdo->rollBack();
             }
             error_log('meta/salvar: ' . $e->getMessage());
-            flash('error', t('não salvou · tente de novo'));
+            flash('error', t('Não foi possível salvar. Tente de novo.'));
             redirecionar('/meta', 303);
         }
         MotorFinanceiro::limparCache();

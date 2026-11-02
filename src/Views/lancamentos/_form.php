@@ -39,7 +39,7 @@ $gruposSel = $outras;
 
 $acao   = $editar && $l !== null ? '/lancamentos/' . (int) $l['id'] : '/lancamentos';
 $titulo = $editar ? t('Editar lançamento') : t('Novo lançamento');
-$botao  = $editar ? t('Salvar') : ($dup !== null ? t('Lançar mesmo assim') : t('Lançar'));
+$botao  = $editar ? t('Salvar') : ($dup !== null ? t('Registrar outro') : t('Lançar'));
 $foco   = $modo === 'pagina' && $topo !== false;
 $cartao = !$editar && is_array($cartao ?? null) ? $cartao : null;
 $pagou  = $cartao !== null && ($a['pagou'] ?? '') === 'cartao' ? 'cartao' : 'conta';
@@ -71,9 +71,9 @@ $vezes  = (int) ($a['parcelas'] ?? 1) ?: 1;
 
     <p class="lf-quanto" aria-hidden="true"><?= $editar ? e(t('Valor')) : e(t('Quanto foi?')) ?></p>
     <div class="lf-valor">
-        <label class="lf-rs" for="<?= e($pref) ?>-valor">R$</label>
+        <label class="lf-rs" for="<?= e($pref) ?>-valor"><?= e(moedaSimbolo()) ?></label>
         <input id="<?= e($pref) ?>-valor" class="input-grande lf-valor-in" name="valor" type="text"
-               inputmode="decimal" autocomplete="off" enterkeyhint="done" placeholder="0,00" aria-label="<?= e(t('valor')) ?>"
+               inputmode="decimal" autocomplete="off" enterkeyhint="done" placeholder="<?= e(numInput(0)) ?>" aria-label="<?= e(t('valor')) ?>"
                value="<?= e($valorTxt) ?>" data-lf-valor<?= $foco ? ' data-autofocus' : '' ?>>
     </div>
 
@@ -109,7 +109,10 @@ $vezes  = (int) ($a['parcelas'] ?? 1) ?: 1;
         </div>
     <?php endif; ?>
 
-    <label class="lf-rot" for="<?= e($pref) ?>-cat"><?= e(t('Categoria')) ?></label>
+    <div class="lf-rot-linha">
+        <label class="lf-rot" for="<?= e($pref) ?>-cat"><?= e(t('Categoria')) ?></label>
+        <?php if (!$editar): ?><a class="lf-criar-cat" href="/ajustes?aberto=categorias#categorias"><?= e(t('Criar categoria')) ?></a><?php endif; ?>
+    </div>
     <select name="categoria_id" class="lf-select" id="<?= e($pref) ?>-cat">
         <option value=""><?= e(t('Escolha a categoria')) ?></option>
         <?php // i18n: t('entradas') t('essenciais') t('não essenciais') t('⇄ movimentações')
@@ -143,7 +146,7 @@ $vezes  = (int) ($a['parcelas'] ?? 1) ?: 1;
         <div class="aviso aviso-error lf-aviso" role="alert"><?= e($erro) ?></div>
     <?php endif; ?>
     <?php if ($dup !== null): ?>
-        <div class="aviso aviso-warn lf-aviso" role="status"><?= e(t('Parece repetido: “{descricao}”, lançado por {inicial} em {data}.', ['inicial' => (string) ($dup['inicial'] ?? ''), 'data' => diaMes((string) ($dup['data'] ?? '')), 'descricao' => (string) ($dup['descricao'] ?? '')])) ?></div>
+        <div class="aviso aviso-warn lf-aviso" role="status"><?= e(t('Já existe um lançamento igual: {descricao}, de {quem}, em {data}. Quer registrar outro?', ['quem' => (string) ($dup['quem'] ?? ''), 'data' => diaMes((string) ($dup['data'] ?? '')), 'descricao' => nomeCategoria((string) ($dup['descricao'] ?? ''))])) ?></div>
     <?php endif; ?>
     <div class="aviso aviso-error lf-aviso" role="alert" data-lf-erro hidden></div>
 

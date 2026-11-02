@@ -21,7 +21,9 @@
 .cm-marcar input { flex: none; }
 .cm-marcar input[type=radio] { width: 20px; height: 20px; accent-color: var(--text); }
 .cm-grupo { border: 0; padding: 0; margin: 0; }
+.cm-card:has([name="usa_emprestimo"]:not(:checked)) .cm-so-emp { display: none; }   /* sem :has, ficam à vista */
 .cm-grupo legend { padding: 0; color: var(--text-2); font-size: 13.5px; font-weight: 650; }
 .cm-acoes { display: flex; gap: 8px; }
 .cm-acoes .btn { flex: 1 1 0; min-height: 46px; }
-.cm-pular { align-self: center; color: var(--text-2); font-size: 14px; font-weight: 600; text-decoration: underline; }
+.cm-pular { align-self: center; min-height: var(--tap); padding: 0 8px; border: 0; background: none; color: var(--text-2); font-size: 14px; font-weight: 600; text-decoration: underline; cursor: pointer; }
+a.cm-pular { display: inline-flex; align-items: center; }

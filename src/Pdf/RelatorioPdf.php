@@ -55,7 +55,7 @@ final class RelatorioPdf
     public function nomeArquivo(): string
     {
         $sufixo = $this->r['tipo'] === 'anual' ? (string) $this->r['ano'] : substr((string) $this->r['mes'], 0, 7);
-        return 'financeiro-relatorio-' . $sufixo . '.pdf';
+        return 'financeiro-' . t('relatorio') . '-' . $sufixo . '.pdf';
     }
 
     /* ================================================================== mensal */
@@ -920,7 +920,7 @@ final class RelatorioPdf
     private function rodapes(): void
     {
         $total = $this->d->totalPaginas();
-        $gerado = date('d/m/Y H:i', (int) strtotime((string) $this->r['gerado']));
+        $gerado = diaMesAno((string) $this->r['gerado']) . ' ' . date('H:i', (int) strtotime((string) $this->r['gerado']));
         for ($i = 0; $i < $total; $i++) {
             $this->d->irParaPagina($i);
             $this->d->linha(self::MARGEM, 804, self::MARGEM + self::LARG, 804, self::LINHA, 0.5);

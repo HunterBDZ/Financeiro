@@ -211,7 +211,7 @@ table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nu
 .marca img { width: 34px; height: auto; max-height: 34px; object-fit: contain; }
 .ic {
     display: inline-grid; place-items: center; flex: none;
-    width: 40px; height: 40px; padding: 0; border-radius: 50%;
+    width: var(--tap); height: var(--tap); padding: 0; border-radius: 50%;
     background: var(--card); color: var(--text); border: 1px solid var(--line); box-shadow: var(--sombra);
     transition: background-color .15s ease-out;
 }
@@ -231,20 +231,26 @@ table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nu
     display: flex; align-items: center; gap: 10px;
     padding: calc(12px + env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) 6px max(16px, env(safe-area-inset-left, 0px));
 }
-.topbar-marca { display: flex; align-items: center; gap: 10px; margin-right: auto; }
+.topbar-marca { display: flex; align-items: center; gap: 10px; min-height: var(--tap); margin-right: auto; }
 .topbar-marca b { font-family: var(--fn); font-size: 18px; font-weight: 700; letter-spacing: -0.02em; }
 
-/* menu do avatar e ⋯ (details.menu) */
+/* botão Menu e ⋯ (details.menu) */
 details.menu { position: relative; }
 details.menu > summary { list-style: none; -webkit-user-select: none; user-select: none; }
-details.menu:not(.menu-avatar):not(.mes-picker) > summary {
+details.menu:not(.menu-geral):not(.mes-picker) > summary {
     display: inline-grid; place-items: center;
-    width: 40px; height: 40px; border-radius: 50%;
+    width: var(--tap); height: var(--tap); border-radius: 50%;
     background: var(--card); color: var(--text); border: 1px solid var(--line); box-shadow: var(--sombra);
 }
-details.menu:not(.menu-avatar):not(.mes-picker) > summary:hover, details.menu:not(.menu-avatar):not(.mes-picker)[open] > summary { background: var(--card-2); }
-.menu-avatar > summary { display: grid; place-items: center; width: var(--tap); height: var(--tap); margin-right: -2px; border-radius: 50%; }
-.menu-avatar[open] .avatar, .avatar.is-active { background: var(--text); color: var(--bg); }
+details.menu:not(.menu-geral):not(.mes-picker) > summary:hover, details.menu:not(.menu-geral):not(.mes-picker)[open] > summary { background: var(--card-2); }
+.menu-botao {
+    display: inline-flex; align-items: center; gap: 6px; min-height: var(--tap); padding: 0 14px 0 11px; border-radius: 14px;
+    background: var(--card); color: var(--text); border: 1px solid var(--line); box-shadow: var(--sombra);
+    font-size: var(--t-peq); font-weight: 750; cursor: pointer; transition: background-color .15s ease-out;
+}
+.menu-botao:hover { background: var(--card-2); }
+.menu-geral[open] > .menu-botao, .menu-botao.is-active { background: var(--text); color: var(--bg); }
+.menu-geral > .menu-painel { max-height: calc(100dvh - 90px); overflow-y: auto; }
 .menu-painel {
     position: absolute; right: 0; top: calc(100% + 8px); z-index: 60;
     display: flex; flex-direction: column;
@@ -286,7 +292,7 @@ details.menu[open] > .menu-painel { animation: menu-abre .16s cubic-bezier(.2, .
 .tab {
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
     min-width: 0; min-height: var(--tap);
-    color: var(--text-2); font-size: 11.5px; font-weight: 650; line-height: 1;
+    color: var(--text-2); font-size: 12px; font-weight: 650; line-height: 1;
     transition: color .15s ease-out;
 }
 .tab.is-active { color: var(--text); font-weight: 800; }
@@ -368,7 +374,7 @@ dialog.sheet[open] { animation: folha-sobe .26s cubic-bezier(.16, 1, .3, 1); }
 .card-head > :first-child { min-width: 0; }
 .card-acao {
     margin-left: auto; flex: none;
-    display: inline-flex; align-items: center; gap: 2px; min-height: 32px;
+    display: inline-flex; align-items: center; gap: 2px; min-height: var(--tap); margin-block: -6px;
     color: var(--text-2); font-size: var(--t-peq); font-weight: 650; white-space: nowrap; font-variant-numeric: tabular-nums;
 }
 a.card-acao:hover { color: var(--text); }
@@ -543,7 +549,6 @@ details.dobra > summary:hover::after { border-color: var(--text); }
 .mes-nav .mes-nav-t {
     grid-area: t; min-width: 0; margin: 0;
     font-size: 24px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.1;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .mes-nav-ano { color: var(--text-2); font-weight: 600; }
 .mes-nav > .estado { grid-area: e; justify-self: start; }
@@ -552,7 +557,7 @@ details.dobra > summary:hover::after { border-color: var(--text); }
 .mes-nav > :last-child { grid-area: prox; }
 .mes-nav > .mes-nav-seta {
     display: inline-grid; place-items: center;
-    width: 40px; height: 40px; border-radius: 50%;
+    width: var(--tap); height: var(--tap); border-radius: 50%;
     background: var(--card); color: var(--text); border: 1px solid var(--line); box-shadow: var(--sombra);
     font-size: 22px; line-height: 1;
     transition: background-color .15s ease-out;
@@ -562,12 +567,13 @@ details.dobra > summary:hover::after { border-color: var(--text); }
 
 /* seletor de meses: o título abre um painel com todos os meses por ano */
 .mes-picker > summary {
+    min-height: var(--tap);
     display: inline-flex; align-items: center; gap: 6px; max-width: 100%;
     margin: -4px 0; padding: 4px 8px; border-radius: 12px; list-style: none;
     transition: background-color .12s ease-out;
 }
 .mes-picker > summary:hover, .mes-picker[open] > summary { background: var(--sel); }
-.mes-picker > summary .mes-nav-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mes-picker > summary .mes-nav-t { min-width: 0; }   /* nome longo: o ano desce para a linha de baixo, sem cortar */
 .mes-picker-seta { flex: none; color: var(--text-2); transform: rotate(90deg); transition: transform .2s cubic-bezier(.16, 1, .3, 1); }
 .mes-picker[open] .mes-picker-seta { transform: rotate(-90deg); }
 .mes-picker > .mes-picker-painel {
@@ -584,12 +590,13 @@ details.dobra > summary:hover::after { border-color: var(--text); }
     transition: background-color .12s ease-out;
 }
 .mes-picker-m:hover { background: var(--card-3); }
-.mes-picker-m.estado-real { color: var(--text-2); background: var(--card-2); }
-.mes-picker-m.estado-aberto { background: var(--pos-bg); color: var(--text); }   /* o mês corrente */
-.mes-picker-m.estado-previsto { background: var(--card-2); color: var(--text); }
+/* cada estado com fundo e borda próprios, não só o ponto: fechado cheio, aberto colorido, previsto vazio e tracejado */
+.mes-picker-m.estado-real { color: var(--text-2); background: var(--card-3); }
+.mes-picker-m.estado-aberto { background: var(--pos-bg); color: var(--text); box-shadow: inset 0 0 0 1.5px var(--pos); }   /* o mês corrente */
+.mes-picker-m.estado-previsto { background: transparent; color: var(--text); border: 1.5px dashed var(--line-2); }
 .mes-picker-m:hover { background: var(--card-3); }
 .mes-picker-m.is-on { background: var(--text); color: var(--bg); }
-.ponto-estado { display: inline-block; flex: none; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.ponto-estado { display: inline-block; flex: none; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
 .estado-aberto > .ponto-estado, .leg-aberto > .ponto-estado { background: var(--pos); }
 .estado-previsto > .ponto-estado, .leg-previsto > .ponto-estado { background: transparent; box-shadow: inset 0 0 0 1.4px currentColor; }
 .mes-picker-m.is-on > .ponto-estado { background: currentColor; }
@@ -599,6 +606,10 @@ details.dobra > summary:hover::after { border-color: var(--text); }
     border-top: 1px solid var(--line); color: var(--text-2); font-size: 12.5px; font-weight: 650;
 }
 .mes-picker-leg > span { display: inline-flex; align-items: center; gap: 6px; }
+.mes-picker-leg .ponto-estado { width: 18px; height: 14px; border-radius: 5px; box-sizing: border-box; }   /* na legenda, a mesma cara da célula */
+.mes-picker-leg .leg-real > .ponto-estado { background: var(--card-3); }
+.mes-picker-leg .leg-aberto > .ponto-estado { background: var(--pos-bg); box-shadow: inset 0 0 0 1.5px var(--pos); }
+.mes-picker-leg .leg-previsto > .ponto-estado { background: transparent; box-shadow: none; border: 1.5px dashed var(--line-2); }
 .mes-picker-anual {
     display: flex; align-items: center; gap: 10px; min-height: 44px; margin-top: 12px; padding: 0 12px;
     border-radius: 12px; background: var(--card-2); color: var(--text); font-size: 14px; font-weight: 750;
@@ -709,7 +720,7 @@ details.dobra > summary:hover::after { border-color: var(--text); }
 }
 .saldo-l1 { display: flex; align-items: center; gap: 6px; min-height: 30px; color: var(--cofre-txt-2); font-size: 14px; font-weight: 650; }
 .saldo-l1 h2 { font-size: inherit; font-weight: inherit; }
-.saldo-olho { display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%; background: none; color: var(--cofre-txt-2); }
+.saldo-olho { display: grid; place-items: center; width: var(--tap); height: var(--tap); margin: -6px; padding: 0; border: 0; border-radius: 50%; background: none; color: var(--cofre-txt-2); }
 .saldo-olho:hover { background: rgba(255, 255, 255, .08); color: var(--cofre-txt); }
 .saldo-olho .olho-fechado, .valores-ocultos .saldo-olho .olho-aberto { display: none; }
 .valores-ocultos .saldo-olho .olho-fechado { display: inline-block; }
@@ -732,7 +743,7 @@ details.dobra > summary:hover::after { border-color: var(--text); }
 .saldo.is-acima .saldo-medidor i { background: var(--cofre-ok); }
 .saldo-rod { display: flex; justify-content: space-between; gap: 12px; margin-top: 9px; color: var(--cofre-txt-2); font-size: 13px; white-space: normal; }
 .saldo-rod b { color: var(--cofre-txt); font-weight: 700; }
-.saldo-prev { margin-top: 8px; color: var(--cofre-txt-2); font-size: 13px; }
+.saldo-prev { margin-top: 8px; color: var(--cofre-txt-2); font-size: 13px; white-space: normal; }
 .saldo-prev b { color: var(--cofre-txt); font-weight: 700; }
 .saldo-duas { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .saldo-duas > div { padding: 10px 12px; border-radius: 14px; background: rgba(255, 255, 255, .06); }
@@ -794,10 +805,10 @@ a.lista-i:hover { background: var(--sel); }
 .idi-b:hover { background: var(--sel); }
 .idi-b:focus-visible { outline: 2px solid var(--foco); outline-offset: 2px; }
 .idi-b.is-on { border-color: var(--text); box-shadow: inset 0 0 0 1px var(--text); }
-.aj-idioma .titulo { margin-bottom: 10px; }
+.aj-idioma .titulo, .aj-regional .titulo { margin-bottom: 10px; }
 
 /* ---- Ajuda, o "?" das telas e os primeiros passos */
-.dica { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; margin-left: 2px; border: 1px solid currentColor; border-radius: 50%; color: inherit; font-size: 11px; font-weight: 700; line-height: 1; text-decoration: none; opacity: .7; vertical-align: middle; position: relative; }
+.dica { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; margin-left: 2px; border: 1px solid currentColor; border-radius: 50%; color: inherit; font-size: 12px; font-weight: 700; line-height: 1; text-decoration: none; opacity: .7; vertical-align: middle; position: relative; }
 .dica::after { content: ""; position: absolute; inset: -13px; }
 .dica:hover, .dica:focus-visible { opacity: 1; }
 .ajuda { display: flex; flex-direction: column; gap: 14px; max-width: 760px; }
@@ -812,6 +823,14 @@ a.lista-i:hover { background: var(--sel); }
 .roteiro-lista li { display: flex; align-items: center; gap: 8px; min-height: 36px; }
 .roteiro-lista li.is-feito { color: var(--text-2); text-decoration: line-through; }
 .roteiro-fim { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.fe-ponte { margin: 8px 0 0; color: var(--text-2); font-size: 13px; }
+.fe-ponte { margin: 8px 0 0; color: var(--text-2); font-size: 13px; white-space: normal; }
 .aj-pessoa { margin-top: 12px; }
 .aj-pessoa > summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; }
+
+/* links curtos no meio de uma frase: 44px de toque, sem mudar a altura da linha */
+.meta-previsao a, .emp-plano a, .wl-resposta a, .wl-resposta-2 a, .wl-sem-valor a, .wl-ver-anual, .aj-link { display: inline-block; padding-block: 13px; margin-block: -13px; }
+.meta-previsao a { padding-inline: 9px; margin-inline: -9px; }
+.wl-loja { padding-block: 10px; margin-block: -10px; }
+
+/* extrato: o tipo em palavras ao lado do símbolo */
+.ex-mov { color: var(--text-2); font-size: 12.5px; font-weight: 600; }

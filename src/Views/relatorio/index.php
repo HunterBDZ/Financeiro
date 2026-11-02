@@ -22,7 +22,7 @@ $itens = [['bom', t('O que foi bom'), t('Nada relevante neste período.')], ['ru
     <?php if ($r === null): ?>
         <section class="card vazio">
             <h2 class="titulo"><?= e(t('Ainda não há período para mostrar')) ?></h2>
-            <p><?= e(t('O relatório aparece quando o plano tiver o primeiro mês.')) ?></p>
+            <p><?= e(t('O primeiro relatório aparece depois do seu primeiro mês de lançamentos.')) ?></p>
         </section>
     <?php else: ?>
         <form class="rl-periodo" method="get" action="/relatorio" data-rl-periodo>

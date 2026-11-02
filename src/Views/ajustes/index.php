@@ -1,6 +1,9 @@
 <?php
+use Financeiro\Site;
+
 /**
- * Ajustes (SPEC §2.8) — dono: P5. Tudo em <details class="dobra">, cada grupo com o seu SALVAR.
+ * Ajustes (SPEC §2.8) — dono: P5. Na ordem do que mais se usa: a conta, o idioma, a moeda e o fuso, o que usa, o dinheiro,
+ * as contas fixas e as categorias, as pessoas e, no fim, o Avançado. Cada grupo tem o seu SALVAR.
  * Todo value de dinheiro sai de numInput() (hífen ASCII): parseMoedaBr() lê de volta sem perder o sinal.
  */
 $csrf = csrfField();
@@ -33,51 +36,68 @@ $campo = static function (string $chave, string $rotulo, string $un = '', int $d
 ?>
 <div class="aj">
     <h1 class="aj-titulo"><?= e(t('Ajustes')) ?></h1>
-    <a class="card aj-temas" href="/temas"><?= svgIcon('paleta', 20) ?><span><?= e(t('Temas')) ?></span><?= svgIcon('chevron', 16) ?></a>
-    <section class="card aj-icone" id="icone" aria-labelledby="aj-icone-t">
-        <h2 class="titulo" id="aj-icone-t"><?= e(t('Ícone do site')) ?></h2>
-        <div class="aj-icone-l">
-            <img class="aj-icone-img" src="<?= e(\Financeiro\SiteIcone::url()) ?>" alt="<?= e(t('Ícone atual')) ?>" width="64" height="64">
-            <p class="aj-ajuda"><?= e(\Financeiro\SiteIcone::personalizado() !== null ? t('Vale para todas as contas deste site.') : t('Este é o ícone padrão. Envie uma imagem para trocar; vale para todas as contas deste site.')) ?></p>
-        </div>
-        <form class="aj-icone-form" method="post" action="/ajustes/icone" enctype="multipart/form-data">
+
+    <!-- 1: a conta e a senha -->
+    <details class="card dobra aj-grupo" id="senha"<?= $aberto('senha') ?>>
+        <summary><span class="titulo"><?= e(t('Minha conta e senha')) ?></span></summary>
+        <p class="aj-quem"><b><?= e((string) (\Financeiro\Auth::nome() ?? '')) ?></b> <span class="num"><?= e((string) ($login ?? '')) ?></span></p>
+        <form class="aj-form" method="post" action="/ajustes/senha">
             <?= $csrf ?>
-            <label class="aj-icone-campo"><span><?= e(t('Imagem (JPG, PNG ou WebP, até 3 MB)')) ?></span><input type="file" name="icone" accept="image/jpeg,image/png,image/webp" required></label>
-            <button type="submit" class="btn btn-primary aj-salvar"><?= e(t('Salvar ícone')) ?></button>
+            <input type="text" name="username" value="<?= e((string) ($login ?? '')) ?>" autocomplete="username" hidden>
+            <label class="campo"><span><?= e(t('Senha atual')) ?></span><input type="password" name="senha_atual" autocomplete="current-password" required></label>
+            <label class="campo"><span><?= e(t('Nova senha')) ?></span><input type="password" name="senha_nova" autocomplete="new-password" minlength="6" required></label>
+            <label class="campo"><span><?= e(t('Repita a nova senha')) ?></span><input type="password" name="senha_repetir" autocomplete="new-password" minlength="6" required></label>
+            <?php $erroDe('senha'); ?>
+            <button type="submit" class="btn btn-primary aj-salvar"><?= e(t('Trocar senha')) ?></button>
         </form>
-        <?php if (\Financeiro\SiteIcone::personalizado() !== null): ?>
-            <form method="post" action="/ajustes/icone/remover"><?= $csrf ?><button type="submit" class="btn-link"><?= e(t('Voltar ao ícone padrão')) ?></button></form>
-        <?php endif; ?>
+    </details>
+
+    <section class="card aj-idioma" aria-labelledby="aj-idioma-t">
+        <h2 class="titulo" id="aj-idioma-t"><?= e(t('Idioma')) ?></h2>
+        <?php require __DIR__ . '/../partials/idioma_escolha.php'; ?>
     </section>
+
+    <section class="card aj-regional" id="regional" aria-labelledby="aj-regional-t">
+        <h2 class="titulo" id="aj-regional-t"><?= e(t('Moeda e fuso horário')) ?></h2>
+        <form class="aj-form" method="post" action="/ajustes/regional">
+            <?= $csrf ?>
+            <label class="campo"><span><?= e(t('Moeda')) ?></span>
+                <select name="moeda"><?php foreach (Site::opcoesMoeda() as $cod => $rotulo): ?><option value="<?= e($cod) ?>"<?= $cod === Site::moeda() ? ' selected' : '' ?>><?= e($rotulo) ?></option><?php endforeach; ?></select></label>
+            <p class="aj-ajuda"><?= e(t('Muda só o símbolo: os valores já lançados não são convertidos.')) ?></p>
+            <label class="campo"><span><?= e(t('Fuso horário')) ?></span>
+                <select name="fuso" data-fuso><?php foreach (Site::opcoesFuso() as $nome => $rotulo): ?><option value="<?= e($nome) ?>"<?= $nome === Site::fuso() ? ' selected' : '' ?>><?= e($rotulo) ?></option><?php endforeach; ?></select></label>
+            <p class="aj-ajuda" data-fuso-dica hidden><?= e(t('Seu navegador está em outro fuso:')) ?> <b data-fuso-nome></b> <button type="button" class="btn btn-ghost btn-sm" data-fuso-usar><?= e(t('Usar este')) ?></button></p>
+            <button type="submit" class="btn btn-primary aj-salvar"><?= e(t('Salvar')) ?></button>
+        </form>
+    </section>
+
+    <a class="card aj-temas" href="/temas"><?= svgIcon('paleta', 20) ?><span><?= e(t('Temas')) ?></span><?= svgIcon('chevron', 16) ?></a>
     <section class="card aj-recursos" id="recursos" aria-labelledby="aj-recursos-t">
         <h2 class="titulo" id="aj-recursos-t"><?= e(t('O que você usa')) ?></h2>
         <form class="aj-recursos-form" method="post" action="/ajustes/recursos">
             <?= $csrf ?>
             <label class="aj-marcar"><input type="checkbox" name="usa_cartao" value="1"<?= (float) ($aj['usa_cartao']['valor'] ?? 1) >= 1 ? ' checked' : '' ?>><span><?= e(t('Cartão de crédito')) ?></span></label>
             <label class="aj-marcar"><input type="checkbox" name="usa_emprestimo" value="1"<?= (float) ($aj['usa_emprestimo']['valor'] ?? 1) >= 1 ? ' checked' : '' ?>><span><?= e(t('Empréstimo ou financiamento')) ?></span></label>
+            <label class="aj-marcar"><input type="checkbox" name="tem_carro" value="1"<?= (float) ($aj['usa_carro']['valor'] ?? 1) >= 1 ? ' checked' : '' ?>><span><?= e(t('Carro')) ?></span></label>
             <?php $aParte = (int) round((float) ($aj['parcela_modo']['valor'] ?? 1)) === 2; ?>
-            <fieldset class="aj-grupo-modo">
+            <fieldset class="aj-grupo-modo aj-so-emp">
                 <legend><?= e(t('Parcela do empréstimo')) ?></legend>
-                <label class="aj-marcar"><input type="radio" name="parcela_modo" value="1"<?= $aParte ? '' : ' checked' ?>><span><?= e(t('Já vem descontada do salário')) ?></span></label>
+                <label class="aj-marcar"><input type="radio" name="parcela_modo" value="1"<?= $aParte ? '' : ' checked' ?>><span><?= e(t('A parcela já sai direto da renda, antes de cair na conta')) ?></span></label>
                 <label class="aj-marcar"><input type="radio" name="parcela_modo" value="2"<?= $aParte ? ' checked' : '' ?>><span><?= e(t('Pago à parte, com o dinheiro da conta')) ?></span></label>
             </fieldset>
             <?php $naConta = (int) round((float) ($aj['objetivo']['valor'] ?? 1)) === 3; ?>
-            <fieldset class="aj-grupo-modo">
-                <legend><?= e(t('Se tiver empréstimo, o que fazer com o que sobrar?')) ?></legend>
+            <fieldset class="aj-grupo-modo aj-so-emp">
+                <legend><?= e(t('O que fazer com o que sobrar?')) ?></legend>
                 <label class="aj-marcar"><input type="radio" name="objetivo" value="3"<?= $naConta ? ' checked' : '' ?>><span><?= e(t('Deixar na conta')) ?></span></label>
                 <label class="aj-marcar"><input type="radio" name="objetivo" value="1"<?= $naConta ? '' : ' checked' ?>><span><?= e(t('Usar para adiantar o empréstimo')) ?></span></label>
             </fieldset>
             <button type="submit" class="btn btn-primary aj-salvar"><?= e(t('Salvar')) ?></button>
         </form>
     </section>
-    <section class="card aj-idioma" aria-labelledby="aj-idioma-t">
-        <h2 class="titulo" id="aj-idioma-t"><?= e(t('Idioma')) ?></h2>
-        <?php require __DIR__ . '/../partials/idioma_escolha.php'; ?>
-    </section>
 
-    <!-- 1: parâmetros -->
+    <!-- 2: o dinheiro -->
     <details class="card dobra aj-grupo" id="parametros"<?= $aberto('parametros') ?>>
-        <summary><span class="titulo"><?= e(t('Parâmetros')) ?></span></summary>
+        <summary><span class="titulo"><?= e(t('Dinheiro')) ?></span></summary>
         <form class="aj-form" method="post" action="/ajustes/salvar">
             <?= $csrf ?><input type="hidden" name="grupo" value="parametros">
             <?php $campo('reserva_minima', t('Reserva mínima')); ?>
@@ -92,41 +112,18 @@ $campo = static function (string $chave, string $rotulo, string $un = '', int $d
         </form>
     </details>
 
-    <!-- 2: ponto de partida -->
-    <details class="card dobra aj-grupo" id="partida"<?= $aberto('partida') ?>>
-        <summary><span class="titulo"><?= e(t('Ponto de partida')) ?></span></summary>
-        <form class="aj-form aj-inicio" method="post" action="/ajustes/inicio">
-            <?= $csrf ?>
-            <?php $inicioPlano = \Financeiro\Models\AjusteModel::dataInicio(); ?>
-            <div class="aj-campo">
-                <label for="aj-data_inicio"><?= e(t('Início do plano')) ?></label>
-                <span class="aj-input aj-input-mes"><input id="aj-data_inicio" type="date" name="data_inicio" value="<?= e((string) $inicioPlano) ?>" max="<?= e(date('Y-m-d')) ?>" required></span>
-            </div>
-            <p class="aj-ajuda"><?= e(t('Os valores abaixo são o que você tinha no início desse dia. Lançamentos valem a partir dele.')) ?></p>
-            <button type="submit" class="btn btn-ghost aj-salvar"><?= e(t('Salvar início')) ?></button>
-        </form>
-        <form class="aj-form" method="post" action="/ajustes/salvar">
-            <?= $csrf ?><input type="hidden" name="grupo" value="partida">
-            <?php $campo('saldo_ini', t('Saldo da conta no início')); ?>
-            <?php $campo('poupanca_ini', t('Poupança no início')); ?>
-            <?php $campo('investimentos_ini', t('Investimentos no início')); ?>
-            <?php $erroDe('partida'); ?>
-            <button type="submit" class="btn btn-primary aj-salvar"><?= e(t('Salvar')) ?></button>
-        </form>
-    </details>
-
-    <!-- 3: contas recorrentes -->
+    <!-- 3: contas fixas -->
     <details class="card dobra aj-grupo" id="contas"<?= $aberto('contas') ?>>
-        <summary><span class="titulo"><?= e(t('Contas recorrentes')) ?></span></summary>
+        <summary><span class="titulo"><?= e(t('Contas fixas')) ?></span></summary>
         <?php if ($recorrentes !== []): ?>
             <ul class="aj-contas">
                 <?php foreach ($recorrentes as $r): ?>
                     <li>
-                        <span class="aj-conta-nome"><?= e((string) $r['categoria_nome']) ?></span>
+                        <span class="aj-conta-nome"><?= e(nomeCategoria((string) $r['categoria_nome'])) ?></span>
                         <span class="aj-conta-dia num"><?= e(t('dia {dia}', ['dia' => (int) $r['dia_vencimento']])) ?></span>
                         <form method="post" action="/ajustes/contas/<?= e((string) (int) $r['id']) ?>/remover">
                             <?= $csrf ?>
-                            <button type="submit" class="aj-x" aria-label="<?= e(t('remover {nome}', ['nome' => (string) $r['categoria_nome']])) ?>"><?= svgIcon('x', 16) ?></button>
+                            <button type="submit" class="aj-x" aria-label="<?= e(t('remover {nome}', ['nome' => nomeCategoria((string) $r['categoria_nome'])])) ?>"><?= svgIcon('x', 16) ?></button>
                         </form>
                     </li>
                 <?php endforeach; ?>
@@ -141,7 +138,7 @@ $campo = static function (string $chave, string $rotulo, string $un = '', int $d
                         <?= $grupoAtual !== null ? '</optgroup>' : '' ?><optgroup label="<?= e(grupoLabel($c['grupo'])) ?>">
                         <?php $grupoAtual = $c['grupo']; ?>
                     <?php endif; ?>
-                    <option value="<?= e((string) $c['id']) ?>"><?= e($c['nome']) ?></option>
+                    <option value="<?= e((string) $c['id']) ?>"><?= e(nomeCategoria($c['nome'])) ?></option>
                 <?php endforeach; ?>
                 <?= $grupoAtual !== null ? '</optgroup>' : '' ?>
             </select>
@@ -150,7 +147,11 @@ $campo = static function (string $chave, string $rotulo, string $un = '', int $d
         </form>
         <?php endif; ?>
         <?php $erroDe('contas'); ?>
+        <p class="aj-ajuda aj-ajuda-fim"><?= t('Não achou a conta? {link}', ['link' => '<a class="aj-link" href="/ajustes?aberto=categorias#categorias">' . e(t('Criar categoria')) . '</a>']) ?></p>
     </details>
+
+    <!-- 4: categorias -->
+    <?php \Financeiro\View::partial('ajustes/_categorias', ['categorias' => $categorias, 'aberto' => $aberto('categorias')]); ?>
 
     <!-- 4: essenciais -->
     <details class="card dobra aj-grupo" id="essenciais"<?= $aberto('essenciais') ?>>
@@ -179,7 +180,7 @@ $campo = static function (string $chave, string $rotulo, string $un = '', int $d
         <form class="aj-form" method="post" action="/ajustes/pessoas">
             <?= $csrf ?>
             <label class="campo"><span><?= e(t('Nome')) ?></span><input type="text" name="nome" maxlength="100" autocomplete="off" required></label>
-            <label class="campo"><span><?= e(t('Login')) ?></span><input type="text" name="login" maxlength="100" autocomplete="off" autocapitalize="none" spellcheck="false" required></label>
+            <label class="campo"><span><?= e(t('Nome de usuário')) ?></span><input type="text" name="login" maxlength="100" autocomplete="off" autocapitalize="none" spellcheck="false" required></label>
             <label class="campo"><span><?= e(t('Senha')) ?></span><input type="password" name="senha" autocomplete="new-password" minlength="8" required></label>
             <?php $erroDe('pessoas'); ?>
             <button type="submit" class="btn btn-primary aj-salvar"><?= e(t('Adicionar pessoa')) ?></button>
@@ -197,7 +198,54 @@ $campo = static function (string $chave, string $rotulo, string $un = '', int $d
         <?php endforeach; ?>
     </details>
 
-    <!-- 5: aparelhos -->
+    <section class="aj-avancado" aria-labelledby="aj-avancado-t">
+        <h2 class="aj-avancado-t" id="aj-avancado-t"><?= e(t('Avançado')) ?></h2>
+    <!-- ponto de partida -->
+    <details class="card dobra aj-grupo" id="partida"<?= $aberto('partida') ?>>
+        <summary><span class="titulo"><?= e(t('Ponto de partida')) ?></span></summary>
+        <form class="aj-form aj-inicio" method="post" action="/ajustes/inicio">
+            <?= $csrf ?>
+            <?php $inicioPlano = \Financeiro\Models\AjusteModel::dataInicio(); ?>
+            <div class="aj-campo">
+                <label for="aj-data_inicio"><?= e(t('Início do controle')) ?></label>
+                <span class="aj-input aj-input-mes"><input id="aj-data_inicio" type="date" name="data_inicio" value="<?= e((string) $inicioPlano) ?>" max="<?= e(date('Y-m-d')) ?>" required></span>
+            </div>
+            <p class="aj-ajuda"><?= e(t('Os valores abaixo são o que você tinha no início desse dia. Lançamentos valem a partir dele.')) ?></p>
+            <button type="submit" class="btn btn-ghost aj-salvar"><?= e(t('Salvar início')) ?></button>
+        </form>
+        <form class="aj-form" method="post" action="/ajustes/salvar">
+            <?= $csrf ?><input type="hidden" name="grupo" value="partida">
+            <?php $campo('saldo_ini', t('Saldo da conta no início')); ?>
+            <?php $campo('poupanca_ini', t('Poupança no início')); ?>
+            <?php $campo('investimentos_ini', t('Investimentos no início')); ?>
+            <?php $erroDe('partida'); ?>
+            <button type="submit" class="btn btn-primary aj-salvar"><?= e(t('Salvar')) ?></button>
+        </form>
+    </details>
+
+    <!-- ícone do site -->
+    <details class="card dobra aj-grupo aj-icone" id="icone"<?= $aberto('icone') ?>>
+        <summary><span class="titulo"><?= e(t('Ícone do site')) ?></span></summary>
+        <div class="aj-icone-l">
+            <img class="aj-icone-img" src="<?= e(\Financeiro\SiteIcone::url()) ?>" alt="<?= e(t('Ícone atual')) ?>" width="64" height="64">
+            <p class="aj-ajuda"><?= e(\Financeiro\SiteIcone::personalizado() !== null ? t('Vale para todas as contas deste site.') : t('Este é o ícone padrão. Envie uma imagem para trocar; vale para todas as contas deste site.')) ?></p>
+        </div>
+        <form class="aj-icone-form" method="post" action="/ajustes/icone" enctype="multipart/form-data">
+            <?= $csrf ?>
+            <p class="aj-ajuda"><?= e(t('Imagem (JPG, PNG ou WebP, até 3 MB)')) ?></p>
+            <label class="btn btn-ghost aj-arquivo">
+                <input type="file" name="icone" accept="image/jpeg,image/png,image/webp" required data-arquivo>
+                <span><?= e(t('Escolher imagem')) ?></span>
+            </label>
+            <p class="aj-ajuda" data-arquivo-nome role="status"></p>
+            <button type="submit" class="btn btn-primary aj-salvar"><?= e(t('Salvar ícone')) ?></button>
+        </form>
+        <?php if (\Financeiro\SiteIcone::personalizado() !== null): ?>
+            <form method="post" action="/ajustes/icone/remover"><?= $csrf ?><button type="submit" class="btn-link"><?= e(t('Voltar ao ícone padrão')) ?></button></form>
+        <?php endif; ?>
+    </details>
+
+    <!-- aparelhos -->
     <details class="card dobra aj-grupo" id="aparelhos"<?= $aberto('aparelhos') ?>>
         <summary><span class="titulo"><?= e(t('Aparelhos')) ?></span></summary>
         <form method="post" action="/ajustes/aparelhos/sair" class="aj-form" data-confirm="<?= e(t('Sair de todos os aparelhos? Cada um vai pedir login de novo.')) ?>">
@@ -206,19 +254,7 @@ $campo = static function (string $chave, string $rotulo, string $un = '', int $d
         </form>
     </details>
 
-    <!-- 6: senha -->
-    <details class="card dobra aj-grupo" id="senha"<?= $aberto('senha') ?>>
-        <summary><span class="titulo"><?= e(t('Senha')) ?></span></summary>
-        <form class="aj-form" method="post" action="/ajustes/senha">
-            <?= $csrf ?>
-            <input type="text" name="username" value="<?= e((string) ($login ?? '')) ?>" autocomplete="username" hidden>
-            <label class="campo"><span><?= e(t('Senha atual')) ?></span><input type="password" name="senha_atual" autocomplete="current-password" required></label>
-            <label class="campo"><span><?= e(t('Nova senha')) ?></span><input type="password" name="senha_nova" autocomplete="new-password" minlength="6" required></label>
-            <label class="campo"><span><?= e(t('Repita a nova senha')) ?></span><input type="password" name="senha_repetir" autocomplete="new-password" minlength="6" required></label>
-            <?php $erroDe('senha'); ?>
-            <button type="submit" class="btn btn-primary aj-salvar"><?= e(t('Trocar senha')) ?></button>
-        </form>
-    </details>
+    </section>
 
     <?php $arqVersao = __DIR__ . '/../../../VERSION'; ?>
     <?php if (is_file($arqVersao)): ?><p class="aj-versao num"><?= e(t('Versão {versao}', ['versao' => trim((string) file_get_contents($arqVersao))])) ?></p><?php endif; ?>

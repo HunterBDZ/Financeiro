@@ -5,6 +5,7 @@ use Financeiro\Auth;
 use Financeiro\Models\CategoriaModel;
 use Financeiro\Models\LancamentoModel;
 use Financeiro\Models\MesModel;
+use Financeiro\Models\MetaModel;
 use Financeiro\Models\PrevisaoModel;
 use Financeiro\Models\UsuarioModel;
 use Financeiro\Services\LancarForm;
@@ -165,7 +166,7 @@ final class LancamentosController
         if (self::post('confirmar_dup') !== '1' && ($dup = LancamentoModel::existeIgual($d['data'], $d['categoria_id'], $d['valor'])) !== null) {
             $_SESSION['lanc_antigo'] = self::antigoDe($_POST) + ['duplicado' => [
                 'descricao' => (string) $dup['descricao'],
-                'inicial'   => inicialUsuario($dup['usuario_nome']),
+                'quem'      => (string) $dup['usuario_nome'],
                 'data'      => (string) $dup['data'],
             ]];
             redirecionar('/lancar?volta=' . rawurlencode($volta !== '' ? $volta : '/'), 303);
@@ -191,7 +192,7 @@ final class LancamentosController
 
         $l = LancamentoModel::find((int) $id);
         if (!$l) {
-            renderErro(404, t('lançamento não encontrado'), t('pode ter sido excluído'));
+            renderErro(404, t('Lançamento não encontrado'), t('Pode ter sido excluído.'));
         }
         $volta = voltaSegura(self::get('volta'), '/lancamentos?mes=' . substr($l['data'], 0, 8) . '01');
 
@@ -216,7 +217,7 @@ final class LancamentosController
 
         $l = LancamentoModel::find((int) $id);
         if (!$l) {
-            renderErro(404, t('lançamento não encontrado'), t('pode ter sido excluído'));
+            renderErro(404, t('Lançamento não encontrado'), t('Pode ter sido excluído.'));
         }
         $volta = voltaSegura(self::post('volta'), '/lancamentos?mes=' . substr($l['data'], 0, 8) . '01');
 
@@ -245,7 +246,7 @@ final class LancamentosController
             $volta = '/lancamentos?mes=' . $mesL;       // a página de edição dele deixou de existir
         }
         if (!$l) {
-            flash('warn', t('já tinha sido excluído'));
+            flash('warn', t('Esse lançamento já tinha sido excluído.'));
             redirecionar($volta);
         }
 
@@ -278,7 +279,7 @@ final class LancamentosController
         $d = $_SESSION['lanc_desfazer'] ?? null;
         $token = self::post('token') ?? '';
         if (!is_array($d) || !is_string($d['token'] ?? null) || !hash_equals($d['token'], $token)) {
-            flash('warn', t('nada para desfazer'));
+            flash('warn', t('Não há nada para desfazer.'));
             redirecionar($volta);
         }
         unset($_SESSION['lanc_desfazer']);
@@ -287,7 +288,7 @@ final class LancamentosController
         $cat = CategoriaModel::find((int) $linha['categoria_id']);
         $erroData = self::validarData((string) $linha['data']);
         if ($cat === null || $erroData !== null) {
-            flash('error', $erroData ?? t('categoria?'));
+            flash('error', $erroData ?? t('Escolha uma categoria.'));
             redirecionar($volta);
         }
 
@@ -307,18 +308,18 @@ final class LancamentosController
     public static function validarData(string $data): ?string
     {
         if (!preg_match('/^(\d{4})-(\d{2})-(\d{2})$/D', $data, $m) || !checkdate((int) $m[2], (int) $m[3], (int) $m[1])) {
-            return t('data?');
+            return t('Escolha uma data válida.');
         }
         $primeiro = MesModel::primeiroDia();
         $ultimo   = MesModel::ultimo();
         if ($primeiro === null || $ultimo === null) {
-            return t('data?');
+            return t('Escolha uma data válida.');
         }
         if ($data < $primeiro) {
-            return t('data antes do início ({data})', ['data' => diaMes($primeiro)]);
+            return t('A data é antes do início, {data}. Escolha outra.', ['data' => diaMes($primeiro)]);
         }
         if ($data > date('Y-m-t', strtotime($ultimo))) {
-            return t('data depois de {mes}', ['mes' => monthLabel($ultimo)]);
+            return t('A data é depois de {mes}. Escolha outra.', ['mes' => mesAno($ultimo)]);
         }
         return null;
     }
@@ -344,14 +345,14 @@ final class LancamentosController
     {
         $valor = parseMoedaBr(is_string($in['valor'] ?? null) ? $in['valor'] : null);
         $valor = $valor === null ? null : round(abs($valor), 2);     // "-50" / "−50" gravam 50 (o sinal vem da categoria)
-        if ($valor === null || $valor <= 0 || $valor > 1000000) {
-            return [t('valor?'), null];
+        if ($valor === null || $valor <= 0 || $valor > valorMaximo()) {
+            return [t('Digite um valor.'), null];
         }
 
         $categoriaId = (int) (is_string($in['categoria_id'] ?? null) ? $in['categoria_id'] : 0);
         $cat = $categoriaId > 0 ? CategoriaModel::find($categoriaId) : null;
         if ($cat === null) {
-            return [t('categoria?'), null];
+            return [t('Escolha uma categoria.'), null];
         }
 
         $data = self::dataDoQuando($in);
@@ -362,7 +363,7 @@ final class LancamentosController
         $descricao = is_string($in['descricao'] ?? null) ? $in['descricao'] : '';
         $descricao = trim((string) preg_replace('/[\x00-\x1F\x7F]+/', ' ', $descricao));
         if (mb_strlen($descricao) > 255) {
-            return [t('descrição longa'), null];
+            return [t('Descrição muito longa. Use até 255 letras.'), null];
         }
         if ($descricao === '') {
             $descricao = (string) $cat['nome'];
@@ -388,7 +389,7 @@ final class LancamentosController
     }
 
     /**
-     * Aviso depois de lançar (§2.2): `Delivery −56,80 · resta 343,20`; mês fechado:
+     * Aviso depois de lançar (§2.2): `Delivery −56,80 · Ainda dá para gastar 343,20 da meta.`; mês fechado:
      * `Delivery −56,80 · set/26 fechado`; categoria sem previsão no mês: só `Salário +11.839,24`.
      */
     private static function avisoLancado(array $cat, float $valor, string $data): string
@@ -396,12 +397,21 @@ final class LancamentosController
         $txt = self::valorTexto($cat, $valor, true);
         $mes = substr($data, 0, 8) . '01';
         if (MesModel::situacao($mes) === 'REAL') {
-            return t('{texto} · {mes} fechado', ['mes' => monthLabel($mes), 'texto' => $txt]);
+            return t('{texto} · {mes} já está fechado.', ['mes' => mesAno($mes), 'texto' => $txt]);
         }
         if ((int) $cat['operacional'] === 1 && (int) $cat['sinal'] < 0) {
             $previsto = PrevisaoModel::valor((int) $cat['id'], $mes);
             if ($previsto > 0) {
-                return t('{texto} · resta {valor}', ['valor' => num($previsto - LancamentoModel::somaPorCategoria((int) $cat['id'], $mes)), 'texto' => $txt]);
+                $resta = round($previsto - LancamentoModel::somaPorCategoria((int) $cat['id'], $mes), 2);
+                $nome = nomeCurto(['apelido' => $cat['apelido'] ?? null, 'nome' => $cat['nome'] ?? $cat['categoria_nome'] ?? '']);
+                if (MetaModel::valor((int) $cat['id']) !== null) {   // a previsão vem da meta; sem meta, é só uma estimativa
+                    return $resta < -0.004
+                        ? t('{texto} · Passou {valor} da meta de {nome}.', ['valor' => num(-$resta), 'nome' => $nome, 'texto' => $txt])
+                        : t('{texto} · Ainda dá para gastar {valor} da meta.', ['valor' => num($resta), 'texto' => $txt]);
+                }
+                return $resta < -0.004
+                    ? t('{texto} · Passou {valor} do previsto para {nome}.', ['valor' => num(-$resta), 'nome' => $nome, 'texto' => $txt])
+                    : t('{texto} · Ainda restam {valor} do previsto.', ['valor' => num($resta), 'texto' => $txt]);
             }
         }
         return $txt;
@@ -414,7 +424,7 @@ final class LancamentosController
     public static function sessaoRenovada(): never
     {
         $volta = voltaSegura(self::post('volta'), '/');
-        $_SESSION['lanc_antigo'] = self::antigoDe($_POST) + ['erro' => t('sessão renovada · confira e lance')];
+        $_SESSION['lanc_antigo'] = self::antigoDe($_POST) + ['erro' => t('A sessão foi renovada. Confira os dados e lance de novo.')];
         redirecionar('/lancar?volta=' . rawurlencode($volta), 303);
     }
 

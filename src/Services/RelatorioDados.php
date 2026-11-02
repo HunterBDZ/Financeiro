@@ -271,7 +271,7 @@ final class RelatorioDados
         if ($sobrou > 0.004) {
             $por100 = $renda > 0.004 ? (int) round($sobrou / $renda * 100) : 0;
             $bom[] = ['peso' => $sobrou, 'texto' => $por100 > 0
-                ? t('Sobraram {valor}: {n} de cada 100 reais que entraram.', ['valor' => money($sobrou), 'n' => $por100])
+                ? t('Sobraram {valor}: {n} de cada 100 {moeda} que entraram.', ['valor' => money($sobrou), 'n' => $por100, 'moeda' => moedaPlural()])
                 : t('Sobraram {valor}.', ['valor' => money($sobrou)])];
         } elseif ($sobrou < -0.004) {
             $ruim[] = ['peso' => abs($sobrou), 'texto' => t('Saiu {valor} a mais do que entrou, sem contar adiantamentos e aplicações.', ['valor' => money(abs($sobrou))])];
@@ -709,7 +709,7 @@ final class RelatorioDados
         $bom = $ruim = [];
         if ($sobrou > 0.004) {
             $por100 = $entrou > 0.004 ? (int) round($sobrou / $entrou * 100) : 0;
-            $bom[] = ['peso' => $sobrou, 'texto' => t('Sobraram {valor}: {n} de cada 100 reais que entraram.', ['valor' => money($sobrou), 'n' => $por100])];
+            $bom[] = ['peso' => $sobrou, 'texto' => t('Sobraram {valor}: {n} de cada 100 {moeda} que entraram.', ['valor' => money($sobrou), 'n' => $por100, 'moeda' => moedaPlural()])];
         } elseif ($sobrou < -0.004) {
             $ruim[] = ['peso' => abs($sobrou), 'texto' => t('Saiu {valor} a mais do que entrou, sem contar adiantamentos e aplicações.', ['valor' => money(abs($sobrou))])];
         }
@@ -774,6 +774,6 @@ final class RelatorioDados
     public static function cerca(float $v): string
     {
         $passo = abs($v) >= 10000 ? 1000 : 100;
-        return t('cerca de {valor}', ['valor' => 'R$' . NBSP . num(round($v / $passo) * $passo, 0)]);
+        return t('cerca de {valor}', ['valor' => moedaSimbolo() . NBSP . num(round($v / $passo) * $passo, 0)]);
     }
 }

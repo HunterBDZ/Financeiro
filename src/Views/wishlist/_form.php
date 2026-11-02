@@ -5,15 +5,20 @@
  * uma prévia. Variáveis: $item (null = novo), $form (o que voltou com erro), $taxas (Cotacao::guardadas).
  */
 use Financeiro\Services\Cotacao;
+use Financeiro\Site;
 
 $novo = $item === null;
 $vUrl = (string) ($form['url'] ?? ($item['url'] ?? ''));
 $vNome = (string) ($form['nome'] ?? ($item['nome'] ?? ''));
 $vValor = (string) ($form['valor'] ?? (isset($item['valor']) ? numInput((float) $item['valor']) : ''));
-$vMoeda = (string) ($form['moeda'] ?? ($item['moeda'] ?? 'BRL'));
+$vMoeda = (string) ($form['moeda'] ?? ($item['moeda'] ?? Site::moeda()));
+// quanto vale cada moeda na do site, para a prévia; o real também entra quando o site usa outra
 $taxasJs = [];
-foreach ($taxas as $m => $t) {
-    $taxasJs[$m] = ['v' => $t['valor'], 'd' => date('d/m', strtotime($t['data']))];
+foreach (array_keys(['BRL' => 1] + $taxas) as $m) {
+    $taxa = $m !== Site::moeda() ? Cotacao::taxaParaSite($m, $taxas) : null;
+    if ($taxa !== null) {
+        $taxasJs[$m] = ['v' => $taxa, 'd' => diaMes(Cotacao::dataDe($m, $taxas))];
+    }
 }
 $acao = $novo ? '/wishlist' : '/wishlist/' . (int) $item['id'];
 ?>
@@ -53,11 +58,12 @@ $acao = $novo ? '/wishlist' : '/wishlist/' . (int) $item['id'];
                 <label for="wl-valor-<?= $novo ? 'n' : (int) $item['id'] ?>"><?= e(t('Valor')) ?></label>
                 <span class="emp-valor wl-valor">
                     <select name="moeda" aria-label="<?= e(t('Moeda')) ?>" data-wl-moeda>
+                        <?php // i18n: t('Dólar') t('Euro') t('Libra') t('Dólar canadense') t('Dólar australiano') t('Franco suíço') t('Iene') t('Yuan') t('Sol peruano') ?>
                         <?php foreach (Cotacao::MOEDAS as $cod => [$nomeMoeda, $simbolo]): ?>
-                            <option value="<?= e($cod) ?>"<?= $cod === $vMoeda ? ' selected' : '' ?>><?= e($simbolo === $cod ? $cod : $simbolo . ' ' . $nomeMoeda) ?></option>
+                            <option value="<?= e($cod) ?>"<?= $cod === $vMoeda ? ' selected' : '' ?>><?= e($simbolo === $cod ? $cod : $simbolo . ' ' . ($cod === 'BRL' ? $nomeMoeda : t($nomeMoeda))) ?></option>
                         <?php endforeach; ?>
                     </select>
-                    <input id="wl-valor-<?= $novo ? 'n' : (int) $item['id'] ?>" name="valor" type="text" inputmode="decimal" autocomplete="off" placeholder="0,00" value="<?= e($vValor) ?>" data-wl-valor>
+                    <input id="wl-valor-<?= $novo ? 'n' : (int) $item['id'] ?>" name="valor" type="text" inputmode="decimal" autocomplete="off" placeholder="<?= e(numInput(0)) ?>" value="<?= e($vValor) ?>" data-wl-valor>
                 </span>
                 <p class="wl-conv num" role="status" data-wl-conv hidden></p>
             </div>

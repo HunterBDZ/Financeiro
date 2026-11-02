@@ -42,7 +42,7 @@ final class AuthController
 
         // a trava impede duas primeiras contas ao mesmo tempo
         if (!Auth::travarSenha()) {
-            renderErro(429, t('bloqueado'), t('Tente de novo em instantes.'));
+            renderErro(429, t('Muitas tentativas'), t('Tente de novo em instantes.'));
         }
         try {
             if (!UsuarioModel::nenhum()) {
@@ -77,7 +77,7 @@ final class AuthController
 
         if ($login === '' || $senha === '') {
             http_response_code(401);
-            $tela['erro'] = t('login ou senha?');
+            $tela['erro'] = t('Login ou senha incorretos.');
             View::renderAuth('auth/login', $tela);
             return;
         }
@@ -97,13 +97,13 @@ final class AuthController
         }
         if ($bloqueado > 0) {
             http_response_code(429);
-            $tela['erro'] = t('bloqueado · tente em {min} min', ['min' => (int) ceil($bloqueado / 60)]);
+            $tela['erro'] = t('Muitas tentativas. Tente de novo em {min} min.', ['min' => (int) ceil($bloqueado / 60)]);
             View::renderAuth('auth/login', $tela);
             return;
         }
         if (!$ok) {
             http_response_code(401);
-            $tela['erro'] = t('login ou senha?');
+            $tela['erro'] = t('Login ou senha incorretos.');
             View::renderAuth('auth/login', $tela);
             return;
         }

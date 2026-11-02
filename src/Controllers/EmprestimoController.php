@@ -18,7 +18,6 @@ use Financeiro\View;
  */
 final class EmprestimoController
 {
-    private const MAX = 1000000.0;
     private const DESCRICAO = 'Adiantamento do empréstimo';
 
     public function index(): void
@@ -38,7 +37,7 @@ final class EmprestimoController
         $erro = null;
         $valor = 0.0;
         if (($_GET['quitar'] ?? '') === '1') {
-            $valor = self::MAX;     // simular() limita à dívida do mês
+            $valor = valorMaximo();     // simular() limita à dívida do mês
         } elseif ($campo !== '') {
             $v = self::valorDe($campo);
             if ($v === null) {
@@ -57,6 +56,7 @@ final class EmprestimoController
         $data = [
             'pageTitle' => t('empréstimo') . ' · financeiro', 'sit' => $sit, 'sim' => $sim, 'erro' => $erro,
             'mes' => $mes, 'campo' => $campo, 'hoje' => $hoje, 'catAmort' => $dados['esp']['amort'],
+            'pago' => trim(is_string($_GET['pago'] ?? null) ? $_GET['pago'] : ''),   // só o "Já paguei" manda o valor
         ];
         if (($_GET['parcial'] ?? '') === '1') {
             View::partial('emprestimo/_resultado', $data);
@@ -208,6 +208,6 @@ final class EmprestimoController
     private static function valorDe(string $campo): ?float
     {
         $v = preg_match('/^(R\$)?[\s\d.,]+$/u', $campo) ? parseMoedaBr($campo) : null;
-        return $v === null || $v <= 0 || $v > self::MAX ? null : round($v, 2);
+        return $v === null || $v <= 0 || $v > valorMaximo() ? null : round($v, 2);
     }
 }

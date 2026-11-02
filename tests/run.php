@@ -36,6 +36,7 @@ use Financeiro\Services\FotoPlano;
 use Financeiro\Services\RelatorioDados;
 use Financeiro\Controllers\RelatorioController;
 use Financeiro\Services\Horizonte;
+use Financeiro\Site;
 use Financeiro\SiteIcone;
 use Financeiro\Idioma;
 use Financeiro\Controllers\FuturoController;
@@ -47,6 +48,7 @@ use Financeiro\Icones;
 use Financeiro\Models\AjusteModel;
 use Financeiro\Models\CartaoModel;
 use Financeiro\Models\CategoriaModel;
+use Financeiro\Models\ContaRecorrenteModel;
 use Financeiro\Models\LancamentoModel;
 use Financeiro\Models\MesModel;
 use Financeiro\Models\MetaModel;
@@ -77,6 +79,8 @@ $check = static function (string $nome, bool $cond, string $detalhe = '') use (&
 };
 
 $pdo = Database::connection();
+// os testes comparam valores em reais, seja qual for a moeda do site
+Site::usarMoeda('BRL');
 
 // a barra e o menu mudam sem cartão ou sem empréstimo: esses testes só valem com os dois ligados
 $checkComTudo = static function (string $nome, bool $cond, string $detalhe = '') use ($check): void {
@@ -166,7 +170,7 @@ $htmlIni = $pagina(DashboardController::class, 'index', '/');
 $htmlMes = $pagina(MesController::class, 'index', '/mes');
 $htmlAno = $pagina(FuturoController::class, 'index', '/futuro');
 $htmlMeta = $pagina(MetaController::class, 'index', '/meta');
-$check('Metas não chama o disponível de renda', !str_contains($htmlMeta, 'Renda do mês') && str_contains($htmlMeta, 'Disponível no mês'));
+$check('Metas não chama o disponível de renda', !str_contains($htmlMeta, 'Renda do mês') && str_contains($htmlMeta, 'Para usar neste mês'));
 $check('Anual não diz "acima da reserva em todos os meses"', !str_contains($htmlAno, 'acima da reserva em todos'));
 $check('Início sem o selo "Acima da reserva"', !str_contains($htmlIni, 'Acima da reserva'));
 $mesPrevT = MesModel::referencia(date('Y-m-d'));
@@ -581,7 +585,7 @@ if (count($prevMeses) < 2 || $catDia === 0) {
         $check('mês fechado: recusa', str_contains($erroDe(static fn() => PrevisaoEdicao::celulas($d, $catDia, $realMes, 'salvar', 1.0, false)), 'fechado'));
     }
     if ($catMov > 0) {
-        $check('empréstimo/poupança não se edita na Mês', $erroDe(static fn() => PrevisaoEdicao::celulas($d, $catMov, $m1, 'salvar', 1.0, false)) === 'categoria?');
+        $check('empréstimo/poupança não se edita na Mês', $erroDe(static fn() => PrevisaoEdicao::celulas($d, $catMov, $m1, 'salvar', 1.0, false)) === 'Escolha uma categoria.');
     }
 
     // 8. alerta de reserva/vermelho depois de uma mudança
@@ -695,8 +699,16 @@ $emTransacao('categoria com ícone', static function () use ($check): void {
 });
 Icones::limpar();
 $htmlEx = $render(LancamentosController::class, 'index', []);
-$check('extrato: ícone em cada lançamento e escolha de ícone na categoria nova', str_contains($htmlEx, 'class="ci"')
-    && str_contains($htmlEx, 'data-ic-sugerir') && str_contains($htmlEx, 'name="icone"') && str_contains($htmlEx, '/icone?volta='));
+$htmlAjCat = $render(AjustesController::class, 'index', ['aberto' => 'categorias']);
+$check('extrato: ícone em cada lançamento, sem o painel de categorias', str_contains($htmlEx, 'class="ci"') && !str_contains($htmlEx, 'action="/categorias"'));
+$check('ajustes: categorias, com o ícone dobrado em "Escolher ícone"', str_contains($htmlAjCat, 'id="categorias" open') && str_contains($htmlAjCat, 'action="/categorias"')
+    && str_contains($htmlAjCat, 'class="ic-escolher"') && str_contains($htmlAjCat, 'data-ic-sugerir') && str_contains($htmlAjCat, '/icone?volta='));
+$check('lançar: atalho para criar categoria', str_contains($render(LancamentosController::class, 'lancarForm', []), 'class="lf-criar-cat" href="/ajustes?aberto=categorias#categorias"'));
+$check('ajustes: a conta vem primeiro e o Avançado por último', strpos($htmlAjCat, 'id="senha"') < strpos($htmlAjCat, 'aj-idioma')
+    && strpos($htmlAjCat, 'aj-idioma') < strpos($htmlAjCat, 'aj-recursos') && strpos($htmlAjCat, 'aj-recursos') < strpos($htmlAjCat, 'id="parametros"')
+    && strpos($htmlAjCat, 'id="parametros"') < strpos($htmlAjCat, 'id="contas"') && strpos($htmlAjCat, 'id="contas"') < strpos($htmlAjCat, 'aj-avancado')
+    && strpos($htmlAjCat, 'aj-avancado') < strpos($htmlAjCat, 'id="partida"') && strpos($htmlAjCat, 'id="partida"') < strpos($htmlAjCat, 'id="aparelhos"'));
+$check('ajustes: escolher a imagem do site num botão próprio', str_contains($htmlAjCat, 'class="btn btn-ghost aj-arquivo"') && str_contains($htmlAjCat, 'data-arquivo'));
 $check('lançar: só o select de categoria, sem atalhos', !str_contains($render(LancamentosController::class, 'lancarForm', []), 'lf-atalho'));
 if ($catDia > 0) {
     $_SERVER['REQUEST_URI'] = '/categorias/' . $catDia . '/icone';
@@ -721,8 +733,11 @@ $checkComTudo('barra do celular: 2 abas, o +, 2 abas (sem o Relatório)', $itens
     && !str_contains($barra, 'href="/relatorio"') && str_contains($htmlMes, 'class="lat-i" href="/relatorio"'), implode(',', $itens[1]));
 $check('seletor de meses do Mês leva ao Relatório e ao simulador; o do Extrato não', str_contains($htmlMes, 'class="mes-picker-anual" href="/relatorio"') && str_contains($htmlMes, 'class="mes-picker-anual" href="/futuro"')
     && !str_contains($htmlEx, 'mes-picker-anual'));
-$check('menu do avatar (celular) leva ao Relatório, e a aba Anual saiu', str_contains($htmlMes, 'class="menu-item" href="/relatorio"') && !str_contains($htmlMes, 'class="menu-item" href="/futuro"') && !str_contains($htmlMes, '>Anual<'));
-$checkComTudo('no simulador, a aba Mês da barra fica acesa', str_contains($render(FuturoController::class, 'index', []), 'class="tab is-active" href="/mes"'));
+$check('botão Menu (celular), sem o círculo da inicial, leva ao Relatório e ao Simular; a aba Anual saiu', str_contains($htmlMes, 'class="menu-botao"') && str_contains($htmlMes, 'class="menu-item" href="/relatorio"')
+    && str_contains($htmlMes, 'class="menu-item" href="/futuro"') && !str_contains($htmlMes, 'menu-avatar') && !str_contains($htmlMes, '>Anual<'));
+$htmlFuAtivo = $render(FuturoController::class, 'index', []);
+$check('Simular: fica aceso ele mesmo, no menu lateral e no botão Menu', str_contains($htmlFuAtivo, 'class="lat-i is-active" href="/futuro"') && str_contains($htmlFuAtivo, 'class="menu-item is-active" href="/futuro"')
+    && str_contains($htmlFuAtivo, 'class="menu-botao is-active"') && !str_contains($htmlFuAtivo, 'class="tab is-active"') && !str_contains($htmlFuAtivo, 'class="lat-i is-active" href="/relatorio"'));
 
 // ---- 13. Anual: marcos do plano e o que mudou em cada mês (AnualResumo, dados de mentira)
 $pl = static fn(string $m, float $fica, bool $quit = false, float $parc = 0.0): array => ['mes' => $m, 'estado' => 'previsto',
@@ -888,7 +903,7 @@ $check('cartão: sem cartão cadastrado, a aba pede o cadastro', CartaoModel::at
     || str_contains($render(CartaoController::class, 'index', []), 'Cadastre o cartão'));
 $htmlBar = $render(MesController::class, 'index', []);
 preg_match('#<nav class="tabbar".*?</nav>#s', $htmlBar, $mB);
-$checkComTudo('barra do celular: Início, Extrato, +, Mês, Cartão; Metas e Relatório no menu do M', str_contains($mB[0] ?? '', 'href="/cartao"')
+$checkComTudo('barra do celular: Início, Extrato, +, Mês, Cartão; Metas e Relatório no botão Menu', str_contains($mB[0] ?? '', 'href="/cartao"')
     && !str_contains($mB[0] ?? '', 'href="/meta"') && str_contains($htmlBar, 'class="menu-item" href="/meta"') && str_contains($htmlBar, 'class="lat-i" href="/cartao"'));
 
 // ---- 16. aba Empréstimo: dados de mentira, para não depender da dívida de verdade
@@ -942,6 +957,13 @@ $checkComTudo('empréstimo: a aba abre, com o menu do M e fora da barra', str_co
 $htmlErro = $render(EmprestimoController::class, 'index', ['valor' => '12a', 'parcial' => '1']);
 $check('empréstimo: valor inválido diz como corrigir, ou a dívida já acabou', str_contains($htmlErro, 'Valor inválido') || str_contains($htmlEmp, 'Empréstimo quitado'));
 $check('empréstimo: o pedaço do resultado vem sem o layout', !str_contains($htmlErro, '<html'));
+if (!str_contains($htmlEmp, 'Empréstimo quitado')) {
+    $htmlSimE = $render(EmprestimoController::class, 'index', ['valor' => '100', 'mes' => '']);
+    $check('empréstimo: simular não preenche o Valor pago', str_contains($htmlEmp, 'Simular quitar tudo') && !str_contains($htmlEmp, 'Quitar tudo')
+        && preg_match('#id="emp-pago"[^>]*value=""#', $htmlSimE) === 1 && preg_match('#id="emp-consolidar"(?! open)#', $htmlSimE) === 1);
+    $htmlPagoE = $render(EmprestimoController::class, 'index', ['valor' => '100', 'pago' => '100,00']);
+    $check('empréstimo: só o "Já paguei" leva o valor', preg_match('#id="emp-pago"[^>]*value="100,00"#', $htmlPagoE) === 1 && str_contains($htmlPagoE, 'id="emp-consolidar" open'));
+}
 $htmlOk = $render(EmprestimoController::class, 'index', ['valor' => '100,00']);
 $check('empréstimo: simular mostra o resultado e não grava nada', (str_contains($htmlOk, 'Falta depois') || str_contains($htmlEmp, 'Empréstimo quitado'))
     && (int) $pdo->query('SELECT COUNT(*) FROM lancamentos')->fetchColumn() === $antesEmp);
@@ -1067,7 +1089,7 @@ $check('cotação: lê a fonte principal e ignora o resto', Cotacao::lerPrincipa
 $check('cotação: a fonte reserva vem invertida', Cotacao::lerReserva('{"base":"BRL","date":"2026-10-30","rates":{"USD":0.2,"XXX":1}}') === ['USD' => ['valor' => 5.0, 'data' => '2026-10-30']]);
 $check('cotação: resposta inválida não vira cotação', Cotacao::lerPrincipal('<html>erro</html>') === [] && Cotacao::lerReserva('{"base":"USD","date":"2026-10-30","rates":{"BRL":5}}') === [] && Cotacao::lerPrincipal('{"USDBRL":{"code":"USD","codein":"BRL","bid":"5","create_date":"ontem"}}') === []);
 $taxasT = ['USD' => ['valor' => 5.4397, 'data' => '2026-10-30']];
-$check('cotação: converte para reais; real fica igual; sem cotação é null', Cotacao::emReais(100.0, 'USD', $taxasT) === 543.97 && Cotacao::emReais(100.0, 'BRL', []) === 100.0 && Cotacao::emReais(100.0, 'EUR', $taxasT) === null);
+$check('cotação: converte para a moeda do site; a mesma moeda fica igual; sem cotação é null', Cotacao::naMoedaDoSite(100.0, 'USD', $taxasT) === 543.97 && Cotacao::naMoedaDoSite(100.0, 'BRL', []) === 100.0 && Cotacao::naMoedaDoSite(100.0, 'EUR', $taxasT) === null);
 $check('cotação: formata na moeda', Cotacao::formatar(1299.0, 'USD') === 'US$' . NBSP . '1.299,00' && Cotacao::formatar(10.0, 'BRL') === money(10.0));
 $check('link: imagem data: não é baixada', LinkProduto::metadados('<meta property="og:image" content="data:image/png;base64,AAAA">', 'https://loja.exemplo/')['imagem'] === null);
 $check('link: leitura de preços', LinkProduto::preco('1299.90') === 1299.9 && LinkProduto::preco('R$ 1.299,90') === 1299.9 && LinkProduto::preco(50) === 50.0 && LinkProduto::preco('grátis') === null && LinkProduto::preco('0') === null);
@@ -1257,6 +1279,224 @@ if (is_file($arqVersao) && is_file($arqReadme)) {
     $readme = (string) file_get_contents($arqReadme);
     $check('versão: o selo do README diz o mesmo que o VERSION', str_contains($readme, "[![Versão {$versao}](") && str_contains($readme, "-{$versao}-blue)"), $versao);
 }
+
+// ---- 21. fechar e Mês: confirmar, nada ligado sozinho, botão à vista
+$htmlFe = $render(MesController::class, 'fecharForm', []);
+if (str_contains($htmlFe, 'name="aplicar"')) {
+    $check('fechar: "Aplicar" vem desligado', preg_match('#name="aplicar" value="1"(?! checked)#', $htmlFe) === 1);
+}
+if (str_contains($htmlFe, 'action="/mes/fechar"')) {
+    $check('fechar: abre com a frase e cita os dias na confirmação', str_contains($htmlFe, 'fe-intro') && preg_match('#data-confirm="Ainda falta(m)? #u', $htmlFe) === 1);
+}
+$mesCalT = date('Y-m-01');
+if ((string) (MotorFinanceiro::linhaDoMes($mesCalT)['situacao'] ?? '') === 'PREVISAO') {
+    $htmlMesCal = $render(MesController::class, 'index', ['mes' => $mesCalT]);
+    $check('Mês: fechar à vista, fora do menu "…"', str_contains($htmlMesCal, 'class="mes-fechar-link"') && !str_contains($htmlMesCal, 'class="menu-item" href="/mes/fechar'));
+    $emTransacao('início com o mês fechado antes do fim', static function () use ($mesCalT, $render, $check): void {
+        MesModel::setSituacao($mesCalT, 'REAL');
+        MotorFinanceiro::limparCache();
+        $h = $render(DashboardController::class, 'index', []);
+        $check('Início: o mês do calendário fechado continua sendo o mês mostrado', str_contains($h, mb_convert_case(mesExtenso($mesCalT), MB_CASE_TITLE) . ' até hoje') && !str_contains($h, ' previsto</h2>'));
+        MesModel::setSituacao($mesCalT, 'PREVISAO');
+        MotorFinanceiro::limparCache();
+    });
+}
+
+// ---- 22. primeira configuração: o que usa antes das contas; ajuda do aviso sem login
+$passoComecar = static function (int $passo): string {
+    ob_start();
+    \Financeiro\View::renderAuth('comecar/index', ['passo' => $passo, 'total' => 4, 'hoje' => date('Y-m-d'), 'inicio' => date('Y-m-d'), 'contas' => [['id' => 1, 'nome' => 'Luz']], 'usos' => [], 'erro' => null]);
+    return (string) ob_get_clean();
+};
+$check('começar: o 3º passo pergunta o que usa, e a parcela só com empréstimo', str_contains($passoComecar(3), 'name="usa_cartao"') && str_contains($passoComecar(3), 'cm-grupo cm-so-emp') && !str_contains($passoComecar(3), 'salário'));
+$check('começar: o 4º passo pede as contas fixas', str_contains($passoComecar(4), 'name="valor[1]"') && !str_contains($passoComecar(4), 'name="usa_cartao"'));
+ob_start();
+(new \Financeiro\Controllers\AjudaController())->conexao();
+$htmlCon = (string) ob_get_clean();
+$check('ajuda: o aviso de conexão abre sem o layout', str_contains($htmlCon, 'href="/login"') && !str_contains($htmlCon, 'class="tabbar"'));
+
+// ---- 23. mensagens em frase, tamanho mínimo e nada de texto escrito no CSS
+$telegrafico = [];
+foreach (array_merge(glob(__DIR__ . '/../src/Controllers/*.php'), glob(__DIR__ . '/../src/Services/*.php')) as $arq) {
+    if (preg_match_all("/\\bt\\('[^' ]{1,20}\\?'/u", (string) file_get_contents($arq), $mT) > 0) {
+        array_push($telegrafico, ...$mT[0]);
+    }
+}
+$check('mensagens: nenhuma do tipo "valor?"', $telegrafico === [], implode(', ', $telegrafico));
+$fonteMiuda = [];
+$textoCss = [];
+foreach (glob(__DIR__ . '/../public/assets/css/*.css') as $arq) {
+    $css = (string) file_get_contents($arq);
+    if (preg_match_all('/font-size:\s*(\d+(?:\.\d+)?)px/', $css, $mF) > 0) {
+        foreach ($mF[1] as $tam) {
+            if ((float) $tam < 12) {
+                $fonteMiuda[] = basename($arq) . ':' . $tam;
+            }
+        }
+    }
+    if (preg_match('/content:\s*"[^"]*\p{L}{3}/u', $css) === 1) {
+        $textoCss[] = basename($arq);
+    }
+}
+$check('CSS: nenhum texto menor que 12px', $fonteMiuda === [], implode(', ', $fonteMiuda));
+$check('CSS: nenhuma palavra escrita no CSS, fora do alcance da tradução', $textoCss === [], implode(', ', $textoCss));
+
+// ---- 24. moeda, número e fuso por site; categorias de fábrica no idioma de quem vê
+$valoresT = [0.01, 0.5, 1.0, 12.5, 45.9, 999.99, 1000.0, 1500.0, 1234.56, 1000000.0, 12345678.9, -8233.11];
+foreach (['pt', 'en', 'es'] as $idT) {
+    Idioma::usar($idT);
+    foreach (['BRL', 'USD', 'EUR', 'CLP', 'PEN'] as $moedaT) {
+        Site::usarMoeda($moedaT);
+        $ruins = [];
+        foreach ($valoresT as $v) {
+            foreach (['numInput' => numInput($v), 'num' => num($v), 'money' => money($v)] as $fn => $txt) {
+                if (parseMoedaBr($txt) !== $v) {
+                    $ruins[] = "{$fn}({$v}) = {$txt}";
+                }
+            }
+        }
+        $check("ida e volta do valor em {$idT}, {$moedaT}", $ruins === [], implode('; ', $ruins));
+    }
+    Site::usarMoeda('BRL');
+    $check("ida e volta com 4 casas em {$idT}", parseMoedaBr(numInput(20000.0, 4)) === 20000.0 && parseMoedaBr(numInput(12.5, 4)) === 12.5 && parseMoedaBr(numInput(1234.5678, 4)) === 1234.5678);
+    $check("ida e volta sem casas em {$idT}", parseMoedaBr(numInput(1500.0, 0)) === 1500.0 && parseMoedaBr(numInput(72.0, 0)) === 72.0);
+    $check("ida e volta da taxa de juros em {$idT}", parseMoedaBr(numInput(1.65), false) === 1.65 && parseMoedaBr(numInput(0.0165, 4), false) === 0.0165);
+    $check("o exemplo vazio dos campos é lido em {$idT}", parseMoedaBr(numInput(0)) === 0.0);
+}
+Idioma::usar('en');
+$check('número em en: 1,234.56', num(1234.56) === '1,234.56' && numInput(-1234.56) === '-1,234.56' && money(1234.56) === 'R$' . NBSP . '1,234.56');
+$check('número em en: 1.500 continua recusado no dinheiro, e é 1,5 numa taxa', parseMoedaBr('1.500') === null && parseMoedaBr('1.500', false) === 1.5);
+$check('número em en: resumido', moneyCompact(16800.0) === '16.8' . NBSP . t('mil') && moneyCompact(10000.0) === '10' . NBSP . t('mil'));
+$check('data em en: Nov 22', diaMes('2026-11-22') === 'Nov 22' && diaMes('2026-11-02') === 'Nov 2' && diaMesHora('2026-11-22 14:02:00') === 'Nov 22 14:02' && diaMesAno('2026-11-22') === 'Nov 22, 2026' && diaMesCurto('2026-11-22') === 'Nov 22');
+Idioma::usar('es');
+$check('número em es: 1.234,56', num(1234.56) === '1.234,56' && money(1234.56) === 'R$' . NBSP . '1.234,56');
+$check('data em es: 22/11', diaMes('2026-11-22') === '22/11' && diaMesAno('2026-11-22') === '22/11/2026' && diaMesCurto('2026-11-22') === '22 nov');
+Idioma::usar('pt');
+$check('número em pt: como sempre', money(-1234.56) === MENOS . 'R$' . NBSP . '1.234,56' && moneySigned(1.0) === '+R$' . NBSP . '1,00' && num(1500.0, 0) === '1.500' && moneyCompact(16800.0) === '16,8' . NBSP . 'mil');
+$check('data em pt: como sempre', diaMes('2026-11-22') === '22/11' && diaMesHora('2026-11-22 14:02:00') === '22/11 14:02' && diaMesCurto('2026-11-22') === '22 nov');
+$check('moeda: nada de R$ no dinheiro de outra moeda', (static function (): bool { Site::usarMoeda('EUR'); $r = money(10.0) === '€' . NBSP . '10,00' && moedaSimbolo() === '€'; Site::usarMoeda('BRL'); return $r; })());
+$check('moeda: toda moeda do site tem símbolo e nome', array_diff_key(Site::MOEDAS, Cotacao::MOEDAS) === [] && count(Site::opcoesMoeda()) === count(Site::MOEDAS));
+
+// a cotação vem em reais: as outras se cruzam pelo real
+$taxasC = ['USD' => ['valor' => 5.0, 'data' => '2030-01-02'], 'EUR' => ['valor' => 6.0, 'data' => '2030-01-03']];
+Site::usarMoeda('USD');
+$check('cotação: real vira a moeda do site', Cotacao::naMoedaDoSite(100.0, 'BRL', $taxasC) === 20.0 && Cotacao::dataDe('BRL', $taxasC) === '2030-01-02');
+$check('cotação: cruza pelo real', Cotacao::naMoedaDoSite(100.0, 'EUR', $taxasC) === 120.0 && Cotacao::naMoedaDoSite(100.0, 'USD', $taxasC) === 100.0 && Cotacao::naMoedaDoSite(100.0, 'GBP', $taxasC) === null);
+Site::usarMoeda('COP');
+$check('cotação: sem cotação da moeda do site não inventa', Cotacao::naMoedaDoSite(100.0, 'USD', $taxasC) === null && Cotacao::naMoedaDoSite(100.0, 'COP', $taxasC) === 100.0);
+$check('moeda de valor baixo aceita valores altos', valorMaximo() === 1000000000.0);
+Site::usarMoeda('BRL');
+$check('real: o limite de sempre', valorMaximo() === 1000000.0);
+
+// fuso: o deslocamento sai do PHP, com o horário de verão, e vale também na conexão
+$quandoF = static fn(string $d): DateTimeImmutable => new DateTimeImmutable($d . ' 12:00:00 UTC');
+$check('fuso: Brasília', Site::deslocamento('America/Sao_Paulo', $quandoF('2026-01-15')) === '-03:00' && Site::deslocamento('America/Sao_Paulo', $quandoF('2026-07-15')) === '-03:00');
+$check('fuso: horário de verão', Site::deslocamento('America/New_York', $quandoF('2026-01-15')) === '-05:00' && Site::deslocamento('America/New_York', $quandoF('2026-07-15')) === '-04:00' && Site::deslocamento('Europe/Madrid', $quandoF('2026-07-15')) === '+02:00');
+$check('fuso: minutos e extremos', Site::deslocamento('Asia/Kolkata', $quandoF('2026-01-15')) === '+05:30' && Site::deslocamento('Asia/Kathmandu', $quandoF('2026-01-15')) === '+05:45' && Site::deslocamento('Pacific/Kiritimati', $quandoF('2026-01-15')) === '+14:00' && Site::deslocamento('Pacific/Pago_Pago', $quandoF('2026-01-15')) === '-11:00');
+$nomesF = DateTimeZone::listIdentifiers(DateTimeZone::ALL_WITH_BC);
+$check('fuso: o número guardado identifica um nome só', count(array_unique(array_map('crc32', $nomesF))) === count($nomesF));
+$check('fuso: o número volta ao nome; o desconhecido vale Brasília', Site::fusoDoNumero(crc32('America/Mexico_City')) === 'America/Mexico_City' && Site::fusoDoNumero(1) === Site::FUSO_PADRAO && Site::fusoDoNumero(null) === Site::FUSO_PADRAO);
+$check('fuso: inválido não passa', !Site::fusoValido('Marte/Olympus') && !Site::fusoValido("x' OR 1") && Site::fusoValido('America/Mexico_City') && !Site::moedaValida('XXX'));
+
+$moedaAntes = Site::moeda();
+$fusoAntes = Site::fuso();
+$pdo->beginTransaction();
+$pdo->exec("DELETE FROM ajustes WHERE chave IN ('moeda', 'fuso')");
+Site::carregar($pdo);
+$check('sem os ajustes novos: real e Brasília', Site::moeda() === 'BRL' && Site::fuso() === 'America/Sao_Paulo' && date_default_timezone_get() === 'America/Sao_Paulo');
+$check('sem os ajustes novos: a conexão fica em Brasília', $pdo->query('SELECT @@session.time_zone')->fetchColumn() === '-03:00');
+$check('sem os ajustes novos: o dinheiro sai igual', money(1234.56) === 'R$' . NBSP . '1.234,56');
+foreach (['en', 'es'] as $idT) {
+    Idioma::usar($idT);
+    $check("conta em {$idT} sem os ajustes novos: real e Brasília", moedaSimbolo() === 'R$' && Site::fuso() === 'America/Sao_Paulo');
+}
+Idioma::usar('pt');
+Site::salvarMoeda('EUR');
+Site::salvarFuso('Asia/Kolkata');
+Site::carregar($pdo);
+$check('com os ajustes: moeda e fuso voltam do banco', Site::moeda() === 'EUR' && Site::fuso() === 'Asia/Kolkata' && date_default_timezone_get() === 'Asia/Kolkata');
+$check('com os ajustes: a conexão anda junto', $pdo->query('SELECT @@session.time_zone')->fetchColumn() === '+05:30');
+$check('com os ajustes: NOW() anda no fuso', (int) $pdo->query('SELECT TIMESTAMPDIFF(MINUTE, UTC_TIMESTAMP(), NOW() + INTERVAL 1 SECOND)')->fetchColumn() === 330);
+Site::salvarFuso('America/New_York');
+Site::carregar($pdo);
+$check('com os ajustes: horário de verão na conexão', $pdo->query('SELECT @@session.time_zone')->fetchColumn() === Site::deslocamento('America/New_York'));
+$pdo->rollBack();
+Site::carregar($pdo);
+Site::usarMoeda('BRL');
+$check('a moeda e o fuso voltam ao que eram', Site::fuso() === $fusoAntes && $moedaAntes !== '');
+
+// as categorias de fábrica são as de database/instalar.php
+preg_match_all("/^    \['([^']+)', (?:'([^']+)'|null), '[A-Za-z ]+', -?1, [01]\],$/mu", (string) file_get_contents(__DIR__ . '/../database/instalar.php'), $mCat, PREG_SET_ORDER);
+$check('categorias: a lista de instalar.php foi lida', count($mCat) >= 26, (string) count($mCat));
+$foraDaLista = [];
+foreach ($mCat as $m) {
+    foreach (array_filter([$m[1], $m[2] ?? '']) as $nome) {
+        if (!in_array($nome, CATEGORIAS_FABRICA, true)) {
+            $foraDaLista[] = $nome;
+        }
+    }
+}
+$check('categorias: toda categoria de fábrica e apelido é traduzida ao mostrar', $foraDaLista === [], implode(', ', $foraDaLista));
+$semTraducao = [];
+foreach (['en', 'es'] as $idT) {
+    Idioma::usar($idT);
+    foreach (CATEGORIAS_FABRICA as $nome) {
+        if (t($nome) === $nome && !in_array($nome, ['Internet', 'Delivery', 'Celular'], true)) {
+            $semTraducao[] = "{$idT}: {$nome}";
+        }
+    }
+}
+$check('categorias: nenhuma fica em português em en/es', $semTraducao === [], implode(', ', $semTraducao));
+Idioma::usar('en');
+$check('categorias em en', nomeCategoria('Mercado') === 'Groceries' && nomeCategoria('IPVA') === 'Vehicle tax' && nomeCategoria('Licenciamento do carro') === 'Vehicle registration' && nomeCurto(['nome' => 'Aluguel e condomínio', 'apelido' => 'Aluguel']) === 'Rent');
+$check('categorias em en: criada ou renomeada fica como está', nomeCategoria('Padaria da esquina') === 'Padaria da esquina' && nomeCurto(['nome' => 'Mercado', 'apelido' => 'Feira']) === 'Feira' && nomeCategoria('Salvar') === 'Salvar');
+$check('categorias em en: a descrição automática acompanha; a escrita fica', descricaoTela('Mercado', ['nome' => 'Mercado', 'apelido' => null]) === 'Groceries' && descricaoTela('Pão', ['nome' => 'Mercado', 'apelido' => null]) === 'Pão' && descricaoTela('Mercado', ['nome' => 'Feira', 'apelido' => null]) === 'Mercado');
+$check('categorias em en: o nome para gravar segue em português', nomeCurtoBanco(['nome' => 'Mercado', 'apelido' => null]) === 'Mercado');
+$check('categorias em en: o motor acha pelo nome do banco', CategoriaModel::porNome('Salário') !== null && CategoriaModel::porNome(t('Salário')) === null);
+$check('categorias em en: a busca acha pelo nome traduzido', in_array('Mercado', categoriasPorTraducao('grocer'), true) && categoriasPorTraducao('xyzxyz') === []);
+$planoEn = MotorFinanceiro::calcularPlano();
+Idioma::usar('es');
+$check('categorias em es', nomeCategoria('Mercado') === 'Supermercado' && nomeCategoria('IPVA') === 'Impuesto del vehículo' && nomeCategoria('Licenciamento do carro') === 'Matrícula del vehículo');
+$check('categorias em es: criada fica como está', nomeCategoria('Padaria da esquina') === 'Padaria da esquina');
+$planoEs = MotorFinanceiro::calcularPlano();
+Idioma::usar('pt');
+$check('categorias em pt: sem nenhuma troca', array_filter(CATEGORIAS_FABRICA, static fn(string $n): bool => nomeCategoria($n) !== $n) === []);
+$planoPt = MotorFinanceiro::calcularPlano();
+$check('o plano é o mesmo em qualquer idioma', $planoEn === $planoPt && $planoEs === $planoPt);
+
+// a tela em en e es não mostra categoria de fábrica em português (o formulário de lançar fica guardado desde o 1º uso nesta requisição; ele é conferido no navegador)
+foreach (['en', 'es'] as $idT) {
+    Idioma::usar($idT);
+    foreach ([[DashboardController::class, '/'], [MesController::class, '/mes'], [MetaController::class, '/meta'], [AjustesController::class, '/ajustes']] as [$clsT, $pathT]) {
+        $tela = strip_tags((string) preg_replace('/<(script|style|template|datalist|dialog)\b.*?<\/\1>/s', '', $pagina($clsT, 'index', $pathT)));
+        $vistas = array_filter(['Aluguel e condomínio', 'Seguro do carro', 'Licenciamento do carro', 'Imposto de renda', 'Combustível', 'Mercado'], static fn(string $n): bool => str_contains($tela, $n));
+        $check("telas em {$idT}: categorias traduzidas em {$pathT}", $vistas === [], $vistas === [] ? '' : mb_substr($tela, max(0, (int) mb_strpos($tela, (string) reset($vistas)) - 80), 200));
+    }
+}
+Idioma::usar('pt');
+
+// "Tenho carro" e a fatura fora das contas fixas
+$pdo->beginTransaction();
+$ativoDe = static fn(string $n): int => (int) (CategoriaModel::porNome($n)['ativo'] ?? -1);
+$usoId = (int) $pdo->query("SELECT id FROM categorias WHERE nome = 'Combustível'")->fetchColumn();
+$pdo->prepare('INSERT INTO previsao (categoria_id, mes, valor) VALUES (?, ?, 1) ON DUPLICATE KEY UPDATE valor = 1')->execute([$usoId, date('Y-m-01')]);
+$idRev = (int) $pdo->query("SELECT id FROM categorias WHERE nome = 'Revisão do carro'")->fetchColumn();
+$pdo->prepare('DELETE FROM previsao WHERE categoria_id = ?')->execute([$idRev]);
+$pdo->prepare('DELETE FROM contas_recorrentes WHERE categoria_id = ?')->execute([$idRev]);
+$temLanc = (int) $pdo->query("SELECT COUNT(*) FROM lancamentos WHERE categoria_id = {$idRev}")->fetchColumn() > 0;
+CategoriaModel::marcarCarro(false);
+$check('sem carro: a categoria em uso fica', $ativoDe('Combustível') === 1);
+if (!$temLanc) {
+    $check('sem carro: a categoria sem uso sai das listas, sem apagar', $ativoDe('Revisão do carro') === 0);
+}
+CategoriaModel::marcarCarro(true);
+$check('com carro: as categorias voltam', $ativoDe('Revisão do carro') === 1 && $ativoDe('Combustível') === 1);
+AjusteModel::setValor('usa_cartao', 0.0);
+$check('sem cartão: a fatura não é oferecida nas contas fixas', array_filter(ContaRecorrenteModel::categoriasElegiveis(), static fn(array $c): bool => $c['grupo'] === 'Cartao') === []);
+$check('sem cartão: a fatura sai das contas fixas', array_filter(ContaRecorrenteModel::ativas(), static fn(array $c): bool => $c['grupo'] === 'Cartao') === []);
+AjusteModel::setValor('usa_cartao', 1.0);
+$check('com cartão: a fatura é oferecida', array_filter(ContaRecorrenteModel::categoriasElegiveis(), static fn(array $c): bool => $c['grupo'] === 'Cartao') !== []);
+$pdo->rollBack();
 
 echo "\n{$ok} ok, {$falhas} falha(s)\n";
 exit($falhas > 0 ? 1 : 0);

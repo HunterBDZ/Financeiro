@@ -4,6 +4,7 @@ namespace Financeiro\Controllers;
 use Financeiro\Auth;
 use Financeiro\Services\Horizonte;
 use Financeiro\Services\LinkProduto;
+use Financeiro\Site;
 use Financeiro\SiteIcone;
 use Financeiro\Models\AjusteModel;
 use Financeiro\Models\CategoriaModel;
@@ -13,14 +14,14 @@ use Financeiro\Models\UsuarioModel;
 use Financeiro\View;
 
 /**
- * Ajustes (SPEC §2.8, menu do avatar) — dono: P5. Reserva e meta, ponto de partida, contas
- * recorrentes, essenciais, aparelhos e senha. Cada grupo tem o seu SALVAR. Os dados do empréstimo
+ * Ajustes (SPEC §2.8) — dono: P5. A conta, o dinheiro, as contas fixas, as categorias, os essenciais,
+ * as pessoas e, no Avançado, o ponto de partida, o ícone do site e os aparelhos. Cada grupo tem o seu SALVAR. Os dados do empréstimo
  * ficam na aba Empréstimo (EmprestimoController::salvarDados), que usa a mesma validação.
  */
 final class AjustesController
 {
     /** Grupos (<details class="dobra">) e se abrem por padrão. */
-    private const GRUPOS = ['parametros' => true, 'partida' => false, 'contas' => true, 'essenciais' => true, 'pessoas' => false, 'aparelhos' => true, 'senha' => false];
+    private const GRUPOS = ['senha' => false, 'parametros' => true, 'contas' => false, 'categorias' => false, 'essenciais' => false, 'pessoas' => false, 'partida' => false, 'icone' => false, 'aparelhos' => false];
 
     public function index(): void
     {
@@ -58,6 +59,7 @@ final class AjustesController
             'apelidos'    => $apelidos,
             'elegiveis'   => $elegiveis,
             'gastos'      => CategoriaModel::gastos(),
+            'categorias'  => CategoriaModel::ativas(),
             'abertos'     => $abertos,
             'erro'        => is_array($erro) ? $erro : null,
             'login'       => (string) (\Financeiro\Models\UsuarioModel::find((int) Auth::id())['login'] ?? ''),
@@ -72,7 +74,7 @@ final class AjustesController
         csrfCheck();
         $data = is_string($_POST['data_inicio'] ?? null) ? $_POST['data_inicio'] : '';
         $ok = preg_match('/^(\d{4})-(\d{2})-(\d{2})$/D', $data, $m) === 1 && checkdate((int) $m[2], (int) $m[3], (int) $m[1]);
-        $problema = $ok ? Horizonte::problemaNaData($data) : t('data?');
+        $problema = $ok ? Horizonte::problemaNaData($data) : t('Escolha uma data válida.');
         if ($problema !== null) {
             flash('error', $problema);
             redirecionar('/ajustes?aberto=partida#partida', 303);
@@ -85,6 +87,21 @@ final class AjustesController
         redirecionar('/ajustes?aberto=partida#partida', 303);
     }
 
+    /** A moeda e o fuso do site: valem para todas as pessoas. Os valores gravados não mudam. */
+    public function salvarRegional(): void
+    {
+        Auth::requireLogin();
+        csrfCheck();
+        $moeda = (string) ($_POST['moeda'] ?? '');
+        $fuso = (string) ($_POST['fuso'] ?? '');
+        if (Site::moedaValida($moeda) && Site::fusoValido($fuso)) {
+            Site::salvarMoeda($moeda);
+            Site::salvarFuso($fuso);
+            flash('success', t('Ajustes salvos.'));
+        }
+        redirecionar('/ajustes#regional', 303);
+    }
+
     public function salvarRecursos(): void
     {
         Auth::requireLogin();
@@ -92,12 +109,17 @@ final class AjustesController
         AjusteModel::setValor('usa_cartao', ($_POST['usa_cartao'] ?? '') === '1' ? 1.0 : 0.0);
         AjusteModel::setValor('usa_emprestimo', ($_POST['usa_emprestimo'] ?? '') === '1' ? 1.0 : 0.0);
         AjusteModel::setValor('parcela_modo', ($_POST['parcela_modo'] ?? '') === '2' ? 2.0 : 1.0);
+        $temCarro = ($_POST['tem_carro'] ?? '') === '1';
+        if ($temCarro !== AjusteModel::usa('usa_carro')) {     // só na mudança: não traz de volta o que a pessoa removeu à mão
+            AjusteModel::setValor('usa_carro', $temCarro ? 1.0 : 0.0);
+            CategoriaModel::marcarCarro($temCarro);
+        }
         // "adiantar" não troca o objetivo 2 (só quitar) por 1: só muda quem escolheu outra coisa
         $objetivo = ($_POST['objetivo'] ?? '') === '3' ? 3 : 1;
         if ($objetivo === 3 || (int) round(AjusteModel::valor('objetivo', 1.0)) === 3) {
             AjusteModel::setValor('objetivo', (float) $objetivo);
         }
-        flash('success', t('ajustes salvos'));
+        flash('success', t('Ajustes salvos.'));
         redirecionar('/ajustes#recursos', 303);
     }
 
@@ -132,11 +154,11 @@ final class AjustesController
             : null;
         if ($img === null) {
             flash('error', t('Essa imagem não serve: use JPG, PNG ou WebP de até 3 MB.'));
-            redirecionar('/ajustes#icone', 303);
+            redirecionar('/ajustes?aberto=icone#icone', 303);
         }
         SiteIcone::salvar($img['tipo'], $img['dados']);
         flash('success', t('Ícone salvo.'));
-        redirecionar('/ajustes#icone', 303);
+        redirecionar('/ajustes?aberto=icone#icone', 303);
     }
 
     public function removerIcone(): void
@@ -145,7 +167,7 @@ final class AjustesController
         csrfCheck();
         SiteIcone::remover();
         flash('success', t('Ícone padrão de volta.'));
-        redirecionar('/ajustes#icone', 303);
+        redirecionar('/ajustes?aberto=icone#icone', 303);
     }
 
     /* -------------------------------------------------------------- parâmetros e ponto de partida */
@@ -160,7 +182,7 @@ final class AjustesController
         // os dados do empréstimo são da aba Empréstimo: aqui ficam fora da whitelist
         ['valores' => $valores, 'erro' => $errado] = self::lerValores($brutos, array_diff(AjusteModel::EDITAVEIS, AjusteModel::DO_EMPRESTIMO));
         if ($errado !== null) {
-            $_SESSION['aj_erro'] = ['grupo' => $grupo, 'msg' => t('{campo}?', ['campo' => self::rotulo($errado)]), 'campo' => $errado, 'valores' => $brutos];
+            $_SESSION['aj_erro'] = ['grupo' => $grupo, 'msg' => t('Confira o campo: {campo}.', ['campo' => self::rotulo($errado)]), 'campo' => $errado, 'valores' => $brutos];
             redirecionar('/ajustes?aberto=' . $grupo . '#' . $grupo, 303);
         }
 
@@ -168,7 +190,7 @@ final class AjustesController
             AjusteModel::setValor($chave, $v);                  // preserva `confirmado`
         }
 
-        flash('success', $valores === [] ? t('nada mudou') : t('ajustes salvos'));
+        flash('success', $valores === [] ? t('Nada mudou.') : t('Ajustes salvos.'));
         redirecionar('/ajustes?aberto=' . $grupo . '#' . $grupo, 303);
     }
 
@@ -228,7 +250,7 @@ final class AjustesController
             }
         }
         if ($elegivel === null || $dia < 1 || $dia > 31) {
-            $_SESSION['aj_erro'] = ['grupo' => 'contas', 'msg' => $elegivel === null ? t('conta?') : t('dia?')];
+            $_SESSION['aj_erro'] = ['grupo' => 'contas', 'msg' => $elegivel === null ? t('Escolha uma conta.') : t('Digite um dia de 1 a 31.')];
             redirecionar('/ajustes?aberto=contas#contas', 303);
         }
         ContaRecorrenteModel::upsert($cat, $dia);
@@ -243,7 +265,7 @@ final class AjustesController
 
         $conta = ContaRecorrenteModel::buscar((int) $id);
         if ($conta === null || (int) $conta['ativo'] !== 1) {
-            flash('warn', t('já removida'));
+            flash('warn', t('Essa conta já tinha sido removida.'));
             redirecionar('/ajustes?aberto=contas#contas', 303);
         }
         ContaRecorrenteModel::desativar((int) $id);
@@ -265,7 +287,7 @@ final class AjustesController
         foreach (CategoriaModel::gastos() as $c) {
             CategoriaModel::setEssencial((int) $c['id'], isset($marcadas[(int) $c['id']]));
         }
-        flash('success', t('essenciais salvos'));
+        flash('success', t('Essenciais salvos.'));
         redirecionar('/ajustes?aberto=essenciais#essenciais', 303);
     }
 
@@ -277,7 +299,7 @@ final class AjustesController
         csrfCheck();
 
         Auth::sairDeTodos((int) Auth::id());
-        flash('success', t('saiu de todos os outros aparelhos'));
+        flash('success', t('Você saiu de todos os outros aparelhos.'));
         redirecionar('/ajustes?aberto=aparelhos#aparelhos', 303);
     }
 
@@ -316,10 +338,10 @@ final class AjustesController
         $conferida = Auth::conferirSenhaAtual((int) Auth::id(), $atual);
         if ($conferida === 'bloqueado') {
             Auth::logout();
-            renderErro(429, t('bloqueado'), t('senha atual errada demais · entre de novo em 10 min'));
+            renderErro(429, t('Muitas tentativas'), t('A senha atual foi digitada errada muitas vezes. Entre de novo em 10 minutos.'));
         }
         $erro = match (true) {
-            $conferida !== 'ok'  => t('senha atual?'),
+            $conferida !== 'ok'  => t('A senha atual não confere.'),
             mb_strlen($nova) < 8 => t('A senha precisa de pelo menos 8 caracteres.'),
             default              => null,
         };
@@ -329,7 +351,7 @@ final class AjustesController
         }
         UsuarioModel::trocarSenha($alvo, $nova);
         Auth::sairDeTodos($alvo);
-        flash('success', t('senha trocada'));
+        flash('success', t('Senha trocada.'));
         redirecionar('/ajustes?aberto=pessoas#pessoas', 303);
     }
 
@@ -348,12 +370,12 @@ final class AjustesController
         $conferida = Auth::conferirSenhaAtual((int) Auth::id(), $atual);
         if ($conferida === 'bloqueado') {
             Auth::logout();
-            renderErro(429, t('bloqueado'), t('senha atual errada demais · entre de novo em 10 min'));
+            renderErro(429, t('Muitas tentativas'), t('A senha atual foi digitada errada muitas vezes. Entre de novo em 10 minutos.'));
         }
         $erro = match (true) {
-            $conferida !== 'ok'   => t('senha atual?'),
-            mb_strlen($nova) < 6  => t('nova: mínimo 6'),
-            $nova !== $repetir    => t('repetir não bate'),
+            $conferida !== 'ok'   => t('A senha atual não confere.'),
+            mb_strlen($nova) < 6  => t('A nova senha precisa ter pelo menos 6 caracteres.'),
+            $nova !== $repetir    => t('As duas senhas novas não são iguais.'),
             default               => null,
         };
         if ($erro !== null) {
@@ -363,7 +385,7 @@ final class AjustesController
 
         UsuarioModel::trocarSenha((int) Auth::id(), $nova);
         Auth::sairDeTodos((int) Auth::id());                    // os outros aparelhos precisam da senha nova
-        flash('success', t('senha trocada'));
+        flash('success', t('Senha trocada.'));
         redirecionar('/ajustes', 303);
     }
 

@@ -282,18 +282,18 @@
     }
 
     // o valor é digitado como se fala: 45 é 45,00. Ao sair do campo, só formata o que não tem dúvida; o resto o servidor confere
+    var SO_NUMERO = FIN.dec === ',' ? /^(\d+)(?:,(\d{1,2}))?$/ : /^(\d+)(?:\.(\d{1,2}))?$/;
     function formatarValor(txt) {
-        var m = /^(\d+)(?:,(\d{1,2}))?$/.exec(txt.trim());
+        var m = SO_NUMERO.exec(txt.trim());
         if (!m) return txt;
-        var inteiro = m[1].replace(/^0+(?=\d)/, '').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-        return inteiro + ',' + ((m[2] || '') + '00').slice(0, 2);
+        return FIN.num(parseFloat(m[1] + '.' + (m[2] || '0')));
     }
     // o campo do valor acompanha a largura do número: "R$" e o valor ficam juntos e centralizados
     function ajustarLargura(input) {
         input.style.width = (Math.max(4, input.value.length) + 0.4) + 'ch';
     }
     document.querySelectorAll('[data-lf-valor]').forEach(function (input) {
-        if (input.value === '0,00') input.value = '';
+        if (input.value === FIN.num(0)) input.value = '';
         ajustarLargura(input);
         input.addEventListener('input', function () {
             input.value = input.value.replace(/[^\d.,]/g, '');
