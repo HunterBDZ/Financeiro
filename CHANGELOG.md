@@ -2,6 +2,11 @@
 
 Cada versão publicada é uma tag `vX.Y.Z` deste repositório. Pacotes atualizam em Ajustes, em Backup e atualização; servidores, com `sudo financeiro-atualizar`.
 
+## 1.11.0
+
+- **Verificação em duas etapas, opcional:** em Ajustes, cada pessoa pode ligar a verificação com um app autenticador. Depois da senha, o login pede o código de 6 dígitos ou um dos 10 códigos de recuperação. Aparelho lembrado entra sem o código.
+- **Pacotes de Windows, Mac e Linux:** a tela Backup e atualização mostra a versão do programa que roda o Financeiro e avisa quando há um instalador novo para pôr por cima. Os dados ficam.
+
 ## 1.10.0
 
 - **Início:** o cartão do saldo responde numa frase, por exemplo "Dá para gastar R$ 2.283,81 até o dia 30 sem passar da reserva". Os outros números ficam em "Ver detalhes".
