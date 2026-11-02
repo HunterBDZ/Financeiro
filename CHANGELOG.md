@@ -2,6 +2,10 @@
 
 Cada versão publicada é uma tag `vX.Y.Z` deste repositório. Pacotes atualizam em Ajustes, em Backup e atualização; servidores, com `sudo financeiro-atualizar`.
 
+## 1.11.1
+
+- **Mês:** quando um mês tem valor próprio para uma categoria, a barra compara o que foi gasto com esse valor, e não com a meta de todo mês. Exemplo: "0,00 de 800,00" em novembro, mesmo com a meta de 1.000,00. Com valor zero e nada gasto, a barra some.
+
 ## 1.11.0
 
 - **Verificação em duas etapas, opcional:** em Ajustes, cada pessoa pode ligar a verificação com um app autenticador. Depois da senha, o login pede o código de 6 dígitos ou um dos 10 códigos de recuperação. Aparelho lembrado entra sem o código.
