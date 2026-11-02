@@ -10,7 +10,23 @@ permissions:
   contents: read
 
 jobs:
-  testes:
+  testes-sqlite:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_sqlite, mbstring, curl
+          coverage: none
+      - name: Pasta de dados
+        run: echo "FIN_DADOS=$RUNNER_TEMP/financeiro" >> "$GITHUB_ENV"
+      - name: Banco de demonstração
+        run: php database/instalar.php --demo
+      - name: Testes
+        run: php tests/run.php
+
+  testes-mysql:
     runs-on: ubuntu-24.04
     services:
       mysql:
@@ -29,7 +45,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
-          extensions: pdo_mysql, mbstring, curl
+          extensions: pdo_mysql, pdo_sqlite, mbstring, curl
           coverage: none
       - name: Sintaxe do PHP
         run: find src public database tests tools -name '*.php' -print0 | xargs -0 -n1 php -l > /dev/null
@@ -44,3 +60,9 @@ jobs:
           php database/instalar.php --demo
       - name: Testes
         run: php tests/run.php
+      - name: Importar para SQLite e comparar os bancos
+        run: |
+          mkdir -p "$RUNNER_TEMP/comparar"
+          php tools/importar-mysql.php --mysql=config/.env --destino="$RUNNER_TEMP/comparar/financeiro.sqlite"
+          printf 'APP_ENV=production\nDB_DRIVER=sqlite\nDB_FILE=financeiro.sqlite\nFIN_MODO=servidor\nMOTOR_V2=1\n' > "$RUNNER_TEMP/comparar/config.env"
+          php tools/comparar-bancos.php --a=site --b="$RUNNER_TEMP/comparar"

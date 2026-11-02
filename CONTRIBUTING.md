@@ -6,7 +6,16 @@ Ao enviar uma contribuição, você concorda em distribuí-la sob a licença do 
 
 ## Rodar localmente
 
-Você precisa de PHP 8.4 ou mais novo (com `pdo_mysql`, `mbstring` e `curl`) e de MySQL 8. Use um banco só para isso: o teste roda contra o banco de `config/.env`.
+Você precisa de PHP 8.4 ou mais novo, com `pdo_sqlite`, `mbstring` e `curl`. Sem instalar banco nenhum:
+
+```sh
+export FIN_DADOS=/tmp/financeiro-dev
+php database/instalar.php --demo                            # dados fictícios; entre com ana / demo1234
+php -S 127.0.0.1:8099 -t public tools/servir-dev.php        # o site
+php tests/run.php                                           # os testes
+```
+
+Enquanto o site antigo não migra, o código também precisa funcionar em MySQL 8, com `pdo_mysql`, e os testes têm de passar nos dois. Use um banco só para isso: sem `FIN_DADOS`, o teste roda contra o banco de `config/.env`.
 
 ```sh
 mysql -uroot -e "CREATE DATABASE financeiro_demo CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
@@ -15,7 +24,7 @@ mysql -uroot -e "CREATE DATABASE financeiro_demo CHARACTER SET utf8mb4 COLLATE u
 mysql -uroot financeiro_demo < database/schema.sql
 cp config/.env.example config/.env   # e aponte DB_HOST=127.0.0.1, DB_NAME, DB_USER e DB_PASS para o banco acima
 php database/instalar.php --demo     # dados fictícios; entre com ana / demo1234
-php -S 127.0.0.1:8099 -t public      # o site
+php -S 127.0.0.1:8099 -t public tools/servir-dev.php   # o site
 php tests/run.php                    # os testes
 ```
 
