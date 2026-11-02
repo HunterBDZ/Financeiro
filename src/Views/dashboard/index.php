@@ -196,21 +196,30 @@ $quandoFoi   = static function (string $data) use ($hoje): string {
                 <h2 class="titulo" id="dash-top-t"><?= e(t('Para onde foi')) ?> <small class="dash-tit-nota"><?= e(t('% dos gastos')) ?></small></h2>
                 <a class="card-acao" href="/lancamentos?mes=<?= e($mesRef) ?>"><?= e(t('Extrato')) ?> <?= svgIcon('chevron', 15) ?></a>
             </div>
+            <?php $categorizar = $p['semCategoria'] !== null ? '/cartao/compras/' . (int) $p['semCategoria']['compras'][0] . '/editar' : null; ?>
             <?php if ($p['top'] === []): ?>
                 <p class="dash-vazio"><?= e(t('Nada lançado em {mes} ainda.', ['mes' => $mesNome])) ?></p>
             <?php else: ?>
                 <ol class="barras">
-                    <?php foreach ($p['top'] as $t): ?>
+                    <?php foreach ($p['top'] as $t): $semCat = $p['porCompra'] && (int) $t['id'] === \Financeiro\Services\GastoPorCategoria::SEM_CATEGORIA; ?>
                         <li>
-                            <a class="barras-i" href="/lancamentos?mes=<?= e($mesRef) ?>&amp;cat=<?= (int) $t['id'] ?>">
-                                <?= iconeCategoria((int) $t['id'], (string) $t['nome_banco'], '', 40, 'barras-ic') ?>
+                            <a class="barras-i" href="<?= $semCat ? e((string) $categorizar) : '/lancamentos?mes=' . e($mesRef) . '&amp;cat=' . (int) $t['id'] ?>">
+                                <?= iconeCategoria((int) $t['id'], (string) $t['nome_banco'], $semCat ? 'Cartao' : '', 40, 'barras-ic') ?>
                                 <span class="barras-n"><?= e($t['nome']) ?></span>
-                                <span class="barras-v num"><?= e(num($t['valor'])) ?><small><?= $share($t['valor'], $p['saidas']) ?>%</small></span>
+                                <span class="barras-v num"><?= e(num($t['valor'])) ?><small><?= $share($t['valor'], $p['ondeTotal']) ?>%</small></span>
                                 <span class="trilho" aria-hidden="true"><i style="--w:<?= $topMax > 0 ? round($t['valor'] / $topMax * 100, 1) : 0 ?>%"></i></span>
                             </a>
                         </li>
                     <?php endforeach; ?>
                 </ol>
+            <?php endif; ?>
+            <?php if ($categorizar !== null): ?>
+                <p class="dash-nota num"><?= t('Compras no cartão sem categoria: {valor}. {link}', ['valor' => e(num($p['semCategoria']['valor'])), 'link' => '<a href="' . e($categorizar) . '">' . e(t('Categorizar')) . '</a>']) ?></p>
+            <?php endif; ?>
+            <?php if ($p['cartaoAberto']): ?>
+                <p class="dash-nota dash-onde"><?= $p['porCompra']
+                    ? t('Cartão pela data da compra. {link}', ['link' => '<a href="/?onde=fatura#dash-top-t">' . e(t('Ver por fatura')) . '</a>'])
+                    : t('Cartão pela fatura paga. {link}', ['link' => '<a href="/?onde=compra#dash-top-t">' . e(t('Ver pela data da compra')) . '</a>']) ?></p>
             <?php endif; ?>
         </section>
 

@@ -11,6 +11,7 @@ use Financeiro\Models\MesModel;
 use Financeiro\Models\SaldoConferenciaModel;
 use Financeiro\Relogio;
 use Financeiro\Services\Atencao;
+use Financeiro\Services\GastoPorCategoria;
 use Financeiro\Services\GastosMensais;
 use Financeiro\Services\MotorFinanceiro;
 use Financeiro\Services\Sobra;
@@ -22,6 +23,9 @@ use Financeiro\View;
  */
 final class DashboardController
 {
+    /** Cookie de quem prefere ver o "Para onde foi" por fatura. */
+    public const COOKIE_ONDE = 'financeiro_onde';
+
     public function index(): void
     {
         Auth::requireLogin();
@@ -62,7 +66,7 @@ final class DashboardController
             ? (float) $linhaCal['fica_na_conta']
             : LancamentoModel::saldoCalculado($saldoIni, $hoje);
 
-        $painel = self::painel($matriz[$mesRef] ?? null, $mesRef, $estadoRef);
+        $painel = self::painel($matriz[$mesRef] ?? null, $mesRef, $estadoRef, self::ondePorFatura());
         // a sobra do cartão do mês, com o nome da base (a mesma conta do Mês, do Fechar e do Relatório)
         $sobra = $estadoRef === 'previsto' ? Sobra::prevista($linhaRef) : (Sobra::ateHoje($mesRef, $ehHoje ? null : $hoje) ?? Sobra::prevista($linhaRef));
         $ultimos = LancamentoModel::listar($mesRef, ['limite' => 3]);
@@ -295,10 +299,31 @@ final class DashboardController
     }
 
     /**
-     * Painel do mês: entradas (salário × resto) e saídas (essenciais × não essenciais) a partir
-     * dos lançamentos; num mês ainda previsto, da previsão. Também os maiores gastos.
+     * "Para onde foi" por fatura (como o plano) em vez de pela data da compra: ?onde=fatura ou ?onde=compra escolhe, e a
+     * escolha fica num cookie, para o Início, o Relatório e o PDF.
      */
-    private static function painel(?array $gm, string $mesRef, string $estadoRef): array
+    public static function ondePorFatura(): bool
+    {
+        $pedido = $_GET['onde'] ?? null;
+        if ($pedido === 'fatura' || $pedido === 'compra') {
+            if (!headers_sent()) {
+                setcookie(self::COOKIE_ONDE, $pedido, [
+                    'expires' => time() + 31536000, 'path' => '/', 'secure' => !empty($_SERVER['HTTPS']),
+                    'httponly' => true, 'samesite' => 'Lax',
+                ]);
+            }
+            $_COOKIE[self::COOKIE_ONDE] = $pedido;
+        }
+        return ($_COOKIE[self::COOKIE_ONDE] ?? '') === 'fatura';
+    }
+
+    /**
+     * Painel do mês: entradas (salário × resto) e saídas (essenciais × não essenciais) a partir
+     * dos lançamentos; num mês ainda previsto, da previsão. Também os maiores gastos ("Para onde foi"): com o
+     * cartão aberto e fora do mês previsto, por GastoPorCategoria (cada compra na categoria dela, pela data),
+     * salvo se a pessoa prefere por fatura. Entradas e saídas continuam as da conta.
+     */
+    private static function painel(?array $gm, string $mesRef, string $estadoRef, bool $porFatura = false): array
     {
         $previsto = $estadoRef === 'previsto';
 
@@ -334,6 +359,10 @@ final class DashboardController
             }
             $top[] = ['id' => $c['id'], 'nome' => nomeCurto($c), 'nome_banco' => $c['nome'], 'valor' => round($v, 2), 'essencial' => $c['essencial'], 'n' => $c['n']];
         }
+        $porCompra = !$previsto && !$porFatura && GastoPorCategoria::ativo();
+        if ($porCompra) {
+            $top = self::ondeFoi($mesRef, $gm['cats'] ?? []);
+        }
         usort($top, fn($a, $b) => $b['valor'] <=> $a['valor']);
 
         $entradas = round($sal + $outras, 2);
@@ -349,7 +378,40 @@ final class DashboardController
             'naoess'      => round($naoess, 2),
             'balanco'     => round($entradas - $saidas, 2),
             'top'         => array_slice($top, 0, 6),
+            'onde'        => $top,
+            'ondeTotal'   => $porCompra ? round(array_sum(array_column($top, 'valor')), 2) : $saidas,
+            'porCompra'   => $porCompra,
+            'cartaoAberto' => !$previsto && GastoPorCategoria::ativo(),
+            'semCategoria' => $porCompra ? GastoPorCategoria::semCategoria($mesRef) : null,
         ];
+    }
+
+    /**
+     * O "Para onde foi" pela data da compra: cada categoria de gasto com o valor de GastoPorCategoria, sem negativo. A
+     * Fatura do cartão fica só com o que não tem compra registrada ("Fatura sem detalhe"), e as compras sem categoria
+     * são uma linha à parte (id 0), que leva a categorizar.
+     * @param array<int, array> $cats as categorias do mês em GastosMensais::matriz() (nome, apelido, essencial)
+     */
+    private static function ondeFoi(string $mes, array $cats): array
+    {
+        $fat = GastoPorCategoria::categoriaFatura();
+        $out = [];
+        foreach (GastoPorCategoria::doMes($mes) as $id => $v) {
+            if ($v < 0.005) {
+                continue;
+            }
+            if ($id === GastoPorCategoria::SEM_CATEGORIA) {
+                $out[] = ['id' => $id, 'nome' => t('Cartão sem categoria'), 'nome_banco' => '', 'valor' => $v, 'essencial' => false, 'n' => 0];
+                continue;
+            }
+            $c = $cats[$id] ?? null;
+            if ($c === null) {
+                continue;
+            }
+            $out[] = ['id' => $id, 'nome' => $id === $fat ? t('Fatura sem detalhe') : nomeCurto($c), 'nome_banco' => $c['nome'], 'valor' => $v,
+                      'essencial' => $c['essencial'], 'n' => $c['n']];
+        }
+        return $out;
     }
 
     /* ------------------------------------------------------------------ utilidades */

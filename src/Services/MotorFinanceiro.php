@@ -59,6 +59,7 @@ final class MotorFinanceiro
         ContaModel::limparCache();
         SugestaoAlocacao::limparCache();
         GastosMensais::limparCache();
+        GastoPorCategoria::limparCache();
     }
 
     /**

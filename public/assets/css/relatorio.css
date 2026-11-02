@@ -41,6 +41,7 @@
 .rl-degrau.is-fim .rl-d-trilho i { background: var(--on-acc); }
 .rl-degrau.is-fim .rl-d-valor { font-size: 17px; }
 .rl-nota { color: var(--text-2); font-size: 13.5px; line-height: 1.45; }
+.rl-onde { display: flex; flex-direction: column; gap: 6px; }
 .rl-numeros { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; }
 .rl-numeros small { display: block; color: var(--text-2); font-size: 13px; font-weight: 650; }
 .rl-numeros b { font-size: 19px; font-weight: 750; }

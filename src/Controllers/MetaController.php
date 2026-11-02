@@ -6,6 +6,7 @@ use Financeiro\Database;
 use Financeiro\Models\CategoriaModel;
 use Financeiro\Models\MetaModel;
 use Financeiro\Relogio;
+use Financeiro\Services\GastoPorCategoria;
 use Financeiro\Services\GastosMensais;
 use Financeiro\Services\MotorFinanceiro;
 use Financeiro\Services\PrevisaoEdicao;
@@ -17,6 +18,8 @@ use Financeiro\View;
  * para pintar a barra de verde (dentro) ou vermelho (fora). Campo vazio = sem meta.
  * A meta também é a previsão padrão de todo mês (view previsao_efetiva): mudar a meta muda a
  * projeção — o aviso depois de salvar mostra o efeito no fim do último mês.
+ * O gasto de cada categoria é o de GastoPorCategoria: com o cartão, cada compra conta na categoria dela, pela
+ * data da compra, parcela a parcela; o plano continua contando a fatura.
  */
 final class MetaController
 {
@@ -42,6 +45,10 @@ final class MetaController
         $linhaMes = $matriz[$mesAtual] ?? ['renda' => 0.0, 'cats' => []];
         $entradas = (float) ($linhaMes['renda'] ?? 0.0);
         $cats     = $linhaMes['cats'] ?? [];
+        // com o cartão: cada compra na categoria dela, pela data da compra (sem o cartão, é o mesmo que os lançamentos)
+        $porCompra = GastoPorCategoria::ativo();
+        $doMes    = $porCompra ? GastoPorCategoria::doMes($mesAtual) : [];
+        $semCat   = $porCompra ? GastoPorCategoria::semCategoria($mesAtual) : null;
 
         // renda do mês = entradas do mês + o que sobrou do mês anterior (saldo em conta que veio)
         $linhaPlano = MotorFinanceiro::linhaDoMes($mesAtual);
@@ -66,7 +73,7 @@ final class MetaController
         foreach ($gastos as $c) {
             $id = (int) $c['id'];
             $c['meta']  = $metas[$id] ?? null;
-            $c['gasto'] = (float) ($cats[$id]['real'] ?? 0.0);
+            $c['gasto'] = $porCompra ? max(0.0, (float) ($doMes[$id] ?? 0.0)) : (float) ($cats[$id]['real'] ?? 0.0);
             $gastoTotal += $c['gasto'];
             if ($c['meta'] !== null) {
                 $totalMeta    += $c['meta'];
@@ -88,6 +95,10 @@ final class MetaController
             }
         }
 
+        if ($porCompra) {
+            $gastoTotal += max(0.0, (float) ($doMes[GastoPorCategoria::SEM_CATEGORIA] ?? 0.0));   // "Cartão sem categoria": gasto sem meta
+        }
+
         View::render('meta/index', [
             'pageTitle'     => t('meta · financeiro'),
             'essenciais'    => $ess,
@@ -107,6 +118,8 @@ final class MetaController
             'metaNaoEss'    => round($metaNaoEss, 2),
             'gastoEss'      => round($gastoEss, 2),
             'gastoNaoEss'   => round($gastoNaoEss, 2),
+            'porCompra'     => $porCompra,
+            'semCategoria'  => $semCat,
         ], 'meta');
     }
 

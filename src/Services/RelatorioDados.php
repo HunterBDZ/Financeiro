@@ -51,7 +51,11 @@ final class RelatorioDados
 
     /* ================================================================== mensal */
 
-    public static function mensal(string $mes, ?string $hoje = null): ?array
+    /**
+     * @param bool $porFatura o "Para onde foi" com o cartão pela fatura paga no mês, como o plano; o padrão, com o
+     *   cartão aberto (GastoPorCategoria::ativo()), conta cada compra na categoria dela, pela data da compra
+     */
+    public static function mensal(string $mes, ?string $hoje = null, bool $porFatura = false): ?array
     {
         $hoje ??= Relogio::hoje();
         $dados = MotorFinanceiro::dados();
@@ -66,6 +70,7 @@ final class RelatorioDados
         $sobraPlano = Sobra::prevista($l);
         $sobrou = $sobraPlano['sobra'];
         $cats = self::categoriasDoMes($dados, $mes);
+        $porCompra = !$porFatura && GastoPorCategoria::ativo();
         $encerradosAntes = self::encerradosAte($plano, $mes);
         $achados = $encerrado
             ? self::achadosDoMes($dados, $plano, $mes, $l, $sobrou, $cats, $encerradosAntes, $reserva, $hoje)
@@ -83,7 +88,9 @@ final class RelatorioDados
             'ponte' => $encerrado ? self::ponteEncerrado($l) : self::ponteAndamento($dados, $l),
             'divida' => self::divida($dados, $l),
             'achados' => $achados,
-            'categorias' => self::topCategorias($cats), 'fatura' => self::fatura($dados, $mes, $hoje),
+            'categorias' => self::topCategorias($porCompra ? self::categoriasDoMes($dados, $mes, true) : $cats), 'fatura' => self::fatura($dados, $mes, $hoje),
+            'porCompra' => $porCompra, 'cartaoAberto' => GastoPorCategoria::ativo(),
+            'semCategoria' => $porCompra ? GastoPorCategoria::semCategoria($mes) : null,
             'placar' => $encerrado ? self::placar($dados, $plano, $mes) : null,
             'placarInicio' => FotoPlano::primeiroMes(),
             'previsao' => self::previsao($dados, $plano, $mes, $hoje, 6),
@@ -218,24 +225,41 @@ final class RelatorioDados
         return ['fim' => $fim, 'juros' => $juros, 'adiantado' => $adiantado, 'parcela' => $parcela];
     }
 
-    /** @return list<array{id:int,nome:string,grupo:string,essencial:bool,planejado:float,real:float,dif:float}> os gastos do mês, em ordem de valor */
-    private static function categoriasDoMes(array $dados, string $mes): array
+    /**
+     * Os gastos do mês, em ordem de valor. $porCompra: o real é o de GastoPorCategoria, sem negativo; a Fatura do cartão
+     * fica só com o que não tem compra registrada ("Fatura sem detalhe", sem planejado, porque o plano dela é o da
+     * fatura inteira), e as compras sem categoria são uma linha a mais (id GastoPorCategoria::SEM_CATEGORIA).
+     * @return list<array{id:int,nome:string,nome_banco:string,grupo:string,essencial:bool,planejado:float,real:float,dif:float,semPlano?:bool}>
+     */
+    private static function categoriasDoMes(array $dados, string $mes, bool $porCompra = false): array
     {
         $out = [];
         $prev = $dados['prev'][$mes] ?? [];
-        $real = $dados['real'][$mes] ?? [];
+        $real = $porCompra ? GastoPorCategoria::doMes($mes) : ($dados['real'][$mes] ?? []);
+        $fat = $porCompra ? GastoPorCategoria::categoriaFatura() : null;
         foreach ($prev + $real as $c => $_) {
+            if ($porCompra && $c === GastoPorCategoria::SEM_CATEGORIA) {
+                $r = max(0.0, (float) $real[$c]);
+                if ($r > 0.004) {
+                    $out[] = ['id' => $c, 'nome' => t('Cartão sem categoria'), 'nome_banco' => '', 'grupo' => 'Cartao', 'essencial' => false,
+                              'planejado' => 0.0, 'real' => $r, 'dif' => $r, 'semPlano' => true];
+                }
+                continue;
+            }
             $cat = $dados['cats'][$c] ?? null;
             if ($cat === null || $cat['operacional'] !== 1 || $cat['sinal'] !== -1) {
                 continue;
             }
-            $p = round((float) ($prev[$c] ?? 0.0), 2);
+            $p = $c === $fat ? 0.0 : round((float) ($prev[$c] ?? 0.0), 2);
             $r = round((float) ($real[$c] ?? 0.0), 2);
+            if ($porCompra) {
+                $r = max(0.0, $r);
+            }
             if ($p <= 0.004 && $r <= 0.004) {
                 continue;
             }
-            $out[] = ['id' => (int) $c, 'nome' => nomeCurto($cat), 'grupo' => $cat['grupo'], 'essencial' => $cat['essencial'] === 1,
-                      'planejado' => $p, 'real' => $r, 'dif' => round($r - $p, 2)];
+            $out[] = ['id' => (int) $c, 'nome' => $c === $fat ? t('Fatura sem detalhe') : nomeCurto($cat), 'nome_banco' => $cat['nome'], 'grupo' => $cat['grupo'],
+                      'essencial' => $cat['essencial'] === 1, 'planejado' => $p, 'real' => $r, 'dif' => round($r - $p, 2)] + ($c === $fat ? ['semPlano' => true] : []);
         }
         usort($out, static fn($a, $b) => [$b['real'], $b['planejado']] <=> [$a['real'], $a['planejado']]);
         return $out;
@@ -628,7 +652,8 @@ final class RelatorioDados
 
     /* ================================================================== anual */
 
-    public static function anual(int $ano, ?string $hoje = null): ?array
+    /** @param bool $porFatura ver mensal() */
+    public static function anual(int $ano, ?string $hoje = null, bool $porFatura = false): ?array
     {
         $hoje ??= Relogio::hoje();
         $dados = MotorFinanceiro::dados();
@@ -657,6 +682,8 @@ final class RelatorioDados
         $valorLiq = static fn(array $l, string $conta): float => (float) $l[$conta] + (float) $l['poupanca_saldo'] + (float) ($l['invest_saldo'] ?? 0.0) - max(0.0, (float) $l['falta_pagar']);
         $liqFim = $ult !== null ? $valorLiq($ult, 'fica_na_conta') : null;
         $cats = self::categoriasDoAno($dados, $encerrados);
+        $porCompra = !$porFatura && GastoPorCategoria::ativo();
+        $onde = $porCompra ? self::categoriasDoAno($dados, $encerrados, true) : $cats;
         $ref = substr($hoje, 0, 8) . '01';
         $titulo = $n === 0
             ? t('{ano}: nenhum mês encerrado ainda', ['ano' => $ano])
@@ -679,9 +706,10 @@ final class RelatorioDados
             'liquido' => $liqFim, 'reserva' => $reserva, 'tabela' => $tabela,
             'destaques' => self::destaques($tabela),
             'achados' => $n === 0 ? ['bom' => [], 'ruim' => [], 'melhorar' => [], 'conferir' => []] : self::achadosDoAno($dados, $plano, $encerrados, $cats, $entrou, $sobrou, $reserva, $some('amortizacao_extra'), round($some('poupanca_liquido') + $some('invest_liquido'), 2), $hoje),
-            'categorias' => ['linhas' => array_slice($cats, 0, 12), 'totalReal' => round(array_sum(array_column($cats, 'real')), 2), 'totalPlanejado' => round(array_sum(array_column($cats, 'planejado')), 2), 'outros' => count($cats) > 12 ? [
-                'n' => count($cats) - 12, 'real' => round(array_sum(array_column(array_slice($cats, 12), 'real')), 2), 'planejado' => round(array_sum(array_column(array_slice($cats, 12), 'planejado')), 2)] : null],
-            'heatmap' => $n >= self::ENCERRADOS_PARA_HEATMAP ? self::heatmap($dados, $encerrados, $cats) : null,
+            'categorias' => ['linhas' => array_slice($onde, 0, 12), 'totalReal' => round(array_sum(array_column($onde, 'real')), 2), 'totalPlanejado' => round(array_sum(array_column($onde, 'planejado')), 2), 'outros' => count($onde) > 12 ? [
+                'n' => count($onde) - 12, 'real' => round(array_sum(array_column(array_slice($onde, 12), 'real')), 2), 'planejado' => round(array_sum(array_column(array_slice($onde, 12), 'planejado')), 2)] : null],
+            'heatmap' => $n >= self::ENCERRADOS_PARA_HEATMAP ? self::heatmap($dados, $encerrados, $onde, $porCompra) : null,
+            'porCompra' => $porCompra, 'cartaoAberto' => GastoPorCategoria::ativo(),
             'previsao' => self::previsao($dados, $plano, date('Y-m-01', strtotime($ref . ' -1 month')), $hoje, 12),
             'placares' => count($placares) >= self::COMPARACOES_PARA_PLACAR_ANUAL ? $placares : [],
             'placaresN' => count($placares),
@@ -692,11 +720,11 @@ final class RelatorioDados
         ];
     }
 
-    private static function categoriasDoAno(array $dados, array $meses): array
+    private static function categoriasDoAno(array $dados, array $meses, bool $porCompra = false): array
     {
         $soma = [];
         foreach ($meses as $m) {
-            foreach (self::categoriasDoMes($dados, $m) as $c) {
+            foreach (self::categoriasDoMes($dados, $m, $porCompra) as $c) {
                 $id = $c['id'];
                 $soma[$id] ??= $c + ['n' => 0];
                 if ($soma[$id]['n'] > 0) {
@@ -779,15 +807,15 @@ final class RelatorioDados
                 'melhorar' => self::melhorar($dados, $plano, $ult, $porMes, $entrou / max(1, count($encerrados)), $reserva, $hoje)];
     }
 
-    /** Categorias × meses encerrados, em valores: as oito maiores. */
-    private static function heatmap(array $dados, array $encerrados, array $cats): array
+    /** Categorias × meses encerrados, em valores: as oito maiores. $porCompra: os valores de GastoPorCategoria. */
+    private static function heatmap(array $dados, array $encerrados, array $cats, bool $porCompra = false): array
     {
         $linhas = [];
         $max = 0.0;
         foreach (array_slice($cats, 0, 8) as $c) {
             $vals = [];
             foreach ($encerrados as $m) {
-                $v = round((float) ($dados['real'][$m][$c['id']] ?? 0.0), 2);
+                $v = round($porCompra ? max(0.0, GastoPorCategoria::doMes($m)[$c['id']] ?? 0.0) : (float) ($dados['real'][$m][$c['id']] ?? 0.0), 2);
                 $vals[] = $v;
                 $max = max($max, $v);
             }

@@ -30,6 +30,7 @@ use Financeiro\Models\MesModel;
 use Financeiro\Models\UsuarioModel;
 use Financeiro\Pdf\RelatorioPdf;
 use Financeiro\Relogio;
+use Financeiro\Services\GastoPorCategoria;
 use Financeiro\Services\GastosMensais;
 use Financeiro\Services\LancarForm;
 use Financeiro\Services\MotorFinanceiro;
@@ -142,6 +143,46 @@ function conferencia(callable $check): void
     $st->execute(['a' => $mesRef, 'b' => $fimRef]);
     $check("gastos do Início em {$mesRef} = Σ saídas", abs($somaSai - (float) $st->fetchColumn()) < 0.01);
 
+    // ---- 2b. gasto por categoria (Metas e "Para onde foi"): sem o cartão aberto, são os lançamentos; com ele, cada
+    // compra cai inteira em algum mês, na categoria dela, e a Fatura do cartão fica só com o que não tem compra
+    $porCat = [];
+    foreach ($pdo->query('SELECT l.categoria_id, SUM(l.valor) FROM lancamentos l JOIN categorias c ON c.id = l.categoria_id WHERE c.sinal = -1 AND c.operacional = 1 GROUP BY l.categoria_id')->fetchAll(\PDO::FETCH_NUM) as [$c, $v]) {
+        $porCat[(int) $c] = (float) $v;
+    }
+    $visao = [];
+    $faturaNegativa = [];
+    $fatAberta = GastoPorCategoria::categoriaFatura();
+    foreach (GastoPorCategoria::todos() as $m => $doMes) {
+        foreach ($doMes as $c => $v) {
+            $visao[$c] = ($visao[$c] ?? 0.0) + $v;
+            if ($c === $fatAberta && $v < -0.005) {
+                $faturaNegativa[] = (string) $m;
+            }
+        }
+    }
+    if ($fatAberta === null) {
+        $difs = array_filter(array_keys($porCat + $visao), static fn($c) => abs(($porCat[$c] ?? 0.0) - ($visao[$c] ?? 0.0)) >= 0.01);
+        $check('gasto por categoria: sem o cartão aberto, é igual aos lançamentos', $difs === [], json_encode(array_values($difs)));
+    } else {
+        $fat = $fatAberta;
+        $semCat = 0.0;
+        $esperado = $porCat;
+        $sqlCompras = 'SELECT cc.categoria_id, c.sinal, c.operacional, SUM(cc.valor_total) FROM cartao_compras cc LEFT JOIN categorias c ON c.id = cc.categoria_id GROUP BY cc.categoria_id, c.sinal, c.operacional';
+        foreach ($pdo->query($sqlCompras)->fetchAll(\PDO::FETCH_NUM) as [$c, $sinal, $op, $v]) {
+            if ($c === null || (int) $c === $fat || (int) $sinal !== -1 || (int) $op !== 1) {
+                $semCat += (float) $v;
+            } else {
+                $esperado[(int) $c] = ($esperado[(int) $c] ?? 0.0) + (float) $v;
+            }
+        }
+        unset($esperado[$fat]);
+        $foraDoPlano = array_filter(array_keys($visao), static fn($c) => $c !== GastoPorCategoria::SEM_CATEGORIA && $c !== $fat && !isset($esperado[$c]));
+        $difs = array_filter(array_keys($esperado), static fn($c) => abs($esperado[$c] - ($visao[$c] ?? 0.0)) >= 0.01);
+        $check('gasto por categoria: cada compra no cartão conta inteira, na categoria dela', $difs === [] && $foraDoPlano === [] && abs($semCat - ($visao[GastoPorCategoria::SEM_CATEGORIA] ?? 0.0)) < 0.01,
+            json_encode([array_values($difs), array_values($foraDoPlano), $semCat]));
+        $check('gasto por categoria: a Fatura do cartão nunca fica negativa', $faturaNegativa === [], implode(', ', $faturaNegativa));
+    }
+
     // ---- 3. as telas abrem sem erro nem aviso do PHP, com o bloco principal, em português, inglês e espanhol
     $telas = [
         ['/',              DashboardController::class,     'index',      [],                  'saldo-v'],
@@ -238,13 +279,13 @@ function conferencia(callable $check): void
     Idioma::usar('pt');
 
     // ---- 6. relatório: a escada de todo mês fecha, os gastos batem, nada de veredito no mês em andamento, PDF em todo idioma
-    $ponteOk = true;
+    $ponteOk = $ondeOk = true;
     $comVeredito = [];
     foreach ($plano as $m => $l) {
         if ($m > $mesCal) {
             break;
         }
-        $rel = RelatorioDados::mensal((string) $m);
+        $rel = RelatorioDados::mensal((string) $m, null, true);
         $soma = 0.0;
         foreach ($rel['ponte'] as $d) {
             if ($d['tipo'] !== 'fim') {
@@ -256,9 +297,14 @@ function conferencia(callable $check): void
             $comVeredito[] = (string) $m;
         }
         if ($rel['encerrado']) {
-            $check("relatório: gastos de {$m} batem com o que saiu", abs($rel['categorias']['totalReal'] - (float) $l['sai']) < 0.01, json_encode([$rel['categorias']['totalReal'], $l['sai']]));
+            $check("relatório: gastos de {$m}, por fatura, batem com o que saiu", abs($rel['categorias']['totalReal'] - (float) $l['sai']) < 0.01, json_encode([$rel['categorias']['totalReal'], $l['sai']]));
         }
+        // pela data da compra, o "Para onde foi" soma o gasto por categoria do mês
+        $porCompra = RelatorioDados::mensal((string) $m);
+        $positivo = array_sum(array_filter(GastoPorCategoria::doMes((string) $m), static fn(float $v): bool => $v > 0.004));
+        $ondeOk = $ondeOk && abs($porCompra['categorias']['totalReal'] - $positivo) < 0.01;
     }
+    $check('relatório: "Para onde foi" soma o gasto por categoria de cada mês', $ondeOk);
     $check('relatório: a escada de todo mês fecha no centavo', $ponteOk);
     $check('relatório: mês em andamento não dá veredito', $comVeredito === [], implode(', ', $comVeredito));
     foreach (['pt', 'en', 'es'] as $id) {

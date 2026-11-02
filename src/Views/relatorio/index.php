@@ -124,6 +124,56 @@ $itens = [['bom', t('O que foi bom'), t('Nada relevante neste período.')], ['ru
             <p class="card rl-sem-veredito"><?= e(t('Num mês em andamento, o planejamento usa o maior valor entre o lançado e o planejado, então gasto abaixo do planejado ainda não aparece. O que foi bom e o que foi ruim aparecem quando o mês for encerrado.')) ?></p>
         <?php endif; ?>
 
+        <?php if (!empty($r['cartaoAberto']) && ($r['tipo'] === 'mensal' || $r['encerrados'] > 0)):
+            // com o cartão, o "Para onde foi" também na tela: é aqui que se escolhe entre a data da compra e a fatura (vale para o PDF)
+            $onde = $r['categorias'];
+            $ondeMax = $onde['linhas'] !== [] ? max(array_column($onde['linhas'], 'real')) : 0.0;
+            $semCatRl = $r['semCategoria'] ?? null;
+            $categorizarRl = $semCatRl !== null ? '/cartao/compras/' . (int) $semCatRl['compras'][0] . '/editar' : null;
+            $pct = static fn(float $v): int => $onde['totalReal'] > 0.004 ? (int) round($v / $onde['totalReal'] * 100) : 0; ?>
+            <section class="card rl-onde" aria-labelledby="rl-onde-t">
+                <div class="card-head">
+                    <h2 class="titulo" id="rl-onde-t"><?= e(t('Para onde foi')) ?> <small class="dash-tit-nota"><?= e(t('% dos gastos')) ?></small></h2>
+                    <span class="card-acao num"><?= e(num($onde['totalReal'])) ?></span>
+                </div>
+                <?php if ($onde['linhas'] === []): ?>
+                    <p class="rl-nota"><?= e(t('Nenhum gasto lançado neste período.')) ?></p>
+                <?php else: ?>
+                    <ol class="barras">
+                        <?php foreach ($onde['linhas'] as $l):
+                            $semCat = $r['porCompra'] && (int) $l['id'] === \Financeiro\Services\GastoPorCategoria::SEM_CATEGORIA;
+                            $href = $semCat ? $categorizarRl : ($r['tipo'] === 'mensal' ? '/lancamentos?mes=' . $r['mes'] . '&cat=' . (int) $l['id'] : null);
+                            $tag = $href !== null ? 'a' : 'div'; ?>
+                            <li>
+                                <<?= $tag ?> class="barras-i<?= $href === null ? ' is-fixo' : '' ?>"<?= $href !== null ? ' href="' . e($href) . '"' : '' ?>>
+                                    <?= iconeCategoria((int) $l['id'], (string) ($l['nome_banco'] ?? ''), $semCat ? 'Cartao' : '', 40, 'barras-ic') ?>
+                                    <span class="barras-n"><?= e($l['nome']) ?></span>
+                                    <span class="barras-v num"><?= e(num($l['real'])) ?><small><?= $pct($l['real']) ?>%</small></span>
+                                    <span class="trilho" aria-hidden="true"><i style="--w:<?= $ondeMax > 0 ? round($l['real'] / $ondeMax * 100, 1) : 0 ?>%"></i></span>
+                                </<?= $tag ?>>
+                            </li>
+                        <?php endforeach; ?>
+                        <?php if ($onde['outros'] !== null): ?>
+                            <li>
+                                <div class="barras-i is-fixo">
+                                    <?= iconeCategoria(-1, '', '', 40, 'barras-ic') ?>
+                                    <span class="barras-n"><?= e(tn($onde['outros']['n'], 'Outra 1 categoria', 'Outras {n} categorias')) ?></span>
+                                    <span class="barras-v num"><?= e(num($onde['outros']['real'])) ?><small><?= $pct($onde['outros']['real']) ?>%</small></span>
+                                    <span class="trilho" aria-hidden="true"><i style="--w:<?= $ondeMax > 0 ? round(min(1.0, $onde['outros']['real'] / $ondeMax) * 100, 1) : 0 ?>%"></i></span>
+                                </div>
+                            </li>
+                        <?php endif; ?>
+                    </ol>
+                <?php endif; ?>
+                <?php if ($categorizarRl !== null): ?>
+                    <p class="rl-nota num"><?= t('Compras no cartão sem categoria: {valor}. {link}', ['valor' => e(num($semCatRl['valor'])), 'link' => '<a href="' . e($categorizarRl) . '">' . e(t('Categorizar')) . '</a>']) ?></p>
+                <?php endif; ?>
+                <p class="rl-nota rl-onde-modo"><?= $r['porCompra']
+                    ? t('Cartão pela data da compra. {link}', ['link' => '<a href="/relatorio?' . e($parametros) . '&amp;onde=fatura#rl-onde-t">' . e(t('Ver por fatura')) . '</a>'])
+                    : t('Cartão pela fatura paga. {link}', ['link' => '<a href="/relatorio?' . e($parametros) . '&amp;onde=compra#rl-onde-t">' . e(t('Ver pela data da compra')) . '</a>']) ?></p>
+            </section>
+        <?php endif; ?>
+
         <section class="rl-fim">
             <p><?= e(t('O PDF traz também para onde foi o dinheiro, o que já está contratado, o estimado e os cenários.')) ?></p>
             <a class="btn-link" href="/futuro"><?= e(t('Simular uma mudança')) ?></a>
