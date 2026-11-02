@@ -90,7 +90,7 @@ if (getenv('FIN_DADOS') !== getenv('FIN_REGRAS_PASTA') || !str_starts_with(basen
 error_reporting(E_ALL);
 set_error_handler(static function (int $no, string $str, string $file, int $line): bool {
     // @ continua calando, e a linha de comando do FrankenPHP começa com os cabeçalhos enviados
-    if (!(error_reporting() & $no) || (headers_sent() && str_contains($str, 'headers already sent'))) {
+    if (!(error_reporting() & $no) || (headers_sent() && (str_contains($str, 'headers already sent') || str_contains($str, 'after headers have already been sent')))) {
         return true;
     }
     throw new \ErrorException($str, 0, $no, $file, $line);
