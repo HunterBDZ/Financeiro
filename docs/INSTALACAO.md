@@ -143,6 +143,7 @@ sudo -u www-data php /var/www/financeiro/tools/redefinir-senha.php LOGIN
 | `Arquivo de configuração não encontrado` | Falta o `.env`, ou o dono está errado | Rode o instalador de novo |
 | `O banco está sem as tabelas` | O `schema.sql` não foi importado | Rode o instalador de novo |
 | `A assinatura da atualização não confere` | O arquivo baixado não veio do projeto, ou veio alterado | O site não mudou. Não insista e [abra uma issue](https://github.com/HunterBDZ/Financeiro/issues) |
+| `Os seus dados são de uma versão mais nova` | Instalou um pacote mais velho que os dados | Instale a versão mais nova |
 | `Faça isso no computador onde o Financeiro está instalado` | Backup, restauração e atualização não passam pelo celular | Abra no próprio computador |
 | `Endereço não reconhecido` | O acesso pela rede está desligado, ou o endereço não é da rede de casa | Abra pelo endereço mostrado no computador. Atrás de outro nome, use `HOSTS_PERMITIDOS` em `config.env` |
 | `outra atualização está rodando` | Dois comandos ao mesmo tempo | Espere o outro terminar |

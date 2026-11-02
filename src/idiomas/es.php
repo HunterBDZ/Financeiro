@@ -1512,4 +1512,5 @@ return [
     'O ajuste feito em {prox} ao fechar foi desfeito.' => 'El ajuste hecho en {prox} al cerrar se deshizo.',
     'O ajuste feito em {prox} ao fechar foi desfeito, menos nos valores que você mudou depois.' => 'El ajuste hecho en {prox} al cerrar se deshizo, salvo en los valores que usted cambió después.',
     'Não deu para atualizar o banco de dados. Os seus dados estão guardados: volte para a versão anterior e avise quem mantém o projeto.' => 'No se pudo actualizar la base de datos. Sus datos están guardados: vuelva a la versión anterior y avise a quienes mantienen el proyecto.',
+    'Os seus dados são de uma versão mais nova do Financeiro. Instale essa versão ou uma mais nova.' => 'Sus datos son de una versión más nueva de Financeiro. Instale esa versión o una más nueva.',
 ];

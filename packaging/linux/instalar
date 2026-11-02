@@ -99,5 +99,5 @@ if [ "$SEM_SERVICO" = 1 ]; then
 fi
 case ":$PATH:" in
     *":$HOME/.local/bin:"*) ;;
-    *) printf '\nO comando financeiro está em %s/.local/bin, que não está no seu PATH.\n' "$HOME" ;;
+    *) printf '\nO comando financeiro passa a funcionar no próximo login. Até lá: %s/.local/bin/financeiro\n' "$HOME" ;;
 esac

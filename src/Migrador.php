@@ -100,10 +100,13 @@ final class Migrador
     /** Pacote novo por cima do antigo, ou imagem Docker nova: o banco acompanha ao abrir, depois de uma cópia. */
     public static function aoAbrir(): void
     {
-        if (!Sql::sqlite() || self::arquivos(self::pasta()) === []) {
+        if (!Sql::sqlite()) {
             return;
         }
         $pdo = Database::connection();
+        if (self::desconhecidas($pdo, self::pasta()) !== []) {
+            Preflight::tela(500, t('O Financeiro não pôde abrir'), [t('Os seus dados são de uma versão mais nova do Financeiro. Instale essa versão ou uma mais nova.')]);
+        }
         if (self::pendentes($pdo, self::pasta()) === []) {
             return;
         }

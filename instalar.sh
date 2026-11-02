@@ -21,7 +21,7 @@ LOG=/var/log/financeiro-instalacao.log
 MARIADB_MINIMO=11.4.5   # a primeira versão com a colação utf8mb4_0900_ai_ci
 SERVICO_BANCO=mysql
 PACOTES_BANCO=(mysql-server)
-PACOTES=(apache2 php libapache2-mod-php php-mysql php-mbstring php-curl php-xml git rsync openssl cron sudo iproute2 ca-certificates curl)
+PACOTES=(apache2 php libapache2-mod-php php-mysql php-mbstring php-curl php-xml php-sqlite3 git rsync openssl cron sudo iproute2 ca-certificates curl)
 export DEBIAN_FRONTEND=noninteractive
 
 TOTAL=5

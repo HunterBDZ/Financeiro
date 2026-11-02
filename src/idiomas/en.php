@@ -1512,4 +1512,5 @@ return [
     'O ajuste feito em {prox} ao fechar foi desfeito.' => 'The adjustment made to {prox} when closing was undone.',
     'O ajuste feito em {prox} ao fechar foi desfeito, menos nos valores que você mudou depois.' => 'The adjustment made to {prox} when closing was undone, except for values you changed later.',
     'Não deu para atualizar o banco de dados. Os seus dados estão guardados: volte para a versão anterior e avise quem mantém o projeto.' => 'Could not update the database. Your data is safe: go back to the previous version and tell the project\'s maintainers.',
+    'Os seus dados são de uma versão mais nova do Financeiro. Instale essa versão ou uma mais nova.' => 'Your data comes from a newer version of Financeiro. Install that version or a newer one.',
 ];
