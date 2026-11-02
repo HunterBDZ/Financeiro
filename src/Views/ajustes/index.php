@@ -52,6 +52,32 @@ $campo = static function (string $chave, string $rotulo, string $un = '', int $d
         </form>
     </details>
 
+    <!-- verificação em duas etapas, da conta de quem está logado -->
+    <?php $duasLigada = \Financeiro\DuasEtapas::ligada((int) \Financeiro\Auth::id()); ?>
+    <details class="card dobra aj-grupo" id="duasetapas"<?= $aberto('duasetapas') ?>>
+        <summary><span class="titulo"><?= e(t('Verificação em duas etapas')) ?></span><span class="aj-estado<?= $duasLigada ? ' is-on' : '' ?>"><?= e($duasLigada ? t('Ligada') : t('Desligada')) ?></span></summary>
+        <?php if ($duasLigada): ?>
+            <p class="aj-ajuda"><?= e(t('Ao entrar, depois da senha, o Financeiro pede o código do app autenticador. Os aparelhos lembrados continuam entrando direto.')) ?></p>
+            <p class="aj-ajuda"><?= e(tn(\Financeiro\DuasEtapas::codigosRestantes((int) \Financeiro\Auth::id()), 'Resta 1 código de recuperação.', 'Restam {n} códigos de recuperação.')) ?></p>
+            <form class="aj-form" method="post" action="/ajustes/duas-etapas/desligar">
+                <?= $csrf ?>
+                <input type="text" name="username" value="<?= e((string) ($login ?? '')) ?>" autocomplete="username" hidden>
+                <label class="campo"><span><?= e(t('Senha')) ?></span><input type="password" name="senha" autocomplete="current-password" required></label>
+                <label class="campo"><span><?= e(t('Código do app ou de recuperação')) ?></span><input type="text" name="codigo" maxlength="40" autocomplete="one-time-code" autocapitalize="characters" spellcheck="false" required></label>
+                <?php $erroDe('duasetapas'); ?>
+                <button type="submit" class="btn btn-ghost aj-salvar"><?= e(t('Desligar')) ?></button>
+            </form>
+        <?php else: ?>
+            <p class="aj-ajuda"><?= e(t('Protege a conta mesmo se alguém descobrir a senha: ao entrar, o Financeiro pede também um código de 6 dígitos que muda a cada 30 segundos.')) ?></p>
+            <p class="aj-ajuda"><?= e(t('O código aparece num app autenticador, que você instala no celular. Há vários gratuitos: procure por “autenticador” na loja de apps do celular.')) ?></p>
+            <?php if (\Financeiro\DuasEtapas::disponivel()): ?>
+                <a class="btn btn-primary aj-salvar" href="/ajustes/duas-etapas"><?= e(t('Ligar')) ?></a>
+            <?php else: ?>
+                <p class="aviso aviso-warn"><?= e(t('Falta a extensão sodium do PHP neste computador. Sem ela, a verificação não pode ser ligada.')) ?></p>
+            <?php endif; ?>
+        <?php endif; ?>
+    </details>
+
     <section class="card aj-idioma" aria-labelledby="aj-idioma-t">
         <h2 class="titulo" id="aj-idioma-t"><?= e(t('Idioma')) ?></h2>
         <?php require __DIR__ . '/../partials/idioma_escolha.php'; ?>

@@ -553,6 +553,20 @@ dl.fe-ponte > .fe-ponte-fim { margin-top: 2px; padding-top: 4px; border-top: 1px
 .aj-ess .chip-r > span { min-height: 38px; padding: 0 14px; }
 .aj-sair { align-self: flex-start; max-width: 100%; white-space: normal; text-align: left; line-height: 1.3; }
 .aj-grupo .campo { padding: 6px 0; }
+.aj-estado { flex: none; margin-left: auto; padding: 3px 10px; border-radius: 999px; background: var(--card-2); color: var(--text-2); font-size: 12px; font-weight: 700; }
+.aj-estado.is-on { background: var(--pos-bg); color: var(--pos); }
+details.dobra > summary:has(.aj-estado)::after { margin-left: 0; }
+
+/* verificação em duas etapas: a chave para digitar e os códigos de recuperação */
+.de-chave { margin: 0; padding: 10px 12px; white-space: normal; border-radius: 10px; background: var(--card-2); font-size: 17px; font-weight: 700; letter-spacing: .06em; text-align: center; overflow-wrap: anywhere; }
+.de-codigo { font-size: 20px; font-weight: 700; letter-spacing: .2em; }
+.de-lista {
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 24px; margin: 0; padding: 14px 20px;
+    border-radius: 12px; background: var(--card-2); font-size: 16px; font-weight: 700; letter-spacing: .04em; white-space: normal;
+}
+.de-lista > li { white-space: nowrap; }      /* um código não quebra no traço */
+@media (max-width: 379px) { .de-lista { grid-template-columns: minmax(0, 1fr); } }
+.aj-form > input[hidden] { display: none; }    /* o login para o gerenciador de senhas; a regra dos campos não pode mostrá-lo */
 
 /* ---------------------------------------------------------------- 7. computador */
 

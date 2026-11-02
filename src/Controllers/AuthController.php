@@ -106,20 +106,24 @@ final class AuthController
         // trava, uma rajada em paralelo passava toda pela conferência antes da 1ª falha gravar
         if (!Auth::travarSenha()) {
             $bloqueado = 60;
-            $ok = false;
+            $passo = 'errada';
         } else {
             try {
                 $bloqueado = Auth::segundosBloqueado($login);
-                $ok = $bloqueado === 0 && Auth::attempt($login, $senha);
+                $passo = $bloqueado === 0 ? Auth::primeiroPasso($login, $senha, $lembrar) : 'errada';
             } finally {
                 Auth::soltarSenha();
             }
         }
+        $ok = $passo === 'entrou';
         if ($bloqueado > 0) {
             http_response_code(429);
             $tela['erro'] = t('Muitas tentativas. Tente de novo em {min} min.', ['min' => (int) ceil($bloqueado / 60)]);
             View::renderAuth('auth/login', $tela);
             return;
+        }
+        if ($passo === 'codigo') {
+            redirecionar('/login/codigo', 303);
         }
         if (!$ok) {
             http_response_code(401);
@@ -129,6 +133,52 @@ final class AuthController
         }
 
         if ($lembrar) {
+            Auth::lembrar((int) Auth::id());
+        }
+        redirecionar(self::destino());
+    }
+
+    /** A segunda parte do login, com a verificação em duas etapas ligada: o código do app ou um de recuperação. */
+    public function codigoForm(): void
+    {
+        if (Auth::logado()) {
+            redirecionar(self::destino());
+        }
+        if (Auth::esperandoCodigo() === null) {
+            redirecionar('/login?expirou=1', 302);
+        }
+        View::renderAuth('auth/codigo', ['erro' => null, 'recuperacao' => isset($_GET['recuperacao'])]);
+    }
+
+    public function codigo(): void
+    {
+        csrfCheck();
+        $codigo = is_string($_POST['codigo'] ?? null) ? mb_substr($_POST['codigo'], 0, 40) : '';
+        $recuperacao = ($_POST['recuperacao'] ?? '') === '1';
+        $pendente = Auth::esperandoCodigo();
+        $resultado = Auth::segundoPasso($codigo);
+
+        if ($resultado === 'expirou') {
+            redirecionar('/login?expirou=1', 303);
+        }
+        if ($resultado === 'bloqueado') {
+            http_response_code(429);
+            $min = max(1, (int) ceil(Auth::segundosBloqueado((string) ($pendente['login'] ?? '')) / 60));
+            View::renderAuth('auth/login', [
+                'erro' => t('Muitas tentativas. Tente de novo em {min} min.', ['min' => $min]), 'expirou' => false,
+                'login' => (string) ($pendente['login'] ?? ''), 'lembrar' => (bool) ($pendente['lembrar'] ?? false),
+            ]);
+            return;
+        }
+        if ($resultado === 'errado') {
+            http_response_code(401);
+            View::renderAuth('auth/codigo', [
+                'erro' => $recuperacao ? t('Esse código de recuperação não confere ou já foi usado.') : t('O código não confere. Confira no app e digite de novo.'),
+                'recuperacao' => $recuperacao,
+            ]);
+            return;
+        }
+        if (!empty($pendente['lembrar'])) {
             Auth::lembrar((int) Auth::id());
         }
         redirecionar(self::destino());

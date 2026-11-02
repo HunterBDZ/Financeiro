@@ -22,7 +22,7 @@ use Financeiro\View;
 final class AjustesController
 {
     /** Grupos (<details class="dobra">) e se abrem por padrão. */
-    private const GRUPOS = ['senha' => false, 'parametros' => true, 'contas' => false, 'categorias' => false, 'essenciais' => false, 'pessoas' => false, 'partida' => false, 'icone' => false, 'aparelhos' => false];
+    private const GRUPOS = ['senha' => false, 'duasetapas' => false, 'parametros' => true, 'contas' => false, 'categorias' => false, 'essenciais' => false, 'pessoas' => false, 'partida' => false, 'icone' => false, 'aparelhos' => false];
 
     public function index(): void
     {
