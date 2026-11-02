@@ -8,6 +8,7 @@ use Financeiro\Models\CategoriaModel;
 use Financeiro\Models\ContaRecorrenteModel;
 use Financeiro\Models\MesModel;
 use Financeiro\Models\PrevisaoModel;
+use Financeiro\Relogio;
 use Financeiro\Services\MotorFinanceiro;
 use Financeiro\Services\Horizonte;
 use Financeiro\Site;
@@ -32,8 +33,8 @@ final class ComecarController
             redirecionar('/comecar', 302);
         }
         View::renderAuth('comecar/index', [
-            'passo' => $passo, 'total' => self::PASSOS, 'hoje' => date('Y-m-d'),
-            'inicio' => AjusteModel::dataInicio() ?? date('Y-m-d'),
+            'passo' => $passo, 'total' => self::PASSOS, 'hoje' => Relogio::hoje(),
+            'inicio' => AjusteModel::dataInicio() ?? Relogio::hoje(),
             'contas' => $passo === 4 ? self::contasFixas() : [],
             'usos' => is_array($_SESSION['comecar_usos'] ?? null) ? $_SESSION['comecar_usos'] : [],
             'moeda' => Site::moeda(), 'fuso' => Site::fuso(), 'fusoEscolhido' => Site::fusoGravado(),

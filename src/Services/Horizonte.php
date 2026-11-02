@@ -4,6 +4,7 @@ namespace Financeiro\Services;
 use Financeiro\Database;
 use Financeiro\Models\AjusteModel;
 use Financeiro\Models\MesModel;
+use Financeiro\Relogio;
 use Financeiro\Sql;
 
 /**
@@ -21,7 +22,7 @@ final class Horizonte
         if ($ultimo === null) {
             return;                                             // ainda sem início: a primeira configuração cria
         }
-        $alvo = date('Y-m-01', strtotime(date('Y-m-01', strtotime($hoje ?? date('Y-m-d'))) . ' +' . self::MESES_A_FRENTE . ' month'));
+        $alvo = date('Y-m-01', strtotime(date('Y-m-01', strtotime($hoje ?? Relogio::hoje())) . ' +' . self::MESES_A_FRENTE . ' month'));
         for ($mes = self::seguinte($ultimo); $mes <= $alvo; $mes = self::seguinte($mes)) {
             self::criar($mes);
         }
@@ -53,7 +54,7 @@ final class Horizonte
     /** Por que essa data não pode ser o início; null = pode. */
     public static function problemaNaData(string $data, ?string $hoje = null): ?string
     {
-        if ($data > ($hoje ?? date('Y-m-d'))) {
+        if ($data > ($hoje ?? Relogio::hoje())) {
             return t('O início não pode ser depois de hoje.');
         }
         $pdo = Database::connection();

@@ -295,7 +295,7 @@ function estadoMes(string $mes, string $situacao, ?string $hoje = null): string
     if (strtoupper($situacao) === 'REAL') {
         return 'real';
     }
-    $hoje ??= date('Y-m-d');
+    $hoje ??= \Financeiro\Relogio::hoje();
     return substr($mes, 0, 7) <= substr($hoje, 0, 7) ? 'aberto' : 'previsto';
 }
 

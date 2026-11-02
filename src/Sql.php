@@ -134,11 +134,17 @@ final class Sql
         return (int) $st->fetchColumn() > 0;
     }
 
-    /** O fuso da conexão. O SQLite usa o relógio do PHP, que já está no fuso certo. */
+    /**
+     * O fuso da conexão. O SQLite usa o relógio do PHP, que já está no fuso certo. No MySQL, com o relógio parado
+     * dos testes (Relogio), NOW() e CURDATE() param no mesmo instante, porque senão viriam do servidor.
+     */
     public static function fusoDaConexao(PDO $pdo, string $deslocamento): void
     {
         if (!self::sqlite()) {
             $pdo->exec("SET time_zone = '" . $deslocamento . "'");
+            if (Relogio::fixo() !== null) {
+                $pdo->exec('SET timestamp = ' . Relogio::agora()->getTimestamp());
+            }
         }
     }
 

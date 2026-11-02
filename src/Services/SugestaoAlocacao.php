@@ -2,6 +2,7 @@
 namespace Financeiro\Services;
 
 use Financeiro\Models\ContaRecorrenteModel;
+use Financeiro\Relogio;
 
 /**
  * Sugestão de divisão do Dia a dia. Nunca grava nada: devolve valores, mudanças e
@@ -128,7 +129,7 @@ final class SugestaoAlocacao
         if (!in_array($objetivo, [1, 2, 3], true)) {
             $objetivo = 1;
         }
-        $hoje   = (string) ($opts['hoje'] ?? date('Y-m-d'));
+        $hoje   = (string) ($opts['hoje'] ?? Relogio::hoje());
         $tcrLst = array_values($opts['tratarComoReal'] ?? []);
         $chave  = serialize([$mesInicio, $objetivo, $colchao, $hoje, $tcrLst]);
         if (isset(self::$cache[$chave])) {
@@ -481,7 +482,7 @@ final class SugestaoAlocacao
     public static function ritmoReferencia(string $mesInicio, array $opts = []): array
     {
         $d      = MotorFinanceiro::dados();
-        $hoje   = (string) ($opts['hoje'] ?? date('Y-m-d'));
+        $hoje   = (string) ($opts['hoje'] ?? Relogio::hoje());
         $tcrLst = array_values($opts['tratarComoReal'] ?? []);
         $K      = self::mesesK($d, $mesInicio, array_flip($tcrLst));
         $ref    = self::referencia($mesInicio, $opts);

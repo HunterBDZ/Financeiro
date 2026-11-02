@@ -31,7 +31,7 @@ $balanco  = (float) $p['balanco'];
 $topMax   = $p['top'] !== [] ? max(array_column($p['top'], 'valor')) : 0.0;
 
 // saudação e a data por extenso
-$hora      = (int) date('G');
+$hora      = (int) \Financeiro\Relogio::agora()->format('G');
 $saudacao  = $hora < 5 ? t('Boa noite') : ($hora < 12 ? t('Bom dia') : ($hora < 18 ? t('Boa tarde') : t('Boa noite')));
 $quem      = trim((string) (Auth::nome() ?? ''));
 $diasSem   = [t('domingo'), t('segunda-feira'), t('terça-feira'), t('quarta-feira'), t('quinta-feira'), t('sexta-feira'), t('sábado')];

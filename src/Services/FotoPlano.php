@@ -3,6 +3,7 @@ namespace Financeiro\Services;
 
 use Financeiro\Database;
 use Financeiro\Models\AjusteModel;
+use Financeiro\Relogio;
 use Financeiro\Sql;
 
 /**
@@ -17,7 +18,7 @@ final class FotoPlano
 
     public static function garantir(?string $hoje = null): void
     {
-        $hoje ??= date('Y-m-d');
+        $hoje ??= Relogio::hoje();
         $mes = substr($hoje, 0, 8) . '01';
         $pdo = Database::connection();
         $st = $pdo->prepare('SELECT 1 FROM plano_fotos WHERE mes = ?');

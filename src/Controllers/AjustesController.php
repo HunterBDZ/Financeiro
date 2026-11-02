@@ -2,6 +2,7 @@
 namespace Financeiro\Controllers;
 
 use Financeiro\Auth;
+use Financeiro\Relogio;
 use Financeiro\Services\Horizonte;
 use Financeiro\Services\LinkProduto;
 use Financeiro\Site;
@@ -81,7 +82,7 @@ final class AjustesController
         }
         $antes = AjusteModel::dataInicio();
         Horizonte::mudarInicio($data);
-        flash('success', $antes !== null && $data < $antes && substr($data, 0, 7) < date('Y-m')
+        flash('success', $antes !== null && $data < $antes && substr($data, 0, 7) < Relogio::agora()->format('Y-m')
             ? t('Início salvo. Os meses que passaram ficam abertos: lance o que houve e feche cada um.')
             : t('Início salvo.'));
         redirecionar('/ajustes?aberto=partida#partida', 303);

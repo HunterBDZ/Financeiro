@@ -6,6 +6,7 @@ use Financeiro\Database;
 use Financeiro\Models\AjusteModel;
 use Financeiro\Models\LancamentoModel;
 use Financeiro\Models\MesModel;
+use Financeiro\Relogio;
 use Financeiro\Sql;
 
 /**
@@ -164,7 +165,7 @@ final class MotorFinanceiro
         if (!in_array($objetivo, [1, 2, 3], true)) {
             $objetivo = 1;
         }
-        $hoje     = (string) ($opts['hoje'] ?? date('Y-m-d'));
+        $hoje     = (string) ($opts['hoje'] ?? Relogio::hoje());
         $mesHoje  = substr($hoje, 0, 7) . '-01';
         $tcr      = array_flip($opts['tratarComoReal'] ?? []);
         $override = $opts['override'] ?? [];
@@ -439,7 +440,7 @@ final class MotorFinanceiro
     public static function saldoCalculadoHoje(): float
     {
         $saldoIni = AjusteModel::valor('saldo_ini');
-        return LancamentoModel::saldoCalculado($saldoIni, date('Y-m-d'));
+        return LancamentoModel::saldoCalculado($saldoIni, Relogio::hoje());
     }
 
     /** Mês com o menor "fica na conta" de toda a projeção. */

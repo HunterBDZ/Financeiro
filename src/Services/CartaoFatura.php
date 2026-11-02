@@ -3,6 +3,7 @@ namespace Financeiro\Services;
 
 use Financeiro\Models\CartaoModel;
 use Financeiro\Models\MesModel;
+use Financeiro\Relogio;
 
 /**
  * As contas do cartão. "Fatura de M" = a que vence no mês M: é quando o dinheiro sai da conta, e
@@ -163,7 +164,7 @@ final class CartaoFatura
         if ($cartao === null || !$cartao['alimenta_plano'] || $cat === null) {
             return null;
         }
-        $aberta = self::faturaDe($hoje ?? date('Y-m-d'), $cartao['fecha'], $cartao['vence']);
+        $aberta = self::faturaDe($hoje ?? Relogio::hoje(), $cartao['fecha'], $cartao['vence']);
         $totais = self::totais(CartaoModel::compras($cartao['id']));
         $celulas = [];
         foreach (MesModel::todos() as $m) {
@@ -178,7 +179,7 @@ final class CartaoFatura
     public static function mesesDoCartao(?string $hoje = null): ?string
     {
         $cartao = CartaoModel::ativo();
-        return $cartao !== null && $cartao['alimenta_plano'] ? self::faturaDe($hoje ?? date('Y-m-d'), $cartao['fecha'], $cartao['vence']) : null;
+        return $cartao !== null && $cartao['alimenta_plano'] ? self::faturaDe($hoje ?? Relogio::hoje(), $cartao['fecha'], $cartao['vence']) : null;
     }
 
     /** A previsão de hoje da Fatura do cartão, mês a mês (para conferir antes de ligar), do cache do motor. */

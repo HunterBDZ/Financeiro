@@ -4,6 +4,7 @@ namespace Financeiro\Services;
 use Financeiro\Models\ContaRecorrenteModel;
 use Financeiro\Models\LancamentoModel;
 use Financeiro\Models\PrevisaoModel;
+use Financeiro\Relogio;
 
 /**
  * Checklist de contas recorrentes — 100% derivado (nunca marcado à mão):
@@ -19,7 +20,7 @@ final class ChecklistContas
      */
     public static function statusPorMes(string $mes, ?string $hoje = null): array
     {
-        $hoje = new \DateTimeImmutable($hoje ?? 'today');
+        $hoje = new \DateTimeImmutable($hoje ?? Relogio::hoje());
         $hoje = $hoje->setTime(0, 0);
         $resultado = [];
 

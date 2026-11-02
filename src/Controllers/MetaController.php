@@ -5,6 +5,7 @@ use Financeiro\Auth;
 use Financeiro\Database;
 use Financeiro\Models\CategoriaModel;
 use Financeiro\Models\MetaModel;
+use Financeiro\Relogio;
 use Financeiro\Services\GastosMensais;
 use Financeiro\Services\MotorFinanceiro;
 use Financeiro\Services\PrevisaoEdicao;
@@ -35,7 +36,7 @@ final class MetaController
             }
         }
         if ($mesAtual === null) {
-            $hojeMes  = date('Y-m-01');
+            $hojeMes  = Relogio::mes();
             $mesAtual = isset($matriz[$hojeMes]) ? $hojeMes : (array_key_last($matriz) ?: $hojeMes);
         }
         $linhaMes = $matriz[$mesAtual] ?? ['renda' => 0.0, 'cats' => []];
@@ -176,7 +177,7 @@ final class MetaController
             $segs[] = t('fim de {mes} {antes} → {depois}', ['mes' => monthLabel((string) $ult), 'antes' => num((float) $antes[$ult]['fica_na_conta'], 0), 'depois' => num((float) $depois[$ult]['fica_na_conta'], 0)]);
         }
         $reserva = (float) (MotorFinanceiro::dados()['aj']['reserva_minima'] ?? 0.0);
-        $alerta  = PrevisaoEdicao::piorou($antes, $depois, date('Y-m-01'), $reserva);
+        $alerta  = PrevisaoEdicao::piorou($antes, $depois, Relogio::mes(), $reserva);
         if ($alerta !== null) {
             $segs[] = $alerta['tipo'] === 'vermelho' ? t('atenção: {mes} no vermelho', ['mes' => monthLabel($alerta['mes'])]) : t('atenção: {mes} abaixo da reserva', ['mes' => monthLabel($alerta['mes'])]);
         }
