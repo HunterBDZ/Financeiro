@@ -9,6 +9,7 @@ use Financeiro\Site;
 use Financeiro\SiteIcone;
 use Financeiro\Models\AjusteModel;
 use Financeiro\Models\CategoriaModel;
+use Financeiro\Models\ContaModel;
 use Financeiro\Models\ContaRecorrenteModel;
 use Financeiro\Models\MesModel;
 use Financeiro\Models\UsuarioModel;
@@ -22,7 +23,7 @@ use Financeiro\View;
 final class AjustesController
 {
     /** Grupos (<details class="dobra">) e se abrem por padrão. */
-    private const GRUPOS = ['senha' => false, 'parametros' => true, 'contas' => false, 'categorias' => false, 'essenciais' => false, 'pessoas' => false, 'partida' => false, 'icone' => false, 'aparelhos' => false];
+    private const GRUPOS = ['senha' => false, 'parametros' => true, 'carteira' => false, 'contas' => false, 'categorias' => false, 'essenciais' => false, 'pessoas' => false, 'partida' => false, 'icone' => false, 'aparelhos' => false];
 
     public function index(): void
     {
@@ -64,6 +65,8 @@ final class AjustesController
             'abertos'     => $abertos,
             'erro'        => is_array($erro) ? $erro : null,
             'login'       => (string) (\Financeiro\Models\UsuarioModel::find((int) Auth::id())['login'] ?? ''),
+            'contasDinheiro' => ContaModel::todas(),
+            'saldosContas' => ContaModel::saldos(Relogio::hoje()),
         ], 'ajustes');
     }
 
@@ -188,6 +191,10 @@ final class AjustesController
         }
 
         foreach ($valores as $chave => $v) {
+            if ($chave === 'saldo_ini') {
+                ContaModel::saldoInicialDaUnica($v);            // com várias contas, cada uma tem o seu, em Contas
+                continue;
+            }
             AjusteModel::setValor($chave, $v);                  // preserva `confirmado`
         }
 

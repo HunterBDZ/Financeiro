@@ -6,7 +6,8 @@ use Financeiro\Auth;
  * Saudação; o cartão do saldo (em conta hoje, uma frase que responde quanto dá para gastar e o resto
  * dobrado em "Ver detalhes", com o olho que esconde os valores); o mês em três linhas (entrou, saiu e a
  * sobra com o nome da base; o detalhe fica dobrado); para onde foi; conferir com o banco; últimos lançamentos.
- * Variáveis: $hoje, $mesRef, $mesCal, $estadoRef, $reserva, $conta, $conf, $conferirAberto,
+ * Com mais de uma conta, "Ver detalhes" mostra o saldo de cada uma, e conferir pede o saldo de cada uma.
+ * Variáveis: $hoje, $mesRef, $mesCal, $estadoRef, $reserva, $conta, $contas (só com várias), $conf, $conferirAberto,
  * $conferirErro, $painel, $sobra (Sobra), $resposta (DashboardController::resposta), $ultimos, $alertas.
  */
 use Financeiro\Services\Sobra;
@@ -137,10 +138,17 @@ $quandoFoi   = static function (string $data) use ($hoje): string {
                 <p class="saldo-frase is-<?= e((string) $resposta['tipo']) ?>" data-saldo-frase="<?= e((string) $resposta['tipo']) ?>"><?= $frase ?> <?= dica('gastar', t('esse valor')) ?><?php if ($fraseMais !== null): ?> <span class="saldo-frase-2"><?= $fraseMais ?></span><?php endif; ?></p>
             <?php endif; ?>
             <div class="saldo-medidor" aria-hidden="true"><i style="--p:<?= e(number_format($pReserva, 1, '.', '')) ?>%"></i></div>
-            <?php if ($reserva > 0.004 || $vermelho || $previsaoFim !== null): ?>
+            <?php if ($reserva > 0.004 || $vermelho || $previsaoFim !== null || $contas !== []): ?>
             <details class="saldo-det">
                 <summary><?= e(t('Ver detalhes')) ?></summary>
                 <div class="saldo-det-c">
+                    <?php if ($contas !== []): ?>
+                    <ul class="saldo-contas num" aria-label="<?= e(t('saldo de cada conta')) ?>">
+                        <?php foreach ($contas as $c): ?>
+                            <li><span><span aria-hidden="true"><?= e(\Financeiro\Models\ContaModel::TIPOS[$c['tipo']] ?? '') ?></span> <?= e(nomeConta($c)) ?></span><b class="<?= $c['saldo'] < -0.004 ? 'neg' : '' ?>"><?= e(num((float) $c['saldo'])) ?></b></li>
+                        <?php endforeach; ?>
+                    </ul>
+                    <?php endif; ?>
                     <?php if ($reserva > 0.004 || $vermelho): ?>
                     <p class="saldo-rod num">
                         <span><?php if ($vermelho): ?><?= t('Faltam {valor} para zerar', ['valor' => '<b>' . e(num(abs($conta))) . '</b>']) ?><?php elseif ($abaixo): ?><?= t('Faltam {valor} para a reserva', ['valor' => '<b>' . e(num(abs($dif))) . '</b>']) ?><?php else: ?><?= t('{valor} acima da reserva', ['valor' => '<b>' . e(num($dif)) . '</b>']) ?><?php endif; ?></span>
@@ -227,11 +235,15 @@ $quandoFoi   = static function (string $data) use ($hoje): string {
             <form class="dash-conf-form" method="post" action="/conferir">
                 <?= csrfField() ?>
                 <input type="hidden" name="volta" value="/">
+                <?php if ($contas !== []): ?>
+                    <?php \Financeiro\View::partial('partials/saldos_contas', ['contas' => array_values(array_filter($contas, static fn(array $c): bool => $c['ativa'])), 'digitado' => (array) ($conferirErro['contas'] ?? []), 'pref' => 'conf', 'invalido' => $conferirErro !== null, 'confs' => $conf['contas'] ?? []]); ?>
+                <?php else: ?>
                 <label class="campo">
                     <span><?= e(t('Saldo que o banco mostra')) ?></span>
                     <input type="text" name="saldo_informado" inputmode="decimal" autocomplete="off" enterkeyhint="done" placeholder="<?= e(t('ex.: 1.546,00')) ?>"
                            value="<?= e((string) ($conferirErro['valor'] ?? '')) ?>"<?= $conferirErro !== null ? ' aria-invalid="true" aria-describedby="conf-erro" data-autofocus' : '' ?>>
                 </label>
+                <?php endif; ?>
                 <?php if ($conferirErro !== null): ?><p class="aviso aviso-error" id="conf-erro" role="alert"><?= e((string) $conferirErro['msg']) ?></p><?php endif; ?>
                 <fieldset class="quando" data-quando>
                     <legend class="sr-only"><?= e(t('quando')) ?></legend>
@@ -239,7 +251,7 @@ $quandoFoi   = static function (string $data) use ($hoje): string {
                     <label class="chip-r"><input type="radio" name="quando" value="outro"<?= ($conferirErro['quando'] ?? '') === 'outro' ? ' checked' : '' ?>><span><?= e(t('Outro dia')) ?></span></label>
                     <input type="date" name="data" class="quando-data" value="<?= e((string) ($conferirErro['data'] ?? $hoje)) ?>" max="<?= e($hoje) ?>" aria-label="<?= e(t('data do saldo')) ?>">
                 </fieldset>
-                <?php if ($conf !== null): ?>
+                <?php if ($conf !== null && $contas === []): ?>
                     <p class="dash-conf-det num"><?= e(t('Última conferência: {valor} em {data}.', ['valor' => num($conf['saldo']), 'data' => diaMes($conf['data'])])) ?></p>
                 <?php endif; ?>
                 <button type="submit" class="btn btn-primary dash-conf-btn"><?= e(t('Conferir')) ?></button>

@@ -673,3 +673,23 @@ dl.fe-ponte > .fe-ponte-fim { margin-top: 2px; padding-top: 4px; border-top: 1px
     .aj.sis:not(.meta-pg) { display: flex; columns: auto; max-width: 760px; }
     .aj.sis:not(.meta-pg) > .aj-titulo { margin-bottom: 0; }
 }
+
+/* Ajustes → Contas: onde o dinheiro está */
+.aj-cd { display: flex; flex-direction: column; margin-bottom: 12px; }
+.aj-cd > li + li { border-top: 1px solid var(--line); }
+.aj-cd-i > summary { display: flex; align-items: center; gap: 10px; min-height: 52px; list-style: none; cursor: pointer; }
+.aj-cd-i > summary::-webkit-details-marker { display: none; }
+.aj-cd-i[open] > summary { margin-bottom: 4px; }
+.aj-cd-ic { flex: none; width: 28px; font-size: 20px; text-align: center; }
+.aj-cd-nome { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 650; }
+.aj-cd-saldo { flex: none; color: var(--text-2); font-size: 14px; font-weight: 650; }
+.aj-cd-arq > li { display: flex; align-items: center; gap: 10px; min-height: 48px; color: var(--text-2); }
+.aj-cd-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 14px; }
+.aj-cd-acoes form { margin: 0; }
+.aj-cd-nova > summary { list-style: none; display: inline-flex; gap: 6px; }
+.aj-cd-nova > summary::-webkit-details-marker { display: none; }
+.aj-cd-nova[open] > summary { margin-bottom: 10px; }
+.aj-conta-tipo { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; border: 0; min-width: 0; }
+.aj-conta-tipo > legend { width: 100%; margin-bottom: 6px; padding: 0; color: var(--text-2); font-size: 13px; font-weight: 650; }
+.aj-conta-tipo .chip-r > span { flex-direction: row; gap: 6px; }
+.fe-bloco .conf-contas { margin: 10px 0 14px; }

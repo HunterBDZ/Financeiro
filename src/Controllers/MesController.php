@@ -8,6 +8,7 @@ use Financeiro\Models\LancamentoModel;
 use Financeiro\Models\MesModel;
 use Financeiro\Models\MetaModel;
 use Financeiro\Models\SaldoConferenciaModel;
+use Financeiro\Models\ContaModel;
 use Financeiro\Relogio;
 use Financeiro\Services\CartaoFatura;
 use Financeiro\Services\ChecklistContas;
@@ -83,7 +84,7 @@ final class MesController
             $p = round((float) ($prev[$id] ?? 0.0), 2);
             $r = round((float) ($real[$id] ?? 0.0), 2);
             $l = [
-                'id' => $id, 'nome' => nomeCurto($c), 'nome_completo' => $c['nome'], 'grupo' => $c['grupo'],
+                'id' => $id, 'nome' => nomeCurto($c), 'nome_completo' => $c['nome'], 'chave' => $c['chave'] ?? null, 'grupo' => $c['grupo'],
                 'essencial' => (bool) ($c['essencial'] ?? true), 'prev' => $p, 'real' => $r, 'ativo' => $c['ativo'] === 1,
                 'meta' => $metas[$id] ?? null,
                 // previsão: a meta vale para todo mês; 'ajuste' = este mês tem valor próprio
@@ -399,7 +400,7 @@ final class MesController
             }
             $r = round((float) ($d['real'][$mes][$id] ?? 0.0), 2);
             $p = round((float) ($d['prev'][$mes][$id] ?? 0.0), 2);
-            if (($c['nome'] ?? '') === MotorFinanceiro::CAT_SALARIO && $parcelaDescontada > 0 && $p > 0) {
+            if (($c['chave'] ?? null) === MotorFinanceiro::CAT_SALARIO && $parcelaDescontada > 0 && $p > 0) {
                 // o salário deveria chegar líquido da parcela; se chegou igual ao bruto previsto, avisa
                 $pLiq = round(max(0.0, $p - $parcelaDescontada), 2);
                 if ($r > 0 && abs($r - $p) < 1.0) {
@@ -464,6 +465,8 @@ final class MesController
             'desvios' => $desvios, 'avisoParcela' => $avisoParcela,
             'dataBanco' => $dataBanco, 'dataMin' => self::dataMinBanco($hoje), 'faltam' => max(0, $faltam),
             'previa' => $previa, 'erro' => is_array($erro) && ($erro['mes'] ?? '') === $mes ? $erro : null,
+            // com mais de uma conta, um campo para cada uma, com o saldo do app na data do banco
+            'contasBanco' => !$real && ContaModel::varias() ? array_map(static fn(array $c): array => $c + ['saldo' => ContaModel::saldo($c['id'], $dataBanco)], ContaModel::ativas()) : [],
         ], 'mes');
     }
 
@@ -501,16 +504,22 @@ final class MesController
             redirecionar('/mes?mes=' . $mes, 303);
         }
 
-        // saldo do banco (opcional)
+        // saldo do banco (opcional); com várias contas, o de cada uma (saldo_conta[id])
         $saldoBruto = trim(is_string($_POST['saldo'] ?? null) ? $_POST['saldo'] : '');
         $saldo = null;
+        $porConta = [];
+        $brutosContas = [];
         $dataSaldo = min($hoje, date('Y-m-t', strtotime($mes)));
-        if ($saldoBruto !== '') {
-            $saldo = parseMoedaBr($saldoBruto);
-            $erro = null;
-            if ($saldo === null) {
+        $erroContas = null;
+        if (is_array($_POST['saldo_conta'] ?? null) && ContaModel::varias()) {
+            [$porConta, $brutosContas, $erroContas] = DashboardController::lerSaldosContas($_POST['saldo_conta']);
+        }
+        if ($saldoBruto !== '' || $porConta !== [] || $erroContas !== null) {
+            $saldo = $saldoBruto !== '' ? parseMoedaBr($saldoBruto) : 0.0;
+            $erro = $erroContas;                                 // uma das contas não deu para ler
+            if ($erro === null && $saldo === null) {
                 $erro = t('Digite o saldo como aparece no banco, por exemplo 1.200,50.');
-            } elseif (($_POST['quando'] ?? 'hoje') === 'outro') {
+            } elseif ($erro === null && ($_POST['quando'] ?? 'hoje') === 'outro') {
                 $data = (string) ($_POST['data'] ?? '');
                 $ts = preg_match('/^\d{4}-\d{2}-\d{2}$/', $data) ? strtotime($data) : false;
                 if ($ts === false || date('Y-m-d', $ts) !== $data || $data > $hoje || $data < self::dataMinBanco($hoje)) {
@@ -520,8 +529,11 @@ final class MesController
                 }
             }
             if ($erro !== null) {
-                $_SESSION['fe_erro'] = ['mes' => $mes, 'msg' => $erro, 'saldo' => $saldoBruto];
+                $_SESSION['fe_erro'] = ['mes' => $mes, 'msg' => $erro, 'saldo' => $saldoBruto, 'contas' => $brutosContas];
                 redirecionar($volta . '#banco', 303);
+            }
+            if ($saldoBruto === '') {
+                $saldo = null;                                   // só as contas
             }
         }
 
@@ -544,6 +556,9 @@ final class MesController
             $pdo->beginTransaction();
             if ($saldo !== null) {
                 SaldoConferenciaModel::registrar($dataSaldo, round($saldo, 2), (int) Auth::id());
+            }
+            foreach ($porConta as $contaId => $v) {
+                SaldoConferenciaModel::registrar($dataSaldo, $v, (int) Auth::id(), $contaId);
             }
             PrevisaoLote::congelar($mes, (int) Auth::id());
             MesModel::setSituacao($mes, 'REAL');

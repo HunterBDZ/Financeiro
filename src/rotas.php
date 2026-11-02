@@ -20,6 +20,8 @@ use Financeiro\Controllers\IdiomaController;
 use Financeiro\Controllers\InvestimentosController;
 use Financeiro\Controllers\ComecarController;
 use Financeiro\Controllers\RelatorioController;
+use Financeiro\Controllers\ContaController;
+use Financeiro\Controllers\TransferenciaController;
 
 $router = new Router();
 
@@ -46,6 +48,10 @@ $router->post('/lancamentos/desfazer', [LancamentosController::class, 'desfazer'
 $router->get('/lancamentos/{id}/editar', [LancamentosController::class, 'editForm']);
 $router->post('/lancamentos/{id}/excluir', [LancamentosController::class, 'destroy']);
 $router->post('/lancamentos/{id}', [LancamentosController::class, 'update']);
+$router->post('/transferencias/desfazer', [TransferenciaController::class, 'desfazer']);
+$router->get('/transferencias/{id}/editar', [TransferenciaController::class, 'editarForm']);
+$router->post('/transferencias/{id}/excluir', [TransferenciaController::class, 'excluir']);
+$router->post('/transferencias/{id}', [TransferenciaController::class, 'atualizar']);
 $router->post('/categorias', [CategoriaController::class, 'criar']);
 $router->post('/categorias/{id}/remover', [CategoriaController::class, 'remover']);
 $router->get('/categorias/{id}/icone', [CategoriaController::class, 'iconeForm']);
@@ -68,6 +74,8 @@ $router->post('/mes/reabrir', [MesController::class, 'reabrir']);
 $router->get('/cartao', [CartaoController::class, 'index']);
 $router->post('/cartao/config', [CartaoController::class, 'salvarConfig']);
 $router->post('/cartao/plano', [CartaoController::class, 'plano']);
+$router->post('/cartao/arquivar', [CartaoController::class, 'arquivar']);
+$router->post('/cartao/pagar', [CartaoController::class, 'pagar']);
 $router->post('/cartao/compras/desfazer', [CartaoController::class, 'desfazer']);
 $router->get('/cartao/compras/{id}/editar', [CartaoController::class, 'editarForm']);
 $router->post('/cartao/compras/{id}/excluir', [CartaoController::class, 'excluir']);
@@ -118,6 +126,10 @@ $router->post('/ajustes/pessoas/{id}/senha', [AjustesController::class, 'senhaDe
 $router->post('/ajustes/contas', [AjustesController::class, 'salvarConta']);
 $router->post('/ajustes/contas/{id}/remover', [AjustesController::class, 'removerConta']);
 $router->post('/ajustes/essenciais', [AjustesController::class, 'salvarEssenciais']);
+$router->post('/contas', [ContaController::class, 'salvar']);
+$router->post('/contas/{id}/arquivar', [ContaController::class, 'arquivar']);
+$router->post('/contas/{id}/reativar', [ContaController::class, 'reativar']);
+$router->post('/contas/{id}/mover', [ContaController::class, 'mover']);
 $router->post('/ajustes/inicio', [AjustesController::class, 'salvarInicio']);
 $router->post('/ajustes/regional', [AjustesController::class, 'salvarRegional']);
 $router->post('/ajustes/recursos', [AjustesController::class, 'salvarRecursos']);
