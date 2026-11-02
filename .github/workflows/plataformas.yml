@@ -47,6 +47,23 @@ jobs:
           }
           Get-Content "$env:LOCALAPPDATA\Financeiro\log\programa.log" -Tail 30
           throw 'o site não abriu'
+      - name: O atalho chama o navegador
+        shell: pwsh
+        run: |
+          # um endereço de teste cujo "navegador" só anota: o mesmo comando do atalho, sem abrir janela
+          $anota = "$env:RUNNER_TEMP\navegador.txt"
+          $chave = 'HKCU:\Software\Classes\fin-teste'
+          New-Item "$chave\shell\open\command" -Force | Out-Null
+          Set-ItemProperty $chave '(default)' 'URL:fin-teste'
+          Set-ItemProperty $chave 'URL Protocol' ''
+          Set-ItemProperty "$chave\shell\open\command" '(default)' "cmd /c echo %1> `"$anota`""
+          $prog = "$env:LOCALAPPDATA\Programs\Financeiro"
+          $teste = "$env:RUNNER_TEMP\navegador.php"
+          Set-Content $teste "<?php define('FIN_GERENTE_SO_FUNCOES', true); require '$prog\app\packaging\gerente.php'; gerenteNavegador('fin-teste:abriu');"
+          $env:FIN_SEM_NAVEGADOR = $null
+          & "$prog\bin\php.exe" -n $teste
+          foreach ($i in 1..15) { if (Test-Path $anota) { Get-Content $anota; exit 0 }; Start-Sleep 1 }
+          throw 'o navegador não foi chamado'
       - name: Testes do app
         shell: pwsh
         run: |
