@@ -105,7 +105,14 @@ Funciona no computador e no celular.
 
 ## Instalar
 
-**No seu computador, com Linux.** Baixe o pacote em [Versões](https://github.com/HunterBDZ/Financeiro/releases/latest) e rode, sem `sudo`:
+**No Windows 10 ou 11, de 64 bits.** Baixe `financeiro-…-windows-x86_64.exe` em [Versões](https://github.com/HunterBDZ/Financeiro/releases/latest) e dê dois cliques. Não pede administrador. No fim, o site abre no navegador, e você cria a sua conta.
+
+**No Mac com chip Apple (macOS 12 ou mais novo).** Baixe `financeiro-…-macos-arm64.dmg` em [Versões](https://github.com/HunterBDZ/Financeiro/releases/latest), arraste o Financeiro para Aplicativos e abra de lá. Mac Intel ainda não é atendido.
+
+> [!WARNING]
+> Os instaladores de Windows e Mac são novos e ainda não passaram por computadores de verdade. Sem assinatura paga, o sistema avisa ao abrir: o [manual](docs/INSTALACAO.md) mostra o que fazer.
+
+**No Linux.** Baixe o pacote em [Versões](https://github.com/HunterBDZ/Financeiro/releases/latest) e rode, sem `sudo`:
 
 ```sh
 tar xzf financeiro-*-linux-*.tar.gz
@@ -113,7 +120,7 @@ cd financeiro-*/
 ./instalar
 ```
 
-Abra `http://localhost:8484` e crie a sua conta. Não há banco de dados para instalar. Para usar no celular, abra **Ajustes → Usar no celular** e leia o código com a câmera.
+Abra `http://localhost:8484` e crie a sua conta. Em nenhum desses há banco de dados para instalar. Para usar no celular, abra **Ajustes → Usar no celular** e leia o código com a câmera.
 
 **Num servidor com Ubuntu ou Debian:**
 
@@ -124,7 +131,7 @@ sudo bash Financeiro/instalar.sh
 
 **Com Docker:** `docker compose up -d`, na pasta do repositório.
 
-Windows e Mac ainda não têm instalador. Dúvidas? Veja o [manual de instalação](docs/INSTALACAO.md).
+Dúvidas? Veja o [manual de instalação](docs/INSTALACAO.md).
 
 ## Atualizar e guardar
 

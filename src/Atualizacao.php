@@ -26,12 +26,12 @@ final class Atualizacao
         return trim((string) @file_get_contents(Paths::raiz() . '/VERSION'));
     }
 
-    /** pacote = atualiza pela tela; docker e servidor têm o próprio comando; dev = pasta de quem desenvolve. */
+    /** pacote = atualiza pela tela; loja = quem atualiza é a Microsoft Store; docker e servidor têm o próprio comando; dev = pasta de quem desenvolve. */
     public static function tipo(): string
     {
         $marca = dirname(Paths::raiz()) . '/PACOTE';
         if (is_file($marca) && basename(Paths::raiz()) === 'app') {
-            return 'pacote';
+            return str_ends_with(trim((string) file_get_contents($marca)), '-loja') ? 'loja' : 'pacote';
         }
         if (is_file(Paths::raiz() . '/DOCKER')) {
             return 'docker';

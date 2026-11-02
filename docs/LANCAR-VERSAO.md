@@ -30,6 +30,33 @@ Para quem desenvolve. Quem só usa o site segue a [atualização do manual](INST
 
 Numa tag, `.github/workflows/release.yml` testa, monta os pacotes com `packaging/empacotar.sh`, assina o `atualizacao.json` com o segredo `FIN_CHAVE_ATUALIZACAO`, publica a versão e a imagem Docker. Sem o segredo, a publicação para: os sites só aceitam o que essa chave assinou.
 
+O app é um pacote só para todo sistema: `financeiro-app-X.Y.Z.tar.gz`, com o `atualizacao.json` assinado. Quem instalou em qualquer sistema baixa o mesmo arquivo. O FrankenPHP não muda numa atualização pela tela: para mudar, a pessoa instala o pacote novo.
+
+### Windows e Mac
+
+O instalador de Windows sai em Linux, com `nsis` e `p7zip-full`. O `.dmg` só sai num Mac: o `release.yml` tem um job para isso. Em **Actions → Windows e Mac**, um botão monta, instala e testa nos dois sistemas de verdade. Rode antes de lançar: esse job só roda à mão, porque gasta mais da cota do GitHub.
+
+Assinar é opcional. Sem estes segredos, os pacotes saem sem assinatura, e o sistema avisa ao abrir:
+
+| Segredo | Para quê |
+|---|---|
+| `FIN_WIN_PFX`, `FIN_WIN_SENHA` | Certificado de código do Windows, em base64, e a senha. Assina os `.exe`, as `.dll`, o instalador e o desinstalador |
+| `FIN_MAC_P12`, `FIN_MAC_P12_SENHA`, `FIN_MAC_ID` | Certificado Developer ID em base64, a senha e o nome da identidade |
+| `FIN_MAC_APPLE_ID`, `FIN_MAC_SENHA`, `FIN_MAC_TIME` | Apple ID, senha de app e time, para notarizar |
+
+### Microsoft Store (opcional)
+
+A assinatura da loja é gratuita e evita o aviso do Windows, mas isso nunca foi tentado. Reserve o nome no Partner Center e, numa versão já montada:
+
+```sh
+packaging/windows/montar.sh --app PASTA_DO_APP --versao X.Y.Z --saida PASTA --so-pasta
+packaging/windows/loja/montar.sh --programa PASTA/programa --versao X.Y.Z --saida PASTA/loja --nome NOME --publisher "CN=..." --publicado-por "Nome"
+```
+
+Num Windows, `makeappx pack /d PASTA\loja /p financeiro-X.Y.Z.msix /nv` gera o pacote para enviar. Nessa instalação, a tela diz que as versões novas vêm da loja. Falta conferir se o MSIX aceita o servidor local e o início automático.
+
+### Chave da atualização
+
 Para gerar um par novo, `php tools/assinar-atualizacao.php --gerar=ARQUIVO`: o privado vai para o arquivo, que nunca entra no repositório, e o público sai na tela e vai para `Atualizacao::CHAVE_PUBLICA`. Quem trocar a chave precisa publicar a chave nova numa versão assinada pela antiga.
 
 Os sites só recebem o que tem tag: um commit sem tag no `main` não chega a ninguém. Não mova nem apague uma tag publicada: se houver erro, lance outra versão.

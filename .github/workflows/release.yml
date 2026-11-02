@@ -26,8 +26,6 @@ jobs:
   pacotes:
     needs: testes
     runs-on: ubuntu-24.04
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
@@ -37,18 +35,83 @@ jobs:
           coverage: none
       - name: A tag bate com o arquivo VERSION
         run: test "v$(tr -d '[:space:]' < VERSION)" = "$GITHUB_REF_NAME"
+      - run: sudo apt-get update && sudo apt-get install -y nsis p7zip-full osslsigncode
       - name: Montar
         env:
           FIN_CHAVE_ATUALIZACAO: ${{ secrets.FIN_CHAVE_ATUALIZACAO }}
+          FIN_WIN_PFX: ${{ secrets.FIN_WIN_PFX }}
+          FIN_WIN_SENHA: ${{ secrets.FIN_WIN_SENHA }}
         run: |
           test -n "$FIN_CHAVE_ATUALIZACAO"
           packaging/empacotar.sh --saida "$RUNNER_TEMP/versao"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pacotes
+          path: ${{ runner.temp }}/versao/*
+          if-no-files-found: error
+
+  # o .dmg só sai num Mac. Sem os segredos, sai sem Developer ID, e o Mac avisa ao abrir
+  mac:
+    needs: pacotes
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: pacotes
+          path: pacotes
+      - name: Certificado, se houver
+        env:
+          FIN_MAC_P12: ${{ secrets.FIN_MAC_P12 }}
+          FIN_MAC_P12_SENHA: ${{ secrets.FIN_MAC_P12_SENHA }}
+          FIN_MAC_ID: ${{ secrets.FIN_MAC_ID }}
+        run: |
+          [ -n "$FIN_MAC_P12" ] || exit 0
+          echo "$FIN_MAC_P12" | base64 -d > "$RUNNER_TEMP/cert.p12"
+          K="$RUNNER_TEMP/assinar.keychain-db"
+          security create-keychain -p financeiro "$K"
+          security set-keychain-settings -lut 21600 "$K"
+          security unlock-keychain -p financeiro "$K"
+          security import "$RUNNER_TEMP/cert.p12" -k "$K" -P "$FIN_MAC_P12_SENHA" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k financeiro "$K" > /dev/null
+          security list-keychains -d user -s "$K"
+          rm -f "$RUNNER_TEMP/cert.p12"
+      - name: Montar o .dmg
+        env:
+          FIN_MAC_ID: ${{ secrets.FIN_MAC_ID }}
+          FIN_MAC_APPLE_ID: ${{ secrets.FIN_MAC_APPLE_ID }}
+          FIN_MAC_SENHA: ${{ secrets.FIN_MAC_SENHA }}
+          FIN_MAC_TIME: ${{ secrets.FIN_MAC_TIME }}
+        run: packaging/macos/montar.sh --app-tar pacotes/financeiro-app-*.tar.gz --saida saida
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dmg
+          path: saida/*.dmg
+          if-no-files-found: error
+
+  publicar:
+    needs: [pacotes, mac]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: baixado
+      - name: Juntar e somar
+        run: |
+          mkdir versao
+          mv baixado/pacotes/* baixado/dmg/* versao/
+          cd versao
+          rm -f SHA256SUMS
+          find . -maxdepth 1 -type f -printf '%f\0' | LC_ALL=C sort -z | xargs -0 sha256sum -- > SHA256SUMS
       - name: Publicar
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           awk -v v="## ${GITHUB_REF_NAME#v}" 'index($0, v) == 1 { d = 1; next } /^## / { d = 0 } d' CHANGELOG.md > "$RUNNER_TEMP/notas.md"
-          gh release create "$GITHUB_REF_NAME" "$RUNNER_TEMP"/versao/* --title "$GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/notas.md"
+          gh release create "$GITHUB_REF_NAME" versao/* --title "$GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/notas.md"
 
   imagem:
     needs: testes

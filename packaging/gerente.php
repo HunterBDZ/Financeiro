@@ -294,7 +294,7 @@ function gerenteFalhou(array $lugar): void
         . '<p><code>' . htmlspecialchars($log) . '</code></p>';
     $arquivo = str_replace('\\', '/', $lugar['dados']) . '/nao-abriu.html';
     file_put_contents($arquivo, $html);
-    gerenteNavegador((PHP_OS_FAMILY === 'Windows' ? 'file:///' : 'file://') . str_replace('%2F', '/', rawurlencode($arquivo)));
+    gerenteNavegador((PHP_OS_FAMILY === 'Windows' ? 'file:///' : 'file://') . str_replace(['%2F', '%3A'], ['/', ':'], rawurlencode($arquivo)));
 }
 
 // ---- só no Mac: o programa sai do .app para poder ser atualizado pela tela sem quebrar a assinatura dele

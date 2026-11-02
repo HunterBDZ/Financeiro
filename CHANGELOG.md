@@ -2,6 +2,15 @@
 
 Cada versão publicada é uma tag `vX.Y.Z` deste repositório. Pacotes atualizam em Ajustes, em Backup e atualização; servidores, com `sudo financeiro-atualizar`.
 
+## A publicar
+
+- **Windows:** instalador que não pede administrador nem usa terminal. O app inicia com a sessão, e o ícone abre o navegador. Ao desinstalar, os dados só saem se você escolher.
+- **Mac com chip Apple:** arraste para Aplicativos e abra. Mac Intel não é atendido, porque o FrankenPHP não tem versão oficial para ele.
+- Os dois ainda não foram experimentados em computadores de verdade: use com cuidado e guarde um backup.
+- **Usar no celular:** instruções de firewall mais completas para Windows e Mac.
+- Os testes não barram mais a atualização no primeiro mês de uma conta nova, quando esse mês é parcial.
+- Pastas com espaço no caminho funcionam também no pacote de Linux.
+
 ## 1.8.2
 
 - Os testes não barram mais a atualização de um site com arquivos próprios em `database/data`, pasta que fica fora do repositório.

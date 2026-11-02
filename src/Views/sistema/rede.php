@@ -26,9 +26,9 @@ $csrf = csrfField();
                     <summary><?= e(t('O celular não abre o endereço')) ?></summary>
                     <p class="aj-ajuda"><?= e(t('Em geral, é o firewall deste computador. O Financeiro não mexe nele: libere a porta {porta} você mesmo.', ['porta' => (string) $porta])) ?></p>
                     <?php if ($sistema === 'Windows'): ?>
-                        <p class="aj-ajuda"><?= e(t('No Windows, quando aparecer o aviso do firewall, permita o acesso em redes privadas. Confira também se a sua rede está marcada como privada.')) ?></p>
+                        <p class="aj-ajuda"><?= e(t('No Windows, quando aparecer o aviso do firewall, permita o acesso em redes privadas. Se ele não aparecer, abra Segurança do Windows, depois Firewall e proteção de rede, depois Permitir um aplicativo pelo firewall, e permita frankenphp. Isso pode pedir a senha de quem administra o computador. Confira também se a sua rede está marcada como privada.')) ?></p>
                     <?php elseif ($sistema === 'Darwin'): ?>
-                        <p class="aj-ajuda"><?= e(t('No Mac, em Ajustes do Sistema, abra Rede e depois Firewall, e permita o Financeiro.')) ?></p>
+                        <p class="aj-ajuda"><?= e(t('No Mac, o firewall costuma vir desligado. Se estiver ligado, abra Ajustes do Sistema, depois Rede, depois Firewall, depois Opções, e permita frankenphp.')) ?></p>
                     <?php else: ?>
                         <p class="aj-ajuda"><?= e(t('No Linux, use o comando do firewall que o seu sistema tem:')) ?></p>
                         <pre class="sis-comando">sudo ufw allow <?= (int) $porta ?>/tcp

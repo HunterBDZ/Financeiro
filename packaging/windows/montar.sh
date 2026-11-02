@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Monta o instalador para Windows a partir do app já preparado, em Linux, sem nada do Windows.
 #
-#   packaging/windows/montar.sh --app PASTA --versao X.Y.Z --saida PASTA [--zip FRANKENPHP.zip] [--vcredist VC_redist.x64.exe]
+#   packaging/windows/montar.sh --app PASTA --versao X.Y.Z --saida PASTA [--zip FRANKENPHP.zip] [--vcredist VC_redist.x64.exe] [--so-pasta]
+#
+# --so-pasta deixa o programa em SAIDA/programa, sem gerar o instalador: é o que a Microsoft Store usa (loja/montar.sh).
 #
 # Precisa de makensis, 7z, python3 e, para assinar, osslsigncode. Assinar é opcional: FIN_WIN_PFX é o certificado em
 # base64 e FIN_WIN_SENHA, a senha dele. Sem eles, sai sem assinar, e o Windows avisa ao abrir (docs/INSTALACAO.md).
@@ -13,7 +15,7 @@ ZIP_SHA=6022fcc180e9a3575c637dd0dc0aba8d23f78e14ac2a0e46f1f914535194be14
 VCREDIST_SHA=cc0ff0eb1dc3f5188ae6300faef32bf5beeba4bdd6e8e445a9184072096b713b
 VCREDIST_URL=https://download.visualstudio.microsoft.com/download/pr/990c720a-46ce-4dc7-87b9-c2eb615d34b9/CC0FF0EB1DC3F5188AE6300FAEF32BF5BEEBA4BDD6E8E445A9184072096B713B/VC_redist.x64.exe
 
-APP=""; VERSAO=""; SAIDA=""; ZIP=""; VCREDIST=""
+APP=""; VERSAO=""; SAIDA=""; ZIP=""; VCREDIST=""; SO_PASTA=0
 while [ $# -gt 0 ]; do
     case "$1" in
         --app) APP=$2; shift ;;
@@ -21,6 +23,7 @@ while [ $# -gt 0 ]; do
         --saida) SAIDA=$2; shift ;;
         --zip) ZIP=$2; shift ;;
         --vcredist) VCREDIST=$2; shift ;;
+        --so-pasta) SO_PASTA=1 ;;
         *) echo "opção desconhecida: $1" >&2; exit 2 ;;
     esac
     shift
@@ -66,6 +69,12 @@ cp "$AQUI/../gerente-inicio.php" "$PROG/gerente.php"
 cp "$AQUI/financeiro.cmd" "$PROG/financeiro.cmd"
 cp "$AQUI/../icones/financeiro.ico" "$PROG/financeiro.ico"
 echo "windows-x86_64" > "$PROG/PACOTE"
+
+if [ "$SO_PASTA" = 1 ]; then
+    rm -rf "$SAIDA/programa"
+    cp -R "$PROG" "$SAIDA/programa"
+    exit 0
+fi
 
 ASSINAR=()
 if [ -n "${FIN_WIN_PFX:-}" ]; then

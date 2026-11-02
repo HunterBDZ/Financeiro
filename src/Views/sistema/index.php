@@ -37,6 +37,8 @@ docker compose up -d</pre>
         <?php elseif ($tipo === 'servidor'): ?>
             <p class="aj-ajuda"><?= e(t('Neste servidor, a atualização é feita por um comando:')) ?></p>
             <pre class="sis-comando">sudo financeiro-atualizar</pre>
+        <?php elseif ($tipo === 'loja'): ?>
+            <p class="aj-ajuda"><?= e(t('Nesta instalação, quem traz as versões novas é a Microsoft Store.')) ?></p>
         <?php elseif ($tipo === 'dev'): ?>
             <p class="aj-ajuda"><?= e(t('Esta é uma pasta de desenvolvimento: atualize pelo Git.')) ?></p>
         <?php endif; ?>

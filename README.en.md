@@ -34,7 +34,14 @@ No subscription, no cloud, and it never asks for your bank password.
 
 ## Install
 
-**On your Linux computer.** Download the package from [Releases](https://github.com/HunterBDZ/Financeiro/releases/latest) and run, without `sudo`:
+**On 64-bit Windows 10 or 11.** Download `financeiro-…-windows-x86_64.exe` from [Releases](https://github.com/HunterBDZ/Financeiro/releases/latest) and double-click it. It does not ask for administrator rights. At the end, the site opens in your browser and you create your account.
+
+**On a Mac with an Apple chip (macOS 12 or newer).** Download `financeiro-…-macos-arm64.dmg` from [Releases](https://github.com/HunterBDZ/Financeiro/releases/latest), drag Financeiro to Applications and open it from there. Intel Macs are not supported yet.
+
+> [!WARNING]
+> The Windows and Mac installers are new and have not been tried on real computers yet. Without a paid signature, the system warns you when opening them: the [installation manual, in Portuguese,](docs/INSTALACAO.md) shows what to do.
+
+**On Linux.** Download the package from [Releases](https://github.com/HunterBDZ/Financeiro/releases/latest) and run, without `sudo`:
 
 ```sh
 tar xzf financeiro-*-linux-*.tar.gz
@@ -42,7 +49,7 @@ cd financeiro-*/
 ./instalar
 ```
 
-Open `http://localhost:8484` and create your account. There is no database to install. To use it on your phone, open **Settings → Use on your phone** and scan the code with the camera.
+Open `http://localhost:8484` and create your account. None of these needs a database installed. To use it on your phone, open **Settings → Use on your phone** and scan the code with the camera.
 
 **On an Ubuntu or Debian server:**
 
@@ -52,8 +59,6 @@ sudo bash Financeiro/instalar.sh
 ```
 
 **With Docker:** `docker compose up -d`, in the repository folder.
-
-Windows and Mac do not have an installer yet.
 
 ## Update and back up
 

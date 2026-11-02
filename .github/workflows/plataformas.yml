@@ -1,0 +1,126 @@
+name: Windows e Mac
+
+# Só à mão: um minuto de Windows custa o dobro, e um de Mac, dez vezes o de Linux, na cota do GitHub.
+# Monta os pacotes, instala, sobe o programa, confere o site e roda os testes em Windows e Mac de verdade.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  montar:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y nsis p7zip-full
+      - name: Pacote do app e instalador de Windows
+        run: packaging/empacotar.sh --saida "$RUNNER_TEMP/versao" --sistemas windows
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pacotes
+          path: ${{ runner.temp }}/versao/*
+          if-no-files-found: error
+
+  windows:
+    needs: montar
+    runs-on: windows-latest
+    env:
+      FIN_SEM_NAVEGADOR: '1'
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: pacotes
+          path: pacotes
+      - name: Instalar sem administrador
+        shell: pwsh
+        run: |
+          $exe = (Get-ChildItem pacotes\financeiro-*-windows-x86_64.exe).FullName
+          $p = Start-Process -FilePath $exe -ArgumentList '/S' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "instalador saiu com $($p.ExitCode)" }
+      - name: O site abre
+        shell: pwsh
+        run: |
+          foreach ($i in 1..60) {
+            try { $r = Invoke-WebRequest http://localhost:8484/login -MaximumRedirection 0 -SkipHttpErrorCheck; if ($r.StatusCode -in 200, 302) { "site no ar: $($r.StatusCode)"; exit 0 } } catch {}
+            Start-Sleep 2
+          }
+          Get-Content "$env:LOCALAPPDATA\Financeiro\log\programa.log" -Tail 30
+          throw 'o site não abriu'
+      - name: Testes do app
+        shell: pwsh
+        run: |
+          $prog = "$env:LOCALAPPDATA\Programs\Financeiro"
+          Set-Location "$prog\bin"
+          $env:PHPRC = '..\conf'
+          $env:FIN_PHP = "$prog\bin\php.exe"
+          $env:FIN_DADOS = "$env:RUNNER_TEMP\testes"
+          New-Item -ItemType Directory -Force $env:FIN_DADOS | Out-Null
+          .\php.exe ..\app\database\instalar.php --demo
+          if ($LASTEXITCODE -ne 0) { throw 'instalar falhou' }
+          .\php.exe ..\app\tests\run.php
+          if ($LASTEXITCODE -ne 0) { throw 'testes falharam' }
+      - name: Desinstalar deixa os dados
+        shell: pwsh
+        run: |
+          $prog = "$env:LOCALAPPDATA\Programs\Financeiro"
+          $p = Start-Process -FilePath "$prog\desinstalar.exe" -ArgumentList '/S', "_?=$prog" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "desinstalador saiu com $($p.ExitCode)" }
+          if (-not (Test-Path "$env:LOCALAPPDATA\Financeiro\financeiro.sqlite")) { throw 'os dados sumiram' }
+          if (Test-Path "$prog\bin") { throw 'o programa ficou' }
+      - name: Pasta com espaço e acento
+        shell: pwsh
+        run: |
+          $exe = (Get-ChildItem pacotes\financeiro-*-windows-x86_64.exe).FullName
+          $dest = 'C:\Usuários\João da Silva\Financeiro'
+          New-Item -ItemType Directory -Force 'C:\Usuários\João da Silva' | Out-Null
+          $si = New-Object System.Diagnostics.ProcessStartInfo $exe, "/S /D=$dest"
+          $si.UseShellExecute = $false
+          $p = [System.Diagnostics.Process]::Start($si); $p.WaitForExit()
+          foreach ($i in 1..60) {
+            try { $r = Invoke-WebRequest http://localhost:8484/login -MaximumRedirection 0 -SkipHttpErrorCheck; if ($r.StatusCode -in 200, 302) { "site no ar: $($r.StatusCode)"; exit 0 } } catch {}
+            Start-Sleep 2
+          }
+          throw 'o site não abriu com acento na pasta'
+
+  mac:
+    needs: montar
+    runs-on: macos-latest
+    env:
+      FIN_SEM_NAVEGADOR: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: pacotes
+          path: pacotes
+      - name: Montar o .app e o .dmg
+        run: packaging/macos/montar.sh --app-tar pacotes/financeiro-app-*.tar.gz --saida saida
+      - name: Instalar a partir do .dmg
+        run: |
+          hdiutil attach saida/financeiro-*-macos-arm64.dmg -mountpoint /tmp/financeiro-dmg -nobrowse
+          cp -R /tmp/financeiro-dmg/Financeiro.app /Applications/
+          hdiutil detach /tmp/financeiro-dmg
+      - name: O site abre
+        run: |
+          /Applications/Financeiro.app/Contents/Resources/financeiro abrir
+          for i in $(seq 1 60); do
+            c=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8484/login || true)
+            case "$c" in 200|302) echo "site no ar: $c"; exit 0 ;; esac
+            sleep 2
+          done
+          tail -30 "$HOME/Library/Application Support/Financeiro/log/programa.log"
+          exit 1
+      - name: Testes do app
+        run: |
+          export FIN_DADOS="$RUNNER_TEMP/testes"
+          B=/Applications/Financeiro.app/Contents/MacOS/frankenphp
+          P=/Applications/Financeiro.app/Contents/Resources/programa/app
+          export PHP_INI_SCAN_DIR=/Applications/Financeiro.app/Contents/Resources/programa/conf
+          FIN_PHP=$(printf '%s\tphp-cli' "$B"); export FIN_PHP
+          "$B" php-cli "$P/database/instalar.php" --demo
+          "$B" php-cli "$P/tests/run.php"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dmg
+          path: saida/*.dmg

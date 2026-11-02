@@ -1,5 +1,48 @@
 # Manual de instalação
 
+> [!WARNING]
+> Os instaladores de Windows e Mac são novos e ainda não passaram por computadores de verdade. Eles só foram montados e testados em simulação. Guarde um backup e conte o que acontecer numa [issue](https://github.com/HunterBDZ/Financeiro/issues).
+
+## No Windows
+
+Funciona no Windows 10 e 11, de 64 bits. Não pede administrador, e nenhum outro programa precisa ser instalado.
+
+1. Baixe `financeiro-…-windows-x86_64.exe` em [Versões](https://github.com/HunterBDZ/Financeiro/releases/latest).
+2. Dê dois cliques no arquivo.
+3. Se aparecer **"O Windows protegeu o computador"**, clique em **Mais informações** e depois em **Executar assim mesmo**. O aviso aparece porque o instalador ainda não tem assinatura paga, e não porque foi encontrado algum problema.
+4. No fim, deixe marcado **Abrir o Financeiro**. O site abre no navegador.
+5. Crie a sua conta e informe a data de início e quanto você tem hoje.
+
+Depois disso, use o ícone **Financeiro** na área de trabalho ou no menu Iniciar. O programa inicia sozinho quando você entra no Windows e não mostra nenhuma janela. O endereço é `http://localhost:8484`.
+
+Se o Windows 11 bloquear o instalador sem oferecer **Executar assim mesmo**, o **Controle Inteligente de Aplicativos** está ligado. Hoje, ele só aceita programas assinados, e não há como liberar só este.
+
+- **Onde fica:** o programa em `%LOCALAPPDATA%\Programs\Financeiro`, e os dados em `%LOCALAPPDATA%\Financeiro`.
+- **Desinstalar:** em **Configurações → Aplicativos**, escolha Financeiro. O desinstalador pergunta se os dados também devem ser apagados. Se você não confirmar, eles ficam.
+- **Atualizar:** em **Ajustes → Backup e atualização**, ou instale um pacote mais novo por cima. Os dados ficam.
+- **Pelo terminal:** `"%LOCALAPPDATA%\Programs\Financeiro\financeiro.cmd" status`. Também aceita `iniciar`, `parar` e `senha LOGIN`.
+
+## No Mac
+
+Funciona em Macs com chip Apple e macOS 12 ou mais novo. **Mac Intel não é atendido:** o FrankenPHP, que roda o site, não tem versão oficial para ele. Nesse caso, use [Docker](#com-docker).
+
+1. Baixe `financeiro-…-macos-arm64.dmg` em [Versões](https://github.com/HunterBDZ/Financeiro/releases/latest) e abra o arquivo.
+2. Arraste o **Financeiro** para **Applications** (Aplicativos).
+3. Abra o Financeiro na pasta Aplicativos. Se abrir de dentro do disco, ele pede para arrastar antes.
+4. Se o Mac disser que **não pode verificar o aplicativo**:
+   1. Clique em **OK** ou **Concluído**, sem mover para o Lixo.
+   2. Abra **Ajustes do Sistema** e depois **Privacidade e Segurança**.
+   3. Desça até o fim e clique em **Abrir Mesmo Assim**, ao lado de Financeiro.
+   4. Confirme com a senha do Mac.
+5. O site abre no navegador. Crie a sua conta e informe a data de início e quanto você tem hoje.
+
+O aviso aparece porque o aplicativo ainda não tem assinatura paga da Apple. Na primeira vez, o Mac também pode avisar que o Financeiro adicionou um item que abre em segundo plano: é ele que inicia o programa sozinho quando você entra no Mac. O endereço é `http://localhost:8484`.
+
+- **Onde fica:** os dados e o programa em uso em `~/Library/Application Support/Financeiro`.
+- **Desinstalar:** dê dois cliques em **Desinstalar o Financeiro**, dentro do `.dmg`. Ele pergunta se os dados também devem ser apagados. Se você não confirmar, eles ficam.
+- **Atualizar:** em **Ajustes → Backup e atualização**, ou arraste um pacote mais novo para Aplicativos e abra. Os dados ficam.
+- **Pelo Terminal:** `/Applications/Financeiro.app/Contents/Resources/financeiro status`. Também aceita `iniciar`, `parar` e `senha LOGIN`.
+
 ## No seu computador, com Linux
 
 Funciona em qualquer distribuição de 64 bits, sem `sudo` e sem instalar banco de dados.
@@ -26,12 +69,12 @@ O programa fica em `~/.local/lib/financeiro`, e os dados, em `~/.local/share/fin
 
 ### Usar no celular
 
-Abra **Ajustes → Usar no celular**, ligue o acesso pela rede e leia o código com a câmera do celular. O celular precisa estar na mesma rede, e o computador, ligado.
+Vale também para Windows e Mac. Abra **Ajustes → Usar no celular**, ligue o acesso pela rede e leia o código com a câmera do celular. O celular precisa estar na mesma rede, e o computador, ligado.
 
 > [!WARNING]
 > Na rede, a conexão não é criptografada: quem estiver nela pode ver a senha e os dados. Ligue só em rede de confiança.
 
-Se o celular não abrir, em geral é o firewall do computador. O Financeiro não mexe nele. A tela mostra o comando, que é um destes:
+Se o celular não abrir, em geral é o firewall do computador. O Financeiro não mexe nele. A tela mostra o que fazer em cada sistema. No Windows, permita o acesso quando o aviso aparecer, o que pode pedir a senha de quem administra o computador. No Mac, o firewall costuma vir desligado. No Linux, é um destes comandos:
 
 ```sh
 sudo ufw allow 8484/tcp
@@ -122,11 +165,14 @@ sudo sh -c 'gunzip -c /var/backups/financeiro/ARQUIVO.sql.gz | mysql financeiro'
 
 ## Esqueci a senha
 
-Outra pessoa com conta pode definir uma senha nova em **Ajustes → Pessoas**. Se não houver outra pessoa, gere uma senha nova no servidor, trocando `LOGIN`:
+Outra pessoa com conta pode definir uma senha nova em **Ajustes → Pessoas**. Se não houver outra pessoa, gere uma senha nova no computador onde o Financeiro está, trocando `LOGIN`:
 
-```sh
-sudo -u www-data php /var/www/financeiro/tools/redefinir-senha.php LOGIN
-```
+| Onde | Comando |
+|---|---|
+| Windows | `"%LOCALAPPDATA%\Programs\Financeiro\financeiro.cmd" senha LOGIN` |
+| Mac | `/Applications/Financeiro.app/Contents/Resources/financeiro senha LOGIN` |
+| Linux, pelo pacote | `financeiro senha LOGIN` |
+| Servidor | `sudo -u www-data php /var/www/financeiro/tools/redefinir-senha.php LOGIN` |
 
 ## Quando algo dá errado
 
@@ -149,6 +195,8 @@ sudo -u www-data php /var/www/financeiro/tools/redefinir-senha.php LOGIN
 | `outra atualização está rodando` | Dois comandos ao mesmo tempo | Espere o outro terminar |
 | `os testes da versão … falharam no ensaio` | A versão nova não funciona no seu ambiente | O site não mudou. Não insista e [abra uma issue](https://github.com/HunterBDZ/Financeiro/issues) |
 | Bloqueado no login | 5 tentativas erradas | Espere 10 minutos |
+| No Windows ou no Mac, o navegador abre uma página dizendo que o Financeiro não abriu | O programa não conseguiu iniciar | Reinicie o computador. Se continuar, a página mostra onde está o registro: envie numa [issue](https://github.com/HunterBDZ/Financeiro/issues) |
+| `Já está instalada uma versão mais nova` | O instalador é mais velho que o programa | Nada mudou. Baixe a versão mais nova |
 | `Unknown collation: utf8mb4_0900_ai_ci` | O banco é anterior ao MySQL 8 ou ao MariaDB 11.4.5 | Use MySQL 8 ou MariaDB 11.4.5 ou mais novo |
 | Aviso de JIT do PCRE no log | O kernel bloqueia memória JIT | Coloque `pcre.jit=0` no `php.ini` e recarregue o Apache |
 
