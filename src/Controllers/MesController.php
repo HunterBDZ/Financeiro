@@ -72,6 +72,9 @@ final class MesController
         $catFatura = $doCartaoDesde !== null ? CartaoModel::categoriaFatura() : null;
         $faturaDoCartao = $editavel && $catFatura !== null && $mes >= $doCartaoDesde;
 
+        // a previsão do mês como o plano a usa (a Fatura do cartão sem o que já foi pago dela em outro mês)
+        $prevPlano = $estado === 'real' ? [] : MotorFinanceiro::previsaoDoMes($d, $mes, $estado, $mesCal);
+        $parcelaDescontada = (float) ($linha['parcela_descontada'] ?? 0.0);
         $excecao = $d['excecao'][$mes] ?? [];
         $dia = $diaZeradas = $contasLinhas = $entradas = $incluir = [];
         foreach ($cats as $id => $c) {
@@ -84,6 +87,8 @@ final class MesController
                 // previsão: a meta vale para todo mês; 'ajuste' = este mês tem valor próprio
                 'meta_padrao' => PrevisaoEdicao::meta($d, $id), 'ajuste' => isset($excecao[$id]),
                 'do_cartao' => $faturaDoCartao && $id === $catFatura,
+                // conta ou entrada que veio menos que o previsto no mês aberto: a pessoa diz se foi o valor final ou se ainda falta
+                'a_menos' => $editavel && $estado === 'aberto' ? PrevisaoEdicao::aMenos($d, $id, $mes, $parcelaDescontada) : null,
             ];
             $temValor = $p > 0.004 || $r > 0.004;
             if (!$temValor && !$l['ativo']) {
@@ -110,7 +115,14 @@ final class MesController
                     $l['recorrente'] = $s !== null;
                     $l['status'] = $s['status'] ?? null;
                     $l['vencimento'] = $s['vencimento'] ?? null;
+                    $l['data_pagamento'] = $s['data_pagamento'] ?? null;
                     $l['pago'] = $s !== null ? round((float) $s['pago'], 2) : $r;
+                    if ($l['do_cartao']) {
+                        $l['a_menos'] = null;                // a previsão é do Cartão
+                    }
+                    // fechado: o lançado; aberto: o maior entre lançado e previsto; futuro: o previsto (a regra do motor)
+                    $pPlano = (float) ($prevPlano[$id] ?? 0.0);
+                    $l['valor'] = round(match ($estado) { 'real' => $r, 'aberto' => max($r, $pPlano), default => $pPlano }, 2);
                     $contasLinhas[] = $l;
                     break;
                 case 'Entradas':
@@ -164,8 +176,36 @@ final class MesController
     /* ================================================================== POST /mes/previsao */
 
     /**
+     * "Veio menos que o previsto" (POST /mes/previsao com acao final ou falta): final grava a previsão do
+     * mês igual ao que veio, só neste mês; falta não muda nada e diz o que o plano continua contando.
+     * Null quando não há o que decidir: o mês não começou ou já veio o previsto.
+     * @return ?array{celulas:list<array{0:int,1:string,2:?float}>, aviso:string, valor:float}
+     */
+    public static function valorFinal(array $d, int $cat, string $mes, string $acao, string $hoje): ?array
+    {
+        $linha = MotorFinanceiro::calcular($d, ['hoje' => $hoje])[$mes] ?? null;
+        if ($linha === null || $linha['estado'] !== 'aberto') {
+            return null;
+        }
+        $am = PrevisaoEdicao::aMenos($d, $cat, $mes, (float) $linha['parcela_descontada']);
+        if ($am === null) {
+            return null;
+        }
+        $c = $d['cats'][$cat];
+        if ($acao === 'falta') {
+            $vars = ['valor' => self::valorCurto(round($am['previsto'] - $am['veio'], 2)), 'nome' => nomeCurto($c)];
+            return ['celulas' => [], 'valor' => $am['final'], 'aviso' => $c['sinal'] === 1
+                ? t('O plano continua contando os {valor} que faltam receber de {nome}.', $vars)
+                : t('O plano continua contando os {valor} que faltam pagar de {nome}.', $vars)];
+        }
+        return ['celulas' => PrevisaoEdicao::celulas($d, $cat, $mes, 'salvar', $am['final'], false), 'valor' => $am['final'],
+                'aviso' => t('Valor final de {nome}: {valor}', ['nome' => nomeCurto($c), 'valor' => self::valorCurto($am['veio'])])];
+    }
+
+    /**
      * Edição da previsão de uma categoria no mês (e, com propagar, nos meses seguintes).
-     * Campos: mes, categoria_id, acao (salvar | tirar | meta), valor, propagar=1.
+     * Campos: mes, categoria_id, acao (salvar | tirar | meta | final | falta), valor, propagar=1.
+     * final e falta respondem ao "veio menos que o previsto" (valorFinal()): o valor vem do que foi lançado.
      */
     public function salvarPrevisao(): void
     {
@@ -190,8 +230,19 @@ final class MesController
             flash('warn', t('A Fatura do cartão deste mês vem das compras lançadas no Cartão'));
             redirecionar('/cartao?fatura=' . $mes . '#fatura', 303);
         }
+        $final = null;
         try {
-            $celulas = PrevisaoEdicao::celulas($d, $cat, $mes, $acao, $acao === 'salvar' ? parseMoedaBr($bruto) : null, $propagar);
+            if ($acao === 'final' || $acao === 'falta') {
+                $final = self::valorFinal($d, $cat, $mes, $acao, date('Y-m-d'));
+                if ($final === null || $acao === 'falta') {
+                    flash('success', $final['aviso'] ?? t('Nada mudou.'));     // falta: nada é gravado
+                    redirecionar($volta, 303);
+                }
+                $celulas = $final['celulas'];
+                $propagar = false;                                      // valor final: só este mês
+            } else {
+                $celulas = PrevisaoEdicao::celulas($d, $cat, $mes, $acao, $acao === 'salvar' ? parseMoedaBr($bruto) : null, $propagar);
+            }
         } catch (\InvalidArgumentException $e) {
             if (!$incluindo && !PrevisaoEdicao::editavel($d['cats'][$cat] ?? null)) {
                 flash('error', $e->getMessage());                // não há linha para reabrir com o erro
@@ -223,6 +274,7 @@ final class MesController
         $novo = $celulas[0][2];
         $meta = PrevisaoEdicao::meta($d, $cat);
         $oQue = match (true) {
+            $final !== null          => $final['aviso'],
             $novo === null           => t('{nome} segue a meta {valor}', ['valor' => self::valorCurto((float) $meta), 'nome' => nomeCurto($c)]),
             $acao === 'tirar'        => t('{nome} tirado', ['nome' => nomeCurto($c)]),
             default                  => nomeCurto($c) . ' ' . self::valorCurto($novo),

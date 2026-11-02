@@ -7,7 +7,9 @@ use Financeiro\Models\PrevisaoModel;
 
 /**
  * Checklist de contas recorrentes — 100% derivado (nunca marcado à mão):
- * "existe" vem da Previsão, "pago" vem da soma de Lançamentos daquela categoria no mês.
+ * "existe" vem da Previsão, "pago" vem da soma de Lançamentos daquela categoria no mês. A Fatura do
+ * cartão é a exceção: "pago" é o que foi pago da fatura que vence no mês, mesmo antes dele
+ * (CartaoFatura::atribuir), e o vencimento é o do cartão.
  */
 final class ChecklistContas
 {
@@ -22,19 +24,28 @@ final class ChecklistContas
         $hoje = new \DateTimeImmutable($hoje ?? 'today');
         $hoje = $hoje->setTime(0, 0);
         $resultado = [];
+        $fatura = MotorFinanceiro::dados()['fatura'];
 
         foreach (ContaRecorrenteModel::ativas() as $conta) {
             $previsto = PrevisaoModel::somaPorCategoriaNome($conta['categoria_nome'], $mes);
-            $pago     = LancamentoModel::somaPorCategoriaNome($conta['categoria_nome'], $mes);
+            if ((int) $conta['categoria_id'] === $fatura['cat']) {
+                $conta['dia_vencimento'] = $fatura['vence'];
+                $pagoFatura    = $fatura['faturas'][$mes] ?? null;
+                $pago          = (float) ($pagoFatura['pago'] ?? 0.0);
+                $dataPagamento = $pagoFatura['primeiro'] ?? null;
+            } else {
+                $pago          = LancamentoModel::somaPorCategoriaNome($conta['categoria_nome'], $mes);
+                $dataPagamento = $pago > 0 ? LancamentoModel::primeiraDataPorCategoriaNome($conta['categoria_nome'], $mes) : null;
+            }
             $existe   = $previsto > 0;
 
             $vencimento = self::dataVencimento($mes, (int) $conta['dia_vencimento']);
             $atrasado   = $existe && $pago <= 0 && $vencimento < $hoje;
 
-            $dataPagamento = $pago > 0 ? LancamentoModel::primeiraDataPorCategoriaNome($conta['categoria_nome'], $mes) : null;
             $pagoAtrasado  = $pago > 0 && $dataPagamento !== null && new \DateTimeImmutable($dataPagamento) > $vencimento;
-            // menos de 90% do previsto lançado ainda conta como "faltando pagar o resto"
-            $pagoParcial   = $pago > 0 && $existe && $pago < $previsto * 0.9;
+            // veio menos que o previsto: parcial até a pessoa dizer, no Mês, que esse foi o valor final
+            // (a previsão do mês passa a ser o pago) ou que ainda falta pagar
+            $pagoParcial   = $existe && PrevisaoEdicao::veioMenos($pago, $previsto);
 
             $status = match (true) {
                 !$existe        => 'inexistente',

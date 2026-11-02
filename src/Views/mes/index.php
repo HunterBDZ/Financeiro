@@ -40,12 +40,9 @@ $metaValCls = static function (float $gasto, ?float $meta) use ($metaEstado): st
 };
 
 /* ---------------------------------------------------------------- base dos valores */
-// conta (Fixos/Cartão/Ano): fechado → lançado; aberto → o maior entre lançado e previsto; futuro → previsto
-$valorConta = static fn(array $l): float => match ($estado) {
-    'real'   => $l['pago'],
-    'aberto' => max($l['pago'], $l['prev']),
-    default  => $l['prev'],
-};
+// conta (Fixos/Cartão/Ano): fechado → lançado; aberto → o maior entre lançado e previsto; futuro → previsto.
+// Vem pronto do MesController, pela regra do motor: a Fatura do cartão paga num mês anterior não conta de novo.
+$valorConta = static fn(array $l): float => $l['valor'];
 // dia a dia e entradas: fechado/aberto → lançado; futuro → previsto
 $valorDia = static fn(array $l): float => $estado === 'previsto' ? $l['prev'] : $l['real'];
 $valorEnt = static fn(array $l): float => match ($estado) {
@@ -107,7 +104,28 @@ $origem = static function (array $l) use ($estado, $fmt): string {
         : '<span class="mes-l2 mes-origem">' . e(t('segue a meta')) . '</span>';
 };
 
-$painel = static function (array $l, string $tipo) use ($csrf, $mes, $mesLbl, $estado, $fmt, $erroDe, $parcelaDescontada, $ehUltimo, $ultLbl): void {
+// veio menos que o previsto (mês aberto): a pessoa diz se esse foi o valor final do mês ou se ainda falta
+$aMenos = static function (array $l, string $tipo) use ($csrf, $mes): void {
+    $am = $l['a_menos'] ?? null;
+    if ($am === null) {
+        return;
+    } ?>
+    <form class="mes-final" method="post" action="/mes/previsao">
+        <?= $csrf ?>
+        <input type="hidden" name="mes" value="<?= e($mes) ?>">
+        <input type="hidden" name="categoria_id" value="<?= (int) $l['id'] ?>">
+        <p class="mes-final-txt"><?= t('Veio {veio} de {previsto} previstos', ['veio' => '<b class="num">' . e(money($am['veio'])) . '</b>', 'previsto' => '<span class="num">' . e(money($am['previsto'])) . '</span>']) ?></p>
+        <?php if ($am['parcela']): ?><p class="mes-final-nota"><?= e(t('Os dois já sem a parcela do empréstimo.')) ?></p><?php endif; ?>
+        <div class="mes-final-acoes">
+            <button type="submit" name="acao" value="final" class="btn btn-sm"><?= e(t('Foi o valor final')) ?></button>
+            <button type="submit" name="acao" value="falta" class="btn btn-sm"><?= $tipo === 'entrada' ? e(t('Ainda falta receber')) : e(t('Ainda falta pagar')) ?></button>
+        </div>
+        <p class="mes-final-nota"><?= e(t('Valor final: a previsão deste mês passa a ser o que veio. Os outros meses não mudam.')) ?></p>
+    </form>
+<?php };
+
+$painel = static function (array $l, string $tipo) use ($csrf, $mes, $mesLbl, $estado, $fmt, $erroDe, $parcelaDescontada, $ehUltimo, $ultLbl, $aMenos): void {
+    $aMenos($l, $tipo);
     $erro = $erroDe($l);
     $meta = $l['meta_padrao'];
     $info = [];
@@ -187,19 +205,23 @@ $linhaConta = static function (array $l) use ($estado, $valorConta, $fmt, $metaB
         <?php return;
     }
     $st = $l['status'];
-    // Situação da conta na 2ª linha, em texto com um ponto de cor: pago, parcial, vence, venceu, previsto.
+    // Situação da conta na 2ª linha, em texto com um ponto de cor: pago, veio menos, vence, venceu, previsto.
     $selo = '';
     $seloCls = 'previsto';
     $gastoConta = (float) ($l['pago'] ?? $l['real']);
     $metaConta  = $estado === 'previsto' ? null : ($l['meta'] ?? null);
     if ($estado === 'aberto') {
         $pagoTotal = $l['pago'] > 0.004 && $l['pago'] >= $l['prev'] - 0.004;
-        if (in_array($st, ['pago', 'pago_atrasado'], true) || ($st === null && $pagoTotal)) {
-            $selo = t('Pago');
-            $seloCls = 'pago';
-        } elseif ($st === 'pago_parcial') {
-            $selo = t('Pago em parte');
+        $am = $l['a_menos'] ?? null;
+        if ($am !== null || $st === 'pago_parcial') {
+            // veio menos que o previsto: no painel, "foi o valor final" ou "ainda falta pagar"
+            $selo = t('Veio {veio} de {previsto} previstos', ['veio' => $fmt((float) ($am['veio'] ?? $l['pago'])), 'previsto' => $fmt((float) ($am['previsto'] ?? $l['prev']))]);
             $seloCls = 'parcial';
+        } elseif (in_array($st, ['pago', 'pago_atrasado'], true) || ($st === null && $pagoTotal)) {
+            // a fatura paga no mês anterior ao vencimento diz quando: por isso ela não pesa neste mês
+            $selo = ($l['data_pagamento'] ?? null) !== null && $l['data_pagamento'] < $mes
+                ? t('Pago em {data}', ['data' => diaMes((string) $l['data_pagamento'])]) : t('Pago');
+            $seloCls = 'pago';
         } elseif ($st === 'atrasado') {
             $selo = t('Venceu {data}', ['data' => diaMes((string) $l['vencimento'])]);
             $seloCls = 'venceu';
@@ -225,12 +247,14 @@ $linhaConta = static function (array $l) use ($estado, $valorConta, $fmt, $metaB
 <?php };
 
 $linhaEntrada = static function (array $l) use ($valorEnt, $fmt, $painel, $abreLinha): void {
+    $am = $l['a_menos'] ?? null;
     $abreLinha($l); ?>
         <span class="mes-sum">
             <span class="mes-l1">
                 <span class="mes-nome"><?= e($l['nome']) ?></span>
                 <span class="mes-val num"><?= e($fmt($valorEnt($l))) ?></span>
             </span>
+            <?php if ($am !== null): ?><span class="mes-l2"><span class="mes-status mes-status-parcial"><?= e(t('Veio {veio} de {previsto} previstos', ['veio' => $fmt($am['veio']), 'previsto' => $fmt($am['previsto'])])) ?></span></span><?php endif; ?>
         </span>
         </summary>
         <?php $painel($l, 'entrada'); ?>
