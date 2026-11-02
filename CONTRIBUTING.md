@@ -1,0 +1,36 @@
+# Como contribuir
+
+Abra uma issue antes de uma mudança grande. Falhas de segurança seguem o [`SECURITY.md`](SECURITY.md).
+
+Ao enviar uma contribuição, você concorda em distribuí-la sob a licença do projeto, a [AGPL-3.0-or-later](LICENSE). Assine cada commit com `git commit -s` ([DCO](https://developercertificate.org/)).
+
+## Rodar localmente
+
+Você precisa de PHP 8.4 ou mais novo (com `pdo_mysql`, `mbstring` e `curl`) e de MySQL 8. Use um banco só para isso: o teste roda contra o banco de `config/.env`.
+
+```sh
+mysql -uroot -e "CREATE DATABASE financeiro_demo CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+  CREATE USER 'financeiro_demo'@'127.0.0.1' IDENTIFIED BY 'demo1234';
+  GRANT SELECT, INSERT, UPDATE, DELETE ON financeiro_demo.* TO 'financeiro_demo'@'127.0.0.1';"
+mysql -uroot financeiro_demo < database/schema.sql
+cp config/.env.example config/.env   # e aponte DB_HOST=127.0.0.1, DB_NAME, DB_USER e DB_PASS para o banco acima
+php database/instalar.php --demo     # dados fictícios; entre com ana / demo1234
+php -S 127.0.0.1:8099 -t public      # o site
+php tests/run.php                    # os testes
+```
+
+## Antes de enviar
+
+- `php tests/run.php` termina com 0 falhas.
+- Mudou o banco: siga [Como lançar uma versão](docs/LANCAR-VERSAO.md).
+- Texto novo passa por `t()`, com tradução em `src/idiomas/`. Rode `php tools/idiomas/gerar.php`, que aponta o que falta.
+- Não edite arquivos gerados à mão: temas, ícones e fontes do PDF têm um gerador em `tools/`.
+- O projeto não usa dependências no servidor, nem CDN.
+
+## Regras de texto
+
+- As telas servem a qualquer pessoa: não suponha tipo de empréstimo, profissão ou quantas pessoas usam o site.
+- Sem nome de instituição financeira em telas, código, documentos, prints ou commits. Use "a instituição" ou "o extrato".
+- Sem dados reais em exemplos, testes ou prints. Use a demonstração.
+
+O porquê das regras está em [`docs/decisoes.md`](docs/decisoes.md).

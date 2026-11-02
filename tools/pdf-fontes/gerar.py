@@ -2,7 +2,7 @@
 """Gera as fontes do PDF a partir das variáveis do app: TTF estático e um .php com cmap e larguras.
 O servidor não tem nada para ler fonte, então o PHP só lê o que sai daqui. Rode no desenvolvimento:
     python3 tools/pdf-fontes/gerar.py
-Precisa de fontTools e brotli. As fontes têm licença OFL, com os textos em public/assets/fonts."""
+Precisa de fontTools e brotli. As fontes têm licença OFL, com os textos em public/assets/fonts e em src/Pdf/fontes."""
 import io
 import os
 import sys
