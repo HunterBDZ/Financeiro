@@ -7,6 +7,7 @@
 #   financeiro desinstalar    tira o programa; os dados ficam. Com --apagar-dados, apaga também
 #   financeiro servir         roda em primeiro plano: é o que o serviço chama
 set -u
+umask 077
 
 AQUI=$(dirname "$(readlink -f "$0")")
 BIN=$AQUI/bin/frankenphp

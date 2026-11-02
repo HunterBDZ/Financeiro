@@ -4,6 +4,7 @@
 {
 	auto_https off
 	admin off
+	persist_config off
 	frankenphp
 }
 
