@@ -716,7 +716,8 @@ $emTransacao('categoria com ícone', static function () use ($check): void {
 Icones::limpar();
 $htmlEx = $render(LancamentosController::class, 'index', []);
 $htmlAjCat = $render(AjustesController::class, 'index', ['aberto' => 'categorias']);
-$check('extrato: ícone em cada lançamento, sem o painel de categorias', str_contains($htmlEx, 'class="ci"') && !str_contains($htmlEx, 'action="/categorias"'));
+$semLancamentos = (int) $pdo->query('SELECT COUNT(*) FROM lancamentos')->fetchColumn() === 0;
+$check('extrato: ícone em cada lançamento, sem o painel de categorias', ($semLancamentos || str_contains($htmlEx, 'class="ci"')) && !str_contains($htmlEx, 'action="/categorias"'));
 $check('ajustes: categorias, com o ícone dobrado em "Escolher ícone"', str_contains($htmlAjCat, 'id="categorias" open') && str_contains($htmlAjCat, 'action="/categorias"')
     && str_contains($htmlAjCat, 'class="ic-escolher"') && str_contains($htmlAjCat, 'data-ic-sugerir') && str_contains($htmlAjCat, '/icone?volta='));
 $check('lançar: atalho para criar categoria', str_contains($render(LancamentosController::class, 'lancarForm', []), 'class="lf-criar-cat" href="/ajustes?aberto=categorias#categorias"'));
@@ -1509,6 +1510,7 @@ Idioma::usar('pt');
 $pdo->beginTransaction();
 $ativoDe = static fn(string $n): int => (int) (CategoriaModel::porNome($n)['ativo'] ?? -1);
 $usoId = (int) $pdo->query("SELECT id FROM categorias WHERE nome = 'Combustível'")->fetchColumn();
+$pdo->prepare('UPDATE categorias SET ativo = 1 WHERE id = ?')->execute([$usoId]);    // conta nova sem carro: está desligada
 $pdo->prepare('INSERT INTO previsao (categoria_id, mes, valor) VALUES (?, ?, 1) ' . Sql::aoRepetir('categoria_id, mes', ['valor' => '1']))->execute([$usoId, date('Y-m-01')]);
 $idRev = (int) $pdo->query("SELECT id FROM categorias WHERE nome = 'Revisão do carro'")->fetchColumn();
 $pdo->prepare('DELETE FROM previsao WHERE categoria_id = ?')->execute([$idRev]);
