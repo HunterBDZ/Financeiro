@@ -89,3 +89,21 @@ export async function escolherTema(page, baseURL, tema) {
     });
     expect(r.status(), `tema ${tema}`).toBe(204);
 }
+
+/**
+ * Escolhe a categoria no formulário de lançar como a pessoa faz: um dos botões das mais usadas ou, se ela não
+ * estiver entre eles, "Mais…" e a lista completa (com a busca, quando há JS).
+ */
+export async function escolherCategoria(escopo, nome) {
+    const rapida = escopo.locator('label.lf-chip').filter({ has: escopo.page().locator('.lf-chip-n', { hasText: new RegExp(`^${nome}$`) }) });
+    if (await rapida.count() > 0) {
+        await rapida.first().click();
+        return;
+    }
+    await escopo.locator('[data-lf-mais] > summary').click();
+    const busca = escopo.getByRole('searchbox', { name: 'Buscar categoria' });
+    if (await busca.isVisible()) {
+        await busca.fill(nome);
+    }
+    await escopo.locator('label.lf-op').filter({ hasText: new RegExp(`^\\s*${nome}\\s*$`) }).first().click();
+}

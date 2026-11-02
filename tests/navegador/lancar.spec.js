@@ -1,6 +1,6 @@
 // Lançar um gasto: no computador (a coluna do Extrato e o diálogo) e no celular (o "+" da barra de baixo).
 // Cada teste usa valor e categoria só seus: lançamento igual no mesmo dia pede confirmação antes de entrar.
-import { test, expect } from './fixtures.js';
+import { test, expect, escolherCategoria } from './fixtures.js';
 
 test.describe('no computador', () => {
     test('lança 45 no Extrato, vê o aviso e desfaz', async ({ page }) => {
@@ -14,7 +14,7 @@ test.describe('no computador', () => {
         await valor.pressSequentially('45');
         await valor.blur();
         await expect(valor).toHaveValue('45,00');      // o valor é lido como se fala: 45 é R$ 45,00
-        await form.getByLabel('Categoria').selectOption({ label: 'Mercado' });
+        await escolherCategoria(form, 'Mercado');
         await form.getByLabel('descrição', { exact: true }).fill('Feira do teste');
         await form.getByRole('button', { name: 'Lançar' }).click();
 
@@ -63,7 +63,7 @@ test.describe('no celular', () => {
         const dialogo = page.getByRole('dialog', { name: 'lançar' });
         await expect(dialogo).toBeVisible();
         await dialogo.getByRole('textbox', { name: 'valor' }).pressSequentially('37');
-        await dialogo.getByLabel('Categoria').selectOption({ label: 'Lazer' });
+        await escolherCategoria(dialogo, 'Lazer');
         await dialogo.getByLabel('descrição', { exact: true }).fill('Cinema do teste');
         await dialogo.getByRole('button', { name: 'Lançar' }).tap();
 
