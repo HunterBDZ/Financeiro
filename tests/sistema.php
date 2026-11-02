@@ -189,8 +189,11 @@ $check('versão mais velha ou igual não é novidade', !Atualizacao::maisNova('0
 // ---- manutenção e configuração
 Manutencao::ligar();
 $check('manutenção: ligada', Manutencao::ativa());
-touch((string) Manutencao::arquivo(), time() - 5000);
+// a hora vem de dentro do arquivo, não da data dele: um relógio falso (libfaketime) distorce a data dos arquivos
+file_put_contents((string) Manutencao::arquivo(), (string) (time() - 5000));
 $check('manutenção: esquecida não prende o site', !Manutencao::ativa());
+file_put_contents((string) Manutencao::arquivo(), '');
+$check('manutenção: o arquivo vazio do financeiro-atualizar também vale', Manutencao::ativa());
 Manutencao::desligar();
 Primeira::gravarConfig('ACESSO_REDE', '1');
 Primeira::gravarConfig('CHAVE_NOVA', 'x');

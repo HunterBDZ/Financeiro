@@ -58,7 +58,13 @@ jobs:
           cp config/.env.example config/.env
           sed -i 's/^DB_HOST=.*/DB_HOST=127.0.0.1/; s/^DB_NAME=.*/DB_NAME=financeiro_demo/; s/^DB_USER=.*/DB_USER=demo/; s/^DB_PASS=.*/DB_PASS=demo1234/' config/.env
           php database/instalar.php --demo
+      # a conferência roda no banco acima; as regras, num banco MySQL que elas criam e apagam (por isso o root)
       - name: Testes
+        env:
+          FIN_REGRAS_DRIVER: mysql
+          FIN_REGRAS_DB_HOST: 127.0.0.1
+          FIN_REGRAS_DB_USER: root
+          FIN_REGRAS_DB_PASS: raiz
         run: php tests/run.php
       - name: Importar para SQLite e comparar os bancos
         run: |

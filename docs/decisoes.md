@@ -41,7 +41,8 @@ As regras do app e o porquê de cada uma. Para instalar e operar, veja o [manual
 - **Windows sem administrador:** instalador NSIS gerado em Linux e início por `HKCU\...\Run`. Atalho e início automático chamam `financeiro.exe` (`packaging/windows/lancador.c`), que inicia o `php.exe` com um console invisível. O `php-win.exe` não serve: sem console, cada programa que ele inicia abre uma janela preta. O `php.ini` e as extensões são relativos à pasta `bin`, a pasta atual de todo processo: com acento no caminho, o FrankenPHP não acha a extensão. O nome da pessoa ter acento é comum.
 - **Mac:** o programa em uso mora na pasta de dados, e só o binário fica no `.app`. Assim, a atualização pela tela não quebra a assinatura do aplicativo. Um `.app` só substitui o programa se for mais novo.
 - **`php -S` só para desenvolver:** atende uma página por vez. Use `tools/servir-dev.php`, que não serve arquivos com ponto.
-- **Testes dos sites:** rodam no ensaio e depois de aplicar, então não podem depender de dados específicos nem de cartão ou empréstimo cadastrados, e não podem deixar nada gravado.
+- **Testes dos sites:** rodam no ensaio e depois de aplicar, sobre os dados da pessoa, e por isso têm duas partes. A conferência só confere o que vale para qualquer casa, em qualquer data e idioma, e não grava nada. As regras, que precisam de dados conhecidos, rodam num banco de demonstração descartável, com o relógio parado num dia comum e no último dia do mês. Testes que supunham o formato dos dados ou a data barraram cinco versões seguidas.
+- **Relógio parado só na linha de comando:** `FIN_RELOGIO` vale nos testes e no `php -S`, nunca nas páginas servidas pelo Apache ou pelo FrankenPHP, para uma variável esquecida não pôr o site de alguém noutro dia. Backups, cookies, travas e a manutenção ficam na hora da máquina, porque contam tempo de verdade.
 
 ## Plano e previsão
 

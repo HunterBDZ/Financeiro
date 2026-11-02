@@ -23,7 +23,7 @@ public/      raiz do site: rotas e assets
 src/         Controllers, Models, Services e Views
 database/    schema.sqlite.sql, schema.sql, instalar.php, migrations/, migrations-sqlite/ e imagens da demonstração
 packaging/   pacotes de Linux, Windows e Mac, gerente do programa, php.ini, Caddyfile, entrada do Docker e o empacotador
-tests/       run.php e sistema.php, sem dependências
+tests/       run.php, conferencia.php, regras.php e sistema.php, sem dependências
 tools/       backup, atualização, importador e comparador de bancos, sprite de ícones e outros geradores
 docs/        manual de instalação, decisões e prints
 ```
@@ -60,10 +60,25 @@ php tools/comparar-bancos.php --a=/pasta/mysql --b=/pasta/sqlite                
 O cálculo mora em `MotorFinanceiro::calcular()`, que é aritmética pura: as simulações rodam o motor de novo com outras opções, sem tocar no banco.
 
 ```sh
-php tests/run.php    # o que grava é desfeito no fim; os dados não mudam
+php tests/run.php      # conferência, regras e sistema; os dados não mudam
+php tests/regras.php   # só as regras, num banco que nasce e morre na hora
 ```
 
-Os testes usam o banco de `config/.env` ou, com `FIN_DADOS`, o dessa pasta, e têm de passar nos dois bancos. Para desenvolver, prepare um banco de demonstração, como em [Como contribuir](../CONTRIBUTING.md#rodar-localmente).
+O atualizador roda `tests/run.php` numa cópia dos dados da pessoa, então ele separa duas coisas:
+
+- **Conferência** (`tests/conferencia.php`): roda no banco de `config/.env` ou, com `FIN_DADOS`, no dessa pasta. Só confere o que vale para qualquer casa, em qualquer data, idioma, moeda e fuso: as telas abrem sem erro, todo mês fechado fecha com o extrato, o Início bate com o banco, as traduções estão completas. Não supõe nada sobre os dados: mês sem lançamento, sem cartão, sem empréstimo, mês atual já fechado.
+- **Regras** (`tests/regras.php`): tudo o que precisa de dados conhecidos. Rodam em processo próprio, num banco de demonstração criado numa pasta temporária, com o relógio parado em 22/11/2026 15:30. Uma segunda passada, às 23:50 do último dia do mês, repete o que olha a data de hoje e roda a conferência sobre a demonstração. A pasta some no fim, mesmo se algo falhar.
+- **Sistema** (`tests/sistema.php`): backup, restauração, migrações e atualização, também num banco descartável.
+
+Tudo tem de passar nos dois bancos. Com `FIN_REGRAS_DRIVER=mysql`, as regras criam e apagam um banco MySQL próprio, com o usuário de `FIN_REGRAS_DB_USER`, `FIN_REGRAS_DB_PASS` e `FIN_REGRAS_DB_HOST`, como faz o CI. Para desenvolver, prepare um banco de demonstração, como em [Como contribuir](../CONTRIBUTING.md#rodar-localmente).
+
+## Relógio
+
+Toda regra que pergunta que dia é hoje usa `Financeiro\Relogio` (`hoje()`, `mes()`, `agora()`), no fuso do site, e nunca `date()` ou `time()` direto. O banco acompanha: `agora_local()` do SQLite vem dele, e no MySQL a conexão recebe `SET timestamp`.
+
+`FIN_RELOGIO='2026-11-22 15:30:00'` para o relógio nessa hora, no fuso do site, e ele não anda. Só vale na linha de comando e no `php -S`: os testes usam assim, e um teste no navegador pode usar também. Nas páginas servidas pelo Apache ou pelo FrankenPHP, a variável é ignorada.
+
+Continuam na hora da máquina, de propósito: nomes e rotação dos backups, a cópia do dia, a validade de cookies e da manutenção, travas, esperas e o estado da atualização. Nesses casos, o que importa é o tempo que passou de verdade.
 
 ## Acessibilidade
 
