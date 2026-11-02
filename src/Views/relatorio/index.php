@@ -46,6 +46,15 @@ $itens = [['bom', t('O que foi bom'), t('Nada relevante neste período.')], ['ru
             <p class="rl-periodo-nome"><?= e($r['titulo']) ?></p>
             <h2 class="rl-manchete" id="rl-manchete"><?= e($r['manchete']) ?></h2>
             <p class="rl-situacao"><?= e($r['situacao']) ?></p>
+            <?php if ($r['tipo'] === 'mensal' && !$r['encerrado'] && !empty($r['sobras'])): ?>
+                <dl class="rl-sobras num">
+                    <?php foreach ($r['sobras'] as $s): $rot = \Financeiro\Services\Sobra::rotulo((string) $s['base']); ?>
+                        <div><dt><?= e($rot) ?> <?= dica('numeros', $rot) ?></dt><dd data-sobra="<?= e((string) $s['base']) ?>"><?= e(money((float) $s['sobra'])) ?></dd></div>
+                    <?php endforeach; ?>
+                </dl>
+                <?php $ponteRl = \Financeiro\Services\Sobra::ponte(end($r['sobras'])); ?>
+                <?php if ($ponteRl !== null): ?><p class="rl-ponte num"><?= e(t('Na sobra prevista, entradas: {conta}', ['conta' => $ponteRl])) ?></p><?php endif; ?>
+            <?php endif; ?>
             <?php if (!empty($r['conferencia'])): ?>
                 <p class="rl-conf is-<?= e($r['conferencia']['tipo']) ?>"><?= $r['conferencia']['tipo'] === 'sem' ? '' : svgIcon($r['conferencia']['tipo'] === 'ok' ? 'check' : 'alert', 15) ?><span><?= e($r['conferencia']['texto']) ?></span></p>
             <?php endif; ?>

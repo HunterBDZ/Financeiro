@@ -1,8 +1,12 @@
 <?php
 /**
  * Extrato. Variáveis: $mes, $meses, $situacao, $estado, $hoje, $usuarios, $f, $quem,
- * $categoria (?array), $categorias (array), $q, $params (filtros ativos, com mes), $limite, $linhas,
- * $totais, $filtrado, $renda (?float, só sem filtro), $urlAtual, $form (partial de lançar da coluna do desktop).
+ * $categoria (?array), $categorias (array), $q, $modo ('' = o mês; ano, tudo, datas), $periodo (?de/ate),
+ * $rotuloPeriodo, $valores (min/max como digitados), $erroValor, $params (filtros ativos, com mes), $limite,
+ * $linhas, $totais, $filtrado, $renda (?float, só sem filtro), $urlAtual, $urlPlanilha,
+ * $form (partial de lançar da coluna do desktop).
+ * A busca vale para o mês, o ano dele, todos os meses ou entre datas; "Mais filtros" tem valor e quem lançou.
+ * Com filtro ou fora do mês, o topo responde com o total do que foi achado.
  */
 use Financeiro\View;
 
@@ -15,7 +19,9 @@ $rotuloDia = static function (string $data) use ($hoje): string {
         return t('Ontem');
     }
     $ts = (int) strtotime($data);
-    $rotulo = mb_convert_case(\Financeiro\Idioma::diaSemana((int) date('w', $ts)), MB_CASE_TITLE) . ', ' . t('{dia} de {mes}', ['dia' => (int) date('j', $ts), 'mes' => \Financeiro\Idioma::mesCurto((int) date('n', $ts))]);
+    $rotulo = mb_convert_case(\Financeiro\Idioma::diaSemana((int) date('w', $ts)), MB_CASE_TITLE) . ', ' . (substr($data, 0, 4) === substr($hoje, 0, 4)
+        ? t('{dia} de {mes}', ['dia' => (int) date('j', $ts), 'mes' => \Financeiro\Idioma::mesCurto((int) date('n', $ts))])
+        : t('{dia} de {mes} de {ano}', ['dia' => (int) date('j', $ts), 'mes' => \Financeiro\Idioma::mesCurto((int) date('n', $ts)), 'ano' => date('Y', $ts)]));
     return $data > $hoje ? t('{data} (agendado)', ['data' => $rotulo]) : $rotulo;
 };
 
@@ -66,13 +72,20 @@ $catAtual = $categoria !== null ? (int) $categoria['id'] : 0;
 
     <section class="ex-main" aria-label="<?= e(t('extrato')) ?>">
         <div class="ex-topo">
-            <?php View::partial('partials/mes_nav', ['mes' => $mes, 'meses' => $meses, 'href' => '/lancamentos?mes=', 'sufixo' => $sufixo]); ?>
+            <?php if ($modo === ''): ?>
+                <?php View::partial('partials/mes_nav', ['mes' => $mes, 'meses' => $meses, 'href' => '/lancamentos?mes=', 'sufixo' => $sufixo]); ?>
+            <?php else: ?>
+                <div class="ex-periodo-topo">
+                    <h1 class="pg-titulo"><?= e($rotuloPeriodo) ?></h1>
+                    <a class="ex-voltar-mes" href="<?= e($url(['periodo' => '', 'de' => '', 'ate' => ''])) ?>"><?= e(t('Ver só {mes}', ['mes' => mesAno($mes)])) ?></a>
+                </div>
+            <?php endif; ?>
         </div>
 
         <!-- filtros -->
         <div class="ex-filtros-wrap">
             <form class="ex-filtros-row" method="get" action="/lancamentos" role="search" id="ex-filtro-form">
-                <?php foreach (array_diff_key($params, ['q' => 1, 'f' => 1, 'cat' => 1, 'ordem' => 1]) as $k => $v): ?>
+                <?php foreach (array_diff_key($params, ['q' => 1, 'f' => 1, 'cat' => 1, 'ordem' => 1, 'periodo' => 1, 'de' => 1, 'ate' => 1, 'min' => 1, 'max' => 1, 'quem' => 1]) as $k => $v): ?>
                     <input type="hidden" name="<?= e((string) $k) ?>" value="<?= e((string) $v) ?>">
                 <?php endforeach; ?>
 
@@ -95,6 +108,17 @@ $catAtual = $categoria !== null ? (int) $categoria['id'] : 0;
                     <?php endforeach; ?>
                 </select>
 
+                <?php $periodos = ['' => mb_convert_case(mesAno($mes), MB_CASE_TITLE), 'ano' => t('O ano de {ano}', ['ano' => substr($mes, 0, 4)]), 'tudo' => t('Todos os meses'), 'datas' => t('Entre datas')]; ?>
+                <select class="ex-periodo-select" name="periodo" aria-label="<?= e(t('período')) ?>" data-ex-periodo>
+                    <?php foreach ($periodos as $pv => $plbl): ?>
+                        <option value="<?= e($pv) ?>"<?= $modo === $pv ? ' selected' : '' ?>><?= e($plbl) ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <div class="ex-datas<?= $modo === 'datas' ? ' is-on' : '' ?>" data-ex-datas>
+                    <label class="ex-campo"><span><?= e(t('De')) ?></span><input type="date" name="de" value="<?= e((string) ($periodo['de'] ?? '')) ?>"></label>
+                    <label class="ex-campo"><span><?= e(t('Até')) ?></span><input type="date" name="ate" value="<?= e((string) ($periodo['ate'] ?? '')) ?>"></label>
+                </div>
+
                 <?php
                 $ordens = ['' => t('Mais recentes'), 'dia-asc' => t('Mais antigos'), 'valor-desc' => t('Maior valor'), 'valor-asc' => t('Menor valor'), 'alfa' => t('De A a Z')];
                 ?>
@@ -105,6 +129,24 @@ $catAtual = $categoria !== null ? (int) $categoria['id'] : 0;
                 </select>
 
                 <button type="submit" class="btn btn-primary ex-busca-btn" aria-label="<?= e(t('buscar')) ?>"><?= svgIcon('search', 16) ?><span class="ex-busca-txt"><?= e(t('Buscar')) ?></span></button>
+
+                <?php $maisAberto = $valores['min'] !== '' || $valores['max'] !== '' || $quem > 0 || $erroValor !== null; ?>
+                <details class="ex-mais-filtros"<?= $maisAberto ? ' open' : '' ?>>
+                    <summary><?= e(t('Mais filtros: valor e quem lançou')) ?></summary>
+                    <div class="ex-mais-c">
+                        <label class="ex-campo"><span><?= e(t('Valor mínimo')) ?></span><input type="text" name="min" inputmode="decimal" autocomplete="off" placeholder="<?= e(numInput(0)) ?>" value="<?= e($valores['min']) ?>"<?= $erroValor !== null ? ' aria-describedby="ex-erro-valor"' : '' ?>></label>
+                        <label class="ex-campo"><span><?= e(t('Valor máximo')) ?></span><input type="text" name="max" inputmode="decimal" autocomplete="off" placeholder="<?= e(numInput(0)) ?>" value="<?= e($valores['max']) ?>"<?= $erroValor !== null ? ' aria-describedby="ex-erro-valor"' : '' ?>></label>
+                        <?php if (count($usuarios) > 1): ?>
+                            <label class="ex-campo ex-campo-quem"><span><?= e(t('Quem lançou')) ?></span>
+                                <select name="quem">
+                                    <option value=""><?= e(t('Todas as pessoas')) ?></option>
+                                    <?php foreach ($usuarios as $u): ?><option value="<?= (int) $u['id'] ?>"<?= (int) $u['id'] === $quem ? ' selected' : '' ?>><?= e((string) $u['nome']) ?></option><?php endforeach; ?>
+                                </select>
+                            </label>
+                        <?php endif; ?>
+                        <?php if ($erroValor !== null): ?><p class="aviso aviso-error ex-erro" id="ex-erro-valor" role="alert"><?= e($erroValor) ?></p><?php endif; ?>
+                    </div>
+                </details>
             </form>
 
             <?php if ($filtrado): ?>
@@ -115,14 +157,22 @@ $catAtual = $categoria !== null ? (int) $categoria['id'] : 0;
                     <?php if ($categoria !== null): ?>
                         <a class="chip is-on ex-chip-x" href="<?= e($url(['cat' => ''])) ?>" aria-label="<?= e(t('tirar filtro {nome}', ['nome' => nomeCurto($categoria)])) ?>"><?= e(nomeCurto($categoria)) ?> <span aria-hidden="true">×</span></a>
                     <?php endif; ?>
-                    <a class="ex-limpar" href="<?= e($url(['f' => '', 'cat' => '', 'q' => ''])) ?>"><?= e(t('Limpar filtros')) ?></a>
+                    <?php if ($valores['min'] !== '' || $valores['max'] !== ''): ?>
+                        <a class="chip is-on ex-chip-x" href="<?= e($url(['min' => '', 'max' => ''])) ?>" aria-label="<?= e(t('tirar filtro de valor')) ?>"><?= e($valores['max'] === '' ? t('A partir de {valor}', ['valor' => money((float) parseMoedaBr($valores['min']))]) : ($valores['min'] === '' ? t('Até {valor}', ['valor' => money((float) parseMoedaBr($valores['max']))]) : t('De {min} a {max}', ['min' => money((float) parseMoedaBr($valores['min'])), 'max' => money((float) parseMoedaBr($valores['max']))]))) ?> <span aria-hidden="true">×</span></a>
+                    <?php endif; ?>
+                    <?php foreach ($usuarios as $u): if ($quem > 0 && (int) $u['id'] === $quem): ?>
+                        <a class="chip is-on ex-chip-x" href="<?= e($url(['quem' => ''])) ?>" aria-label="<?= e(t('tirar filtro {nome}', ['nome' => (string) $u['nome']])) ?>"><?= e((string) $u['nome']) ?> <span aria-hidden="true">×</span></a>
+                    <?php endif; endforeach; ?>
+                    <a class="ex-limpar" href="<?= e($url(['f' => '', 'cat' => '', 'q' => '', 'min' => '', 'max' => '', 'quem' => '', 'periodo' => '', 'de' => '', 'ate' => ''])) ?>"><?= e(t('Limpar filtros')) ?></a>
                 </div>
             <?php endif; ?>
         </div>
 
         <?php if ($linhas === []): ?>
             <div class="card ex-vazio">
-                <?php if ($q !== ''): ?>
+                <?php if ($modo !== '' || $valores['min'] !== '' || $valores['max'] !== '' || $quem > 0): ?>
+                    <p><?= e(t('Nada encontrado com esses filtros em {periodo}.', ['periodo' => $rotuloPeriodo])) ?></p>
+                <?php elseif ($q !== ''): ?>
                     <p><?= e(t('Nada com “{q}” em {mes}.', ['mes' => monthLabel($mes), 'q' => $q])) ?></p>
                 <?php elseif ($categoria !== null): ?>
                     <p><?= e(t('Nada de {categoria} em {mes}.', ['mes' => monthLabel($mes), 'categoria' => nomeCurto($categoria)])) ?></p>
@@ -137,17 +187,27 @@ $catAtual = $categoria !== null ? (int) $categoria['id'] : 0;
                 <?php endif; ?>
             </div>
         <?php else: ?>
-            <?php if ($filtrado): ?>
-                <div class="ex-resumo">
-                    <span class="ex-resumo-item"><span class="ex-resumo-num num"><?= (int) $totais['n'] ?></span><span class="ex-resumo-label"><?= e(tn((int) $totais['n'], 'lançamento', 'lançamentos')) ?></span></span>
-                    <?php if ((int) $totais['n_op'] > 0): ?>
-                        <span class="ex-resumo-item"><span class="ex-resumo-num num"><?= e(money((float) $totais['soma'])) ?></span><span class="ex-resumo-label"><?= e(t('total')) ?></span></span>
-                    <?php endif; ?>
-                    <?php if ((float) $totais['mov'] > 0.004): ?>
-                        <span class="ex-resumo-item"><span class="ex-resumo-num num ex-v-mov">⇄ <?= e(num((float) $totais['mov'])) ?></span><span class="ex-resumo-label"><?= e(t('movimentações')) ?></span></span>
-                    <?php endif; ?>
-                </div>
-            <?php endif; ?>
+            <?php // o total no topo: com filtro ou fora do mês, responde "quanto foi"; a planilha leva o mesmo resultado ?>
+            <div class="ex-resumo-linha">
+                <?php if ($filtrado): ?>
+                    <div class="ex-resumo">
+                        <span class="ex-resumo-item"><span class="ex-resumo-num num"><?= e(num((int) $totais['n'], 0)) ?></span><span class="ex-resumo-label"><?= e(tn((int) $totais['n'], 'lançamento', 'lançamentos')) ?></span></span>
+                        <?php if ((float) $totais['gasto'] > 0.004): ?>
+                            <span class="ex-resumo-item"><span class="ex-resumo-num num neg" data-ex-total="gasto"><?= e(money((float) $totais['gasto'])) ?></span><span class="ex-resumo-label"><?= e(t('em gastos')) ?></span></span>
+                        <?php endif; ?>
+                        <?php if ((float) $totais['entrada'] > 0.004): ?>
+                            <span class="ex-resumo-item"><span class="ex-resumo-num num pos" data-ex-total="entrada"><?= e(money((float) $totais['entrada'])) ?></span><span class="ex-resumo-label"><?= e(t('em entradas')) ?></span></span>
+                        <?php endif; ?>
+                        <?php if ((float) $totais['gasto'] > 0.004 && (float) $totais['entrada'] > 0.004): ?>
+                            <span class="ex-resumo-item"><span class="ex-resumo-num num" data-ex-total="soma"><?= e(moneySigned((float) $totais['soma'])) ?></span><span class="ex-resumo-label"><?= e(t('total')) ?></span></span>
+                        <?php endif; ?>
+                        <?php if ((float) $totais['mov'] > 0.004): ?>
+                            <span class="ex-resumo-item"><span class="ex-resumo-num num ex-v-mov">⇄ <?= e(num((float) $totais['mov'])) ?></span><span class="ex-resumo-label"><?= e(t('movimentações')) ?></span></span>
+                        <?php endif; ?>
+                    </div>
+                <?php endif; ?>
+                <a class="btn btn-ghost btn-sm ex-csv" href="<?= e($urlPlanilha) ?>"><?= svgIcon('download', 16) ?><?= e(t('Exportar planilha (CSV)')) ?></a>
+            </div>
 
             <div class="card ex-lista">
                 <?php $agrupado = $ordem === '' || $ordem === 'dia-asc'; $i = 0; foreach ($dias as $data => $rows): ?>

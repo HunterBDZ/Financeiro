@@ -29,7 +29,7 @@ $difContrato = $feitos === [] && $sit['contrato'] !== null && $sit['quita'] !== 
                     <div class="saldo-duas">
                         <div><small><?= e(t('Termina em')) ?></small><b class="num"><?= $sit['quita'] !== null ? e(monthLabel($sit['quita'])) : e(t('não dá para dizer')) ?></b>
                             <?php if ($sit['restantes'] !== null): ?><small class="num"><?= e(t('{n} parcelas', ['n' => (int) $sit['restantes']])) ?></small><?php endif; ?></div>
-                        <div><small><?= e(t('Juros ainda a pagar')) ?></small><b class="num"><?= $sit['jurosFaltam'] !== null ? e(num((float) $sit['jurosFaltam'], 0)) : '—' ?></b>
+                        <div><small><?= e(t('Juros ainda a pagar')) ?></small><b class="num"><?= $sit['jurosFaltam'] !== null ? e(num((float) $sit['jurosFaltam'])) : '—' ?></b>
                             <small><?= e(t('se você pagar só as parcelas')) ?></small></div>
                     </div>
                 <?php endif; ?>

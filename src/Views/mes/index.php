@@ -1,15 +1,17 @@
 <?php
 /**
  * Mês — entradas, saídas (essenciais × não essenciais) e o saldo em conta.
- * Base dos números, por estado do mês: fechado = só o lançado; aberto = lançado até hoje e,
- * nas contas, o previsto do que ainda falta (max); futuro = previsto.
+ * Base dos números, por estado do mês, a mesma do plano (a "sobra prevista" e a previsão do fim do mês):
+ * fechado = só o lançado; aberto = em cada categoria, o maior entre o lançado e o previsto (a barra mostra
+ * quanto já foi); futuro = previsto. Assim as linhas somam o resumo de cima.
  * Mês aberto ou futuro: tocar numa linha abre a edição da previsão do mês (POST /mes/previsao);
  * "+ incluir conta" põe no mês uma conta que ainda não tem previsão. O título abre o seletor de meses.
  * Nenhum cálculo de motor aqui: tudo vem do MesController.
  */
+use Financeiro\Services\Sobra;
 use Financeiro\View;
 
-$fmt     = static fn(float $v): string => num($v, fmod(abs($v), 1) > 0.004 ? 2 : 0);
+$fmt     = static fn(float $v): string => num($v);
 $csrf    = csrfField();
 $mesLbl  = monthLabel($mes);
 $pct = static fn(float $x): string => round(max(0.0, min(1.0, $x)) * 100, 2) . '%';
@@ -28,7 +30,7 @@ $metaBarra = static function (float $gasto, ?float $meta) use ($pct, $metaEstado
     if ($m === null) {
         return '';
     }
-    $ref = $m['fora'] ? t('passou de {valor}', ['valor' => num($m['meta'], 0)]) : t('{gasto} de {meta}', ['gasto' => num($gasto, 0), 'meta' => num($m['meta'], 0)]);
+    $ref = $m['fora'] ? t('passou de {valor}', ['valor' => num($m['meta'])]) : t('{gasto} de {meta}', ['gasto' => num($gasto), 'meta' => num($m['meta'])]);
     return '<span class="mes-l2 meta-barra ' . $m['cls'] . '">'
         . '<span class="bullet bullet-sm meta-bar" style="--pct:' . $pct($m['frac']) . '"><span class="bullet-fill"></span></span>'
         . '<span class="meta-ref num">' . e($ref) . '</span></span>';
@@ -43,8 +45,12 @@ $metaValCls = static function (float $gasto, ?float $meta) use ($metaEstado): st
 // conta (Fixos/Cartão/Ano): fechado → lançado; aberto → o maior entre lançado e previsto; futuro → previsto.
 // Vem pronto do MesController, pela regra do motor: a Fatura do cartão paga num mês anterior não conta de novo.
 $valorConta = static fn(array $l): float => $l['valor'];
-// dia a dia e entradas: fechado/aberto → lançado; futuro → previsto
-$valorDia = static fn(array $l): float => $estado === 'previsto' ? $l['prev'] : $l['real'];
+// dia a dia: no mês aberto, o que o plano conta para o mês inteiro; o que já foi gasto fica na barra
+$valorDia = static fn(array $l): float => match ($estado) {
+    'real'   => $l['real'],
+    'aberto' => max($l['real'], $l['prev']),
+    default  => $l['prev'],
+};
 $valorEnt = static fn(array $l): float => match ($estado) {
     'real'   => $l['real'],
     'aberto' => max($l['real'], $l['prev']),
@@ -81,7 +87,6 @@ $semMov        = array_values(array_filter($diaZeradas, static fn($l) => !$temMe
 $totalEss    = array_sum(array_map($valorConta, $essContas)) + array_sum(array_map($valorDia, $diaEss));
 $totalNaoEss = array_sum(array_map($valorConta, $naoEssContas)) + array_sum(array_map($valorDia, $diaNaoEss));
 $totalSaidas = $totalEss + $totalNaoEss;
-$balanco     = round($totalEntrou - $totalSaidas, 2);
 $contaCls    = $emConta < -0.004 ? 'neg' : ($emConta < $reserva - 0.004 ? 'warn' : '');
 $nivel       = $emConta < $reserva - 0.004 ? 'is-abaixo' : 'is-acima';   // campo do resumo: menta ou laranja
 
@@ -180,12 +185,16 @@ $abreLinha = static function (array $l) use ($erroDe): void { ?>
 $linhaDia = static function (array $l) use ($estado, $valorDia, $metaBarra, $metaValCls, $origem, $painel, $abreLinha): void {
     $v    = $valorDia($l);
     $meta = $estado === 'previsto' ? null : ($l['meta'] ?? null);
+    // mês aberto sem meta, mas com previsão: a barra mostra quanto da previsão já foi gasto
+    if ($meta === null && $estado === 'aberto' && $l['prev'] > 0.004) {
+        $meta = $l['prev'];
+    }
     $barra = $metaBarra((float) $l['real'], $meta);
     $abreLinha($l); ?>
         <span class="mes-sum">
             <span class="mes-l1">
                 <span class="mes-nome"><?= e($l['nome']) ?></span>
-                <span class="mes-val num<?= $metaValCls((float) $l['real'], $meta) ?>"><?= e(num($v, 0)) ?></span>
+                <span class="mes-val num<?= $metaValCls((float) $l['real'], $meta) ?>"><?= e(num($v)) ?></span>
             </span>
             <?= $barra ?><?= $origem($l) ?>
         </span>
@@ -199,7 +208,7 @@ $linhaConta = static function (array $l) use ($estado, $valorConta, $fmt, $metaB
         $v = $valorConta($l); ?>
         <a class="mes-linha mes-ro mes-do-cartao" href="/cartao?fatura=<?= e($mes) ?>#fatura">
             <?= iconeCategoria((int) $l['id'], (string) ($l['nome_completo'] ?? $l['nome']), (string) ($l['grupo'] ?? ''), 40, 'mes-ic') ?>
-            <span class="mes-sum"><span class="mes-l1"><span class="mes-nome"><?= e(nomeCategoria($l['nome_completo'])) ?></span><span class="mes-val num"><?= e(num($v, fmod(abs($v), 1) > 0.004 ? 2 : 0)) ?></span></span>
+            <span class="mes-sum"><span class="mes-l1"><span class="mes-nome"><?= e(nomeCategoria($l['nome_completo'])) ?></span><span class="mes-val num"><?= e(num($v)) ?></span></span>
             <span class="mes-l2"><span class="mes-status mes-status-previsto"><?= e(t('Vem do Cartão · ver a fatura')) ?></span></span></span>
         </a>
         <?php return;
@@ -312,7 +321,7 @@ $linhaLeitura = static function (array $l, float $v): void { ?>
     <li class="mes-ro">
         <?= iconeCategoria((int) $l['id'], (string) ($l['nome_completo'] ?? $l['nome']), (string) ($l['grupo'] ?? ''), 40, 'mes-ic') ?>
         <span class="mes-nome"><?= e(in_array($l['grupo'] ?? '', ['Fixos', 'Cartao', 'Ano'], true) ? nomeCategoria($l['nome_completo']) : $l['nome']) ?></span>
-        <span class="num"><?= e(num($v, fmod(abs($v), 1) > 0.004 ? 2 : 0)) ?></span>
+        <span class="num"><?= e(num($v)) ?></span>
     </li>
 <?php };
 ?>
@@ -359,22 +368,30 @@ $linhaLeitura = static function (array $l, float $v): void { ?>
         $txtConta  = num($emConta);
         $virgula   = strrpos($txtConta, sepDecimal());
         $estadoTxt = $emConta < -0.004 ? t('No vermelho')
-            : ($reserva <= 0.004 ? '' : ($emConta < $reserva - 0.004 ? t('{valor} abaixo da reserva', ['valor' => num($reserva - $emConta, 0)]) : t('{valor} acima da reserva', ['valor' => num($emConta - $reserva, 0)])));
+            : ($reserva <= 0.004 ? '' : ($emConta < $reserva - 0.004 ? t('{valor} abaixo da reserva', ['valor' => num($reserva - $emConta)]) : t('{valor} acima da reserva', ['valor' => num($emConta - $reserva)])));
+        $ponte = Sobra::ponte($sobra);
+        $sobraV = (float) $sobra['sobra'];
         ?>
         <section class="saldo mes-resumo <?= $emConta < -0.004 ? 'is-vermelho' : $nivel ?>" aria-labelledby="mes-res-t">
             <div class="saldo-l1"><h2 id="mes-res-t"><?= substr((string) $hoje, 0, 7) === substr($mes, 0, 7) ? e(t('Em conta hoje')) : e(t('Conta no fim do mês')) ?></h2><?php if ($estadoTxt !== ''): ?><span class="saldo-estado num"><?= e($estadoTxt) ?></span><?php endif; ?></div>
             <p class="saldo-v num"><small><?= e(moedaSimbolo()) ?></small><?= e($virgula === false ? $txtConta : substr($txtConta, 0, $virgula)) ?><span><?= e($virgula === false ? '' : substr($txtConta, $virgula)) ?></span></p>
             <?php if ($estado === 'aberto' && isset($linha['fica_na_conta'])): ?>
-                <p class="saldo-prev num" data-previsao-fim><?= t('Previsão para o fim de {mes}: {valor}', ['mes' => e(mesExtenso($mes)), 'valor' => '<b>' . e(num((float) $linha['fica_na_conta'], 0)) . '</b>']) ?></p>
+                <p class="saldo-prev num" data-previsao-fim><?= t('Previsão para o fim de {mes}: {valor}', ['mes' => e(mesExtenso($mes)), 'valor' => '<b>' . e(num((float) $linha['fica_na_conta'])) . '</b>']) ?></p>
             <?php endif; ?>
         </section>
 
-        <!-- o resumo das listas abaixo, antes delas -->
-        <dl class="card mes-conta-rap num">
-            <div><dt><?= e(t('Entradas')) ?></dt><dd class="pos"><?= e(num($totalEntrou, 0)) ?></dd></div>
-            <div><dt><?= e(t('Saídas')) ?></dt><dd class="neg"><?= e(num($totalSaidas, 0)) ?></dd></div>
-            <div><dt><?= e(t('Diferença')) ?></dt><dd class="<?= $balanco < -0.004 ? 'neg' : 'pos' ?>"><?= e(($balanco < -0.004 ? MENOS : '') . num(abs($balanco), 0)) ?></dd></div>
-        </dl>
+        <!-- o resumo das listas abaixo, antes delas: a sobra com o nome da base; a renda é a sem a parcela -->
+        <div class="card mes-conta-rap-card">
+            <dl class="mes-conta-rap num">
+                <div><dt><?= e(t('Entradas')) ?></dt><dd class="pos"><?= e(num((float) $sobra['renda'])) ?></dd></div>
+                <div><dt><?= e(t('Saídas')) ?></dt><dd class="neg"><?= e(num((float) $sobra['saidas'])) ?></dd></div>
+                <?php if (abs((float) ($sobra['mov'] ?? 0.0)) >= 0.005): ?>
+                    <div><dt><?= e(t('Empréstimo e poupança')) ?></dt><dd class="<?= (float) $sobra['mov'] < 0 ? 'neg' : 'pos' ?>"><?= e(num((float) $sobra['mov'])) ?></dd></div>
+                <?php endif; ?>
+                <div><dt><?= e(Sobra::rotulo((string) $sobra['base'])) ?> <?= dica('numeros', Sobra::rotulo((string) $sobra['base'])) ?></dt><dd class="<?= $sobraV < -0.004 ? 'neg' : 'pos' ?>" data-sobra="<?= e((string) $sobra['base']) ?>"><?= e(num($sobraV)) ?></dd></div>
+            </dl>
+            <?php if ($ponte !== null): ?><p class="mes-ponte num"><?= e(t('Entradas: {conta}', ['conta' => $ponte])) ?></p><?php endif; ?>
+        </div>
 
         <?php if ($menu['fechar'] && substr($mes, 0, 7) === substr((string) $hoje, 0, 7)): ?>
             <a class="mes-fechar-link" href="/mes/fechar?mes=<?= e($mes) ?>"><?= e(t('Fechar este mês')) ?></a>
@@ -407,7 +424,7 @@ $linhaLeitura = static function (array $l, float $v): void { ?>
             <?php if ($editavel): ?>
 
                 <details class="mes-grupo" open>
-                    <summary class="mes-sub-titulo"><?= e(t('Essenciais')) ?> <span class="num"><?= e(num($totalEss, 0)) ?></span></summary>
+                    <summary class="mes-sub-titulo"><?= e(t('Essenciais')) ?> <span class="num"><?= e(num($totalEss)) ?></span></summary>
                     <div class="mes-linhas">
                         <?php foreach ($essContas as $l) { $linhaConta($l); } ?>
                         <?php foreach ($diaEss as $l) { $linhaDia($l); } ?>
@@ -421,7 +438,7 @@ $linhaLeitura = static function (array $l, float $v): void { ?>
                 $naoEss = array_merge($naoEss, $comMetaNaoEss);
                 if ($naoEss !== []): ?>
                     <details class="mes-grupo" open>
-                        <summary class="mes-sub-titulo"><?= e(t('Não essenciais')) ?> <span class="num"><?= e(num($totalNaoEss, 0)) ?></span></summary>
+                        <summary class="mes-sub-titulo"><?= e(t('Não essenciais')) ?> <span class="num"><?= e(num($totalNaoEss)) ?></span></summary>
                         <div class="mes-linhas">
                             <?php foreach ($naoEss as $l) { $l['grupo'] === 'Dia a dia' ? $linhaDia($l) : $linhaConta($l); } ?>
                         </div>

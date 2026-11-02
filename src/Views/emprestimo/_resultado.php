@@ -55,8 +55,8 @@ foreach ($curva as $i => $c) {
     <p class="emp-res-v num"><small><?= e(t('Falta depois')) ?></small><b><?= $quitaAgora ? e(t('Nada: quitado')) : e(money((float) $sim['falta'])) ?></b></p>
     <dl class="emp-dl num">
         <div><dt><?= e(t('Termina em')) ?></dt><dd><?= $sim['quita'] !== null ? e(monthLabel($sim['quita'])) : e(t('não dá para dizer')) ?><?php if ($antesTxt !== ''): ?><small class="pos"><?= e($antesTxt) ?></small><?php endif; ?></dd></div>
-        <div><dt><?= e(t('Juros a menos')) ?></dt><dd<?= $sim['jurosMenos'] !== null ? ' class="pos"' : '' ?>><?= $sim['jurosMenos'] !== null ? moedaSimbolo() . NBSP . e(num((float) $sim['jurosMenos'], 0)) : '—' ?></dd></div>
-        <div><dt><?= e(t('Conta no fim de {mes}', ['mes' => $rot])) ?></dt><dd<?= $sim['contaDepois'] < -0.004 ? ' class="neg"' : '' ?>><?= e(num((float) $sim['contaDepois'], 0)) ?><small><?= e(t('sem adiantar, {valor}', ['valor' => num((float) $sim['contaAntes'], 0)])) ?></small></dd></div>
+        <div><dt><?= e(t('Juros a menos')) ?></dt><dd<?= $sim['jurosMenos'] !== null ? ' class="pos"' : '' ?>><?= $sim['jurosMenos'] !== null ? moedaSimbolo() . NBSP . e(num((float) $sim['jurosMenos'])) : '—' ?></dd></div>
+        <div><dt><?= e(t('Conta no fim de {mes}', ['mes' => $rot])) ?></dt><dd<?= $sim['contaDepois'] < -0.004 ? ' class="neg"' : '' ?>><?= e(num((float) $sim['contaDepois'])) ?><small><?= e(t('sem adiantar, {valor}', ['valor' => num((float) $sim['contaAntes'])])) ?></small></dd></div>
     </dl>
 
     <?php if ($sim['alerta'] !== null): ?>
@@ -83,7 +83,7 @@ foreach ($curva as $i => $c) {
                     <thead><tr><th scope="col"><?= e(t('Fim de')) ?></th><th scope="col"><?= e(t('Só parcelas')) ?></th><th scope="col"><?= e(t('Com adiantamento')) ?></th></tr></thead>
                     <tbody>
                         <?php foreach ($anos as $c): ?>
-                            <tr><th scope="row"><?= e(monthLabel($c['mes'])) ?></th><td><?= e(num((float) $c['antes'], 0)) ?></td><td><?= (float) $c['com'] > 0.01 ? e(num((float) $c['com'], 0)) : e(t('quitado')) ?></td></tr>
+                            <tr><th scope="row"><?= e(monthLabel($c['mes'])) ?></th><td><?= e(num((float) $c['antes'])) ?></td><td><?= (float) $c['com'] > 0.01 ? e(num((float) $c['com'])) : e(t('quitado')) ?></td></tr>
                         <?php endforeach; ?>
                     </tbody>
                 </table>

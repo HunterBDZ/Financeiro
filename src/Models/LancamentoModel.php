@@ -19,13 +19,36 @@ final class LancamentoModel
     }
 
     /**
-     * WHERE comum do extrato. $f: grupo (string[]), usuario_id (int), categoria_id (int), q (string).
+     * WHERE comum do extrato. $f: grupo (string[]), usuario_id (int), categoria_id (int), q (string),
+     * periodo (array{de:?string, ate:?string}, AAAA-MM-DD inclusivos, null = sem limite; sem ele, vale o mês),
+     * min e max (float: o valor, sem sinal). As datas usam idx_data e idx_categoria_data.
      * @return array{0:string,1:array<string,mixed>}
      */
     private static function filtro(string $mes, array $f): array
     {
-        $w = ['l.data >= :inicio', 'l.data < :fim'];
-        $p = ['inicio' => $mes, 'fim' => self::fimDoMes($mes)];
+        $w = [];
+        $p = [];
+        if (isset($f['periodo']) && is_array($f['periodo'])) {
+            if (($f['periodo']['de'] ?? null) !== null) {
+                $w[] = 'l.data >= :inicio';
+                $p['inicio'] = (string) $f['periodo']['de'];
+            }
+            if (($f['periodo']['ate'] ?? null) !== null) {
+                $w[] = 'l.data <= :fim';
+                $p['fim'] = (string) $f['periodo']['ate'];
+            }
+        } else {
+            $w = ['l.data >= :inicio', 'l.data < :fim'];
+            $p = ['inicio' => $mes, 'fim' => self::fimDoMes($mes)];
+        }
+        if (isset($f['min'])) {
+            $w[] = 'l.valor >= :vmin';
+            $p['vmin'] = round((float) $f['min'], 2);
+        }
+        if (isset($f['max'])) {
+            $w[] = 'l.valor <= :vmax';
+            $p['vmax'] = round((float) $f['max'], 2);
+        }
 
         $grupos = array_values(array_filter((array) ($f['grupo'] ?? []), 'is_string'));
         if ($grupos !== []) {
@@ -72,12 +95,12 @@ final class LancamentoModel
             $w[] = "(l.descricao LIKE :q1 ESCAPE '!' OR c.nome LIKE :q2 ESCAPE '!' OR c.apelido LIKE :q3 ESCAPE '!'" . $ouTraduzida . ')';
             $p['q1'] = $p['q2'] = $p['q3'] = $like;
         }
-        return [implode(' AND ', $w), $p];
+        return [$w === [] ? '1 = 1' : implode(' AND ', $w), $p];
     }
 
     /**
-     * Extrato: lançamentos de um mês (Y-m-01), mais novos primeiro.
-     * $f: grupo (string[]), usuario_id (int), categoria_id (int), q (string), limite (int; 0 = todos).
+     * Extrato: lançamentos de um mês (Y-m-01) ou de um período ($f['periodo']), mais novos primeiro.
+     * $f: os de filtro(), ordem e limite (int; 0 = todos).
      */
     public static function listar(string $mes, array $f): array
     {
@@ -107,38 +130,68 @@ final class LancamentoModel
     }
 
     /**
-     * Totais do extrato com os mesmos filtros de listar() (sobre TODAS as linhas, não só as exibidas):
-     * n, soma (Σ sinal·valor só das operacionais — invariante 2), n_op, mov (Σ valor de crédito,
-     * amortização e poupança, mostrado só como ⇄), gasto (Σ gastos operacionais), por_dia [data => gasto operacional],
-     * por_usuario [usuario_id => n].
+     * Totais do extrato com os mesmos filtros de listar() (sobre TODAS as linhas, não só as exibidas), numa linha só
+     * (em qualquer período): n, soma (Σ sinal·valor só das operacionais — invariante 2), n_op, mov (Σ valor de
+     * crédito, amortização e poupança, mostrado só como ⇄), gasto (Σ gastos operacionais), entrada (Σ entradas operacionais).
      */
     public static function totais(string $mes, array $f): array
     {
         [$where, $params] = self::filtro($mes, $f);
         $stmt = Database::connection()->prepare(
-            'SELECT l.data, l.usuario_id, COUNT(*) AS n,
-                    SUM(CASE WHEN c.operacional = 1 THEN c.sinal * l.valor ELSE 0 END) AS soma,
-                    SUM(CASE WHEN c.operacional = 1 THEN 1 ELSE 0 END) AS n_op,
-                    SUM(CASE WHEN c.operacional = 1 THEN 0 ELSE l.valor END) AS mov,
-                    SUM(CASE WHEN c.operacional = 1 AND c.sinal = -1 THEN l.valor ELSE 0 END) AS gasto
+            'SELECT COUNT(*) AS n,
+                    COALESCE(SUM(CASE WHEN c.operacional = 1 THEN c.sinal * l.valor ELSE 0 END), 0) AS soma,
+                    COALESCE(SUM(CASE WHEN c.operacional = 1 THEN 1 ELSE 0 END), 0) AS n_op,
+                    COALESCE(SUM(CASE WHEN c.operacional = 1 THEN 0 ELSE l.valor END), 0) AS mov,
+                    COALESCE(SUM(CASE WHEN c.operacional = 1 AND c.sinal = -1 THEN l.valor ELSE 0 END), 0) AS gasto,
+                    COALESCE(SUM(CASE WHEN c.operacional = 1 AND c.sinal = 1 THEN l.valor ELSE 0 END), 0) AS entrada
              FROM lancamentos l
              JOIN categorias c ON c.id = l.categoria_id
-             WHERE ' . $where . '
-             GROUP BY l.data, l.usuario_id'
+             WHERE ' . $where
         );
         $stmt->execute($params);
-        $t = ['n' => 0, 'n_op' => 0, 'soma' => 0.0, 'mov' => 0.0, 'gasto' => 0.0, 'por_dia' => [], 'por_usuario' => []];
-        foreach ($stmt->fetchAll() as $r) {
-            $t['n'] += (int) $r['n'];
-            $t['n_op'] += (int) $r['n_op'];
-            $t['soma'] += (float) $r['soma'];
-            $t['mov'] += (float) $r['mov'];
-            $t['gasto'] += (float) $r['gasto'];
-            $t['por_dia'][$r['data']] = ($t['por_dia'][$r['data']] ?? 0.0) + (float) $r['gasto'];
-            $uid = (int) $r['usuario_id'];
-            $t['por_usuario'][$uid] = ($t['por_usuario'][$uid] ?? 0) + (int) $r['n'];
-        }
-        return $t;
+        $r = $stmt->fetch() ?: [];
+        return [
+            'n' => (int) ($r['n'] ?? 0), 'n_op' => (int) ($r['n_op'] ?? 0), 'soma' => round((float) ($r['soma'] ?? 0), 2),
+            'mov' => round((float) ($r['mov'] ?? 0), 2), 'gasto' => round((float) ($r['gasto'] ?? 0), 2), 'entrada' => round((float) ($r['entrada'] ?? 0), 2),
+        ];
+    }
+
+    /**
+     * Para a planilha: os lançamentos dos mesmos filtros, do mais antigo ao mais novo, em lotes de $lote linhas
+     * (paginação pela chave data + id, sem OFFSET): a memória fica do tamanho de um lote, mesmo com anos de dados.
+     * @return \Generator<int, array{id:int,data:string,descricao:string,valor:float,categoria_nome:string,apelido:?string,sinal:int,usuario_nome:string}>
+     */
+    public static function emLotes(string $mes, array $f, int $lote = 1000): \Generator
+    {
+        [$where, $params] = self::filtro($mes, $f);
+        $lote = max(1, $lote);
+        $depois = null;
+        do {
+            $w = $where;
+            $p = $params;
+            if ($depois !== null) {
+                $w .= ' AND (l.data > :kd1 OR (l.data = :kd2 AND l.id > :kid))';
+                $p += ['kd1' => $depois[0], 'kd2' => $depois[0], 'kid' => $depois[1]];
+            }
+            $stmt = Database::connection()->prepare(
+                'SELECT l.id, l.data, l.descricao, l.valor, c.nome AS categoria_nome, c.apelido, c.sinal, u.nome AS usuario_nome
+                 FROM lancamentos l
+                 JOIN categorias c ON c.id = l.categoria_id
+                 JOIN usuarios u ON u.id = l.usuario_id
+                 WHERE ' . $w . '
+                 ORDER BY l.data, l.id
+                 LIMIT ' . $lote
+            );
+            $stmt->execute($p);
+            $linhas = $stmt->fetchAll();
+            foreach ($linhas as $r) {
+                yield $r;
+            }
+            if ($linhas !== []) {
+                $ult = $linhas[count($linhas) - 1];
+                $depois = [(string) $ult['data'], (int) $ult['id']];
+            }
+        } while (count($linhas) === $lote);
     }
 
     /** Um lançamento, com categoria e quem lançou. */

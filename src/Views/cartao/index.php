@@ -94,7 +94,7 @@ $statusTxt = static function (array $f) use ($hoje): string {
 $ancora = static fn(string $m): string => 'f-' . substr($m, 0, 7);
 $pe = [[t('Vence'), t('{dia} de {mes}', ['dia' => (int) substr($fAberta['vence'], 8, 2), 'mes' => mesExtenso($fAberta['vence'])])]];
 if ($p['livre'] !== null) {
-    $pe[] = [t('Limite livre'), t('{livre} de {limite}', ['livre' => num((float) $p['livre']), 'limite' => num((float) $cfg['limite'], 0)])];
+    $pe[] = [t('Limite livre'), t('{livre} de {limite}', ['livre' => num((float) $p['livre']), 'limite' => num((float) $cfg['limite'])])];
 }
 $hrefLancar = '/lancar?pagou=cartao&volta=' . rawurlencode('/cartao');
 ?>
@@ -188,7 +188,7 @@ $hrefLancar = '/lancar?pagou=cartao&volta=' . rawurlencode('/cartao');
             </details>
             <dl class="ct-dados num">
                 <div><dt><?= e(t('Fecha')) ?></dt><dd><?= e(t('dia {n}', ['n' => (int) $cfg['fecha']])) ?></dd></div><div><dt><?= e(t('Vence')) ?></dt><dd><?= e(t('dia {n}', ['n' => (int) $cfg['vence']])) ?></dd></div>
-                <div><dt><?= e(t('Limite')) ?></dt><dd><?= $cfg['limite'] !== null ? e(num((float) $cfg['limite'], 0)) : '—' ?></dd></div>
+                <div><dt><?= e(t('Limite')) ?></dt><dd><?= $cfg['limite'] !== null ? e(num((float) $cfg['limite'])) : '—' ?></dd></div>
                 <div><dt><?= e(t('No plano')) ?></dt><dd><?= $cfg['alimenta_plano'] ? e(t('pelas parcelas')) : e(t('previsão digitada')) ?></dd></div>
             </dl>
             <p class="ct-escada-sub" style="margin-top:10px"><?= e(t('A fatura conta como um gasto no mês em que vence. As compras não são somadas duas vezes.')) ?></p>

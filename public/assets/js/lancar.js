@@ -2,7 +2,8 @@
 // toque — o iOS só abre o teclado dentro do gesto do usuário. Também: [data-categoria],
 // [data-valor], [data-descricao], [data-data] preenchem o form; tecla "n" (desktop); fechar
 // (×, Esc, toque fora); checagem mínima antes de enviar + trava de duplo envio; o valor estilo
-// maquininha (só dígitos, vírgula automática); o filtro do extrato. Sem nada inline (CSP
+// maquininha (só dígitos, vírgula automática); a categoria em um toque (botões, "Mais…" e a busca
+// da lista); o filtro do extrato. Sem nada inline (CSP
 // script-src 'self'). Sai sem fazer nada quando a página não tem #lancar, form[data-lf] nem filtro.
 (function () {
     'use strict';
@@ -32,17 +33,62 @@
         return form.querySelector('[data-lf-valor]');
     }
 
+    // a categoria: rádios (botões das mais usadas + a lista do "Mais…"); o <select> antigo ainda vale
     function campoCategoria(form) {
-        return form.querySelector('select[name="categoria_id"]');
+        var marcado = form.querySelector('input[name="categoria_id"]:checked');
+        if (marcado) {
+            return marcado.closest('.lf-op') && !marcado.closest('details[open]') ? form.querySelector('[data-lf-mais] > summary') : marcado;
+        }
+        return form.querySelector('input[data-lf-rapida]') || form.querySelector('[data-lf-mais] > summary') || form.querySelector('select[name="categoria_id"]');
     }
 
     function categoriaDe(form) {
-        var sel = campoCategoria(form);
+        var marcado = form.querySelector('input[name="categoria_id"]:checked');
+        if (marcado) {
+            return marcado.value;
+        }
+        var sel = form.querySelector('select[name="categoria_id"]');
         return sel && sel.value !== '' ? sel.value : null;
     }
 
+    // o "Mais…" mostra a categoria escolhida na lista; a que também tem botão fica marcada no botão
+    function sincronizarMais(form) {
+        var mais = form.querySelector('[data-lf-mais]');
+        if (!mais) {
+            return;
+        }
+        var marcado = form.querySelector('input[name="categoria_id"]:checked');
+        var rot = mais.querySelector('[data-lf-mais-rot]');
+        var op = marcado ? marcado.closest('.lf-op') : null;
+        mais.classList.toggle('is-sel', !!op);
+        if (!rot) {
+            return;
+        }
+        rot.textContent = '';
+        if (op) {
+            var ic = op.querySelector('.ci');
+            if (ic) {
+                rot.appendChild(ic.cloneNode(true));
+            }
+            var nome = document.createElement('span');
+            nome.textContent = (op.querySelector('span:last-child') || op).textContent;
+            rot.appendChild(nome);
+        } else {
+            var mais1 = document.createElement('span');
+            mais1.textContent = T('Mais…');
+            rot.appendChild(mais1);
+        }
+    }
+
     function marcarCategoria(form, id) {
-        var sel = campoCategoria(form);
+        var radios = form.querySelectorAll('input[name="categoria_id"][value="' + String(id).replace(/[^0-9]/g, '') + '"]');
+        if (radios.length) {
+            var alvo = form.querySelector('input[data-lf-rapida][value="' + String(id).replace(/[^0-9]/g, '') + '"]') || radios[0];
+            alvo.checked = true;
+            sincronizarMais(form);
+            return;
+        }
+        var sel = form.querySelector('select[name="categoria_id"]');
         if (sel) {
             sel.value = String(id);
         }
@@ -210,12 +256,79 @@
         }
     });
 
-    // escolher a categoria some com o aviso
+    // escolher a categoria some com o aviso; na lista, a que tem botão passa para o botão e o "Mais…" fecha
     document.addEventListener('change', function (ev) {
         var el = ev.target;
         if (el instanceof Element && el.matches('form[data-lf] [name="categoria_id"]') && el.form) {
             mostrarErro(el.form, '');
+            var form = el.form;
+            if (el.closest('.lf-op')) {
+                var botao = form.querySelector('input[data-lf-rapida][value="' + el.value + '"]');
+                if (botao) {
+                    botao.checked = true;
+                }
+                var mais = form.querySelector('[data-lf-mais]');
+                if (mais && mais.open && !el.matches(':focus-visible')) {
+                    mais.open = false;                  // escolheu com o dedo ou o mouse: a lista fecha
+                }
+            }
+            sincronizarMais(form);
         }
+    });
+
+    // busca da lista completa: mostra a caixa (sem JS ela fica escondida) e filtra enquanto se digita
+    document.querySelectorAll('[data-lf-mais]').forEach(function (mais) {
+        var busca = mais.querySelector('[data-lf-busca]');
+        if (!busca) {
+            return;
+        }
+        busca.hidden = false;
+        var vazio = mais.querySelector('[data-lf-vazio]');
+        var sem = function (s) { return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); };
+        var filtrar = function () {
+            var q = sem(busca.value.trim());
+            var achou = 0;
+            mais.querySelectorAll('[data-lf-grupo]').forEach(function (g) {
+                var n = 0;
+                g.querySelectorAll('[data-lf-op]').forEach(function (op) {
+                    var ok = q === '' || sem(op.getAttribute('data-lf-op')).indexOf(q) !== -1;
+                    op.hidden = !ok;
+                    if (ok) { n++; }
+                });
+                g.hidden = n === 0;
+                achou += n;
+            });
+            if (vazio) {
+                vazio.hidden = achou > 0;
+            }
+            return achou;
+        };
+        busca.addEventListener('input', filtrar);
+        busca.addEventListener('keydown', function (ev) {
+            var visiveis = Array.prototype.filter.call(mais.querySelectorAll('[data-lf-op] input'), function (i) { return !i.closest('[hidden]'); });
+            if (ev.key === 'Enter') {
+                ev.preventDefault();                    // Enter na busca não envia o lançamento
+                if (visiveis.length === 1) {
+                    visiveis[0].checked = true;
+                    visiveis[0].dispatchEvent(new Event('change', { bubbles: true }));
+                    mais.open = false;
+                    var s = mais.querySelector('summary');
+                    if (s) { s.focus(); }
+                }
+            } else if (ev.key === 'ArrowDown' && visiveis.length) {
+                ev.preventDefault();
+                visiveis[0].focus();
+            }
+        });
+        mais.addEventListener('toggle', function () {
+            if (mais.open) {
+                busca.value = '';
+                filtrar();
+                if (window.matchMedia('(pointer: fine)').matches) {
+                    busca.focus();                      // no celular, o teclado não abre sozinho
+                }
+            }
+        });
     });
 
     // antes de enviar: valor e categoria (o servidor valida tudo de novo); trava o duplo toque
@@ -278,6 +391,26 @@
                 inp.type = 'hidden'; inp.name = 'cat'; inp.value = v;
                 filtroForm.appendChild(inp);
             }
+        });
+    }
+
+    // período do extrato: o mês, o ano ou todos os meses buscam na hora; "Entre datas" mostra as datas e espera o Buscar
+    var periodoSel = document.querySelector('[data-ex-periodo]');
+    if (filtroForm && periodoSel) {
+        var datas = filtroForm.querySelector('[data-ex-datas]');
+        periodoSel.addEventListener('change', function () {
+            if (periodoSel.value === 'datas') {
+                if (datas) {
+                    datas.classList.add('is-on');
+                    var de = datas.querySelector('input[name="de"]');
+                    if (de) { de.focus(); }
+                }
+                return;
+            }
+            if (datas) {
+                datas.classList.remove('is-on');
+            }
+            if (typeof filtroForm.requestSubmit === 'function') { filtroForm.requestSubmit(); } else { filtroForm.submit(); }
         });
     }
 

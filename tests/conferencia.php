@@ -179,7 +179,7 @@ function conferencia(callable $check): void
     $mesPrev = MesModel::referencia($hoje);
     $linhaPrev = MotorFinanceiro::linhaDoMes($mesPrev);
     if ($linhaPrev !== null && $linhaPrev['situacao'] !== 'REAL') {
-        $valPrev = num((float) $linhaPrev['fica_na_conta'], 0);
+        $valPrev = num((float) $linhaPrev['fica_na_conta']);
         $tagPrev = 'data-previsao-fim>Previsão para o fim de ' . mesExtenso($mesPrev) . ': <b>' . $valPrev . '</b>';
         $check('Início: previsão do fim do mês vem do mesmo plano do Anual', str_contains($htmlIni, $tagPrev) && str_contains($htmlAno, $valPrev));
         // com o mês atual já fechado, o Início olha para o próximo, e o Mês continua no atual

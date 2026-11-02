@@ -32,7 +32,7 @@ $verMeses = isset($_GET['mes']) || isset($_GET['parcelas']);   // quem escolheu 
         <p class="wl-resposta"><?= t('Melhor mês: {link}', ['link' => '<a href="' . e($link($prev['melhor'], $parcelas)) . '" data-wl-mes>' . e($rotuloMes($prev['melhor'])) . '</a>']) ?></p>
         <p class="wl-resposta-2"><?= e($prev['temDivida'] && $prev['semCusto'] !== null ? t('A conta fica acima da reserva e o empréstimo não atrasa.') : ($prev['temDivida'] ? t('É o primeiro que cabe, mas qualquer compra atrasa o empréstimo neste plano.') : t('A conta fica acima da reserva.'))) ?></p>
         <?php if ($esperar): $linkCedo = '<a href="' . e($link($prev['cedo'], $parcelas)) . '" data-wl-mes>' . ($prev['cedo'] === $agora ? e(t('dá para comprar agora')) : e(t('dá em {mes}', ['mes' => $rotuloMes($prev['cedo'])]))) . '</a>'; ?>
-            <p class="wl-resposta-2"><?= $cedo['custo'] >= 1 ? t('Sem esperar: {link}, com {valor} de juros a mais.', ['link' => $linkCedo, 'valor' => moedaSimbolo() . NBSP . e(num((float) $cedo['custo'], 0))]) : t('Sem esperar: {link}.', ['link' => $linkCedo]) ?></p>
+            <p class="wl-resposta-2"><?= $cedo['custo'] >= 1 ? t('Sem esperar: {link}, com {valor} de juros a mais.', ['link' => $linkCedo, 'valor' => moedaSimbolo() . NBSP . e(num((float) $cedo['custo']))]) : t('Sem esperar: {link}.', ['link' => $linkCedo]) ?></p>
         <?php endif; ?>
     <?php else: ?>
         <p class="wl-resposta"><?= e(t('Não cabe até {mes}', ['mes' => $rotuloMes($prev['ultimo'])])) ?></p>
@@ -74,7 +74,7 @@ $verMeses = isset($_GET['mes']) || isset($_GET['parcelas']);   // quem escolheu 
                     <div><dt><?= e(t('Mês mais apertado')) ?></dt><dd class="num<?= $sel['pior']['fica'] < -0.004 ? ' neg' : ($sel['estado'] !== 'ok' ? ' warn' : '') ?>"><?= e(money((float) $sel['pior']['fica'])) ?><small><?= e($rotuloMes($sel['pior']['mes'])) ?></small></dd></div>
                     <?php if ($prev['temDivida']): ?>
                         <div><dt><?= e(t('Empréstimo termina em')) ?></dt><dd class="num"><?= $sel['quita'] !== null ? e($rotuloMes($sel['quita'])) : e(t('sem data')) ?><?php if ($sel['atraso'] > 0): ?><small><?= e(tn((int) $sel['atraso'], '1 mês depois', '{n} meses depois')) ?></small><?php endif; ?></dd></div>
-                        <div><dt><?= e(t('Juros a mais')) ?></dt><dd class="num"><?= $sel['custo'] >= 1 ? moedaSimbolo() . NBSP . e(num((float) $sel['custo'], 0)) : e(t('nenhum')) ?></dd></div>
+                        <div><dt><?= e(t('Juros a mais')) ?></dt><dd class="num"><?= $sel['custo'] >= 1 ? moedaSimbolo() . NBSP . e(num((float) $sel['custo'])) : e(t('nenhum')) ?></dd></div>
                     <?php endif; ?>
                 </dl>
                 <?php if ($parcelas === 1 && $sel['estado'] === 'ok'): ?>

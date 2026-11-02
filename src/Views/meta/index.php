@@ -24,20 +24,20 @@ $linha = static function (array $c) use ($pct): void {
     $id    = (int) $c['id'];
     $meta  = $c['meta'];
     $gasto = (float) $c['gasto'];
-    $val   = $meta !== null ? numInput((float) $meta, 0) : '';
+    $val   = $meta !== null ? numInput((float) $meta, fmod(abs((float) $meta), 1) > 0.004 ? 2 : 0) : '';
     $grupo = (int) $c['essencial'] === 1 ? 'ess' : 'nao';
 
     if ($meta === null) {
         $cls = 'is-none'; $pctFill = 0.0;
-        $resumo = $gasto > 0.004 ? t('Gasto {valor}', ['valor' => num($gasto, 0)]) : t('Defina a meta');
+        $resumo = $gasto > 0.004 ? t('Gasto {valor}', ['valor' => num($gasto)]) : t('Defina a meta');
     } else {
         $r = $meta > 0.004 ? $gasto / (float) $meta : 0.0;
         $pctFill = min(100.0, $r * 100);
         $cls = $r > 1.0001 ? 'is-over' : ($r >= 0.8 ? 'is-near' : 'is-ok');
         $resto  = round((float) $meta - $gasto, 2);
         $resumo = $resto >= -0.004
-            ? t('{gasto} de {meta}, restam {resto}', ['gasto' => num($gasto, 0), 'meta' => num((float) $meta, 0), 'resto' => num(max(0.0, $resto), 0)])
-            : t('{gasto} de {meta}, passou {resto}', ['gasto' => num($gasto, 0), 'meta' => num((float) $meta, 0), 'resto' => num(-$resto, 0)]);
+            ? t('{gasto} de {meta}, restam {resto}', ['gasto' => num($gasto), 'meta' => num((float) $meta), 'resto' => num(max(0.0, $resto))])
+            : t('{gasto} de {meta}, passou {resto}', ['gasto' => num($gasto), 'meta' => num((float) $meta), 'resto' => num(-$resto)]);
     } ?>
     <div class="meta-cat <?= $cls ?>" id="c<?= $id ?>" data-grupo="<?= $grupo ?>" data-gasto="<?= e(number_format($gasto, 2, '.', '')) ?>">
         <div class="meta-cat-top">
@@ -62,9 +62,9 @@ $grupo = static function (string $titulo, array $cats, float $meta, float $gasto
             <span class="meta-grupo-tit"><?= e($titulo) ?></span>
             <span class="meta-grupo-res num">
                 <span class="meta-grupo-lbl"><?= e(t('Meta')) ?></span>
-                <span class="meta-grupo-meta" data-grupo-meta><?= e(num($meta, 0)) ?></span>
+                <span class="meta-grupo-meta" data-grupo-meta><?= e(num($meta)) ?></span>
                 <span class="meta-grupo-lbl"><?= e(t('Gasto')) ?></span>
-                <span class="meta-grupo-gasto" data-grupo-gasto><?= e(num($gasto, 0)) ?></span>
+                <span class="meta-grupo-gasto" data-grupo-gasto><?= e(num($gasto)) ?></span>
             </span>
         </summary>
         <div class="meta-lista" data-lista="<?= $tag ?>"><?php foreach ($cats as $c) { $linha($c); } ?></div>
@@ -93,7 +93,7 @@ $temAdd = $addEss !== [] || $addNao !== [];
     <section class="card meta-top">
         <div class="meta-top-head">
             <span class="rotulo"><?= e(t('Para usar neste mês')) ?> <small class="meta-renda-nota"><?= e(t('o que entrou e o que já estava na conta')) ?></small></span>
-            <span class="meta-renda num"><?= e(num($renda, 0)) ?></span>
+            <span class="meta-renda num"><?= e(num($renda)) ?></span>
         </div>
 
         <?php if ($temBar): ?>
@@ -107,15 +107,15 @@ $temAdd = $addEss !== [] || $addNao !== [];
             <ul class="meta-contas">
                 <li class="meta-conta-l">
                     <span class="meta-conta-nome"><i class="dot dot-metas"></i><?= e(t('Gasto em metas')) ?></span>
-                    <span class="meta-conta-val num"><span data-v-metas><?= e(num($gastoComMeta, 0)) ?></span><span class="meta-conta-de"><?= t('de {valor}', ['valor' => '<span data-v-metaalvo>' . e(num($totalMeta, 0)) . '</span>']) ?></span></span>
+                    <span class="meta-conta-val num"><span data-v-metas><?= e(num($gastoComMeta)) ?></span><span class="meta-conta-de"><?= t('de {valor}', ['valor' => '<span data-v-metaalvo>' . e(num($totalMeta)) . '</span>']) ?></span></span>
                 </li>
                 <li class="meta-conta-l">
                     <span class="meta-conta-nome"><i class="dot dot-gasto"></i><?= e(t('Gasto sem meta')) ?></span>
-                    <span class="meta-conta-val num" data-v-gasto><?= e(num($gastoSemMeta, 0)) ?></span>
+                    <span class="meta-conta-val num" data-v-gasto><?= e(num($gastoSemMeta)) ?></span>
                 </li>
                 <li class="meta-conta-l meta-conta-res <?= $noVermelho ? 'is-neg' : 'is-pos' ?>" data-conta-box>
-                    <span class="meta-conta-nome"><i class="dot dot-conta"></i><span data-conta-lbl><?= $noVermelho ? e(t('No vermelho')) : e(t('Sobra depois dos gastos')) ?></span></span>
-                    <span class="meta-conta-val num" data-v-conta><?= e(num(abs($emConta), 0)) ?></span>
+                    <span class="meta-conta-nome"><i class="dot dot-conta"></i><span data-conta-lbl><?= $noVermelho ? e(t('No vermelho')) : e(t('Resta para usar')) ?></span></span>
+                    <span class="meta-conta-val num" data-v-conta><?= e(num(abs($emConta))) ?></span>
                 </li>
             </ul>
         <?php else: ?>

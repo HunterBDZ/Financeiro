@@ -388,6 +388,8 @@ final class MotorFinanceiro
                 'juros'               => $jurosV,
                 'credito_emprestimo'  => $k['cred'],
                 'amortizacao_extra'   => $adiantado,
+                // a parte que o plano sugere sozinho (não foi lançada nem prevista): a sobra não a conta como saída
+                'amortizacao_auto'    => $k['real'] ? 0.0 : max(0.0, $adiantado - min($k['amort'], $la)),
                 'poupanca_liquido'    => $mov,
                 'invest_liquido'      => $inv,
                 'fica_na_conta'       => $fica,

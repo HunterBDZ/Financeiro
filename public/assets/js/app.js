@@ -242,7 +242,7 @@
 
     // ---- aba meta: "livre pra alocar" e barras recalculam enquanto se digita
     function parseBR(s) { return FIN.ler(s); }
-    function fmtBR(n) { return FIN.num(Math.round(n), 0); }
+    function fmtBR(n) { return FIN.num(n); }                 // dinheiro sempre com centavos (docs/decisoes.md)
     function clamp100(n) { return n < 0 ? 0 : (n > 100 ? 100 : n); }
 
     function metaRecalc(pg) {
@@ -293,7 +293,7 @@
         setTxt('[data-v-metaalvo]', fmtBR(totalMeta));
         setTxt('[data-v-gasto]', fmtBR(gastoSemMeta));
         setTxt('[data-v-conta]', fmtBR(Math.abs(emConta)));
-        setTxt('[data-conta-lbl]', noVermelho ? T('No vermelho') : T('Sobra depois dos gastos'));
+        setTxt('[data-conta-lbl]', noVermelho ? T('No vermelho') : T('Resta para usar'));
         var cbox = pg.querySelector('[data-conta-box]');
         if (cbox) {
             cbox.classList.remove('is-neg', 'is-pos');

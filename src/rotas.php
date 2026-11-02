@@ -40,6 +40,7 @@ $router->get('/ajuda/conexao', [AjudaController::class, 'conexao']);
 // ---- lançar e extrato
 $router->get('/lancar', [LancamentosController::class, 'lancarForm']);
 $router->get('/lancamentos', [LancamentosController::class, 'index']);
+$router->get('/lancamentos/planilha', [LancamentosController::class, 'planilha']);
 $router->post('/lancamentos', [LancamentosController::class, 'store']);
 $router->post('/lancamentos/desfazer', [LancamentosController::class, 'desfazer']);
 $router->get('/lancamentos/{id}/editar', [LancamentosController::class, 'editForm']);

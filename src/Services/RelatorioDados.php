@@ -61,7 +61,9 @@ final class RelatorioDados
         }
         $encerrado = $l['estado'] === 'real';
         $reserva = (float) ($dados['aj']['reserva_minima'] ?? 0.0);
-        $sobrou = round((float) $l['entra'] - (float) $l['sai'] - (float) $l['parcela_parte'], 2);
+        // a mesma sobra das outras telas (Sobra): no mês encerrado, a do mês; em andamento, a prevista e a até hoje
+        $sobraPlano = Sobra::prevista($l);
+        $sobrou = $sobraPlano['sobra'];
         $cats = self::categoriasDoMes($dados, $mes);
         $encerradosAntes = self::encerradosAte($plano, $mes);
         $achados = $encerrado
@@ -75,6 +77,7 @@ final class RelatorioDados
             'situacao' => $encerrado ? t('Mês encerrado') : t('Mês em andamento: lançado até {data}, o resto é planejado', ['data' => diaMes(min($hoje, date('Y-m-t', (int) strtotime($mes))))]),
             'manchete' => self::manchete($sobrou, $encerrado, (float) $l['fica_na_conta']),
             'sobrou' => $sobrou, 'entrou' => (float) $l['entra'], 'saiu' => (float) $l['sai'], 'fica' => (float) $l['fica_na_conta'],
+            'sobras' => $encerrado ? [$sobraPlano] : array_values(array_filter([Sobra::ateHoje($mes, $hoje), $sobraPlano])),
             'reserva' => $reserva, 'conferencia' => self::conferencia($dados, $mes, $hoje),
             'ponte' => $encerrado ? self::ponteEncerrado($l) : self::ponteAndamento($dados, $l),
             'divida' => self::divida($dados, $l),
@@ -618,7 +621,7 @@ final class RelatorioDados
         foreach ($meses as $m) {
             $l = $plano[$m];
             $tabela[] = ['mes' => (string) $m, 'estado' => (string) $l['estado'], 'entrou' => (float) $l['entra'], 'saiu' => (float) $l['sai'],
-                         'sobrou' => round((float) $l['entra'] - (float) $l['sai'] - (float) $l['parcela_parte'], 2),
+                         'sobrou' => Sobra::de($l)['sobra'],
                          'fica' => (float) $l['fica_na_conta'], 'divida' => max(0.0, (float) $l['falta_pagar']),
                          'liquido' => (float) $l['fica_na_conta'] + (float) $l['poupanca_saldo'] + (float) ($l['invest_saldo'] ?? 0.0) - max(0.0, (float) $l['falta_pagar'])];
         }

@@ -15,6 +15,9 @@ use Financeiro\Relogio;
  */
 final class LancarForm
 {
+    /** Quantos botões de categoria aparecem antes do "Mais…": duas fileiras de 4 no celular. */
+    public const RAPIDAS = 8;
+
     private static array $cache = [];
 
     /**
@@ -24,8 +27,10 @@ final class LancarForm
      *   cartao: ?array{nome:string, fecha:int, vence:int, aberta:string, serie:list<array{0:string,1:float}>}
      * }
      * cartao = para o "Pagou com: Cartão" e a prévia (as próximas 14 faturas, da aberta em diante).
-     * outras = as categorias do select por classe; em cada grupo, o dia a dia primeiro, pela
-     * frequência do usuário logado nos últimos 90 dias, depois a da casa, depois categorias.ordem.
+     * outras = a lista completa por classe, gastos antes de entradas; em cada grupo, o dia a dia primeiro,
+     * pela frequência do usuário logado nos últimos 90 dias, depois a da casa, depois categorias.ordem.
+     * rapidas = as RAPIDAS mais usadas (pela mesma frequência; sem uso, o dia a dia), os botões de um toque,
+     * gastos antes de entradas.
      */
     public static function dados(?string $hoje = null): array
     {
@@ -48,12 +53,13 @@ final class LancarForm
         // 4) limites de data
         $lim = self::limites($mesHoje);
 
-        // Grupos do select por classe: entradas, essenciais, não essenciais e ⇄ (empréstimo/poupança).
-        // O dia a dia é distribuído nos grupos pela sua classe, com os mais usados primeiro.
-        $outras = ['entradas' => [], 'essenciais' => [], 'não essenciais' => [], '⇄ movimentações' => []];
+        // A lista completa por classe, gastos antes de entradas: essenciais, não essenciais, entradas e ⇄
+        // (empréstimo/poupança). O dia a dia é distribuído nos grupos pela sua classe, com os mais usados primeiro.
+        $outras = ['essenciais' => [], 'não essenciais' => [], 'entradas' => [], '⇄ movimentações' => []];
+        $candidatas = [];
         foreach ($cats as $i => $c) {
             $id = (int) $c['id'];
-            $base = ['id' => $id, 'nome' => (string) $c['nome'], 'curto' => nomeCurto($c)];
+            $base = ['id' => $id, 'nome' => (string) $c['nome'], 'curto' => nomeCurto($c), 'grupo' => (string) $c['grupo']];
             $ehDia = $c['grupo'] === 'Dia a dia';
             $fq = [-($freq[$id]['meu'] ?? 0), -($freq[$id]['casa'] ?? 0)];
             if ((int) $c['operacional'] === 0) {
@@ -65,8 +71,15 @@ final class LancarForm
             } else {
                 $k = 'não essenciais';
             }
-            $outras[$k][] = $base + ['grupo' => (string) $c['grupo'], '_ord' => [$ehDia ? 0 : 1, $fq[0], $fq[1], $i]];
+            $classe = (int) $c['operacional'] === 0 ? 2 : ((int) $c['sinal'] === 1 ? 1 : 0);   // gasto · entrada · ⇄
+            $outras[$k][] = $base + ['_ord' => [$ehDia ? 0 : 1, $fq[0], $fq[1], $i]];
+            // botões: primeiro o que foi usado (do mais usado ao menos); sem uso, os gastos do dia a dia
+            $candidatas[] = $base + ['_ord' => [$fq[0] + $fq[1] < 0 ? 0 : 1, $fq[0], $fq[1], $classe, $ehDia ? 0 : 1, $i], '_classe' => $classe];
         }
+        usort($candidatas, static fn(array $a, array $b): int => $a['_ord'] <=> $b['_ord']);
+        $rapidas = array_slice($candidatas, 0, self::RAPIDAS);
+        usort($rapidas, static fn(array $a, array $b): int => [$a['_classe'], $a['_ord']] <=> [$b['_classe'], $b['_ord']]);
+        $rapidas = array_map(static fn(array $c): array => array_diff_key($c, ['_ord' => 1, '_classe' => 1]), $rapidas);
         foreach ($outras as &$g) {
             usort($g, static fn(array $a, array $b): int => $a['_ord'] <=> $b['_ord']);
             foreach ($g as &$it) {
@@ -94,6 +107,7 @@ final class LancarForm
         return self::$cache[$chave] = [
             'cartao'     => $cartaoInfo,
             'outras'     => array_filter($outras),
+            'rapidas'    => $rapidas,
             'descricoes' => $descricoes,
             'hoje'       => $hoje,
             'ontem'      => date('Y-m-d', strtotime($hoje . ' -1 day')),

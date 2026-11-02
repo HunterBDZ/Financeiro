@@ -174,7 +174,7 @@ final class MetaController
         $ult  = array_key_last($depois);
         if ($ult !== null && isset($antes[$ult])
             && abs((float) $antes[$ult]['fica_na_conta'] - (float) $depois[$ult]['fica_na_conta']) >= 0.5) {
-            $segs[] = t('fim de {mes} {antes} → {depois}', ['mes' => monthLabel((string) $ult), 'antes' => num((float) $antes[$ult]['fica_na_conta'], 0), 'depois' => num((float) $depois[$ult]['fica_na_conta'], 0)]);
+            $segs[] = t('fim de {mes} {antes} → {depois}', ['mes' => monthLabel((string) $ult), 'antes' => num((float) $antes[$ult]['fica_na_conta']), 'depois' => num((float) $depois[$ult]['fica_na_conta'])]);
         }
         $reserva = (float) (MotorFinanceiro::dados()['aj']['reserva_minima'] ?? 0.0);
         $alerta  = PrevisaoEdicao::piorou($antes, $depois, Relogio::mes(), $reserva);

@@ -29,6 +29,22 @@ $csrf = csrfField();
 $total = $real ? 2 : ($previa !== null ? 4 : 3);
 $contaTxt = num($contaAntes) . NBSP . '→' . NBSP . num($contaDepois);   // nunca quebra: a célula ocupa 2 colunas
 $sinal = static fn(float $v): string => ($v > 0.004 ? '+' : '') . num($v);
+// da sobra ao balanço: as movimentações, com os nomes da escada do Relatório (sobra + crédito − adiantado − guardado − aplicado)
+$passos = [];
+if (abs($movimentos['cred']) >= 0.005) {
+    $passos[] = [t('Crédito do empréstimo'), $movimentos['cred']];
+}
+if (abs($movimentos['amort']) >= 0.005) {
+    $passos[] = [t('Adiantou do empréstimo'), -$movimentos['amort']];
+}
+if (abs($movimentos['poup']) >= 0.005) {
+    $passos[] = [$movimentos['poup'] >= 0 ? t('Guardou na poupança') : t('Tirou da poupança'), -$movimentos['poup']];
+}
+if (abs($movimentos['inv']) >= 0.005) {
+    $passos[] = [$movimentos['inv'] >= 0 ? t('Aplicou em investimentos') : t('Resgatou de investimentos'), -$movimentos['inv']];
+}
+$rotSobra = \Financeiro\Services\Sobra::rotulo((string) $sobra['base']);
+$ponteParcela = \Financeiro\Services\Sobra::ponte($sobra);
 ?>
     <?php if (!$real): ?><form class="fe-form" method="post" action="/mes/fechar" data-confirm="<?= e($faltam > 0 ? tn($faltam, 'Ainda falta 1 dia em {mes}. Fechar agora? Dá para reabrir depois.', 'Ainda faltam {n} dias em {mes}. Fechar agora? Dá para reabrir depois.', ['mes' => $mesLbl]) : t('Fechar {mes}? Dá para reabrir depois.', ['mes' => $mesLbl])) ?>"><?= $csrf ?><input type="hidden" name="mes" value="<?= e($mes) ?>"><?php endif; ?>
 
@@ -44,7 +60,14 @@ $sinal = static fn(float $v): string => ($v > 0.004 ? '+' : '') . num($v);
                 <p class="fe-num <?= $saldoMes < -0.004 ? 'neg' : 'pos' ?>"><span><?= e(t('Balanço')) ?> <?= dica('numeros', t('Balanço')) ?></span> <?= e($sinal($saldoMes)) ?></p>
                 <p class="fe-num fe-conta <?= $contaDepois < 0 ? 'neg' : '' ?>"><span><?= e(t('Conta')) ?></span> <?= e($contaTxt) ?></p>
             </div>
-            <?php if (($guardado ?? 0.0) > 0.004): ?><p class="fe-ponte num"><?= e(t('Sobra {sobra} − guardado {guardado} = {balanco} na conta.', ['sobra' => num($saldoMes + $guardado), 'guardado' => num($guardado), 'balanco' => $sinal($saldoMes)])) ?></p><?php endif; ?>
+            <dl class="fe-ponte num">
+                <div><dt><?= e($rotSobra) ?> <?= dica('numeros', $rotSobra) ?></dt><dd data-sobra="<?= e((string) $sobra['base']) ?>"><?= e(num((float) $sobra['sobra'])) ?></dd></div>
+                <?php foreach ($passos as [$rotulo, $valor]): ?>
+                    <div><dt><?= e($rotulo) ?></dt><dd><?= e($sinal($valor)) ?></dd></div>
+                <?php endforeach; ?>
+                <?php if ($passos !== []): ?><div class="fe-ponte-fim"><dt><?= e(t('Balanço')) ?></dt><dd><?= e($sinal($saldoMes)) ?></dd></div><?php endif; ?>
+            </dl>
+            <?php if ($ponteParcela !== null): ?><p class="fe-ponte-parcela num"><?= e(t('Entradas: {conta}', ['conta' => $ponteParcela])) ?></p><?php endif; ?>
             <?php if (!empty($avisoParcela)): ?><p class="aviso aviso-warn" role="status"><?= e($avisoParcela) ?></p><?php endif; ?>
         </section>
 
@@ -57,7 +80,7 @@ $sinal = static fn(float $v): string => ($v > 0.004 ? '+' : '') . num($v);
                 <ul class="fe-desvios">
                     <?php foreach ($desvios as $dv):
                         $ruim = $dv['sinal'] === -1 ? $dv['dif'] > 0 : $dv['dif'] < 0;
-                        $difV = num(abs($dv['dif']), 0);
+                        $difV = num(abs($dv['dif']));
                         // com dias pela frente, gastar menos ainda não é resultado: só fica colorido o que já acabou
                         $acabou = $real || $faltam === 0;
                         $difTxt = $acabou
@@ -66,7 +89,7 @@ $sinal = static fn(float $v): string => ($v > 0.004 ? '+' : '') . num($v);
                         $difCls = $ruim ? 'neg' : ($acabou ? 'pos' : 'dim'); ?>
                         <li>
                             <span class="fe-dv-nome"><?= e($dv['nome']) ?></span>
-                            <span class="num dim"><?= e(t('{gasto} de {meta}', ['gasto' => num($dv['real'], 0), 'meta' => num($dv['prev'], 0)])) ?></span>
+                            <span class="num dim"><?= e(t('{gasto} de {meta}', ['gasto' => num($dv['real']), 'meta' => num($dv['prev'])])) ?></span>
                             <span class="num fe-dv-dif <?= $difCls ?>"><?= e($difTxt) ?></span>
                         </li>
                     <?php endforeach; ?>
@@ -97,8 +120,8 @@ $sinal = static fn(float $v): string => ($v > 0.004 ? '+' : '') . num($v);
         <section class="card fe-bloco">
             <h2 class="fe-h"><?= e(t('E {mes}', ['mes' => monthLabel($previa['mes'])])) ?></h2>
             <p class="fe-previa num">
-                <span><?= t('Dia a dia sugerido: {valor}', ['valor' => '<b>' . e(num($previa['dia'], 0)) . '</b>']) ?></span>
-                <span><?= t('Sobra acima da reserva: {valor}', ['valor' => '<b>' . e(num($previa['livre'], 0)) . '</b>']) ?></span>
+                <span><?= t('Dia a dia sugerido: {valor}', ['valor' => '<b>' . e(num($previa['dia'])) . '</b>']) ?></span>
+                <span><?= t('Para os não essenciais: {valor}', ['valor' => '<b>' . e(num($previa['livre'])) . '</b>']) ?></span>
                 <span class="dim"><?= e(t('Com base em {base}.', ['base' => $previa['base']])) ?></span>
             </p>
             <label class="fe-aplicar">

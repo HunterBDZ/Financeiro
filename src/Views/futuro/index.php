@@ -32,9 +32,9 @@ foreach ($linhas as $i => $l) {
     }
 }
 $fim    = $marcos['fim'] ?? ['mes' => $ultimo, 'fica' => $vals[$n - 1], 'desde' => 0.0];
-$valor  = static fn(float $v): string => ($v < -0.004 ? MENOS : '') . num(abs($v), 0);
+$valor  = static fn(float $v): string => ($v < -0.004 ? MENOS : '') . num(abs($v));
 $valor2 = static fn(float $v): string => ($v < -0.004 ? MENOS : '') . num(abs($v));
-$sinal  = static fn(float $v): string => ($v > 0.004 ? '+' : ($v < -0.004 ? MENOS : '')) . num(abs($v), 0);
+$sinal  = static fn(float $v): string => ($v > 0.004 ? '+' : ($v < -0.004 ? MENOS : '')) . num(abs($v));
 $faixa  = static function (string $ini, string $fimM): string {
     if ($ini === $fimM) {
         return monthLabel($ini);
@@ -80,13 +80,13 @@ foreach ($trechos as $t) {
 }
 if ($marcos['volta'] !== null) {
     $itens[] = ['ord' => $marcos['volta'] . '2', 'quando' => monthLabel($marcos['volta']), 'tipo' => 'pos',
-                'html' => t('A conta volta à reserva de {valor}', ['valor' => '<b>' . e(num($reserva, 0)) . '</b>']), 'mes' => $marcos['volta']];
+                'html' => t('A conta volta à reserva de {valor}', ['valor' => '<b>' . e(num($reserva)) . '</b>']), 'mes' => $marcos['volta']];
 }
 $adi = array_values(array_filter($linhas, static fn($l) => $l['mes'] >= $ref && $l['estado'] !== 'real' && $l['amort'] > 0.004));
 if ($adi !== []) {
     $soma = array_sum(array_column($adi, 'amort'));
     $itens[] = ['ord' => $adi[0]['mes'] . '3', 'quando' => $faixa($adi[0]['mes'], $adi[count($adi) - 1]['mes']), 'tipo' => 'info',
-                'html' => t('A sobra do mês adianta {valor} do empréstimo', ['valor' => '<b>' . e(num($soma, 0)) . '</b>']), 'mes' => $adi[0]['mes']];
+                'html' => t('A sobra do mês adianta {valor} do empréstimo', ['valor' => '<b>' . e(num($soma)) . '</b>']), 'mes' => $adi[0]['mes']];
 }
 if ($quita !== null && $quita >= $ref) {
     if (!empty($ganho)) {
@@ -94,7 +94,7 @@ if ($quita !== null && $quita >= $ref) {
         $antes = $ganho['meses'] >= 24 ? t('{n} anos', ['n' => intdiv($ganho['meses'], 12)]) : tn($ganho['meses'], '1 mês', '{n} meses');
         $html = t('Empréstimo quitado, {antes} antes do que só com as parcelas ({mes}). Adiantar evita cerca de {juros} de juros', ['antes' => e($antes), 'mes' => e(monthLabel($ganho['quitaSem'])), 'juros' => '<b class="pos">' . e(num(round($ganho['juros'], -2), 0)) . '</b>']);
     } else {
-        $html = t('Empréstimo quitado (hoje faltam {valor})', ['valor' => '<b>' . e(num((float) $linhas[$iRef]['divida'], 0)) . '</b>']);
+        $html = t('Empréstimo quitado (hoje faltam {valor})', ['valor' => '<b>' . e(num((float) $linhas[$iRef]['divida'])) . '</b>']);
     }
     $itens[] = ['ord' => $quita . '4', 'quando' => monthLabel($quita), 'tipo' => 'pos', 'html' => $html, 'mes' => $quita];
 }
@@ -133,11 +133,11 @@ if ($negMeses !== []) {
     $titulo = t('A conta não fica abaixo da reserva em nenhum mês.');
 }
 if ($bate !== null) {
-    $metaTxt = t('Você chega a {meta} em {mes}.', ['meta' => num($meta, 0), 'mes' => mesAno($bate)]);
+    $metaTxt = t('Você chega a {meta} em {mes}.', ['meta' => num($meta), 'mes' => mesAno($bate)]);
 } elseif ($meta > 0.004 && $metaMes !== null && isset($porMes[$metaMes])) {
-    $metaTxt = t('Meta de {meta} em {mes}: faltam {falta}.', ['meta' => num($meta, 0), 'mes' => mesAno($metaMes), 'falta' => num(max(0.0, $meta - $porMes[$metaMes]['fica']), 0)]);
+    $metaTxt = t('Meta de {meta} em {mes}: faltam {falta}.', ['meta' => num($meta), 'mes' => mesAno($metaMes), 'falta' => num(max(0.0, $meta - $porMes[$metaMes]['fica']))]);
 } elseif ($meta > 0.004 && $fim['fica'] < $meta) {
-    $metaTxt = t('Meta de {meta}: faltam {falta}.', ['meta' => num($meta, 0), 'falta' => num($meta - $fim['fica'], 0)]);
+    $metaTxt = t('Meta de {meta}: faltam {falta}.', ['meta' => num($meta), 'falta' => num($meta - $fim['fica'])]);
 } else {
     $metaTxt = '';
 }
@@ -234,26 +234,26 @@ $marca = static fn(string $estado): string => '<i class="fu-mk is-' . ($estado =
 $chips = static function (array $l) use ($quita): array {
     $out = [];
     if (abs($l['simulado']) > 0.004) {
-        $out[] = ['tipo' => 'sim', 'seta' => '', 'txt' => t('E se: {valor}', ['valor' => ($l['simulado'] > 0 ? '+' : MENOS) . num(abs($l['simulado']), 0)]), 'sr' => ''];
+        $out[] = ['tipo' => 'sim', 'seta' => '', 'txt' => t('E se: {valor}', ['valor' => ($l['simulado'] > 0 ? '+' : MENOS) . num(abs($l['simulado']))]), 'sr' => ''];
     }
     if ($quita !== null && $l['mes'] === $quita) {
         $out[] = ['tipo' => 'ok', 'seta' => '', 'txt' => t('Empréstimo quitado'), 'sr' => ''];
     }
     if ($l['cred'] > 0.004) {
-        $out[] = ['tipo' => 'info', 'seta' => '', 'txt' => t('Crédito do empréstimo {valor}', ['valor' => num($l['cred'], 0)]), 'sr' => ''];
+        $out[] = ['tipo' => 'info', 'seta' => '', 'txt' => t('Crédito do empréstimo {valor}', ['valor' => num($l['cred'])]), 'sr' => ''];
     }
     if ($l['amort'] > 0.004 && ($quita === null || $l['mes'] <= $quita)) {
-        $out[] = ['tipo' => 'info', 'seta' => '', 'txt' => t('Adianta {valor} do empréstimo', ['valor' => num($l['amort'], 0)]), 'sr' => ''];
+        $out[] = ['tipo' => 'info', 'seta' => '', 'txt' => t('Adianta {valor} do empréstimo', ['valor' => num($l['amort'])]), 'sr' => ''];
     }
     if (abs($l['poup']) > 0.004) {
-        $out[] = ['tipo' => 'info', 'seta' => '', 'txt' => $l['poup'] > 0 ? t('Tira {valor} da poupança', ['valor' => num(abs($l['poup']), 0)]) : t('Guarda {valor} na poupança', ['valor' => num(abs($l['poup']), 0)]), 'sr' => ''];
+        $out[] = ['tipo' => 'info', 'seta' => '', 'txt' => $l['poup'] > 0 ? t('Tira {valor} da poupança', ['valor' => num(abs($l['poup']))]) : t('Guarda {valor} na poupança', ['valor' => num(abs($l['poup']))]), 'sr' => ''];
     }
     if (abs($l['inv']) > 0.004) {
-        $out[] = ['tipo' => 'info', 'seta' => '', 'txt' => $l['inv'] > 0 ? t('Resgata {valor} de investimentos', ['valor' => num(abs($l['inv']), 0)]) : t('Aplica {valor} em investimentos', ['valor' => num(abs($l['inv']), 0)]), 'sr' => ''];
+        $out[] = ['tipo' => 'info', 'seta' => '', 'txt' => $l['inv'] > 0 ? t('Resgata {valor} de investimentos', ['valor' => num(abs($l['inv']))]) : t('Aplica {valor} em investimentos', ['valor' => num(abs($l['inv']))]), 'sr' => ''];
     }
     foreach ($l['mudou'] as $m) {
         $sobe = $m['valor'] > $m['antes'];
-        $d = num(abs($m['valor'] - $m['antes']), 0);
+        $d = num(abs($m['valor'] - $m['antes']));
         $out[] = ['tipo' => $m['efeito'] > 0 ? 'pos' : 'neg', 'seta' => $sobe ? 'arrow-up' : 'arrow-down', 'txt' => $m['nome'] . ' ' . $d,
                   'sr' => $sobe ? t('{nome} sobe {valor} em relação ao mês anterior', ['valor' => $d, 'nome' => $m['nome']]) : t('{nome} cai {valor} em relação ao mês anterior', ['valor' => $d, 'nome' => $m['nome']])];
     }
@@ -342,7 +342,7 @@ $opcoesMes = static function (string $sel) use ($se): string {
         <?php if ($comparar !== null):
             [$cp, $cs] = [$comparar['plano'], $comparar['se']];
             $dFim = $cs['fim'] - $cp['fim'];
-            $apert = static fn(?array $a): string => $a === null ? '—' : monthLabel($a['mes']) . ': ' . (($a['fica'] < -0.004 ? MENOS : '') . num(abs($a['fica']), 0));
+            $apert = static fn(?array $a): string => $a === null ? '—' : monthLabel($a['mes']) . ': ' . (($a['fica'] < -0.004 ? MENOS : '') . num(abs($a['fica'])));
             $quitaTxt = static fn(?string $q): string => $q === null ? t('não dá para dizer') : monthLabel($q);
             ?>
             <?php /* papéis explícitos: no celular cada linha vira um bloco (display grid) e alguns leitores de tela perdem a tabela */ ?>
@@ -352,13 +352,13 @@ $opcoesMes = static function (string $sel) use ($se): string {
                 <tbody role="rowgroup">
                     <tr role="row"><th scope="row" role="rowheader"><?= e(t('Conta no fim de {mes}', ['mes' => monthLabel($ultimo)])) ?></th><td role="cell" data-rot="<?= e(t('Plano')) ?>"><?= e($valor($cp['fim'])) ?></td><td role="cell" data-rot="<?= e(t('E se')) ?>"><b><?= e($valor($cs['fim'])) ?></b><?php if (abs($dFim) >= 0.5): ?> <small class="<?= $dFim > 0 ? 'pos' : 'neg' ?>"><?= e($sinal($dFim)) ?></small><?php endif; ?></td></tr>
                     <?php if ($temDivida): ?>
-                        <tr role="row"><th scope="row" role="rowheader"><?= e(t('Dívida no fim de {mes}', ['mes' => monthLabel($ultimo)])) ?></th><td role="cell" data-rot="<?= e(t('Plano')) ?>"><?= $cp['divida'] > 0.004 ? e(num($cp['divida'], 0)) : e(t('quitada')) ?></td><td role="cell" data-rot="<?= e(t('E se')) ?>"><b><?= $cs['divida'] > 0.004 ? e(num($cs['divida'], 0)) : e(t('quitada')) ?></b></td></tr>
+                        <tr role="row"><th scope="row" role="rowheader"><?= e(t('Dívida no fim de {mes}', ['mes' => monthLabel($ultimo)])) ?></th><td role="cell" data-rot="<?= e(t('Plano')) ?>"><?= $cp['divida'] > 0.004 ? e(num($cp['divida'])) : e(t('quitada')) ?></td><td role="cell" data-rot="<?= e(t('E se')) ?>"><b><?= $cs['divida'] > 0.004 ? e(num($cs['divida'])) : e(t('quitada')) ?></b></td></tr>
                     <?php endif; ?>
                     <tr role="row"><th scope="row" role="rowheader"><?= e(t('Mês mais apertado')) ?></th><td role="cell" data-rot="<?= e(t('Plano')) ?>"><?= e($apert($cp['apertado'])) ?></td><td role="cell" data-rot="<?= e(t('E se')) ?>"><b><?= e($apert($cs['apertado'])) ?></b></td></tr>
                     <tr role="row"><th scope="row" role="rowheader"><?= e(t('Meses abaixo da reserva')) ?></th><td role="cell" data-rot="<?= e(t('Plano')) ?>"><?= (int) $cp['abaixo'] ?></td><td role="cell" data-rot="<?= e(t('E se')) ?>"><b><?= (int) $cs['abaixo'] ?></b></td></tr>
                     <?php if ($temDivida): ?>
                         <tr role="row"><th scope="row" role="rowheader"><?= e(t('Empréstimo acaba')) ?></th><td role="cell" data-rot="<?= e(t('Plano')) ?>"><?= e($quitaTxt($cp['quita'])) ?></td><td role="cell" data-rot="<?= e(t('E se')) ?>"><b><?= e($quitaTxt($cs['quita'])) ?></b></td></tr>
-                        <tr role="row"><th scope="row" role="rowheader"><?= e(t('Juros até quitar')) ?></th><td role="cell" data-rot="<?= e(t('Plano')) ?>"><?= $cp['juros'] === null ? '—' : e(num($cp['juros'], 0)) ?></td><td role="cell" data-rot="<?= e(t('E se')) ?>"><b><?= $cs['juros'] === null ? '—' : e(num($cs['juros'], 0)) ?></b></td></tr>
+                        <tr role="row"><th scope="row" role="rowheader"><?= e(t('Juros até quitar')) ?></th><td role="cell" data-rot="<?= e(t('Plano')) ?>"><?= $cp['juros'] === null ? '—' : e(num($cp['juros'])) ?></td><td role="cell" data-rot="<?= e(t('E se')) ?>"><b><?= $cs['juros'] === null ? '—' : e(num($cs['juros'])) ?></b></td></tr>
                     <?php endif; ?>
                 </tbody>
             </table>
@@ -418,14 +418,14 @@ $opcoesMes = static function (string $sel) use ($se): string {
                     <?php if ($solida !== ''): ?><path class="fu-linha" d="<?= $solida ?>"/><?php endif; ?>
                     <?php if ($tracejada !== ''): ?><path class="fu-linha is-prev" d="<?= $tracejada ?>"/><?php endif; ?>
                 </svg>
-                <?php foreach ($grade as $g): ?>
-                    <span class="fu-gl num" style="top:<?= $pc($y($g), $VH) ?>"><?= e($valor($g)) ?></span>
+                <?php foreach ($grade as $g): // marcas redondas do eixo: sem centavos, como em todo gráfico ?>
+                    <span class="fu-gl num" style="top:<?= $pc($y($g), $VH) ?>"><?= e(num($g, 0)) ?></span>
                 <?php endforeach; ?>
                 <?php if ($reserva > 0.004): ?>
-                    <span class="fu-ref fu-reserva-rot num" style="top:<?= $pc($yRes, $VH) ?>"><?= e(t('Reserva {valor}', ['valor' => num($reserva, 0)])) ?></span>
+                    <span class="fu-ref fu-reserva-rot num" style="top:<?= $pc($yRes, $VH) ?>"><?= e(t('Reserva {valor}', ['valor' => num($reserva)])) ?></span>
                 <?php endif; ?>
                 <?php if ($comMeta): ?>
-                    <span class="fu-ref fu-meta-rot num" style="top:<?= $pc($y($meta), $VH) ?>"><?= e(t('Meta {valor}', ['valor' => num($meta, 0)])) ?></span>
+                    <span class="fu-ref fu-meta-rot num" style="top:<?= $pc($y($meta), $VH) ?>"><?= e(t('Meta {valor}', ['valor' => num($meta)])) ?></span>
                 <?php endif; ?>
                 <span class="fu-hoje" style="left:<?= $pc($x($iRef), $VW) ?>"><?= e(t('hoje')) ?></span>
                 <?php if ($comDivida): ?>
@@ -488,11 +488,11 @@ $opcoesMes = static function (string $sel) use ($se): string {
                     <details class="fu-mes<?= $l['mes'] === $ref ? ' is-ref' : '' ?>">
                         <summary class="fu-cols num">
                             <span class="fu-m"><?= $marca($l['estado']) ?><?= e(monthLabel($l['mes'])) ?><span class="sr-only">, <?= e(mb_strtolower(estadoLabel($l['estado']))) ?></span></span>
-                            <span class="fu-v fu-largo"><span class="sr-only"><?= e(t('entradas')) ?> </span><?= e(num($l['entra'], 0)) ?></span>
-                            <span class="fu-v fu-largo"><span class="sr-only"><?= e(t('saídas')) ?> </span><?= e(num($l['sai'], 0)) ?></span>
+                            <span class="fu-v fu-largo"><span class="sr-only"><?= e(t('entradas')) ?> </span><?= e(num($l['entra'])) ?></span>
+                            <span class="fu-v fu-largo"><span class="sr-only"><?= e(t('saídas')) ?> </span><?= e(num($l['sai'])) ?></span>
                             <span class="fu-v fu-bal<?= $balCls ?>"><span class="sr-only"><?= e(t('balanço')) ?> </span><?= e($sinal((float) $l['bal'])) ?></span>
                             <span class="fu-v fu-fica<?= $l['alerta'] !== '' ? ' ' . e($l['alerta']) : '' ?>"><span class="sr-only"><?= e(t('conta no fim')) ?> </span><?= $alertaIc($l['alerta']) ?><?= e($valor((float) $l['fica'])) ?><?= $l['alerta'] === 'warn' ? '<span class="sr-only">, ' . e(t('abaixo da reserva')) . '</span>' : ($l['alerta'] === 'neg' ? '<span class="sr-only">, ' . e(t('no vermelho')) . '</span>' : '') ?></span>
-                            <span class="fu-v fu-largo fu-div"><span class="sr-only"><?= e(t('dívida')) ?> </span><?= $l['divida'] > 0.004 ? e(num((float) $l['divida'], 0)) : '<span aria-hidden="true">—</span><span class="sr-only">' . e(t('quitada')) . '</span>' ?></span>
+                            <span class="fu-v fu-largo fu-div"><span class="sr-only"><?= e(t('dívida')) ?> </span><?= $l['divida'] > 0.004 ? e(num((float) $l['divida'])) : '<span aria-hidden="true">—</span><span class="sr-only">' . e(t('quitada')) . '</span>' ?></span>
                             <span class="fu-xl fu-chips"><?= $chipsHtml($lista) ?></span>
                         </summary>
                         <div class="fu-det">
@@ -522,11 +522,11 @@ $opcoesMes = static function (string $sel) use ($se): string {
                 <?php endforeach; ?>
                 <div class="fu-cols fu-total num">
                     <span class="fu-m"><?= e(t('Total {ano}', ['ano' => $ano])) ?><small><?= e($parcial) ?></small></span>
-                    <span class="fu-v fu-largo"><span class="sr-only"><?= e(t('entradas')) ?> </span><?= e(num($somaE, 0)) ?></span>
-                    <span class="fu-v fu-largo"><span class="sr-only"><?= e(t('saídas')) ?> </span><?= e(num($somaS, 0)) ?></span>
+                    <span class="fu-v fu-largo"><span class="sr-only"><?= e(t('entradas')) ?> </span><?= e(num($somaE)) ?></span>
+                    <span class="fu-v fu-largo"><span class="sr-only"><?= e(t('saídas')) ?> </span><?= e(num($somaS)) ?></span>
                     <span class="fu-v fu-bal<?= $somaB < -0.004 ? ' neg' : '' ?>"><span class="sr-only"><?= e(t('balanço')) ?> </span><?= e($sinal($somaB)) ?></span>
                     <span class="fu-v fu-fica<?= $ultimoDoAno['alerta'] !== '' ? ' ' . e($ultimoDoAno['alerta']) : '' ?>"><span class="sr-only"><?= e(t('conta no fim de {mes}', ['mes' => monthLabel($ultimoDoAno['mes'])])) ?> </span><?= e($valor((float) $ultimoDoAno['fica'])) ?></span>
-                    <span class="fu-v fu-largo fu-div"><span class="sr-only"><?= e(t('dívida no fim do ano')) ?> </span><?= $ultimoDoAno['divida'] > 0.004 ? e(num((float) $ultimoDoAno['divida'], 0)) : '<span aria-hidden="true">—</span><span class="sr-only">' . e(t('quitada')) . '</span>' ?></span>
+                    <span class="fu-v fu-largo fu-div"><span class="sr-only"><?= e(t('dívida no fim do ano')) ?> </span><?= $ultimoDoAno['divida'] > 0.004 ? e(num((float) $ultimoDoAno['divida'])) : '<span aria-hidden="true">—</span><span class="sr-only">' . e(t('quitada')) . '</span>' ?></span>
                     <span class="fu-xl"></span>
                     <span></span>
                 </div>
