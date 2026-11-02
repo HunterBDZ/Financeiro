@@ -1,0 +1,17 @@
+{
+  "name": "financeiro-testes-navegador",
+  "private": true,
+  "description": "Testes de navegador do Financeiro, com Playwright. Só para desenvolver: o app não usa nada daqui.",
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
+    "@playwright/test": "1.64.1"
+  },
+  "engines": {
+    "node": ">=22.12"
+  }
+}

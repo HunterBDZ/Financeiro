@@ -1297,8 +1297,10 @@ $arquivos = array_merge(glob($raiz . '/*.md') ?: [], [$raiz . '/instalar.sh']);
 foreach (['src', 'public/assets/js', 'public/assets/css', 'docs', 'database', 'tools', 'tests', '.github'] as $pasta) {
     if (is_dir($raiz . '/' . $pasta)) {
         foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($raiz . '/' . $pasta, FilesystemIterator::SKIP_DOTS)) as $f) {
-            // database/data é do site, fora do repositório: o atualizador preserva e o teste não confere
-            if (preg_match('/\.(php|md|sql|js|css|sh|py|json|yml)$/', $f->getFilename()) && !str_contains($f->getPathname(), '/database/data/')) {
+            // database/data é do site, fora do repositório: o atualizador preserva e o teste não confere. Os pacotes
+            // do npm e os resultados dos testes de navegador também ficam fora do repositório
+            $foraDoRepo = '#/(database/data|tests/navegador/(node_modules|test-results|playwright-report|blob-report))/#';
+            if (preg_match('/\.(php|md|sql|js|css|sh|py|json|yml)$/', $f->getFilename()) && !preg_match($foraDoRepo, str_replace('\\', '/', $f->getPathname()))) {
                 $arquivos[] = $f->getPathname();
             }
         }
