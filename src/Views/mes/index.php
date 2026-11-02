@@ -391,6 +391,12 @@ $linhaLeitura = static function (array $l, float $v): void { ?>
                 <div><dt><?= e(Sobra::rotulo((string) $sobra['base'])) ?> <?= dica('numeros', Sobra::rotulo((string) $sobra['base'])) ?></dt><dd class="<?= $sobraV < -0.004 ? 'neg' : 'pos' ?>" data-sobra="<?= e((string) $sobra['base']) ?>"><?= e(num($sobraV)) ?></dd></div>
             </dl>
             <?php if ($ponte !== null): ?><p class="mes-ponte num"><?= e(t('Entradas: {conta}', ['conta' => $ponte])) ?></p><?php endif; ?>
+            <?php if (isset($linha['sobrou_mes_anterior'], $linha['fica_na_conta'])): // o ponto de partida: o que sobrou do mês anterior não é entrada ?>
+                <?php $autoMes = (float) ($linha['amortizacao_auto'] ?? 0.0); ?>
+                <p class="mes-ponte num" data-ponte-mes><?= e($autoMes >= 0.005
+                    ? t('Começou o mês com {inicio}. Com a sobra, menos {auto} que o plano adianta do empréstimo, termina com {fim}.', ['inicio' => num((float) $linha['sobrou_mes_anterior']), 'auto' => num($autoMes), 'fim' => num((float) $linha['fica_na_conta'])])
+                    : t('Começou o mês com {inicio}. Com a sobra, termina com {fim}.', ['inicio' => num((float) $linha['sobrou_mes_anterior']), 'fim' => num((float) $linha['fica_na_conta'])])) ?></p>
+            <?php endif; ?>
         </div>
 
         <?php if ($menu['fechar'] && substr($mes, 0, 7) === substr((string) $hoje, 0, 7)): ?>

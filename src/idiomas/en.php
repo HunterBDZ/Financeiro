@@ -1884,4 +1884,6 @@ return [
     'Menos parcelas' => 'Fewest installments',
     'Ordenar' => 'Sort',
     'vence {data} · paga até {util}' => 'due {data} · pay by {util}',
+    'Começou o mês com {inicio}. Com a sobra, termina com {fim}.' => 'Started the month with {inicio}. With the surplus, it ends with {fim}.',
+    'Começou o mês com {inicio}. Com a sobra, menos {auto} que o plano adianta do empréstimo, termina com {fim}.' => 'Started the month with {inicio}. With the surplus, minus {auto} the plan prepays on the loan, it ends with {fim}.',
 ];

@@ -2,6 +2,10 @@
 
 Cada versão publicada é uma tag `vX.Y.Z` deste repositório. Pacotes atualizam em Ajustes, em Backup e atualização; servidores, com `sudo financeiro-atualizar`.
 
+## 1.11.3
+
+- **Mês:** o resumo diz de onde o mês partiu e onde termina, por exemplo "Começou o mês com 86,43. Com a sobra, termina com 271,45". O que sobrou do mês anterior não é entrada: é o ponto de partida.
+
 ## 1.11.2
 
 - **Mês:** as contas fixas mostram só "Pago" em verde ou "Não pago" em vermelho, com o vencimento ao lado. Os gastos que variam mostram, em cores, se estão "Abaixo da meta", "Na meta" (de 90% a 100%) ou "Acima da meta". A comparação usa o valor do próprio mês, se ele tiver um. As barras com "x de y" saíram.
