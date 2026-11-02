@@ -28,6 +28,13 @@ final class UsuarioModel
         return (int) Database::connection()->query('SELECT COUNT(*) FROM usuarios')->fetchColumn() === 0;
     }
 
+    /** A conta mais antiga é a que administra o site: backup, atualização e acesso pela rede. */
+    public static function administradorId(): ?int
+    {
+        $id = Database::connection()->query('SELECT MIN(id) FROM usuarios')->fetchColumn();
+        return $id === null || $id === false ? null : (int) $id;
+    }
+
     public static function loginExiste(string $login): bool
     {
         $stmt = Database::connection()->prepare('SELECT 1 FROM usuarios WHERE login = ?');

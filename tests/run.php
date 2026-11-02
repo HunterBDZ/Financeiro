@@ -1637,5 +1637,61 @@ $_SERVER['REMOTE_ADDR'] = '192.168.0.9';
 $check('primeira conta: endereço de fora, mas a linha de comando é local', \Financeiro\Rede::requisicaoLocal());
 $_SERVER['REMOTE_ADDR'] = $remoteAntes;
 
+// ---- mês sem ?mes= depois de fechar antes da hora, e reabrir com o ajuste do mês seguinte
+$mesCalT = date('Y-m-01');
+$mesesT = array_column(MesModel::todos(), 'situacao', 'mes');
+$proxT = date('Y-m-01', strtotime($mesCalT . ' +1 month'));
+if (($mesesT[$mesCalT] ?? '') === 'PREVISAO' && ($mesesT[$proxT] ?? '') === 'PREVISAO') {
+    $pdo->beginTransaction();
+    try {
+        MesModel::setSituacao($mesCalT, 'REAL');
+        MotorFinanceiro::limparCache();
+        $htmlFechadoCedo = $render(MesController::class, 'index', []);
+        preg_match('#<title>(.*?)</title>#s', $htmlFechadoCedo, $tituloT);
+        $check('Mês sem ?mes=: fica no mês do calendário, mesmo fechado', str_contains(html_entity_decode($tituloT[1] ?? ''), monthLabel($mesCalT)), $tituloT[1] ?? '');
+        $catT = (int) $pdo->query("SELECT id FROM categorias WHERE grupo = 'Dia a dia' ORDER BY id LIMIT 1")->fetchColumn();
+        $uidT = (int) $pdo->query('SELECT MIN(id) FROM usuarios')->fetchColumn();
+        $stValorT = $pdo->prepare('SELECT valor FROM previsao WHERE categoria_id = :c AND mes = :m');
+        $stValorT->execute(['c' => $catT, 'm' => $proxT]);
+        $antesT = $stValorT->fetchColumn();
+        PrevisaoLote::gravar('fechar', [[$catT, $proxT, 1234.56]], $uidT);
+        MesModel::setSituacao($mesCalT, 'PREVISAO');
+        $rT = PrevisaoLote::desfazerAjusteDoFechamento($mesCalT, $uidT);
+        $stValorT->execute(['c' => $catT, 'm' => $proxT]);
+        $check('reabrir: desfaz o ajuste do mês seguinte', $rT !== null && $rT['mes'] === $proxT && $rT['restauradas'] === 1 && $stValorT->fetchColumn() === $antesT);
+        $check('reabrir de novo: nada mais a desfazer', PrevisaoLote::desfazerAjusteDoFechamento($mesCalT, $uidT) === null);
+    } finally {
+        $pdo->rollBack();
+        MotorFinanceiro::limparCache();
+    }
+}
+
+// ---- o endereço do repositório, num lugar só para o código; instalador e documentos têm de bater com ele
+$repoT = \Financeiro\Atualizacao::repositorio();
+$check('repositório: o arquivo diz dono/nome', (bool) preg_match('#^[\w.-]+/[\w.-]+$#', $repoT));
+foreach (['instalar.sh', 'README.md', 'README.en.md', 'docs/INSTALACAO.md', '.github/ISSUE_TEMPLATE/config.yml'] as $arqT) {
+    $caminhoT = __DIR__ . '/../' . $arqT;
+    if (is_file($caminhoT)) {
+        preg_match_all('#github\.com/([\w.-]+/[\w.-]+?)(?:\.git|/|\)|\s|")#', (string) file_get_contents($caminhoT), $mT);
+        $outrosT = array_diff(array_unique($mT[1]), [$repoT]);
+        $outrosT = array_filter($outrosT, static fn(string $o): bool => !preg_match('#^(actions|shivammathur|dunglas|php)/#', $o));
+        $check('repositório: ' . $arqT . ' usa o mesmo endereço', $outrosT === [], implode(', ', $outrosT));
+    }
+}
+
+// ---- backup, restauração, migrações e atualização, num banco descartável e em processo próprio
+if (extension_loaded('pdo_sqlite') && function_exists('proc_open')) {
+    $tmpSis = sys_get_temp_dir() . '/financeiro-sistema-' . bin2hex(random_bytes(6));
+    mkdir($tmpSis, 0700);
+    $envSis = array_filter(getenv(), 'is_string');
+    $envSis['FIN_DADOS'] = $tmpSis;
+    $procSis = proc_open([...\Financeiro\Atualizacao::comandoPhp(), __DIR__ . '/sistema.php'], [0 => ['file', PHP_OS_FAMILY === 'Windows' ? 'NUL' : '/dev/null', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $tubos, __DIR__ . '/..', $envSis);
+    $saidaSis = stream_get_contents($tubos[1]) . stream_get_contents($tubos[2]);
+    $fimSis = proc_close($procSis);
+    $check('backup, restauração e atualização (tests/sistema.php)', $fimSis === 0, trim((string) $saidaSis));
+    echo trim((string) $saidaSis) === '' ? '' : 'sistema: ' . trim((string) strrchr("\n" . trim((string) $saidaSis), "\n")) . "\n";
+    \Financeiro\Atualizacao::removerPasta($tmpSis);
+}
+
 echo "\n{$ok} ok, {$falhas} falha(s)\n";
 exit($falhas > 0 ? 1 : 0);

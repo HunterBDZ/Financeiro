@@ -67,6 +67,11 @@ foreach (file((string) $op['mysql'], FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LIN
 }
 $ignorar = array_values(array_filter(array_map('trim', explode(',', (string) ($op['ignorar'] ?? '')))));
 
+set_exception_handler(static function (\Throwable $e): void {
+    $semTabela = $e instanceof PDOException && in_array($e->getCode(), ['42S02', 'HY000'], true) && str_contains($e->getMessage(), "doesn't exist");
+    falha($semTabela ? 'esse banco não tem as tabelas do Financeiro. Confira o DB_NAME em --mysql.' : 'não deu para continuar: ' . $e->getMessage());
+});
+
 // ---- MySQL: uma fotografia só de todas as tabelas, sem poder gravar
 $my = new PDO('mysql:host=' . ($env['DB_HOST'] ?? 'localhost') . ';dbname=' . ($env['DB_NAME'] ?? '') . ';charset=utf8mb4', $env['DB_USER'] ?? '', $env['DB_PASS'] ?? '', [
     PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,

@@ -1,0 +1,5 @@
+.git
+.github
+docs/img
+config/.env
+*.log

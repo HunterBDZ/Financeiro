@@ -37,11 +37,13 @@ final class MesController
             View::render('dashboard/vazio', ['pageTitle' => t('mês · financeiro')], 'mes');
             return;
         }
-        $mes      = mesValido($_GET['mes'] ?? null, $meses, MesModel::referencia($hoje));
+        $mesCal   = substr($hoje, 0, 7) . '-01';
+        // sem ?mes=: o mês do calendário enquanto ele dura, mesmo fechado antes do fim; o seguinte ainda não começou
+        $padrao   = in_array($mesCal, array_column($meses, 'mes'), true) ? $mesCal : MesModel::referencia($hoje);
+        $mes      = mesValido($_GET['mes'] ?? null, $meses, $padrao);
         $situacao = self::situacaoEm($meses, $mes);
         $estado   = estadoMes($mes, $situacao, $hoje);
         $editavel = $situacao === 'PREVISAO';
-        $mesCal   = substr($hoje, 0, 7) . '-01';
         $ultimo   = (string) end($meses)['mes'];
 
         $d     = MotorFinanceiro::dados();
@@ -505,11 +507,11 @@ final class MesController
         }
         MotorFinanceiro::limparCache();
 
-        // diz o que mudou no mês seguinte: reabrir não desfaz esse ajuste, que tem o próprio "desfazer" (tela Mês)
+        // diz o que mudou no mês seguinte; reabrir este mês desfaz esse ajuste junto
         $aviso = t('{mes} fechado.', ['mes' => mesAno($mes)]);
         if ($lote !== null) {
             $aviso .= ' · ' . tn($mudou, 'Em {prox}, 1 categoria passou a usar o valor sugerido.', 'Em {prox}, {n} categorias passaram a usar os valores sugeridos.', ['prox' => mesAno((string) $prox)])
-                . ' · ' . t('Para voltar atrás, use Desfazer a última alteração, na tela Mês.');
+                . ' · ' . t('Se reabrir este mês, esse ajuste também é desfeito.');
         } elseif ($prox !== null) {
             $aviso .= ' · ' . t('Os valores previstos de {prox} não mudaram.', ['prox' => mesAno($prox)]);
         }
@@ -539,6 +541,7 @@ final class MesController
                 $pdo->beginTransaction();
                 MesModel::setSituacao($mes, 'PREVISAO');
                 PrevisaoLote::descongelar($mes, (int) Auth::id());
+                $ajuste = PrevisaoLote::desfazerAjusteDoFechamento($mes, (int) Auth::id());
                 $pdo->commit();
             } catch (\Throwable $e) {
                 if ($pdo->inTransaction()) {
@@ -549,7 +552,13 @@ final class MesController
                 redirecionar($volta, 303);
             }
             MotorFinanceiro::limparCache();
-            flash('success', t('{mes} reaberto.', ['mes' => mesAno($mes)]));
+            $aviso = t('{mes} reaberto.', ['mes' => mesAno($mes)]);
+            if ($ajuste !== null) {
+                $aviso .= ' · ' . ($ajuste['restauradas'] === $ajuste['total']
+                    ? t('O ajuste feito em {prox} ao fechar foi desfeito.', ['prox' => mesAno($ajuste['mes'])])
+                    : t('O ajuste feito em {prox} ao fechar foi desfeito, menos nos valores que você mudou depois.', ['prox' => mesAno($ajuste['mes'])]));
+            }
+            flash('success', $aviso);
         } else {
             flash('warn', t('{mes} já está aberto.', ['mes' => mesAno($mes)]));
         }

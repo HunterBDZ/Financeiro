@@ -32,6 +32,7 @@ Config::load(Paths::config());
 
 if (PHP_SAPI !== 'cli') {
     Rede::exigirHost();
+    Financeiro\Manutencao::exigir();
     // com pasta de dados, a sessão e o log moram nela e nada depende do php.ini da máquina
     if (Paths::dados() !== null) {
         ini_set('session.save_path', Paths::sessoes());

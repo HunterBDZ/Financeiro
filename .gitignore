@@ -3,3 +3,4 @@ database/data/
 backups/
 *.log
 .DS_Store
+packaging/cacert.pem

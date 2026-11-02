@@ -109,6 +109,23 @@ final class Primeira
         }
     }
 
+    /** Troca uma linha da configuração, ou acrescenta, sem mexer nas outras. */
+    public static function gravarConfig(string $chave, string $valor): void
+    {
+        $linhas = is_file(Paths::config()) ? (array) file(Paths::config(), FILE_IGNORE_NEW_LINES) : [];
+        $achou = false;
+        foreach ($linhas as $i => $l) {
+            if (str_starts_with((string) $l, $chave . '=')) {
+                $linhas[$i] = $chave . '=' . $valor;
+                $achou = true;
+            }
+        }
+        if (!$achou) {
+            $linhas[] = $chave . '=' . $valor;
+        }
+        self::gravarSeguro(Paths::config(), implode("\n", $linhas) . "\n");
+    }
+
     private static function gravarSeguro(string $arquivo, string $conteudo): void
     {
         $tmp = $arquivo . '.novo';

@@ -1,5 +1,7 @@
 * text=auto
 *.sh text eol=lf
+packaging/linux/financeiro text eol=lf
+packaging/linux/instalar text eol=lf
 
 *.jpg binary
 *.png binary

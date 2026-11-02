@@ -254,6 +254,8 @@ $campo = static function (string $chave, string $rotulo, string $un = '', int $d
         </form>
     </details>
 
+    <a class="card aj-grupo aj-atalho" href="/sistema"><span class="titulo"><?= e(t('Backup e atualização')) ?></span><?= svgIcon('chevron', 16) ?></a>
+    <a class="card aj-grupo aj-atalho" href="/rede"><span class="titulo"><?= e(t('Usar no celular')) ?></span><?= svgIcon('chevron', 16) ?></a>
     </section>
 
     <?php $arqVersao = __DIR__ . '/../../../VERSION'; ?>

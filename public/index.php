@@ -12,9 +12,17 @@ header("Content-Security-Policy: default-src 'self'; style-src 'self' 'unsafe-in
 use Financeiro\Services\FotoPlano;
 use Financeiro\Services\Horizonte;
 
+// pacote ou imagem nova por cima da antiga: o banco acompanha, depois de uma cópia
+try {
+    \Financeiro\Migrador::aoAbrir();
+} catch (\Throwable $e) {
+    \Financeiro\Migrador::telaDeErro($e);
+}
+
 // os meses do plano não têm fim: se o mês virou, cria os que faltam
 try {
     \Financeiro\Database::connection();   // antes de qualquer data: é ao conectar que o fuso do site passa a valer
+    \Financeiro\Backup::diario();
     Horizonte::garantir();
     FotoPlano::garantir();
 } catch (\Throwable $e) {

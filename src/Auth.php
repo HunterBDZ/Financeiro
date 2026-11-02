@@ -343,6 +343,20 @@ final class Auth
         return $_SESSION['usuario_nome'] ?? null;
     }
 
+    public static function administrador(): bool
+    {
+        return self::id() !== null && self::id() === Models\UsuarioModel::administradorId();
+    }
+
+    /**
+     * Quem pode mexer no site inteiro: a conta administradora e, no computador da pessoa, só nele. No celular a
+     * conexão é HTTP: uma cópia de todos os dados ou um arquivo que os substitui não passam por ela.
+     */
+    public static function podeAdministrar(): bool
+    {
+        return self::administrador() && (Primeira::modo() !== 'instalador' || Rede::requisicaoLocal());
+    }
+
     /** Antes da primeira configuração, toda tela leva a ela. */
     private static function exigirConfiguracao(): void
     {

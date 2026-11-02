@@ -69,6 +69,45 @@ final class Rede
         return self::ipPrivado($nome);
     }
 
+    /** O programa foi iniciado pelo pacote, que sabe ligar e desligar a rede e reiniciar? */
+    public static function gerenciada(): bool
+    {
+        return getenv('FIN_GERENCIADO') === '1';
+    }
+
+    public static function acessoLigado(): bool
+    {
+        return Config::get('ACESSO_REDE', '0') === '1';
+    }
+
+    /** Pede ao programa que reinicie: quem o iniciou olha este arquivo. */
+    public static function pedirReinicio(): void
+    {
+        touch(Paths::dados() . '/reiniciar');
+    }
+
+    public static function porta(): int
+    {
+        $p = (int) getenv('FIN_PORTA');
+        return $p > 0 ? $p : (int) ($_SERVER['SERVER_PORT'] ?? 8484);
+    }
+
+    /**
+     * O IP deste computador na rede de casa; null se não houver. Um "connect" em UDP só escolhe a saída: nada é
+     * enviado para fora. Endereço fora das faixas privadas não serve, porque hostAceito() o recusaria.
+     */
+    public static function ipLocal(): ?string
+    {
+        $s = @stream_socket_client('udp://192.0.2.1:9', $erro, $texto, 1);
+        if ($s === false) {
+            return null;
+        }
+        $nome = (string) stream_socket_get_name($s, false);
+        fclose($s);
+        $ip = (string) substr($nome, 0, (int) strrpos($nome, ':'));
+        return self::ipPrivado($ip) && !self::ehLocal($ip) ? $ip : null;
+    }
+
     public static function exigirHost(): void
     {
         $ok = self::hostAceito(

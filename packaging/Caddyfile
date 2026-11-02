@@ -1,15 +1,17 @@
-# FrankenPHP no computador da pessoa: só no próprio computador, em HTTP, sem servir arquivos com ponto.
-# Uso, da raiz do projeto: PHP_INI_SCAN_DIR=packaging FIN_DADOS=/pasta frankenphp run --config packaging/Caddyfile
+# FrankenPHP no computador da pessoa, em HTTP. FIN_BIND vale 127.0.0.1 até a pessoa ligar a rede; quem confere o
+# endereço pedido é o app (Rede::exigirHost). A pasta é absoluta: uma atualização troca a pasta app inteira.
+# Uso: FIN_APP=/pasta/do/app PHP_INI_SCAN_DIR=packaging FIN_DADOS=/pasta frankenphp run --config packaging/Caddyfile
 {
 	auto_https off
 	admin off
 	frankenphp
 }
 
-http://localhost:{$FIN_PORTA:8484} http://127.0.0.1:{$FIN_PORTA:8484} {
-	bind 127.0.0.1
-	root * public
+http://:{$FIN_PORTA:8484} {
+	bind {$FIN_BIND:127.0.0.1}
+	root * {$FIN_APP:public/..}/public
 	@comPonto path_regexp (^|/)\.
 	respond @comPonto 404
+	encode zstd gzip
 	php_server
 }

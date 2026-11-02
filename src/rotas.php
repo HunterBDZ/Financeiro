@@ -14,6 +14,7 @@ use Financeiro\Controllers\AjustesController;
 use Financeiro\Controllers\CartaoController;
 use Financeiro\Controllers\EmprestimoController;
 use Financeiro\Controllers\WishlistController;
+use Financeiro\Controllers\SistemaController;
 use Financeiro\Controllers\TemaController;
 use Financeiro\Controllers\IdiomaController;
 use Financeiro\Controllers\InvestimentosController;
@@ -123,5 +124,15 @@ $router->post('/ajustes/icone', [AjustesController::class, 'salvarIcone']);
 $router->post('/ajustes/icone/remover', [AjustesController::class, 'removerIcone']);
 $router->get('/icone', [AjustesController::class, 'icone']);
 $router->post('/ajustes/aparelhos/sair', [AjustesController::class, 'sairAparelhos']);
+
+// ---- backup, atualização e acesso pela rede
+$router->get('/sistema', [SistemaController::class, 'index']);
+$router->post('/sistema/backup', [SistemaController::class, 'fazerBackup']);
+$router->post('/sistema/exportar', [SistemaController::class, 'exportar']);
+$router->post('/sistema/restaurar', [SistemaController::class, 'restaurar']);
+$router->post('/sistema/consultar', [SistemaController::class, 'consultar']);
+$router->post('/sistema/atualizar', [SistemaController::class, 'atualizar']);
+$router->get('/rede', [SistemaController::class, 'rede']);
+$router->post('/rede', [SistemaController::class, 'salvarRede']);
 
 return $router;

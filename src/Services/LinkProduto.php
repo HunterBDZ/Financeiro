@@ -332,7 +332,7 @@ final class LinkProduto
     }
 
     /** Certificados raiz para o curl: o da configuração ou o que vai junto no pacote. Sem nenhum, vale o do sistema. */
-    private static function arquivoCa(): ?string
+    public static function arquivoCa(): ?string
     {
         foreach ([(string) Config::get('CA_ARQUIVO', ''), Paths::raiz() . '/packaging/cacert.pem'] as $arquivo) {
             if ($arquivo !== '' && is_readable($arquivo)) {

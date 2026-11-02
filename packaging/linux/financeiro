@@ -1,0 +1,104 @@
+#!/bin/sh
+# O Financeiro no computador da pessoa. Sem sudo: tudo fica na pasta do usuário.
+#   financeiro                abre no navegador, iniciando se preciso
+#   financeiro iniciar|parar  liga ou desliga
+#   financeiro status         diz se está no ar e onde
+#   financeiro senha LOGIN    define uma senha nova para essa conta
+#   financeiro desinstalar    tira o programa; os dados ficam. Com --apagar-dados, apaga também
+#   financeiro servir         roda em primeiro plano: é o que o serviço chama
+set -u
+
+AQUI=$(dirname "$(readlink -f "$0")")
+BIN=$AQUI/bin/frankenphp
+PORTA=$(cat "$AQUI/porta" 2>/dev/null || echo 8484)
+DADOS=${FIN_DADOS:-${XDG_DATA_HOME:-$HOME/.local/share}/financeiro}
+UNIDADE=$HOME/.config/systemd/user/financeiro.service
+
+export FIN_DADOS="$DADOS" FIN_PORTA="$PORTA" FIN_APP="$AQUI/app" FIN_GERENCIADO=1
+export PHP_INI_SCAN_DIR="$AQUI/conf" FIN_PHP="$BIN php-cli"
+
+tem_servico() { [ -f "$UNIDADE" ] && systemctl --user --version >/dev/null 2>&1 && systemctl --user show-environment >/dev/null 2>&1; }
+no_ar() { "$BIN" php-cli -r "exit(@fsockopen('127.0.0.1', $PORTA, \$e, \$t, 1) ? 0 : 1);" >/dev/null 2>&1; }
+endereco() { echo "http://localhost:$PORTA"; }
+
+servir() {
+    mkdir -p "$DADOS"
+    FILHO=""
+    trap 'if [ -n "$FILHO" ]; then kill "$FILHO" 2>/dev/null; wait "$FILHO" 2>/dev/null; fi; exit 0' TERM INT
+    while :; do
+        rm -f "$DADOS/reiniciar"
+        # só a tela de Usar no celular liga isto
+        if grep -q '^ACESSO_REDE=1' "$DADOS/config.env" 2>/dev/null; then FIN_BIND=0.0.0.0; else FIN_BIND=127.0.0.1; fi
+        export FIN_BIND
+        "$BIN" run --config "$AQUI/Caddyfile" &
+        FILHO=$!
+        while kill -0 "$FILHO" 2>/dev/null; do
+            if [ -e "$DADOS/reiniciar" ]; then
+                kill "$FILHO" 2>/dev/null
+                break
+            fi
+            sleep 1
+        done
+        wait "$FILHO" 2>/dev/null
+        FILHO=""
+        # caiu sozinho (a memória acabou, por exemplo): volta; porta ocupada: tenta devagar
+        [ -e "$DADOS/reiniciar" ] || sleep 3
+    done
+}
+
+iniciar() {
+    if no_ar; then return 0; fi
+    if tem_servico; then
+        systemctl --user start financeiro.service
+    else
+        mkdir -p "$DADOS/log"
+        nohup "$AQUI/financeiro" servir >> "$DADOS/log/programa.log" 2>&1 < /dev/null &
+    fi
+    i=0
+    while [ "$i" -lt 30 ]; do
+        no_ar && return 0
+        sleep 1
+        i=$((i + 1))
+    done
+    echo "O Financeiro não abriu. Veja: financeiro status" >&2
+    return 1
+}
+
+parar() {
+    if tem_servico; then systemctl --user stop financeiro.service; fi
+    # sem o serviço: o processo iniciado à mão. Só o que roda deste programa
+    for p in $(pgrep -u "$(id -u)" -f "^/bin/sh $AQUI/financeiro servir|^sh $AQUI/financeiro servir" 2>/dev/null); do kill "$p" 2>/dev/null; done
+}
+
+case ${1:-abrir} in
+    abrir)
+        iniciar || exit 1
+        echo "O Financeiro está em $(endereco)"
+        if command -v xdg-open >/dev/null 2>&1 && [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]; then xdg-open "$(endereco)" >/dev/null 2>&1 & fi
+        ;;
+    servir) servir ;;
+    iniciar) iniciar && echo "O Financeiro está em $(endereco)" ;;
+    parar) parar; echo "O Financeiro parou." ;;
+    status)
+        if no_ar; then echo "No ar em $(endereco)"; else echo "Parado."; fi
+        echo "Dados em $DADOS"
+        ;;
+    senha)
+        [ $# -ge 2 ] || { echo "Use: financeiro senha LOGIN" >&2; exit 2; }
+        "$BIN" php-cli "$AQUI/app/tools/redefinir-senha.php" "$2"
+        ;;
+    desinstalar)
+        parar
+        if tem_servico; then systemctl --user disable financeiro.service >/dev/null 2>&1; fi
+        rm -f "$UNIDADE" "$HOME/.local/bin/financeiro" "$HOME/.local/share/applications/financeiro.desktop"
+        if [ "${2:-}" = --apagar-dados ]; then
+            rm -rf "$DADOS"
+            echo "Os dados foram apagados."
+        else
+            echo "Os seus dados ficaram em $DADOS"
+        fi
+        rm -rf "$AQUI"
+        echo "O Financeiro foi desinstalado."
+        ;;
+    *) sed -n '2,8p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+esac

@@ -47,6 +47,8 @@ final class Ajuda
                 ['id' => 'relatorio', 'pergunta' => t('Como baixo o relatório?'), 'resposta' => t('Na aba Relatório, escolha mensal ou anual, escolha o período e use Baixar PDF.')],
             ]],
             ['titulo' => t('Conta e dados'), 'itens' => [
+                ['id' => 'backup', 'pergunta' => t('Como faço backup?'), 'resposta' => t('O Financeiro faz uma cópia por dia. Em Ajustes, em Backup e atualização, você baixa uma cópia, restaura um backup e procura versões novas.')],
+                ['id' => 'celular', 'pergunta' => t('Como uso no celular?'), 'resposta' => t('Em Ajustes, abra Usar no celular, ligue o acesso pela rede e leia o código com a câmera. O celular precisa estar na mesma rede, e o computador, ligado.')],
                 ['id' => 'senha', 'pergunta' => t('Esqueci a senha. E agora?'), 'resposta' => t('Outra pessoa com conta pode definir uma senha nova em Ajustes, em Pessoas. Se não houver outra pessoa, peça a quem instalou o app.')],
                 ['id' => 'pessoas', 'pergunta' => t('Como dou acesso a outra pessoa?'), 'resposta' => t('Em Ajustes, em Pessoas, informe nome, nome de usuário e senha. Todas as pessoas veem os mesmos dados.')],
                 ['id' => 'aparencia', 'pergunta' => t('Como troco o idioma ou o tema?'), 'resposta' => t('O idioma fica em Ajustes, e o tema, na tela Temas. Cada conta tem os seus.')],

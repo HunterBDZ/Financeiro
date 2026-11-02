@@ -250,6 +250,33 @@ final class PrevisaoLote
         }
     }
 
+    /**
+     * Ao reabrir: desfaz o ajuste que fechar este mês aplicou no mês seguinte (lote 'fechar', que começa nele).
+     * O que a pessoa mudou depois continua, porque desfazer() só restaura o que segue igual.
+     * @return ?array{mes:string,restauradas:int,total:int} null se o fechamento não ajustou nada
+     */
+    public static function desfazerAjusteDoFechamento(string $mes, int $usuarioId): ?array
+    {
+        $pdo = Database::connection();
+        $st = $pdo->prepare('SELECT MIN(mes) FROM meses WHERE mes > :m');
+        $st->execute(['m' => $mes]);
+        $prox = $st->fetchColumn();
+        if (!$prox) {
+            return null;
+        }
+        $st = $pdo->prepare(
+            "SELECT lote FROM previsao_lotes WHERE origem = 'fechar' AND mes_inicio = :p AND desfeito_em IS NULL
+             ORDER BY criado_em DESC LIMIT 1"
+        );
+        $st->execute(['p' => $prox]);
+        $lote = $st->fetchColumn();
+        if ($lote === false) {
+            return null;
+        }
+        $r = self::desfazer((string) $lote, $usuarioId);
+        return ['mes' => (string) $prox, 'restauradas' => $r['restauradas'], 'total' => $r['total']];
+    }
+
     /** Mesma célula? null = sem linha no mês; dois valores iguais ao centavo. */
     private static function iguais(?float $a, ?float $b): bool
     {

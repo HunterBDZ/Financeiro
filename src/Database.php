@@ -38,6 +38,12 @@ final class Database
         return self::$instance;
     }
 
+    /** Solta o banco: quem vai trocar o arquivo não pode estar com ele aberto. */
+    public static function fechar(): void
+    {
+        self::$instance = null;
+    }
+
     private static function conectarSqlite(): PDO
     {
         try {

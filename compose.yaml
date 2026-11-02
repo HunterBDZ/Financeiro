@@ -1,0 +1,19 @@
+# docker compose up -d   e abra http://localhost:8484
+services:
+  financeiro:
+    image: ghcr.io/hunterbdz/financeiro:latest
+    build: .
+    restart: unless-stopped
+    ports:
+      # só neste computador. Para outros aparelhos, ponha um proxy com HTTPS na frente, ou troque por "8484:8484"
+      # sabendo que, em HTTP, quem está na mesma rede pode ver a senha e os dados.
+      - "127.0.0.1:8484:8484"
+    volumes:
+      - financeiro-dados:/data
+    environment:
+      # 1 = atrás de um proxy seu com HTTPS. Valem só na primeira vez; depois, ficam em /data/config.env
+      CONFIAR_PROXY: "0"
+      HOSTS_PERMITIDOS: ""
+
+volumes:
+  financeiro-dados:

@@ -1,0 +1,12 @@
+Financeiro para Linux
+
+Para instalar, abra um terminal nesta pasta e rode:
+
+    ./instalar
+
+Não precisa de sudo. No fim, abra http://localhost:8484 e crie a sua conta.
+
+Os seus dados ficam em ~/.local/share/financeiro. Os backups, a atualização e o acesso pelo celular
+ficam na tela, em Ajustes.
+
+Licença: AGPL-3.0-or-later. O código-fonte e os avisos de terceiros estão em programa/app.

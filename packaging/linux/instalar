@@ -1,0 +1,103 @@
+#!/bin/sh
+# Instala o Financeiro para este usuário, sem sudo e sem nenhuma pergunta. Rodar de novo com um pacote mais novo atualiza
+# o programa; os dados ficam onde estão.
+set -eu
+
+ORIGEM=$(dirname "$(readlink -f "$0")")/programa
+DESTINO=${XDG_LIB_HOME:-$HOME/.local/lib}/financeiro
+UNIDADE=$HOME/.config/systemd/user/financeiro.service
+
+para() { printf 'Não deu para instalar: %s\n' "$*" >&2; exit 1; }
+
+[ "$(id -u)" != 0 ] || para "rode sem sudo, com o seu usuário: ./instalar"
+[ -d "$ORIGEM/app" ] || para "rode este comando de dentro da pasta extraída do pacote."
+case "$(uname -m)" in
+    x86_64|amd64) MAQUINA=x86_64 ;;
+    aarch64|arm64) MAQUINA=aarch64 ;;
+    *) para "este computador não é compatível: $(uname -m)." ;;
+esac
+[ "$(cat "$ORIGEM/PACOTE")" = "linux-$MAQUINA" ] || para "este pacote é para $(cat "$ORIGEM/PACOTE"), e este computador é $MAQUINA. Baixe o pacote certo."
+
+NOVA=$(cat "$ORIGEM/app/VERSION")
+if [ -f "$DESTINO/app/VERSION" ]; then
+    ATUAL=$(cat "$DESTINO/app/VERSION")
+    if [ "$ATUAL" != "$NOVA" ] && [ "$(printf '%s\n%s\n' "$ATUAL" "$NOVA" | sort -V | tail -1)" = "$ATUAL" ]; then
+        para "já está instalada a versão $ATUAL, mais nova que esta ($NOVA)."
+    fi
+    "$DESTINO/financeiro" parar >/dev/null 2>&1 || true
+fi
+
+# uma porta livre; quem já instalou fica com a sua
+BIN=$ORIGEM/bin/frankenphp
+PORTA=$(cat "$DESTINO/porta" 2>/dev/null || true)
+if [ -z "$PORTA" ]; then
+    PORTA=8484
+    while "$BIN" php-cli -r "exit(@fsockopen('127.0.0.1', $PORTA, \$e, \$t, 1) ? 0 : 1);" >/dev/null 2>&1; do
+        PORTA=$((PORTA + 1))
+        [ "$PORTA" -lt 8584 ] || para "não achei uma porta livre."
+    done
+fi
+
+mkdir -p "$(dirname "$DESTINO")"
+NOVO=$DESTINO.novo
+rm -rf "$NOVO"
+cp -R "$ORIGEM" "$NOVO"
+echo "$PORTA" > "$NOVO/porta"
+rm -rf "$DESTINO.antes"
+if [ -d "$DESTINO" ]; then mv "$DESTINO" "$DESTINO.antes"; fi
+mv "$NOVO" "$DESTINO"
+rm -rf "$DESTINO.antes"
+
+mkdir -p "$HOME/.local/bin" "$HOME/.local/share/applications"
+ln -sf "$DESTINO/financeiro" "$HOME/.local/bin/financeiro"
+cat > "$HOME/.local/share/applications/financeiro.desktop" <<DESKTOP
+[Desktop Entry]
+Type=Application
+Name=Financeiro
+Comment=Controle o dinheiro da sua casa
+Exec=$DESTINO/financeiro
+Icon=$DESTINO/app/public/assets/img/marca.svg
+Terminal=false
+Categories=Office;Finance;
+DESKTOP
+
+SEM_SERVICO=0
+if command -v systemctl >/dev/null 2>&1 && systemctl --user show-environment >/dev/null 2>&1; then
+    mkdir -p "$(dirname "$UNIDADE")"
+    cat > "$UNIDADE" <<SERVICO
+[Unit]
+Description=Financeiro
+
+[Service]
+ExecStart=$DESTINO/financeiro servir
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=default.target
+SERVICO
+    systemctl --user daemon-reload
+    systemctl --user enable financeiro.service >/dev/null 2>&1
+    # sem isto, o programa só roda com a pessoa logada; se não der, ele sobe no próximo login
+    loginctl enable-linger "$(id -un)" >/dev/null 2>&1 || true
+else
+    SEM_SERVICO=1
+fi
+"$DESTINO/financeiro" iniciar >/dev/null
+
+cat <<MSG
+
+Pronto! O Financeiro $NOVA está instalado.
+
+  1. Abra no navegador deste computador:  http://localhost:$PORTA
+  2. Crie a sua conta na tela que aparecer.
+
+Depois, ele fica no menu de aplicativos. Para usar no celular: Ajustes, Usar no celular.
+MSG
+if [ "$SEM_SERVICO" = 1 ]; then
+    printf '\nEste sistema não tem systemd de usuário: depois de reiniciar, abra o Financeiro pelo menu ou com "%s".\n' "$DESTINO/financeiro"
+fi
+case ":$PATH:" in
+    *":$HOME/.local/bin:"*) ;;
+    *) printf '\nO comando financeiro está em %s/.local/bin, que não está no seu PATH.\n' "$HOME" ;;
+esac

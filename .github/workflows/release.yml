@@ -1,0 +1,77 @@
+name: Versão
+
+# Numa tag vX.Y.Z: testa, monta os pacotes, publica a versão e a imagem Docker.
+# Precisa do segredo FIN_CHAVE_ATUALIZACAO, a chave privada que assina a atualização pela tela.
+on:
+  push:
+    tags: ['v[0-9]+.[0-9]+.[0-9]+']
+
+permissions:
+  contents: read
+
+jobs:
+  testes:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_sqlite, mbstring, curl, sodium
+          coverage: none
+      - run: echo "FIN_DADOS=$RUNNER_TEMP/financeiro" >> "$GITHUB_ENV"
+      - run: php database/instalar.php --demo
+      - run: php tests/run.php
+
+  pacotes:
+    needs: testes
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: sodium
+          coverage: none
+      - name: A tag bate com o arquivo VERSION
+        run: test "v$(tr -d '[:space:]' < VERSION)" = "$GITHUB_REF_NAME"
+      - name: Montar
+        env:
+          FIN_CHAVE_ATUALIZACAO: ${{ secrets.FIN_CHAVE_ATUALIZACAO }}
+        run: |
+          test -n "$FIN_CHAVE_ATUALIZACAO"
+          packaging/empacotar.sh --saida "$RUNNER_TEMP/versao"
+      - name: Publicar
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          awk -v v="## ${GITHUB_REF_NAME#v}" 'index($0, v) == 1 { d = 1; next } /^## / { d = 0 } d' CHANGELOG.md > "$RUNNER_TEMP/notas.md"
+          gh release create "$GITHUB_REF_NAME" "$RUNNER_TEMP"/versao/* --title "$GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/notas.md"
+
+  imagem:
+    needs: testes
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - id: nome
+        run: echo "repo=${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ghcr.io/${{ steps.nome.outputs.repo }}:${{ github.ref_name }}
+            ghcr.io/${{ steps.nome.outputs.repo }}:latest

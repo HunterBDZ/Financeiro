@@ -17,7 +17,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
-          extensions: pdo_sqlite, mbstring, curl
+          extensions: pdo_sqlite, mbstring, curl, sodium
           coverage: none
       - name: Pasta de dados
         run: echo "FIN_DADOS=$RUNNER_TEMP/financeiro" >> "$GITHUB_ENV"
@@ -45,12 +45,12 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
-          extensions: pdo_mysql, pdo_sqlite, mbstring, curl
+          extensions: pdo_mysql, pdo_sqlite, mbstring, curl, sodium
           coverage: none
       - name: Sintaxe do PHP
         run: find src public database tests tools -name '*.php' -print0 | xargs -0 -n1 php -l > /dev/null
       - name: Scripts de shell
-        run: shellcheck --severity=warning instalar.sh tools/*.sh
+        run: shellcheck --severity=warning instalar.sh tools/*.sh packaging/empacotar.sh packaging/linux/financeiro packaging/linux/instalar packaging/docker/entrada.sh
       - name: Banco de demonstração
         run: |
           mysql -h127.0.0.1 -uroot -praiz -e "CREATE USER 'demo'@'%' IDENTIFIED BY 'demo1234'; GRANT SELECT, INSERT, UPDATE, DELETE ON financeiro_demo.* TO 'demo'@'%';"

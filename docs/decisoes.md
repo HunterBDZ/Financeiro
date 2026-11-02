@@ -113,7 +113,7 @@ As regras do app e o porquê de cada uma. Para instalar e operar, veja o [manual
 
 - Mês terminado mostra um botão à vista; mês em andamento, o link "Fechar este mês".
 - "Aplicar" vem desligado, a confirmação cita os dias que faltam e a mensagem diz o que mudou no mês seguinte.
-- Reabrir não desfaz o ajuste do mês seguinte: quem desfaz é "Desfazer a última alteração".
+- Reabrir também desfaz o ajuste que o fechamento aplicou no mês seguinte, menos nos valores que a pessoa mudou depois.
 - **Início com o mês fechado antes do fim:** o resumo fica no mês do calendário, e só a previsão olha o próximo mês aberto.
 
 ## Telas e visual

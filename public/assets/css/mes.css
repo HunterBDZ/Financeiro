@@ -628,3 +628,22 @@ details.mes-ed:target > summary { animation: mes-realce 1.6s ease-out 1; }   /* 
 .fu-sub { color: var(--text-2); font-size: 14px; line-height: 1.45; }
 .fu-tabela > summary { display: inline-flex; align-items: center; list-style: none; margin-bottom: 10px; cursor: pointer; }
 .fu-tabela > summary::-webkit-details-marker { display: none; }
+
+/* backup, atualização e acesso pela rede */
+.sis-voltar { margin: 0 0 4px; font-size: 14px; }
+.sis-grupo { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+.sis-grupo p { margin: 0; }
+.sis-grupo .aj-salvar { margin-top: 4px; }
+.sis > .aviso { margin-top: 12px; }
+.sis > form, .sis > .aj-ajuda { margin-top: 12px; }
+.sis-comando { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--card-2); font-size: 13px; line-height: 1.6; overflow-x: auto; }
+.sis-pasta { overflow-wrap: anywhere; }
+.sis-notas pre { margin: 8px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; font-size: 14px; }
+.sis-acao > summary, .sis-notas > summary { cursor: pointer; font-weight: 650; min-height: 32px; }
+.sis-acao[open] > summary { margin-bottom: 8px; }
+.sis-qr { width: min(260px, 100%); margin: 4px auto; }
+.sis-qr svg { display: block; width: 100%; height: auto; border-radius: 8px; }
+.sis-url { text-align: center; font-size: 18px; overflow-wrap: anywhere; }
+.sis-lista { margin: 0; padding-left: 20px; color: var(--text-2); font-size: 14px; }
+.aj-atalho { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 52px; color: inherit; text-decoration: none; }
+.aj-atalho .titulo { font-size: 16px; }

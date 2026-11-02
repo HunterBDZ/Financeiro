@@ -33,3 +33,7 @@ Estas imagens foram criadas para o Financeiro e seguem a licença do projeto:
 ## Serviços externos
 
 Nenhum código destes serviços acompanha o app. O que sai do servidor está descrito em [`docs/SEGURANCA.md`](docs/SEGURANCA.md).
+
+## Nos pacotes
+
+Os pacotes e a imagem Docker levam junto o [FrankenPHP](https://github.com/php/frankenphp) (MIT), com o PHP (licença PHP), o Caddy (Apache-2.0) e as bibliotecas embutidas neles, e os certificados raiz da [Mozilla](https://curl.se/docs/caertextract.html) (MPL-2.0). As licenças de cada um vêm com os projetos de origem.
