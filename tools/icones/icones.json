@@ -1,5 +1,5 @@
 {
-  "fonte": "Apple Color Emoji (© Apple Inc.), imagens de 160 px do iamcal/emoji-data — https://github.com/iamcal/emoji-data",
+  "fonte": "Noto Emoji (© Google LLC, Apache-2.0), reduzidos e reunidos em sprite: https://github.com/googlefonts/noto-emoji",
   "tamanho": 160,
   "colunas": 10,
   "grupos": [

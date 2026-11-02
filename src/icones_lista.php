@@ -1,6 +1,6 @@
 <?php
 // GERADO por tools/icones/gerar.py a partir de tools/icones/icones.json: não editar à mão.
-// Ícones: Apple Color Emoji (© Apple Inc.), imagens de 160 px do iamcal/emoji-data — https://github.com/iamcal/emoji-data
+// Ícones: Noto Emoji (© Google LLC, Apache-2.0), reduzidos e reunidos em sprite: https://github.com/googlefonts/noto-emoji
 return [
   'tamanho' => 160,
   'passo' => 168,

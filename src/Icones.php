@@ -4,7 +4,7 @@ namespace Financeiro;
 use Financeiro\Models\CategoriaModel;
 
 /**
- * Ícones de categoria: emojis da Apple (160 px) num sprite só, public/assets/img/icones.webp;
+ * Ícones de categoria: emojis do Noto Emoji (160 px) num sprite só, public/assets/img/icones.webp;
  * a lista com posição e grupo de cada um é gerada em src/icones_lista.php por
  * tools/icones/gerar.py.
  *

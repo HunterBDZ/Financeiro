@@ -759,7 +759,7 @@ details.dobra > summary:hover::after { border-color: var(--text); }
 .trilho.quase > i { background: var(--warn); opacity: 1; }
 .trilho.passou > i { background: var(--neg); opacity: 1; }
 
-/* ícone de categoria: emoji da Apple num círculo (tamanho e posição no sprite vêm de Icones::html) */
+/* ícone de categoria: emoji num círculo (tamanho e posição no sprite vêm de Icones::html) */
 .ci {
     display: inline-grid; place-items: center; flex: none; vertical-align: middle;
     border-radius: 50%; background: var(--card-2);
