@@ -28,9 +28,26 @@ php -S 127.0.0.1:8099 -t public tools/servir-dev.php   # o site
 php tests/run.php                    # os testes
 ```
 
+## Testes de navegador
+
+Ficam em `tests/navegador`, com [Playwright](https://playwright.dev), e rodam no CI a cada envio: entrar, lançar no computador e no celular, todas as telas do menu sem erro de JavaScript, temas, PDF do relatório, idioma, backup e a varredura de acessibilidade do [axe](https://github.com/dequelabs/axe-core). Você precisa do Node 22.12 ou mais novo e do PHP de cima, como `php` no PATH ou com o caminho em `FIN_NAVEGADOR_PHP`. Cada processo de teste cria o próprio banco de demonstração numa pasta temporária, então os seus dados ficam de fora.
+
+```sh
+cd tests/navegador
+npm ci
+npx playwright install chromium firefox
+npm test                          # Chromium e Firefox
+npm test -- --project=chromium    # só o Chromium
+npx playwright show-report        # o relatório, com print e rastro de cada falha
+node servidor.js                  # o mesmo servidor e os mesmos dados dos testes, para olhar as telas
+```
+
+A varredura do axe só reprova violação grave ou crítica. As que o app ainda tem estão em `CONHECIDAS`, em `acessibilidade.spec.js`, cada uma com um teste marcado como esperado falhar: ao corrigir, apague as duas coisas.
+
 ## Antes de enviar
 
 - `php tests/run.php` termina com 0 falhas.
+- Mudou tela, CSS ou JavaScript: `npm test`, em `tests/navegador`, também.
 - Mudou o banco: siga [Como lançar uma versão](docs/LANCAR-VERSAO.md).
 - Texto novo passa por `t()`, com tradução em `src/idiomas/`. Rode `php tools/idiomas/gerar.php`, que aponta o que falta.
 - Não edite arquivos gerados à mão: temas, ícones e fontes do PDF têm um gerador em `tools/`.

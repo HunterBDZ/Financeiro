@@ -23,7 +23,7 @@ public/      raiz do site: rotas e assets
 src/         Controllers, Models, Services e Views
 database/    schema.sqlite.sql, schema.sql, instalar.php, migrations/, migrations-sqlite/ e imagens da demonstração
 packaging/   pacotes de Linux, Windows e Mac, gerente do programa, php.ini, Caddyfile, entrada do Docker e o empacotador
-tests/       run.php e sistema.php, sem dependências
+tests/       run.php e sistema.php, sem dependências; navegador/, com Playwright, só para desenvolver
 tools/       backup, atualização, importador e comparador de bancos, sprite de ícones e outros geradores
 docs/        manual de instalação, decisões e prints
 ```
@@ -64,6 +64,8 @@ php tests/run.php    # o que grava é desfeito no fim; os dados não mudam
 ```
 
 Os testes usam o banco de `config/.env` ou, com `FIN_DADOS`, o dessa pasta, e têm de passar nos dois bancos. Para desenvolver, prepare um banco de demonstração, como em [Como contribuir](../CONTRIBUTING.md#rodar-localmente).
+
+Os testes de navegador, em `tests/navegador`, abrem as telas no Chromium e no Firefox com um banco de demonstração novo e reprovam qualquer erro de JavaScript. Veja [Como contribuir](../CONTRIBUTING.md#testes-de-navegador).
 
 ## Acessibilidade
 
