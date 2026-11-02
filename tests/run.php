@@ -1295,7 +1295,8 @@ $arquivos = array_merge(glob($raiz . '/*.md') ?: [], [$raiz . '/instalar.sh']);
 foreach (['src', 'public/assets/js', 'public/assets/css', 'docs', 'database', 'tools', 'tests', '.github'] as $pasta) {
     if (is_dir($raiz . '/' . $pasta)) {
         foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($raiz . '/' . $pasta, FilesystemIterator::SKIP_DOTS)) as $f) {
-            if (preg_match('/\.(php|md|sql|js|css|sh|py|json|yml)$/', $f->getFilename())) {
+            // database/data é do site, fora do repositório: o atualizador preserva e o teste não confere
+            if (preg_match('/\.(php|md|sql|js|css|sh|py|json|yml)$/', $f->getFilename()) && !str_contains($f->getPathname(), '/database/data/')) {
                 $arquivos[] = $f->getPathname();
             }
         }

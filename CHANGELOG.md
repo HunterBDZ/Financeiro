@@ -2,6 +2,10 @@
 
 Cada versão publicada é uma tag `vX.Y.Z` deste repositório. Pacotes atualizam em Ajustes, em Backup e atualização; servidores, com `sudo financeiro-atualizar`.
 
+## 1.8.2
+
+- Os testes não barram mais a atualização de um site com arquivos próprios em `database/data`, pasta que fica fora do repositório.
+
 ## 1.8.1
 
 - Dois testes dependiam da data e barravam a atualização: um no começo do mês, sem lançamentos, e outro a partir do último dia do mês. Conferidos agora em várias datas.
