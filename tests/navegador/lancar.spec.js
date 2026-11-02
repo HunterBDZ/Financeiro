@@ -14,7 +14,7 @@ test.describe('no computador', () => {
         await valor.pressSequentially('45');
         await valor.blur();
         await expect(valor).toHaveValue('45,00');      // o valor é lido como se fala: 45 é R$ 45,00
-        await form.getByLabel('Categoria').selectOption({ label: 'Mercado' });
+        await form.getByRole('group', { name: 'Categoria' }).getByText('Mercado', { exact: true }).first().click();   // categoria em um toque
         await form.getByLabel('descrição', { exact: true }).fill('Feira do teste');
         await form.getByRole('button', { name: 'Lançar' }).click();
 
@@ -63,7 +63,7 @@ test.describe('no celular', () => {
         const dialogo = page.getByRole('dialog', { name: 'lançar' });
         await expect(dialogo).toBeVisible();
         await dialogo.getByRole('textbox', { name: 'valor' }).pressSequentially('37');
-        await dialogo.getByLabel('Categoria').selectOption({ label: 'Lazer' });
+        await dialogo.getByRole('group', { name: 'Categoria' }).getByText('Lazer', { exact: true }).first().tap();
         await dialogo.getByLabel('descrição', { exact: true }).fill('Cinema do teste');
         await dialogo.getByRole('button', { name: 'Lançar' }).tap();
 
