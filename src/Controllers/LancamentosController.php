@@ -2,7 +2,10 @@
 namespace Financeiro\Controllers;
 
 use Financeiro\Auth;
+use Financeiro\Models\CartaoModel;
 use Financeiro\Models\CategoriaModel;
+use Financeiro\Models\ContaModel;
+use Financeiro\Models\TransferenciaModel;
 use Financeiro\Models\LancamentoModel;
 use Financeiro\Models\MesModel;
 use Financeiro\Models\MetaModel;
@@ -41,6 +44,7 @@ final class LancamentosController
         $linhas = LancamentoModel::listar($mes, $filtro + ['limite' => $limite]);
         $totais = LancamentoModel::totais($mes, $filtro);
         $filtrado = $b['filtrado'];
+        [$transferencias, $saldoConta] = self::transferenciasDoExtrato($b, $linhas, (int) $totais['n']);
 
         // renda = a mesma palavra e o mesmo número do gráfico (entra do motor), nunca "entrou" (D2)
         $renda = null;
@@ -89,8 +93,51 @@ final class LancamentosController
             'renda'      => $renda,
             'urlAtual'   => $urlAtual,
             'urlPlanilha' => '/lancamentos/planilha?' . http_build_query($params, '', '&', PHP_QUERY_RFC3986),
+            'contas'     => $b['contas'],
+            'conta'      => $b['conta'],
+            'transferencias' => $transferencias,
+            'saldoConta' => $saldoConta,
+            'nomesCartao' => count(CartaoModel::ativos()) > 1 ? array_column(CartaoModel::ativos(), 'nome', 'id') : [],
             'form'       => LancarForm::dados() + ['modo' => 'pagina', 'pref' => 'pg', 'volta' => $urlAtual, 'topo' => false],
         ], 'extrato');
+    }
+
+    /**
+     * As transferências que entram na lista do extrato, e o saldo da conta filtrada. Só com mais de uma conta (com uma,
+     * não há transferência) e sem filtro de categoria, que elas não têm. Ficam no mesmo período das linhas mostradas:
+     * se a lista vai ser paginada, a partir do dia da última linha à vista.
+     * @return array{0:list<array>, 1:?array{conta:array, data:string, valor:float}}
+     */
+    private static function transferenciasDoExtrato(array $b, array $linhas, int $total): array
+    {
+        if (count($b['contas']) < 2) {
+            return [[], null];
+        }
+        $mes = $b['mes'];
+        $de = $b['periodo'] !== null ? $b['periodo']['de'] : $mes;
+        $ate = $b['periodo'] !== null ? $b['periodo']['ate'] : date('Y-m-t', strtotime($mes));
+        $hoje = Relogio::hoje();
+        $saldo = null;
+        if ($b['conta'] !== null) {
+            $quando = $ate === null || $ate > $hoje ? $hoje : $ate;
+            $saldo = ['conta' => $b['conta'], 'data' => $quando, 'valor' => ContaModel::saldo($b['conta']['id'], $quando)];
+        }
+        if ($b['filtro']['categoria_id'] !== null || $b['filtro']['classe'] !== null || $b['quem'] > 0) {
+            return [[], $saldo];
+        }
+        if ($linhas !== [] && count($linhas) < $total && in_array($b['ordem'], ['', 'dia-asc'], true)) {
+            $ultima = (string) $linhas[count($linhas) - 1]['data'];
+            if ($b['ordem'] === '') {
+                $de = max((string) $de, $ultima);
+            } else {
+                $ate = min((string) ($ate ?? $ultima), $ultima);
+            }
+        }
+        $lista = TransferenciaModel::listar($de, $ate, $b['conta']['id'] ?? null, $b['q']);
+        $min = $b['filtro']['min'] ?? null;
+        $max = $b['filtro']['max'] ?? null;
+        $lista = array_values(array_filter($lista, static fn(array $t): bool => ($min === null || (float) $t['valor'] >= $min) && ($max === null || (float) $t['valor'] <= $max)));
+        return [$lista, $saldo];
     }
 
     /**
@@ -142,6 +189,14 @@ final class LancamentosController
         $categoria = $cat > 0 ? CategoriaModel::find($cat) : null;
         $cat  = $categoria ? $cat : 0;
         $q    = mb_substr(trim(self::get('q') ?? self::get('busca') ?? ''), 0, 80);
+        // a conta (com mais de uma): as arquivadas também, para ver o que houve nelas
+        $contas = count(ContaModel::todas()) > 1 ? ContaModel::todas() : [];
+        $conta = null;
+        foreach ($contas as $c) {
+            if ((int) (self::get('conta') ?? 0) === $c['id']) {
+                $conta = $c;
+            }
+        }
         $ordem = self::get('ordem') ?? '';
         $ordem = in_array($ordem, ['dia-desc', 'dia-asc', 'valor-desc', 'valor-asc', 'alfa'], true) ? $ordem : '';
 
@@ -193,21 +248,22 @@ final class LancamentosController
             'classe'       => $f ?: null,
             'usuario_id'   => $quem ?: null,
             'categoria_id' => $cat ?: null,
+            'conta_id'     => $conta['id'] ?? null,
             'q'            => $q,
             'ordem'        => $ordem,
         ] + ($periodo !== null ? ['periodo' => $periodo] : []) + $limites;
 
         $params = array_filter([
             'mes' => $mes, 'periodo' => $modo, 'de' => $modo === 'datas' ? (string) $de : '', 'ate' => $modo === 'datas' ? (string) $ate : '',
-            'f' => $f, 'quem' => $quem ?: '', 'cat' => $cat ?: '', 'q' => $q,
+            'f' => $f, 'quem' => $quem ?: '', 'cat' => $cat ?: '', 'conta' => $conta['id'] ?? '', 'q' => $q,
             'min' => isset($limites['min']) ? $valores['min'] : '', 'max' => isset($limites['max']) ? $valores['max'] : '', 'ordem' => $ordem,
         ], static fn($v) => $v !== '');
 
         return [
             'mes' => $mes, 'meses' => $meses, 'modo' => $modo, 'periodo' => $periodo, 'rotulo' => $rotulo,
             'usuarios' => $usuarios, 'f' => $f, 'quem' => $quem, 'categoria' => $categoria, 'q' => $q, 'ordem' => $ordem,
-            'valores' => $valores, 'erroValor' => $erroValor, 'filtro' => $filtro,
-            'filtrado' => $f !== '' || $quem > 0 || $cat > 0 || $q !== '' || $modo !== '' || $limites !== [],
+            'valores' => $valores, 'erroValor' => $erroValor, 'filtro' => $filtro, 'contas' => $contas, 'conta' => $conta,
+            'filtrado' => $f !== '' || $quem > 0 || $cat > 0 || $conta !== null || $q !== '' || $modo !== '' || $limites !== [],
             'params' => $params,
         ];
     }
@@ -224,7 +280,7 @@ final class LancamentosController
         if ($antigo === null) {
             // PAGAR sem JS: /lancar?categoria=9&valor=340,00&descricao=Faxineira&volta=/
             $pre = array_filter([
-                'pagou'        => self::get('pagou') === 'cartao' ? 'cartao' : null,
+                'pagou'        => preg_match('/^cartao(:\d+)?$/D', (string) self::get('pagou')) ? self::get('pagou') : null,
                 'categoria_id' => (int) (self::get('categoria') ?? 0) ?: null,
                 'valor'        => self::get('valor'),
                 'descricao'    => self::get('descricao'),
@@ -251,14 +307,18 @@ final class LancamentosController
         csrfCheck();
 
         $volta = voltaSegura(self::post('volta'), '');
-        if (self::post('pagou') === 'cartao') {
+        if (self::post('modo') === 'transferir' && ContaModel::varias()) {
+            self::transferir($volta);
+        }
+        if (preg_match('/^cartao(?::(\d+))?$/D', (string) self::post('pagou'), $mc)) {
             // "Pagou com: Cartão": vira uma compra no cartão (não é lançamento da conta; no plano só a fatura conta)
-            $r = CartaoController::criarCompraDe($_POST);
+            $r = CartaoController::criarCompraDe($_POST, null, isset($mc[1]) ? (int) $mc[1] : null);
             if ($r['erro'] !== null) {
                 $_SESSION['lanc_antigo'] = self::antigoDe($_POST) + ['erro' => $r['erro']];
                 redirecionar('/lancar?volta=' . rawurlencode($volta !== '' ? $volta : '/cartao'), 303);
             }
-            $destino = $volta !== '' ? $volta : '/cartao';
+            // de volta à aba Cartão: no cartão da compra
+            $destino = $volta !== '' && !preg_match('#^/cartao(?:[?\#]|$)#', $volta) ? $volta : CartaoController::url($r['cartao']);
             flash('success', $r['aviso'], ['url' => '/cartao/compras/' . $r['id'] . '/excluir', 'label' => t('desfazer'),
                                            'campos' => ['volta' => $destino]]);
             redirecionar($destino);
@@ -279,7 +339,7 @@ final class LancamentosController
         }
 
         MesModel::ensureExists(substr($d['data'], 0, 8) . '01');   // dentro de [primeiro, último]: nunca cria mês novo
-        $id = LancamentoModel::criar($d['data'], $d['descricao'], $d['categoria_id'], $d['valor'], (int) Auth::id());
+        $id = LancamentoModel::criar($d['data'], $d['descricao'], $d['categoria_id'], $d['valor'], (int) Auth::id(), $d['conta_id']);
 
         $destino = $volta !== '' ? $volta : '/lancamentos?mes=' . substr($d['data'], 0, 8) . '01';
         flash('success', self::avisoLancado($d['cat'], $d['valor'], $d['data']), [
@@ -287,6 +347,19 @@ final class LancamentosController
             'label'  => t('desfazer'),
             'campos' => ['volta' => $destino],
         ]);
+        redirecionar($destino);
+    }
+
+    /** O modo Transferir do lançar: valida, grava e volta com o aviso e o desfazer. */
+    private static function transferir(string $volta): never
+    {
+        $r = TransferenciaController::criarDe($_POST);
+        if ($r['erro'] !== null) {
+            $_SESSION['lanc_antigo'] = self::antigoDe($_POST) + ['erro' => $r['erro']];
+            redirecionar('/lancar?volta=' . rawurlencode($volta !== '' ? $volta : '/'), 303);
+        }
+        $destino = $volta !== '' ? $volta : '/lancamentos?mes=' . substr($r['data'], 0, 8) . '01';
+        flash('success', $r['aviso'], ['url' => '/transferencias/' . $r['id'] . '/excluir', 'label' => t('desfazer'), 'campos' => ['volta' => $destino]]);
         redirecionar($destino);
     }
 
@@ -334,7 +407,7 @@ final class LancamentosController
         }
 
         MesModel::ensureExists(substr($d['data'], 0, 8) . '01');
-        LancamentoModel::atualizar((int) $l['id'], $d['data'], $d['descricao'], $d['categoria_id'], $d['valor']);
+        LancamentoModel::atualizar((int) $l['id'], $d['data'], $d['descricao'], $d['categoria_id'], $d['valor'], $d['conta_id']);
 
         flash('success', t('{texto} · salvo', ['texto' => self::valorTexto($d['cat'], $d['valor'], true)]));
         redirecionar($volta);
@@ -364,6 +437,8 @@ final class LancamentosController
                 'id' => (int) $l['id'], 'data' => $l['data'], 'descricao' => $l['descricao'],
                 'categoria_id' => (int) $l['categoria_id'], 'valor' => (float) $l['valor'],
                 'usuario_id' => (int) $l['usuario_id'], 'criado_em' => $l['criado_em'],
+                'conta_id' => (int) $l['conta_id'], 'cartao_id' => $l['cartao_id'] !== null ? (int) $l['cartao_id'] : null,
+                'fatura' => $l['fatura'],
             ],
         ];
 
@@ -475,9 +550,19 @@ final class LancamentosController
             $descricao = (string) $cat['nome'];
         }
 
+        // a conta: conta:id do "Pagou com" (com várias); sem ela, a padrão no novo e a mesma no editar
+        $contaId = null;
+        if (preg_match('/^conta:(\d+)$/D', is_string($in['pagou'] ?? null) ? $in['pagou'] : '', $mc)) {
+            $conta = ContaModel::achar((int) $mc[1]);
+            if ($conta === null || !$conta['ativa']) {
+                return [t('Escolha a conta.'), null];
+            }
+            $contaId = $conta['id'];
+        }
+
         return [null, [
             'data' => $data, 'descricao' => $descricao, 'categoria_id' => $categoriaId,
-            'valor' => $valor, 'cat' => $cat,
+            'valor' => $valor, 'cat' => $cat, 'conta_id' => $contaId,
         ]];
     }
 
@@ -540,7 +625,11 @@ final class LancamentosController
         $s = static fn(string $k, int $max): string => is_string($in[$k] ?? null) ? mb_substr($in[$k], 0, $max) : '';
         $quando = $s('quando', 8);
         return [
-            'pagou'        => $s('pagou', 8) === 'cartao' ? 'cartao' : 'conta',
+            'pagou'        => preg_match('/^(conta|cartao)(:\d{1,9})?$/D', $s('pagou', 20)) ? $s('pagou', 20) : 'conta',
+            'modo'         => $s('modo', 12) === 'transferir' ? 'transferir' : '',
+            'de_conta'     => (int) $s('de_conta', 12),
+            'para_conta'   => (int) $s('para_conta', 12),
+            'estorno'      => $s('estorno', 1) === '1' ? '1' : '',
             'parcelas'     => (string) (int) $s('parcelas', 3),
             'parcelas_outro' => (string) (int) $s('parcelas_outro', 3),
             'parcela_atual'  => (string) (int) $s('parcela_atual', 3),

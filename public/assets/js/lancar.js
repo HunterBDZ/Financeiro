@@ -3,7 +3,7 @@
 // [data-valor], [data-descricao], [data-data] preenchem o form; tecla "n" (desktop); fechar
 // (×, Esc, toque fora); checagem mínima antes de enviar + trava de duplo envio; o valor estilo
 // maquininha (só dígitos, vírgula automática); a categoria em um toque (botões, "Mais…" e a busca
-// da lista); o filtro do extrato. Sem nada inline (CSP
+// da lista); com várias contas, o "Pagou com" / "Recebeu em" e o modo Transferir; o filtro do extrato. Sem nada inline (CSP
 // script-src 'self'). Sai sem fazer nada quando a página não tem #lancar, form[data-lf] nem filtro.
 (function () {
     'use strict';
@@ -130,11 +130,20 @@
                 d.value = desc;
             }
         }
-        // [data-pagou="cartao"]: abre com "Pagou com: Cartão" (do botão da aba Cartão); sem ele, volta a Conta
-        var pagou = form.querySelector('input[name="pagou"][value="' + (origem.getAttribute('data-pagou') === 'cartao' ? 'cartao' : 'conta') + '"]');
+        // [data-pagou="cartao"] (ou cartao:id): abre com "Pagou com: Cartão" (do botão da aba Cartão); sem ele, volta à
+        // conta padrão (com várias contas, a da última vez)
+        var dp = (origem.getAttribute('data-pagou') || '').replace(/[^a-z0-9:]/g, '');
+        var pagou = dp.indexOf('cartao') === 0
+            ? form.querySelector('input[name="pagou"][value="' + dp + '"]') || form.querySelector('input[name="pagou"][value="cartao"], input[name="pagou"][value^="cartao:"]')
+            : form.querySelector('input[name="pagou"][data-lf-padrao]') || form.querySelector('input[name="pagou"][value="conta"]');
         if (pagou && !pagou.checked) {
             pagou.checked = true;
             pagou.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        var lancar = form.querySelector('input[name="modo"][value="lancar"]');
+        if (lancar && !lancar.checked) {
+            lancar.checked = true;
+            lancar.dispatchEvent(new Event('change', { bubbles: true }));
         }
         // [data-data="AAAA-MM-DD"]: "outro dia" com essa data (ex.: conta de um mês que ainda não começou)
         var dt = origem.getAttribute('data-data');
@@ -256,6 +265,50 @@
         }
     });
 
+    function transferindo(form) {
+        var m = form.querySelector('input[name="modo"]:checked');
+        return !!m && m.value === 'transferir';
+    }
+
+    // várias contas: numa entrada, "Recebeu em" e sem os cartões; Transferir troca o rótulo do botão
+    function contas(form) {
+        var fs = form.querySelector('.ct-pagou.is-varias');
+        if (!fs) {
+            return;
+        }
+        var cat = form.querySelector('input[name="categoria_id"]:checked');
+        var entra = !!(cat && cat.hasAttribute('data-lf-entra'));
+        var rot = fs.querySelector('[data-pagou-rot]');
+        if (rot) {
+            rot.textContent = rot.getAttribute(entra ? 'data-entrada' : 'data-gasto');
+        }
+        fs.querySelectorAll('[data-so-gasto]').forEach(function (l) { l.hidden = entra; });
+        var marcado = fs.querySelector('input[name="pagou"]:checked');
+        if (entra && marcado && marcado.closest('[data-so-gasto]')) {
+            var volta = fs.querySelector('input[data-lf-padrao]');
+            volta = volta && !volta.closest('[data-so-gasto]') ? volta : fs.querySelector('input[name="pagou"]:not([value^="cartao"])');
+            if (volta) {
+                volta.checked = true;
+                volta.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        }
+        var b = form.querySelector('[data-lf-enviar]');
+        if (b && b.hasAttribute('data-transf-rot')) {
+            if (!b.hasAttribute('data-lf-rot')) {
+                b.setAttribute('data-lf-rot', transferindo(form) ? T('Lançar') : b.textContent);
+            }
+            var noCartao = !!(marcado && /^cartao/.test(marcado.value));
+            b.textContent = transferindo(form) ? b.getAttribute('data-transf-rot') : (noCartao ? b.getAttribute('data-ct-rot') : b.getAttribute('data-lf-rot'));
+        }
+    }
+    document.querySelectorAll('form[data-lf]').forEach(contas);
+    document.addEventListener('change', function (ev) {
+        var el = ev.target;
+        if (el instanceof Element && el.form && el.form.matches('form[data-lf]') && /^(categoria_id|pagou|modo)$/.test(el.getAttribute('name') || '')) {
+            contas(el.form);
+        }
+    });
+
     // escolher a categoria some com o aviso; na lista, a que tem botão passa para o botão e o "Mais…" fecha
     document.addEventListener('change', function (ev) {
         var el = ev.target;
@@ -347,7 +400,7 @@
         if (valor && !/[1-9]/.test(valor.value)) {
             erro = T('Digite o valor.');
             foco = valor;
-        } else if (!categoriaDe(form)) {
+        } else if (!transferindo(form) && !categoriaDe(form)) {
             erro = T('Escolha a categoria.');
             foco = campoCategoria(form);
         }
