@@ -4,13 +4,13 @@
 
 # Financeiro
 
-**Controle o dinheiro da sua casa no seu próprio servidor: lance gastos em segundos, veja como o mês vai fechar e planeje compras, dívidas e investimentos.**
+**Controle o dinheiro da sua casa no seu próprio computador: lance gastos em segundos, veja como o mês vai fechar e planeje compras, dívidas e investimentos.**
 
 Sem assinatura, sem nuvem e sem pedir a senha do seu banco.
 
-[![Versão 1.7.0](https://img.shields.io/badge/vers%C3%A3o-1.7.0-blue)](CHANGELOG.md) ![PHP 8.4+](https://img.shields.io/badge/PHP-8.4%2B-777BB4?logo=php&logoColor=white) ![MySQL 8](https://img.shields.io/badge/MySQL-8-4479A1?logo=mysql&logoColor=white) ![Sem dependências](https://img.shields.io/badge/depend%C3%AAncias-nenhuma-success)
+[![Versão 1.7.0](https://img.shields.io/badge/vers%C3%A3o-1.7.0-blue)](CHANGELOG.md) ![PHP 8.4+](https://img.shields.io/badge/PHP-8.4%2B-777BB4?logo=php&logoColor=white) ![SQLite](https://img.shields.io/badge/SQLite-003B57?logo=sqlite&logoColor=white) ![Sem dependências](https://img.shields.io/badge/depend%C3%AAncias-nenhuma-success)
 
-[Diferenciais](#diferenciais) · [Telas](#telas) · [Como funciona](#como-funciona) · [Instalar](#instalar) · [Atualizar](#atualizar) · [Documentação](#documentação) · [English](README.en.md)
+[Diferenciais](#diferenciais) · [Telas](#telas) · [Como funciona](#como-funciona) · [Instalar](#instalar) · [Atualizar](#atualizar-e-guardar) · [Documentação](#documentação) · [English](README.en.md)
 
 <br>
 
@@ -105,39 +105,46 @@ Funciona no computador e no celular.
 
 ## Instalar
 
-Em um computador com Ubuntu 24.04 ou mais novo, rode:
+**No seu computador, com Linux.** Baixe o pacote em [Versões](https://github.com/HunterBDZ/Financeiro/releases/latest) e rode, sem `sudo`:
+
+```sh
+tar xzf financeiro-*-linux-*.tar.gz
+cd financeiro-*/
+./instalar
+```
+
+Abra `http://localhost:8484` e crie a sua conta. Não há banco de dados para instalar. Para usar no celular, abra **Ajustes → Usar no celular** e leia o código com a câmera.
+
+**Num servidor com Ubuntu ou Debian:**
 
 ```sh
 git clone https://github.com/HunterBDZ/Financeiro.git
 sudo bash Financeiro/instalar.sh
 ```
 
-Espere alguns minutos: nenhuma pergunta é feita. No fim, abra o endereço que aparecer e crie a sua conta no navegador.
+**Com Docker:** `docker compose up -d`, na pasta do repositório.
 
-Dúvidas? Veja o [manual de instalação](docs/INSTALACAO.md).
+Windows e Mac ainda não têm instalador. Dúvidas? Veja o [manual de instalação](docs/INSTALACAO.md).
 
-## Atualizar
+## Atualizar e guardar
 
-Os sites não se atualizam sozinhos: o dono decide quando. Um comando baixa a última versão publicada, testa numa cópia do banco, faz backup e aplica. Se algo falhar, o site volta para a versão anterior.
+Em **Ajustes → Backup e atualização**, você procura versão nova, atualiza, baixa uma cópia dos dados e restaura um backup, sem terminal. O app também faz uma cópia por dia.
 
-```sh
-sudo financeiro-atualizar --verificar   # há versão nova? o que muda?
-sudo financeiro-atualizar               # atualiza
-```
+Nada se atualiza sozinho: o dono decide quando. Antes de aplicar, o app confere a assinatura da versão e a testa numa cópia dos dados. Se algo falhar, ele volta sozinho.
 
 ```mermaid
 flowchart LR
-    A["Versão publicada<br>(tag no GitHub)"] --> B["Baixa"]
-    B --> C["Ensaia numa<br>cópia do banco"]
+    A["Versão publicada<br>e assinada"] --> B["Baixa e confere"]
+    B --> C["Ensaia numa<br>cópia dos dados"]
     C -->|"Falhou"| X["Site intacto"]
     C -->|"Passou"| D["Backup"]
-    D --> E["Migrações e código"]
+    D --> E["Banco e programa"]
     E --> F["Confere o site"]
     F -->|"Falhou"| Y["Volta sozinho"]
     F -->|"Passou"| G["Site atualizado"]
 ```
 
-As mudanças de cada versão ficam no [`CHANGELOG.md`](CHANGELOG.md).
+Em servidor, o mesmo caminho roda com `sudo financeiro-atualizar`. As mudanças de cada versão ficam no [`CHANGELOG.md`](CHANGELOG.md).
 
 ## Documentação
 

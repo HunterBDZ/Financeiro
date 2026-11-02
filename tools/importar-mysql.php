@@ -313,11 +313,10 @@ foreach ($contagens as $tabela => $n) {
         falha("{$tabela}: o arquivo final não tem as mesmas linhas.");
     }
 }
-$final = null;
 // o schema já é o da versão de agora: as mudanças da pasta não rodam em cima dele
-$stMigracao = $sq->prepare('INSERT OR IGNORE INTO migracoes (arquivo) VALUES (?)');
+$stMigracao = $final->prepare('INSERT OR IGNORE INTO migracoes (arquivo) VALUES (?)');
 foreach (Financeiro\Migrador::arquivos(Financeiro\Migrador::pasta()) as $a) {
     $stMigracao->execute([$a]);
 }
-
+$stMigracao = $final = null;
 echo "\nOK: ", count($tabelasSq), " tabelas conferidas linha a linha e {$mesesConferidos} somas mensais iguais. Arquivo: {$destino}\n";

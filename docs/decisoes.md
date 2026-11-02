@@ -159,3 +159,14 @@ As regras do app e o porquê de cada uma. Para instalar e operar, veja o [manual
 - **Moedas sem centavos ficam com duas casas:** o app e o banco supõem duas.
 - **Limite dos campos de valor:** 1 milhão em BRL, USD, EUR e GBP; 1 bilhão nas outras (`valorMaximo()`), porque um salário em algumas moedas passa de 1 milhão.
 - **Cotação da Wishlist:** a fonte dá tudo em reais, e as outras moedas se cruzam pelo real. Sem cotação, a tela avisa.
+
+## Backup, atualização e rede
+
+- **Administrador:** a conta mais antiga, sem coluna nova no banco. Quem precisa de mais de um administrador ainda não apareceu.
+- **Pelo celular não:** no computador da pessoa, baixar cópia, restaurar, atualizar e ligar a rede só valem em `127.0.0.1`. No celular a conexão é HTTP, e por ela não passa nem a cópia de tudo nem o arquivo que substitui tudo.
+- **Restaurar troca linhas, não o arquivo:** numa transação, com o banco aberto por outras páginas. Ninguém vê metade.
+- **Volta de atualização troca o arquivo:** o schema pode já ter mudado, e o site está em manutenção.
+- **Assinatura, além do SHA-256:** um checksum no mesmo lugar do pacote só pega arquivo corrompido. A chave privada fica fora do repositório.
+- **Consulta só quando a pessoa pede:** "sem nuvem" não combina com o app procurando versão por conta própria.
+- **Rede com reinício:** ouvir em `127.0.0.1` até a pessoa ligar evita aviso de firewall em quem só usa no computador.
+- **QR code próprio:** um gerador externo receberia o endereço da casa.

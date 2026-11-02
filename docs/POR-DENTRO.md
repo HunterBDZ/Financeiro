@@ -21,9 +21,9 @@ flowchart LR
 ```text
 public/      raiz do site: rotas e assets
 src/         Controllers, Models, Services e Views
-database/    schema.sqlite.sql, schema.sql, instalar.php, migrations/ e imagens da demonstração
-packaging/   php.ini e Caddyfile levados junto com o programa
-tests/       run.php, sem dependências
+database/    schema.sqlite.sql, schema.sql, instalar.php, migrations/, migrations-sqlite/ e imagens da demonstração
+packaging/   pacote Linux, php.ini, Caddyfile, entrada do Docker e o empacotador
+tests/       run.php e sistema.php, sem dependências
 tools/       backup, atualização, importador e comparador de bancos, sprite de ícones e outros geradores
 docs/        manual de instalação, decisões e prints
 ```
@@ -36,6 +36,15 @@ docs/        manual de instalação, decisões e prints
 2. `Preflight` confere PHP, extensões e pasta gravável. Se faltar algo, mostra uma tela clara.
 3. `Primeira` cria o que falta na primeira execução: pasta, `config.env` e banco. O arquivo do banco só aparece pronto.
 4. `Rede` confere o `Host`. A sessão e o log vão para a pasta de dados, quando ela existe.
+
+## Backup, atualização e rede
+
+- **`Backup`:** `VACUUM INTO` numa pasta `backups` da pasta de dados. A cópia do dia sai na primeira página do dia. Restaurar leva a cópia à versão atual e troca as linhas numa transação só, sem mexer no arquivo aberto.
+- **`Migrador`:** `database/migrations-sqlite`, ao atualizar e ao abrir um pacote novo. Banco novo nasce com as migrações marcadas, porque o schema já as traz.
+- **`Atualizacao`:** roda em processo próprio (`tools/atualizar.php`) e grava o andamento em `atualizacao/estado.json`. A troca é por `rename` da pasta `app`, então só vale no pacote. `Manutencao` segura as páginas enquanto o banco e o programa mudam.
+- **`Rede` e `QrCode`:** o programa reinicia ao ligar a rede, porque precisa ouvir em outro endereço. O app grava `ACESSO_REDE` e cria o arquivo `reiniciar`, que `packaging/linux/financeiro` olha a cada segundo.
+
+O endereço do repositório, para o código, fica no arquivo `REPOSITORIO`. O `instalar.sh` e os documentos têm o endereço escrito, e um teste confere que batem.
 
 ## Dois bancos
 

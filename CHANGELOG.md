@@ -1,6 +1,18 @@
 # Versões
 
-Cada versão publicada é uma tag `vX.Y.Z` deste repositório. Sites instalados atualizam com `sudo financeiro-atualizar`.
+Cada versão publicada é uma tag `vX.Y.Z` deste repositório. Pacotes atualizam em Ajustes, em Backup e atualização; servidores, com `sudo financeiro-atualizar`.
+
+## A publicar
+
+- **SQLite:** o app funciona sem servidor de banco. Sites em MySQL continuam como estão até migrar.
+- **Pacote para Linux:** instala sem `sudo` e sem banco de dados, em qualquer distribuição. Há também imagem Docker.
+- **Backup na tela:** uma cópia por dia, na primeira vez que o app abre, além de fazer backup, baixar uma cópia e restaurar em Ajustes.
+- **Atualização na tela:** procura versão nova só quando você pede, confere a assinatura, ensaia numa cópia dos dados e volta sozinha se falhar.
+- **Usar no celular:** desligado por padrão. Ao ligar, a tela mostra um código para ler com a câmera e o que fazer se o firewall bloquear.
+- **Administração:** só a primeira conta criada faz backup, restaura, atualiza e liga a rede. No computador da pessoa, só nele, e não pelo celular.
+- **Mês:** sem escolher o mês, a tela abre no mês do calendário, mesmo que ele tenha sido fechado antes do fim.
+- **Reabrir um mês** agora desfaz também o ajuste que o fechamento aplicou no mês seguinte, menos nos valores mudados depois.
+- O importador do MySQL explica o erro quando o banco não tem as tabelas do Financeiro.
 
 ## 1.7.0
 

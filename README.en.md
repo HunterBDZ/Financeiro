@@ -4,11 +4,11 @@
 
 # Financeiro
 
-**Track your household money on your own server: add expenses in seconds, see how the month will end, and plan purchases, debts and investments.**
+**Track your household money on your own computer: add expenses in seconds, see how the month will end, and plan purchases, debts and investments.**
 
 No subscription, no cloud, and it never asks for your bank password.
 
-![PHP 8.4+](https://img.shields.io/badge/PHP-8.4%2B-777BB4?logo=php&logoColor=white) ![MySQL 8](https://img.shields.io/badge/MySQL-8-4479A1?logo=mysql&logoColor=white) ![No dependencies](https://img.shields.io/badge/dependencies-none-success)
+![PHP 8.4+](https://img.shields.io/badge/PHP-8.4%2B-777BB4?logo=php&logoColor=white) ![SQLite](https://img.shields.io/badge/SQLite-003B57?logo=sqlite&logoColor=white) ![No dependencies](https://img.shields.io/badge/dependencies-none-success)
 
 [Português](README.md)
 
@@ -34,25 +34,32 @@ No subscription, no cloud, and it never asks for your bank password.
 
 ## Install
 
-On a computer with Ubuntu 24.04 or newer, run:
+**On your Linux computer.** Download the package from [Releases](https://github.com/HunterBDZ/Financeiro/releases/latest) and run, without `sudo`:
+
+```sh
+tar xzf financeiro-*-linux-*.tar.gz
+cd financeiro-*/
+./instalar
+```
+
+Open `http://localhost:8484` and create your account. There is no database to install. To use it on your phone, open **Settings → Use on your phone** and scan the code with the camera.
+
+**On an Ubuntu or Debian server:**
 
 ```sh
 git clone https://github.com/HunterBDZ/Financeiro.git
 sudo bash Financeiro/instalar.sh
 ```
 
-Wait a few minutes: no questions are asked. At the end, open the address shown and create your account in the browser.
+**With Docker:** `docker compose up -d`, in the repository folder.
 
-Your browser will warn that the connection is not secure the first time, because the certificate is self-signed. The app is made for your home network: to reach it from outside, use a VPN, without opening router ports.
+Windows and Mac do not have an installer yet.
 
-## Update
+## Update and back up
 
-Sites do not update themselves. One command downloads the latest published version, tests it on a copy of the database, backs up and applies it. If something fails, the site goes back to the previous version.
+In **Settings → Backup and updates**, you can look for a new version, update, download a copy of your data and restore a backup, without a terminal. The app also makes one copy a day.
 
-```sh
-sudo financeiro-atualizar --verificar   # is there a new version? what changes?
-sudo financeiro-atualizar               # update
-```
+Nothing updates by itself. Before applying a version, the app checks its signature and tests it on a copy of your data. If something fails, it goes back by itself. On a server, the same steps run with `sudo financeiro-atualizar`.
 
 ## Documentation
 
@@ -60,7 +67,7 @@ The detailed documentation is in Portuguese:
 
 - [Installation manual](docs/INSTALACAO.md)
 - [Inside the app](docs/POR-DENTRO.md)
-- [Security](docs/SEGURANCA.md), including what leaves the server
+- [Security](docs/SEGURANCA.md), including what leaves your computer
 - [Decisions](docs/decisoes.md)
 - [Contributing](CONTRIBUTING.md) and [reporting a vulnerability](SECURITY.md)
 
