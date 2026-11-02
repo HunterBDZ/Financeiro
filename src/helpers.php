@@ -95,7 +95,7 @@ function num(float $v, int $dec = 2): string
     return ($neg ? MENOS : '') . _numero($abs, $dec);
 }
 
-/** `1.234,56` / `-8.233,11`: hífen ASCII, sem NBSP. Obrigatório em todo `<input value>` de dinheiro. parseMoedaBr() lê de volta em qualquer idioma. */
+/** `1.234,56` / `-1.234,56`: hífen ASCII, sem NBSP. Obrigatório em todo `<input value>` de dinheiro. parseMoedaBr() lê de volta em qualquer idioma. */
 function numInput(float $v, int $dec = 2): string
 {
     [$neg, $abs] = _centavos($v, $dec);

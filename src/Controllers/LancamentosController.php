@@ -377,7 +377,7 @@ final class LancamentosController
 
     /* ================================================================== apoio */
 
-    /** `Delivery −56,80` · `Salário +11.839,24` · `Guardar na poupança ⇄ 500,00` (sem o nome: só o valor). */
+    /** `Delivery −56,80` · `Salário +3.000,00` · `Guardar na poupança ⇄ 500,00` (sem o nome: só o valor). */
     private static function valorTexto(array $cat, float $valor, bool $comNome = false): string
     {
         $v = match (true) {
@@ -390,7 +390,7 @@ final class LancamentosController
 
     /**
      * Aviso depois de lançar: `Delivery −56,80 · Ainda dá para gastar 343,20 da meta.`; mês fechado:
-     * `Delivery −56,80 · set/26 fechado`; categoria sem previsão no mês: só `Salário +11.839,24`.
+     * `Delivery −56,80 · set/26 fechado`; categoria sem previsão no mês: só `Salário +3.000,00`.
      */
     private static function avisoLancado(array $cat, float $valor, string $data): string
     {

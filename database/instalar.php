@@ -208,7 +208,7 @@ if ($demo) {
     $pos = 0;
     $item = $pdo->prepare('INSERT INTO wishlist_itens (nome, url, valor, moeda, posicao, usuario_id) VALUES (?, ?, ?, ?, ?, ?)');
     foreach ([['Sofá retrátil 3 lugares', 'sofa', 3290.00, 'BRL'], ['Bicicleta aro 29', 'bicicleta', 2450.00, 'BRL'], ['Cafeteira espresso', 'cafeteira', 179.00, 'USD'], ['Aspirador robô', 'aspirador', 1799.90, 'BRL']] as [$nome, $img, $v, $moedaItem]) {
-        $item->execute([$nome, 'https://www.loja-exemplo.com.br/produto/' . $img, $v, $moedaItem, ++$pos, $ids[$pos % 2]]);
+        $item->execute([$nome, 'https://loja.example/produto/' . $img, $v, $moedaItem, ++$pos, $ids[$pos % 2]]);
         $arq = __DIR__ . '/demo/' . $img . '.jpg';
         $foto = is_file($arq) ? LinkProduto::fotoValida((string) file_get_contents($arq)) : null;
         if ($foto !== null) {
