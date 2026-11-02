@@ -4,6 +4,7 @@ namespace Financeiro\Services;
 use Financeiro\Database;
 use Financeiro\Models\AjusteModel;
 use Financeiro\Models\CartaoModel;
+use Financeiro\Models\ContaModel;
 use Financeiro\Models\LancamentoModel;
 use Financeiro\Relogio;
 
@@ -87,7 +88,7 @@ final class RelatorioDados
             'placarInicio' => FotoPlano::primeiroMes(),
             'previsao' => self::previsao($dados, $plano, $mes, $hoje, 6),
             'autonomia' => self::autonomia($dados, $plano, $mes, $encerradosAntes),
-            'temCartao' => self::cartao() !== null, 'temDivida' => (float) $l['falta_pagar'] > 0.004 || (float) ($dados['aj']['parcela_mensal'] ?? 0) > 0.004,
+            'temCartao' => self::cartoes() !== [], 'temDivida' => (float) $l['falta_pagar'] > 0.004 || (float) ($dados['aj']['parcela_mensal'] ?? 0) > 0.004,
             'tendencia' => self::tendencia($plano, $mes), 'ritmo' => self::ritmo($mes, $hoje),
         ];
     }
@@ -435,21 +436,44 @@ final class RelatorioDados
 
     private static function conferencia(array $dados, string $mes, string $hoje): array
     {
-        $st = Database::connection()->prepare('SELECT data, saldo_informado FROM saldo_conferencias WHERE data >= ? AND data <= ? AND data <= ? ORDER BY data DESC, id DESC LIMIT 1');
+        $st = Database::connection()->prepare('SELECT data, saldo_informado, conta_id FROM saldo_conferencias WHERE data >= ? AND data <= ? AND data <= ? ORDER BY data DESC, id DESC LIMIT 1');
         $st->execute([$mes, date('Y-m-t', (int) strtotime($mes)), $hoje]);
         $c = $st->fetch(\PDO::FETCH_ASSOC);
         if ($c === false) {
             return ['tipo' => 'sem', 'texto' => t('Sem conferência com o banco neste mês')];
         }
-        $dif = round((float) $c['saldo_informado'] - LancamentoModel::saldoCalculado((float) ($dados['aj']['saldo_ini'] ?? 0.0), (string) $c['data']), 2);
+        if ($c['conta_id'] !== null) {
+            // várias contas: todas as conferidas nesse dia, cada uma contra o saldo dela
+            $st = Database::connection()->prepare('SELECT saldo_informado, conta_id FROM saldo_conferencias WHERE data = ? AND conta_id IS NOT NULL');
+            $st->execute([$c['data']]);
+            $saldos = ContaModel::saldos((string) $c['data']);
+            $dif = 0.0;
+            foreach ($st->fetchAll(\PDO::FETCH_ASSOC) as $r) {
+                $dif += (float) $r['saldo_informado'] - (float) ($saldos[(int) $r['conta_id']] ?? 0.0);
+            }
+            $dif = round($dif, 2);
+        } else {
+            $dif = round((float) $c['saldo_informado'] - LancamentoModel::saldoCalculado((float) ($dados['aj']['saldo_ini'] ?? 0.0), (string) $c['data']), 2);
+        }
         return abs($dif) < 0.01
             ? ['tipo' => 'ok', 'texto' => t('Conferido com o banco em {data}: bate', ['data' => diaMes((string) $c['data'])])]
             : ['tipo' => 'dif', 'texto' => t('Conferido com o banco em {data}: diferença de {valor}', ['data' => diaMes((string) $c['data']), 'valor' => money(abs($dif))])];
     }
 
-    private static function cartao(): ?array
+    /** @return list<array> os cartões ativos, se a aba Cartão está em uso */
+    private static function cartoes(): array
     {
-        return AjusteModel::usa('usa_cartao') ? CartaoModel::ativo() : null;
+        return AjusteModel::usa('usa_cartao') ? CartaoModel::ativos() : [];
+    }
+
+    /** @return list<array> as compras de todos os cartões ativos */
+    private static function compras(): array
+    {
+        $out = [];
+        foreach (self::cartoes() as $c) {
+            array_push($out, ...CartaoModel::compras($c['id']));
+        }
+        return $out;
     }
 
     /**
@@ -458,14 +482,13 @@ final class RelatorioDados
      */
     private static function fatura(array $dados, string $mes, string $hoje): ?array
     {
-        $cartao = self::cartao();
         $cat = CartaoModel::categoriaFatura();
-        if ($cartao === null || $cat === null) {
+        if (self::cartoes() === [] || $cat === null) {
             return null;
         }
         $pago = round((float) (($dados['fatura']['cat'] ?? null) === $cat
             ? ($dados['fatura']['faturas'][$mes]['pago'] ?? 0.0) : ($dados['real'][$mes][$cat] ?? 0.0)), 2);
-        $itens = CartaoFatura::porFatura(CartaoModel::compras((int) $cartao['id']))[$mes] ?? [];
+        $itens = CartaoFatura::porFatura(self::compras())[$mes] ?? [];
         if ($pago <= 0.004 && $itens === []) {
             return null;
         }
@@ -533,7 +556,7 @@ final class RelatorioDados
         if ($meses === []) {
             return ['meses' => [], 'contratado' => [], 'cenarios' => [], 'estimado' => [], 'marcos' => null, 'quita' => null, 'ganho' => null];
         }
-        $totais = ($c = self::cartao()) !== null ? CartaoFatura::totais(CartaoModel::compras((int) $c['id'])) : [];
+        $totais = CartaoFatura::totais(self::compras());
         $contratado = [];
         foreach ($meses as $m) {
             $contratado[] = ['mes' => $m, 'cartao' => (float) ($totais[$m] ?? 0.0), 'emprestimo' => (float) $plano[$m]['parcela_descontada'] + (float) $plano[$m]['parcela_parte']];
@@ -665,7 +688,7 @@ final class RelatorioDados
             'erroMedio' => count($placares) >= self::COMPARACOES_PARA_PLACAR_ANUAL ? round(array_sum(array_map(static fn($p) => abs($p['dif']), $placares)) / count($placares), 2) : null,
             'placarInicio' => FotoPlano::primeiroMes(),
             'autonomia' => $n > 0 ? self::autonomia($dados, $plano, (string) end($encerrados), array_slice($encerrados, 0, -1)) : null,
-            'temCartao' => self::cartao() !== null, 'temDivida' => array_sum(array_column($tabela, 'divida')) > 0.004,
+            'temCartao' => self::cartoes() !== [], 'temDivida' => array_sum(array_column($tabela, 'divida')) > 0.004,
         ];
     }
 

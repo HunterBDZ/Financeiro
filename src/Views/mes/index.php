@@ -143,7 +143,7 @@ $painel = static function (array $l, string $tipo) use ($csrf, $mes, $mesLbl, $e
             $info[] = $tipo === 'entrada' ? t('Recebido até hoje: {valor}.', ['valor' => $fmt($ja)]) : t('Lançado até hoje: {valor}.', ['valor' => $fmt($ja)]);
         }
     }
-    if ($tipo === 'entrada' && $l['nome_completo'] === \Financeiro\Services\MotorFinanceiro::CAT_SALARIO && $parcelaDescontada > 0.004) {
+    if ($tipo === 'entrada' && ($l['chave'] ?? null) === \Financeiro\Services\MotorFinanceiro::CAT_SALARIO && $parcelaDescontada > 0.004) {
         $info[] = t('Valor bruto. A parcela do empréstimo ({valor}) sai deste valor.', ['valor' => MENOS . $fmt($parcelaDescontada)]);
     }
     $info[] = $tipo === 'entrada' ? t('Muda só a previsão. O que você já recebeu continua igual.') : t('Muda só a previsão. O que você já gastou continua igual.');

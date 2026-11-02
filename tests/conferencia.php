@@ -94,6 +94,35 @@ function conferencia(callable $check): void
         $check("dívida nunca negativa em {$mes}", $l['falta_pagar'] >= -0.005, (string) $l['falta_pagar']);
     }
 
+    // ---- 1b. contas: a soma das contas é o saldo do motor (as transferências se anulam), hoje e no fim de cada mês fechado
+    if (\Financeiro\Sql::sqlite()) {
+        $somaIni = (float) $pdo->query('SELECT COALESCE(SUM(saldo_inicial), 0) FROM contas')->fetchColumn();
+        $check('contas: o saldo inicial do plano é a soma dos saldos iniciais das contas', abs($somaIni - $saldoIni) < 0.01, sprintf('%.2f vs %.2f', $somaIni, $saldoIni));
+        $datas = [$hoje];
+        foreach ($plano as $mes => $l) {
+            if ($l['situacao'] === 'REAL') {
+                $datas[] = date('Y-m-t', strtotime($mes));
+            }
+        }
+        $ruins = [];
+        foreach ($datas as $d) {
+            $soma = array_sum(\Financeiro\Models\ContaModel::saldos($d));
+            $calc = LancamentoModel::saldoCalculado($saldoIni, $d);
+            if (abs($soma - $calc) >= 0.01) {
+                $ruins[] = sprintf('%s: %.2f vs %.2f', $d, $soma, $calc);
+            }
+        }
+        $check('contas: a soma dos saldos das contas é o saldo calculado do motor', $ruins === [], implode(' | ', array_slice($ruins, 0, 3)));
+        $semConta = (int) $pdo->query('SELECT COUNT(*) FROM lancamentos l LEFT JOIN contas c ON c.id = l.conta_id WHERE c.id IS NULL')->fetchColumn();
+        $check('contas: todo lançamento está numa conta que existe', $semConta === 0, (string) $semConta);
+        $ativas = (int) $pdo->query('SELECT COUNT(*) FROM contas WHERE ativa = 1')->fetchColumn();
+        $check('contas: há sempre uma conta ativa', $ativas >= 1);
+        $foraDaFatura = (int) $pdo->query("SELECT COUNT(*) FROM lancamentos l JOIN categorias c ON c.id = l.categoria_id WHERE l.cartao_id IS NOT NULL AND (c.chave IS NULL OR c.chave <> 'fatura')")->fetchColumn();
+        $check('cartão: só o pagamento de fatura tem cartão e fatura', $foraDaFatura === 0, (string) $foraDaFatura);
+        $chaves = $pdo->query('SELECT chave FROM categorias WHERE chave IS NOT NULL')->fetchAll(\PDO::FETCH_COLUMN);
+        $check('categorias: as chaves especiais são conhecidas', array_diff($chaves, ['salario', 'credito_emprestimo', 'amortizacao', 'guardar', 'resgate_poupanca', 'parcela', 'aplicar', 'resgate_investimento', 'fatura']) === [], implode(', ', $chaves));
+    }
+
     // ---- 2. Início: as entradas e as saídas do mês mostrado batem com o banco (o mesmo mês que DashboardController escolhe)
     $mesCal = Relogio::mes();
     $mesRef = ($plano[$mesCal]['situacao'] ?? '') === 'REAL' ? $mesCal : MesModel::referencia($hoje);
@@ -169,7 +198,7 @@ function conferencia(callable $check): void
         }
         $check("{$nome}: todo mês do plano abre", $ruim === [], implode(' | ', array_slice($ruim, 0, 3)));
     }
-    $check('cartão: sem cartão cadastrado, a aba pede o cadastro', CartaoModel::ativo() !== null
+    $check('cartão: sem cartão cadastrado, a aba pede o cadastro', CartaoModel::ativos() !== []
         || str_contains($abrir(CartaoController::class, 'index', '/cartao')[0], 'Cadastre o cartão'));
 
     // ---- 4. a previsão do fim do mês é a mesma no Início, no Mês e no Simular

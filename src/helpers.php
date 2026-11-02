@@ -415,6 +415,13 @@ function descricaoTela(string $descricao, array $cat): string
     return $descricao === (string) ($cat['nome'] ?? '') || $descricao === (string) ($cat['apelido'] ?? '') ? nomeCategoria($descricao) : $descricao;
 }
 
+/** O nome de uma conta para mostrar: a "Conta principal" criada pelo app no idioma de quem vê; as outras como a pessoa escreveu. */
+function nomeConta(array $conta): string
+{
+    $nome = (string) ($conta['nome'] ?? '');
+    return $nome === \Financeiro\Models\ContaModel::NOME_PRINCIPAL ? t('Conta principal') : $nome;
+}
+
 /* ------------------------------------------------------------------ usuário */
 
 /** `M`, `N`… (`?` sem nome). */

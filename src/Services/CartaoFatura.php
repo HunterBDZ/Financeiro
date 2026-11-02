@@ -1,6 +1,8 @@
 <?php
 namespace Financeiro\Services;
 
+use Financeiro\Database;
+use Financeiro\Models\AjusteModel;
 use Financeiro\Models\CartaoModel;
 use Financeiro\Models\MesModel;
 use Financeiro\Relogio;
@@ -58,8 +60,9 @@ final class CartaoFatura
     }
 
     /**
-     * De que fatura é cada pagamento. A regra mora só aqui: quando o vínculo do pagamento com a fatura
-     * for gravado, é esta função que preenche os pagamentos antigos. Em ordem de data, cada pagamento vai
+     * De que fatura é cada pagamento. A regra mora só aqui: desde a 2.0, o vínculo fica gravado no pagamento
+     * (lancamentos.cartao_id e .fatura), e esta função preenche os antigos (preencherPagamentos) e os lançados
+     * sem dizer a fatura (vinculoAutomatico, um por vez). Em ordem de data, cada pagamento vai
      * para a fatura mais recente que já tinha fechado na data dele; se essa já está toda paga, vai para a
      * seguinte, a que estava aberta naquele dia (é pagar adiantado). Pagamentos parciais somam na mesma
      * fatura até completar. Assim, pagar no dia 31 a fatura que vence no dia 2 conta para ela, e não para
@@ -97,9 +100,23 @@ final class CartaoFatura
      */
     public static function porFaturaPaga(array $pagamentos, int $fecha, int $vence, array $valores): array
     {
-        $out = [];
+        $comFatura = [];
         foreach (self::atribuir($pagamentos, $fecha, $vence, $valores) as $k => $f) {
-            $p = $pagamentos[$k];
+            $comFatura[$k] = ['fatura' => $f] + $pagamentos[$k];
+        }
+        return self::somarPorFatura($comFatura, $valores);
+    }
+
+    /**
+     * Pagamentos que já dizem a fatura que pagaram (lancamentos.fatura), somados por fatura, na ordem recebida.
+     * @param array<array-key, array{data:string, valor:float, fatura:string}> $pagamentos
+     * @return array<string, array{valor:float, pago:float, primeiro:string, ultimo:string, meses:array<string, float>}> ver porFaturaPaga()
+     */
+    public static function somarPorFatura(array $pagamentos, array $valores): array
+    {
+        $out = [];
+        foreach ($pagamentos as $p) {
+            $f = (string) $p['fatura'];
             $mesPg = substr($p['data'], 0, 8) . '01';
             $out[$f] ??= ['valor' => round((float) ($valores[$f] ?? 0.0), 2), 'pago' => 0.0, 'primeiro' => $p['data'], 'ultimo' => $p['data'], 'meses' => []];
             $out[$f]['pago'] = round($out[$f]['pago'] + (float) $p['valor'], 2);
@@ -225,46 +242,157 @@ final class CartaoFatura
     }
 
     /**
-     * Os pagamentos de fatura, cada um na sua fatura (atribuir()), para o plano, o Mês e esta aba. O valor
-     * de cada fatura é o maior entre a soma das parcelas lançadas e a previsão da Fatura do cartão no mês
-     * dela: o cartão pode não ter todas as compras, e a previsão pode ser só uma estimativa. Sem cartão (ou
-     * sem a aba Cartão), cat é null e a Fatura do cartão segue a regra das outras contas: o pagamento fica
-     * no mês da data.
+     * Os pagamentos de fatura, cada um na fatura que pagou (lancamentos.cartao_id e .fatura), para o plano, o Mês e a
+     * aba. O valor de cada fatura é o maior entre a soma das parcelas lançadas e, com um cartão só, a previsão da
+     * Fatura do cartão no mês dela: o cartão pode não ter todas as compras, e a previsão pode ser só uma estimativa.
+     * Sem cartão (ou sem a aba Cartão), cat é null e a Fatura do cartão segue a regra das outras contas: o pagamento
+     * fica no mês da data. Com vários cartões, faturas soma os de todos; porCartao separa.
      * @param array<string, array<int, float>> $prev a previsão efetiva de cada mês (MotorFinanceiro::dados())
-     * @return array{cat:?int, vence:int, faturas:array<string, array>} faturas: ver porFaturaPaga()
+     * @return array{cat:?int, vence:int, faturas:array<string, array>, porCartao:array<int, array<string, array>>} ver porFaturaPaga()
      */
     public static function faturasPagas(array $prev, bool $usaCartao): array
     {
-        $cartao = $usaCartao ? CartaoModel::ativo() : null;
-        $cat = $cartao !== null ? CartaoModel::categoriaFatura() : null;
-        if ($cartao === null || $cat === null) {
-            return ['cat' => null, 'vence' => 0, 'faturas' => []];
+        $cartoes = $usaCartao ? CartaoModel::ativos() : [];
+        $cat = $cartoes !== [] ? CartaoModel::categoriaFatura() : null;
+        if ($cartoes === [] || $cat === null) {
+            return ['cat' => null, 'vence' => 0, 'faturas' => [], 'porCartao' => []];
         }
-        $pagamentos = CartaoModel::pagamentos($cat);
-        $valores = $pagamentos === [] ? [] : self::totais(CartaoModel::compras($cartao['id']));
-        foreach ($prev as $mes => $p) {
+        $porCartao = [];
+        foreach (CartaoModel::pagamentos($cat) as $p) {
+            $porCartao[$p['cartao_id']][] = $p;
+        }
+        $faturas = $separadas = [];
+        foreach ($porCartao as $id => $pagamentos) {
+            $separadas[$id] = self::somarPorFatura($pagamentos, self::valores($id, $prev, $cat, count($cartoes) === 1));
+            foreach ($separadas[$id] as $f => $x) {
+                if (!isset($faturas[$f])) {
+                    $faturas[$f] = $x;
+                    continue;
+                }
+                $faturas[$f]['valor'] = round($faturas[$f]['valor'] + $x['valor'], 2);
+                $faturas[$f]['pago'] = round($faturas[$f]['pago'] + $x['pago'], 2);
+                $faturas[$f]['primeiro'] = min($faturas[$f]['primeiro'], $x['primeiro']);
+                $faturas[$f]['ultimo'] = max($faturas[$f]['ultimo'], $x['ultimo']);
+                foreach ($x['meses'] as $m => $v) {
+                    $faturas[$f]['meses'][$m] = round(($faturas[$f]['meses'][$m] ?? 0.0) + $v, 2);
+                }
+            }
+        }
+        ksort($faturas);
+        return ['cat' => $cat, 'vence' => $cartoes[0]['vence'], 'faturas' => $faturas, 'porCartao' => $separadas];
+    }
+
+    /**
+     * Quanto cobra cada fatura de um cartão, para saber quando ela está toda paga: a soma das parcelas e, se é o único
+     * cartão, o maior entre ela e a previsão da Fatura do cartão (com vários, a previsão é a de todos juntos).
+     * @return array<string, float>
+     */
+    private static function valores(int $cartaoId, array $prev, int $cat, bool $unico): array
+    {
+        $valores = self::totais(CartaoModel::compras($cartaoId));
+        foreach ($unico ? $prev : [] as $mes => $p) {
             if (isset($p[$cat])) {
                 $valores[$mes] = max($valores[$mes] ?? 0.0, (float) $p[$cat]);
             }
         }
-        return ['cat' => $cat, 'vence' => $cartao['vence'], 'faturas' => self::porFaturaPaga($pagamentos, $cartao['fecha'], $cartao['vence'], $valores)];
+        return $valores;
     }
 
     /**
-     * Com o cartão ligado ao plano: a previsão da Fatura do cartão em cada mês em PREVISAO, da
-     * fatura aberta em diante, passa a ser a soma das parcelas daquela fatura (lote 'cartao', com
-     * log e desfazer). Meses antes da aberta não mudam: a fatura já fechou e o valor é o do banco.
-     * @return ?string o lote, ou null se nada mudou (ou o cartão não alimenta o plano)
+     * O cartão e a fatura de um pagamento lançado sem dizer qual: a regra de atribuir(), um pagamento por vez, sobre o
+     * que já está pago de cada fatura do cartão. Sem cartão escolhido, vale o padrão (o primeiro ativo).
+     * @return ?array{cartao_id:int, fatura:string} null sem cartão
+     */
+    public static function vinculoAutomatico(string $data, ?int $cartaoId = null, ?int $ignorar = null): ?array
+    {
+        $cartoes = CartaoModel::ativos();
+        $cartao = $cartaoId !== null ? CartaoModel::achar($cartaoId) : ($cartoes[0] ?? null);
+        $cat = CartaoModel::categoriaFatura();
+        if ($cartao === null || $cat === null) {
+            return null;
+        }
+        $st = Database::connection()->prepare(
+            'SELECT fatura, SUM(valor) FROM lancamentos WHERE categoria_id = :cat AND cartao_id = :c AND id <> :id GROUP BY fatura'
+        );
+        $st->execute(['cat' => $cat, 'c' => $cartao['id'], 'id' => $ignorar ?? 0]);
+        $pago = array_map('floatval', $st->fetchAll(\PDO::FETCH_KEY_PAIR));
+        $valores = self::valores($cartao['id'], MotorFinanceiro::dados()['prev'], $cat, count($cartoes) <= 1);
+        $f = self::ultimaFechada($data, $cartao['fecha'], $cartao['vence']);
+        if (self::todaPaga($pago[$f] ?? null, (float) ($valores[$f] ?? 0.0))) {
+            $f = self::somaMeses($f, 1);
+        }
+        return ['cartao_id' => $cartao['id'], 'fatura' => $f];
+    }
+
+    /**
+     * Liga os pagamentos de fatura sem cartão ao primeiro cartão ativo com atribuir(), a regra da 1.10: na migração
+     * para a 2.0 e quando o primeiro cartão é cadastrado depois de já haver pagamentos. Usa só $pdo, porque a migração
+     * de um backup roda numa conexão à parte. O valor de cada fatura é o da 1.10: o maior entre a soma das parcelas e
+     * a previsão efetiva da Fatura do cartão, com a meta contada só pelos dias que faltam no mês do início.
+     * @return int quantos pagamentos ligou
+     */
+    public static function preencherPagamentos(\PDO $pdo): int
+    {
+        $cartao = $pdo->query('SELECT id, dia_fechamento, dia_vencimento FROM cartoes WHERE ativo = 1 ORDER BY ordem, id LIMIT 1')->fetch(\PDO::FETCH_ASSOC);
+        $cat = $pdo->query("SELECT id FROM categorias WHERE chave = 'fatura' AND ativo = 1")->fetchColumn();
+        if ($cartao === false || $cat === false) {
+            return 0;
+        }
+        $cat = (int) $cat;
+        $st = $pdo->prepare('SELECT id, data, valor FROM lancamentos WHERE categoria_id = :c AND cartao_id IS NULL ORDER BY data, id');
+        $st->execute(['c' => $cat]);
+        $pagamentos = [];
+        foreach ($st->fetchAll(\PDO::FETCH_ASSOC) as $r) {
+            $pagamentos[(int) $r['id']] = ['data' => (string) $r['data'], 'valor' => (float) $r['valor']];
+        }
+        if ($pagamentos === []) {
+            return 0;
+        }
+        $st = $pdo->prepare('SELECT valor_total, parcelas, primeira_fatura FROM cartao_compras WHERE cartao_id = :c');
+        $st->execute(['c' => (int) $cartao['id']]);
+        $valores = self::totais($st->fetchAll(\PDO::FETCH_ASSOC));
+        // a previsão efetiva como MotorFinanceiro::dados() a lê: no mês do início, a meta só pelos dias que faltam
+        $ini = $pdo->query("SELECT valor FROM ajustes WHERE chave = 'data_inicio'")->fetchColumn();
+        $inicio = $ini !== false ? AjusteModel::dataDe((float) $ini) : null;
+        $mesIni = $inicio !== null && (int) substr($inicio, 8, 2) > 1 ? substr($inicio, 0, 8) . '01' : null;
+        $st = $pdo->prepare('SELECT mes, valor, fonte FROM previsao_efetiva WHERE categoria_id = :c AND fonte IS NOT NULL');
+        $st->execute(['c' => $cat]);
+        foreach ($st->fetchAll(\PDO::FETCH_ASSOC) as $r) {
+            $mes = (string) $r['mes'];
+            $v = (float) $r['valor'];
+            if ($mes === $mesIni && $r['fonte'] !== 'mes') {
+                $v = round($v * ((diasNoMes($mes) - (int) substr((string) $inicio, 8, 2) + 1) / diasNoMes($mes)), 2);
+            }
+            $valores[$mes] = max($valores[$mes] ?? 0.0, $v);
+        }
+        $up = $pdo->prepare('UPDATE lancamentos SET cartao_id = :c, fatura = :f WHERE id = :id');
+        foreach (self::atribuir($pagamentos, (int) $cartao['dia_fechamento'], (int) $cartao['dia_vencimento'], $valores) as $id => $f) {
+            $up->execute(['c' => (int) $cartao['id'], 'f' => $f, 'id' => $id]);
+        }
+        return count($pagamentos);
+    }
+
+    /**
+     * Com cartões ligados ao plano: a previsão da Fatura do cartão em cada mês em PREVISAO, da fatura aberta em
+     * diante, passa a ser a soma das parcelas daquela fatura nos cartões ligados (lote 'cartao', com log e desfazer).
+     * Meses antes da aberta não mudam: a fatura já fechou e o valor é o do banco. Com cartões de fechamentos
+     * diferentes, vale a aberta mais antiga entre eles.
+     * @return ?string o lote, ou null se nada mudou (ou nenhum cartão alimenta o plano)
      */
     public static function sincronizarPlano(int $usuarioId, ?string $hoje = null): ?string
     {
-        $cartao = CartaoModel::ativo();
+        $ligados = self::ligados();
         $cat = CartaoModel::categoriaFatura();
-        if ($cartao === null || !$cartao['alimenta_plano'] || $cat === null) {
+        if ($ligados === [] || $cat === null) {
             return null;
         }
-        $aberta = self::faturaDe($hoje ?? Relogio::hoje(), $cartao['fecha'], $cartao['vence']);
-        $totais = self::totais(CartaoModel::compras($cartao['id']));
+        $aberta = self::abertaDosLigados($ligados, $hoje ?? Relogio::hoje());
+        $totais = [];
+        foreach ($ligados as $c) {
+            foreach (self::totais(CartaoModel::compras($c['id'])) as $m => $v) {
+                $totais[$m] = round(($totais[$m] ?? 0.0) + $v, 2);
+            }
+        }
         $celulas = [];
         foreach (MesModel::todos() as $m) {
             if ($m['situacao'] === 'PREVISAO' && $m['mes'] >= $aberta) {
@@ -274,11 +402,23 @@ final class CartaoFatura
         return PrevisaoLote::gravar('cartao', $celulas, $usuarioId);
     }
 
+    /** @return list<array> os cartões ativos que alimentam o plano */
+    private static function ligados(): array
+    {
+        return array_values(array_filter(CartaoModel::ativos(), static fn(array $c): bool => $c['alimenta_plano']));
+    }
+
+    /** @param non-empty-list<array> $ligados */
+    private static function abertaDosLigados(array $ligados, string $hoje): string
+    {
+        return min(array_map(static fn(array $c): string => self::faturaDe($hoje, $c['fecha'], $c['vence']), $ligados));
+    }
+
     /** Os meses em que a Fatura do cartão vem do cartão (para o Mês mostrar a linha só para ler). */
     public static function mesesDoCartao(?string $hoje = null): ?string
     {
-        $cartao = CartaoModel::ativo();
-        return $cartao !== null && $cartao['alimenta_plano'] ? self::faturaDe($hoje ?? Relogio::hoje(), $cartao['fecha'], $cartao['vence']) : null;
+        $ligados = self::ligados();
+        return $ligados !== [] ? self::abertaDosLigados($ligados, $hoje ?? Relogio::hoje()) : null;
     }
 
     /** A previsão de hoje da Fatura do cartão, mês a mês (para conferir antes de ligar), do cache do motor. */

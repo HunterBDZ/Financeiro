@@ -5,31 +5,61 @@ use Financeiro\Database;
 use Financeiro\Sql;
 
 /**
- * O cartão de crédito da casa (tabela `cartoes`; por enquanto um ativo, a tabela aceita mais) e as
- * compras feitas nele (`cartao_compras`). As parcelas não têm tabela: saem de valor_total, parcelas
- * e primeira_fatura (ver CartaoFatura). As compras não contam nas categorias: no plano só a fatura.
+ * Os cartões de crédito da casa (tabela `cartoes`, na ordem de `ordem`) e as compras feitas neles
+ * (`cartao_compras`; o estorno é uma compra negativa de 1 parcela). As parcelas não têm tabela: saem de
+ * valor_total, parcelas e primeira_fatura (ver CartaoFatura). As compras não contam nas categorias: no plano
+ * só a fatura, que é uma categoria só (chave `fatura`) para todos os cartões, cada pagamento com o seu cartão.
  */
 final class CartaoModel
 {
-    /** O cartão ativo, ou null antes de cadastrar. */
-    public static function ativo(): ?array
+    /** @return list<array> os cartões ativos, na ordem da tela; o primeiro é o padrão */
+    public static function ativos(): array
     {
-        $r = Database::connection()->query('SELECT * FROM cartoes WHERE ativo = 1 ORDER BY id LIMIT 1')->fetch();
+        return array_map([self::class, 'cartao'], Database::connection()->query('SELECT * FROM cartoes WHERE ativo = 1 ORDER BY ordem, id')->fetchAll());
+    }
+
+    /** O primeiro cartão ativo (o padrão), ou null antes de cadastrar. */
+    public static function padrao(): ?array
+    {
+        return self::ativos()[0] ?? null;
+    }
+
+    /** Um cartão pelo id, ativo ou não. */
+    public static function achar(int $id): ?array
+    {
+        $st = Database::connection()->prepare('SELECT * FROM cartoes WHERE id = :id');
+        $st->execute(['id' => $id]);
+        $r = $st->fetch();
         return $r ? self::cartao($r) : null;
     }
 
-    /** Cadastra (id null) ou atualiza o cartão; devolve o id. */
-    public static function salvar(?int $id, string $nome, int $fecha, int $vence, ?float $limite): int
+    /** Cadastra (id null) ou atualiza o cartão; devolve o id. Um cartão novo vai para o fim da fila. */
+    public static function salvar(?int $id, string $nome, int $fecha, int $vence, ?float $limite, ?int $contaId = null): int
     {
         $pdo = Database::connection();
-        $dados = ['n' => $nome, 'f' => $fecha, 'v' => $vence, 'l' => $limite];
+        $dados = ['n' => $nome, 'f' => $fecha, 'v' => $vence, 'l' => $limite, 'c' => $contaId ?? ContaModel::PRINCIPAL];
         if ($id === null) {
-            $pdo->prepare('INSERT INTO cartoes (nome, dia_fechamento, dia_vencimento, limite) VALUES (:n, :f, :v, :l)')->execute($dados);
+            $pdo->prepare('INSERT INTO cartoes (nome, dia_fechamento, dia_vencimento, limite, conta_id, ordem)
+                           VALUES (:n, :f, :v, :l, :c, (SELECT COALESCE(MAX(ordem), 0) + 1 FROM cartoes))')->execute($dados);
             return (int) $pdo->lastInsertId();
         }
-        $pdo->prepare('UPDATE cartoes SET nome = :n, dia_fechamento = :f, dia_vencimento = :v, limite = :l WHERE id = :id')
+        $pdo->prepare('UPDATE cartoes SET nome = :n, dia_fechamento = :f, dia_vencimento = :v, limite = :l, conta_id = :c WHERE id = :id')
             ->execute($dados + ['id' => $id]);
         return $id;
+    }
+
+    /** Tira o cartão da tela e do plano; as compras e os pagamentos dele ficam. */
+    public static function arquivar(int $id): void
+    {
+        Database::connection()->prepare('UPDATE cartoes SET ativo = 0, alimenta_plano = 0 WHERE id = :id')->execute(['id' => $id]);
+    }
+
+    /** Já existe outro cartão com esse nome? (sem acento e sem caixa) */
+    public static function nomeUsado(string $nome, ?int $fora = null): bool
+    {
+        $st = Database::connection()->prepare('SELECT 1 FROM cartoes WHERE nome = :n AND ativo = 1 AND id <> :id');
+        $st->execute(['n' => $nome, 'id' => $fora ?? 0]);
+        return $st->fetchColumn() !== false;
     }
 
     /**
@@ -122,26 +152,26 @@ final class CartaoModel
                     'cr' => $c['criado_em']]);
     }
 
-    /** A categoria que recebe a fatura no plano ("Fatura do cartão", grupo Cartao), ou null. */
+    /** A categoria que recebe as faturas no plano (chave `fatura`, a "Fatura do cartão"), ou null. */
     public static function categoriaFatura(): ?int
     {
-        $v = Database::connection()->query(
-            "SELECT id FROM categorias WHERE grupo = 'Cartao' AND ativo = 1 AND sinal = -1 ORDER BY ordem, id LIMIT 1"
-        )->fetchColumn();
+        $v = Database::connection()->query("SELECT id FROM categorias WHERE chave = 'fatura' AND ativo = 1")->fetchColumn();
         return $v === false ? null : (int) $v;
     }
 
     /**
-     * Os pagamentos de fatura (lançamentos da categoria da fatura), do mais antigo para o mais novo. A
-     * fatura de cada um sai de CartaoFatura::atribuir(), não do mês da data.
-     * @return list<array{id:int, data:string, valor:float}>
+     * Os pagamentos de fatura já ligados a um cartão, do mais antigo para o mais novo, cada um com a fatura que pagou
+     * (lancamentos.cartao_id e lancamentos.fatura). Os sem cartão contam no mês da data, como as outras contas.
+     * @return list<array{id:int, data:string, valor:float, cartao_id:int, fatura:string}>
      */
     public static function pagamentos(int $categoriaFatura): array
     {
-        $st = Database::connection()->prepare('SELECT id, data, valor FROM lancamentos WHERE categoria_id = :c ORDER BY data, id');
+        $st = Database::connection()->prepare(
+            'SELECT id, data, valor, cartao_id, fatura FROM lancamentos WHERE categoria_id = :c AND cartao_id IS NOT NULL ORDER BY data, id'
+        );
         $st->execute(['c' => $categoriaFatura]);
-        return array_map(static fn(array $r): array => ['id' => (int) $r['id'], 'data' => (string) $r['data'], 'valor' => (float) $r['valor']],
-            $st->fetchAll());
+        return array_map(static fn(array $r): array => ['id' => (int) $r['id'], 'data' => (string) $r['data'], 'valor' => (float) $r['valor'],
+            'cartao_id' => (int) $r['cartao_id'], 'fatura' => (string) $r['fatura']], $st->fetchAll());
     }
 
     private static function cartao(array $r): array
@@ -149,7 +179,8 @@ final class CartaoModel
         return [
             'id' => (int) $r['id'], 'nome' => (string) $r['nome'], 'fecha' => (int) $r['dia_fechamento'],
             'vence' => (int) $r['dia_vencimento'], 'limite' => $r['limite'] !== null ? (float) $r['limite'] : null,
-            'alimenta_plano' => (int) $r['alimenta_plano'] === 1,
+            'alimenta_plano' => (int) $r['alimenta_plano'] === 1, 'ativo' => (int) $r['ativo'] === 1,
+            'conta_id' => $r['conta_id'] !== null ? (int) $r['conta_id'] : ContaModel::PRINCIPAL,
         ];
     }
 

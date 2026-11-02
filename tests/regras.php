@@ -677,7 +677,7 @@ MotorFinanceiro::limparCache();
 LancarForm::limparCache();
 $emTransacao('sem cartão cadastrado', static function () use ($pdo, $render, $check): void {
     $pdo->exec('UPDATE cartoes SET ativo = 0');
-    $check('cartão: sem cartão cadastrado, a aba pede o cadastro', CartaoModel::ativo() === null && str_contains($render(CartaoController::class, 'index', []), 'Cadastre o cartão'));
+    $check('cartão: sem cartão cadastrado, a aba pede o cadastro', CartaoModel::ativos() === [] && str_contains($render(CartaoController::class, 'index', []), 'Cadastre o cartão'));
 });
 $htmlBar = $render(MesController::class, 'index', []);
 preg_match('#<nav class="tabbar".*?</nav>#s', $htmlBar, $mB);
@@ -1675,7 +1675,7 @@ $check('fatura: no plano, o adiantamento sai no mês em que foi pago e desconta 
 
 // "veio menos": o valor final de uma conta e de uma entrada (o salário chega sem a parcela); dia a dia e fatura paga não perguntam
 $dAm = [
-    'cats' => [1 => ['id' => 1, 'nome' => MotorFinanceiro::CAT_SALARIO, 'grupo' => 'Entradas', 'sinal' => 1, 'operacional' => 1] + $catR,
+    'cats' => [1 => ['id' => 1, 'nome' => 'Salário', 'chave' => MotorFinanceiro::CAT_SALARIO, 'grupo' => 'Entradas', 'sinal' => 1, 'operacional' => 1] + $catR,
                5 => ['id' => 5, 'nome' => 'Luz', 'grupo' => 'Fixos', 'sinal' => -1, 'operacional' => 1] + $catR,
                10 => ['id' => 10, 'nome' => 'Mercado', 'grupo' => 'Dia a dia', 'sinal' => -1, 'operacional' => 1] + $catR,
                15 => ['id' => 15, 'nome' => 'Fatura do cartão', 'grupo' => 'Cartao', 'sinal' => -1, 'operacional' => 1] + $catR],

@@ -2,6 +2,7 @@
 namespace Financeiro\Models;
 
 use Financeiro\Database;
+use Financeiro\Services\CartaoFatura;
 use Financeiro\Sql;
 use PDO;
 use PDOException;
@@ -78,6 +79,10 @@ final class LancamentoModel
             $w[] = 'l.categoria_id = :cat';
             $p['cat'] = (int) $f['categoria_id'];
         }
+        if (!empty($f['conta_id'])) {
+            $w[] = 'l.conta_id = :conta';
+            $p['conta'] = (int) $f['conta_id'];
+        }
         $q = trim((string) ($f['q'] ?? ''));
         if ($q !== '') {
             // '!' como escape explícito: funciona igual com ou sem NO_BACKSLASH_ESCAPES
@@ -112,7 +117,7 @@ final class LancamentoModel
             'alfa'       => 'c.nome ASC, l.data DESC, l.id DESC',
             default      => 'l.data DESC, l.id DESC',
         };
-        $sql = 'SELECT l.id, l.data, l.descricao, l.valor, l.categoria_id, l.usuario_id, l.criado_em,
+        $sql = 'SELECT l.id, l.data, l.descricao, l.valor, l.categoria_id, l.usuario_id, l.criado_em, l.conta_id,
                        c.nome AS categoria_nome, c.apelido, c.grupo, c.sinal, c.operacional, c.essencial,
                        u.nome AS usuario_nome
                 FROM lancamentos l
@@ -209,12 +214,19 @@ final class LancamentoModel
         return $stmt->fetch() ?: null;
     }
 
-    public static function criar(string $data, string $descricao, int $categoriaId, float $valor, int $usuarioId): int
+    /**
+     * $contaId null = a conta padrão. Um pagamento de fatura (a categoria da fatura) sem $vinculo ganha o cartão e a
+     * fatura pela regra de CartaoFatura::atribuir (vinculoAutomatico); com $vinculo, vale o que veio.
+     * @param ?array{cartao_id:int, fatura:string} $vinculo
+     */
+    public static function criar(string $data, string $descricao, int $categoriaId, float $valor, int $usuarioId,
+                                 ?int $contaId = null, ?array $vinculo = null): int
     {
         $pdo = Database::connection();
+        $vinculo = self::vinculo($categoriaId, $data, $vinculo);
         $stmt = $pdo->prepare(
-            'INSERT INTO lancamentos (data, descricao, categoria_id, valor, usuario_id)
-             VALUES (:data, :descricao, :categoria_id, :valor, :usuario_id)'
+            'INSERT INTO lancamentos (data, descricao, categoria_id, valor, usuario_id, conta_id, cartao_id, fatura)
+             VALUES (:data, :descricao, :categoria_id, :valor, :usuario_id, :conta, :cartao, :fatura)'
         );
         $stmt->execute([
             'data'         => $data,
@@ -222,8 +234,27 @@ final class LancamentoModel
             'categoria_id' => $categoriaId,
             'valor'        => $valor,
             'usuario_id'   => $usuarioId,
+            'conta'        => $contaId ?? ContaModel::padrao(),
+            'cartao'       => $vinculo['cartao_id'] ?? null,
+            'fatura'       => $vinculo['fatura'] ?? null,
         ]);
         return (int) $pdo->lastInsertId();
+    }
+
+    /**
+     * O vínculo com a fatura de um lançamento da categoria $categoriaId: o que veio, ou o automático se for a categoria
+     * da fatura; null nas outras categorias (e sem cartão).
+     * @return ?array{cartao_id:int, fatura:string}
+     */
+    private static function vinculo(int $categoriaId, string $data, ?array $vinculo, ?int $ignorar = null): ?array
+    {
+        if ($categoriaId !== CartaoModel::categoriaFatura()) {
+            return null;
+        }
+        if ($vinculo !== null && isset($vinculo['cartao_id'], $vinculo['fatura'])) {
+            return ['cartao_id' => (int) $vinculo['cartao_id'], 'fatura' => (string) $vinculo['fatura']];
+        }
+        return CartaoFatura::vinculoAutomatico($data, isset($vinculo['cartao_id']) ? (int) $vinculo['cartao_id'] : null, $ignorar);
     }
 
     /**
@@ -240,11 +271,14 @@ final class LancamentoModel
             'valor'        => (float) $l['valor'],
             'usuario_id'   => (int) $l['usuario_id'],
             'criado_em'    => (string) $l['criado_em'],
+            'conta'        => (int) ($l['conta_id'] ?? ContaModel::padrao()),
+            'cartao'       => isset($l['cartao_id']) ? (int) $l['cartao_id'] : null,
+            'fatura'       => isset($l['cartao_id'], $l['fatura']) ? (string) $l['fatura'] : null,
         ];
         try {
             $pdo->prepare(
-                'INSERT INTO lancamentos (id, data, descricao, categoria_id, valor, usuario_id, criado_em)
-                 VALUES (:id, :data, :descricao, :categoria_id, :valor, :usuario_id, :criado_em)'
+                'INSERT INTO lancamentos (id, data, descricao, categoria_id, valor, usuario_id, criado_em, conta_id, cartao_id, fatura)
+                 VALUES (:id, :data, :descricao, :categoria_id, :valor, :usuario_id, :criado_em, :conta, :cartao, :fatura)'
             )->execute(['id' => (int) $l['id']] + $dados);
             return (int) $l['id'];
         } catch (PDOException $e) {
@@ -253,17 +287,33 @@ final class LancamentoModel
             }
         }
         $pdo->prepare(
-            'INSERT INTO lancamentos (data, descricao, categoria_id, valor, usuario_id, criado_em)
-             VALUES (:data, :descricao, :categoria_id, :valor, :usuario_id, :criado_em)'
+            'INSERT INTO lancamentos (data, descricao, categoria_id, valor, usuario_id, criado_em, conta_id, cartao_id, fatura)
+             VALUES (:data, :descricao, :categoria_id, :valor, :usuario_id, :criado_em, :conta, :cartao, :fatura)'
         )->execute($dados);
         return (int) $pdo->lastInsertId();
     }
 
-    public static function atualizar(int $id, string $data, string $descricao, int $categoriaId, float $valor): void
+    /**
+     * $contaId null = a conta fica como está. Um pagamento de fatura mantém o cartão e a fatura que tinha, a não ser
+     * que a data mude ou que $vinculo diga outro; vindo de outra categoria, ganha o automático. Fora da categoria da
+     * fatura, o vínculo sai.
+     * @param ?array{cartao_id:int, fatura?:string} $vinculo
+     */
+    public static function atualizar(int $id, string $data, string $descricao, int $categoriaId, float $valor,
+                                     ?int $contaId = null, ?array $vinculo = null): void
     {
         $pdo = Database::connection();
+        $antes = self::find($id);
+        if ($vinculo === null && $antes !== null && $antes['cartao_id'] !== null && (int) $antes['categoria_id'] === $categoriaId
+            && (string) $antes['data'] === $data) {
+            $vinculo = ['cartao_id' => (int) $antes['cartao_id'], 'fatura' => (string) $antes['fatura']];
+        } elseif ($vinculo === null && $antes !== null && $antes['cartao_id'] !== null) {
+            $vinculo = ['cartao_id' => (int) $antes['cartao_id']];       // a data mudou: o mesmo cartão, a fatura de novo
+        }
+        $vinculo = self::vinculo($categoriaId, $data, $vinculo, $id);
         $stmt = $pdo->prepare(
-            'UPDATE lancamentos SET data = :data, descricao = :descricao, categoria_id = :categoria_id, valor = :valor
+            'UPDATE lancamentos SET data = :data, descricao = :descricao, categoria_id = :categoria_id, valor = :valor,
+                    conta_id = COALESCE(:conta, conta_id), cartao_id = :cartao, fatura = :fatura
              WHERE id = :id'
         );
         $stmt->execute([
@@ -271,6 +321,9 @@ final class LancamentoModel
             'descricao'    => $descricao,
             'categoria_id' => $categoriaId,
             'valor'        => $valor,
+            'conta'        => $contaId,
+            'cartao'       => $vinculo['cartao_id'] ?? null,
+            'fatura'       => $vinculo['fatura'] ?? null,
             'id'           => $id,
         ]);
     }

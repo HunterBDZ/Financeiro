@@ -187,6 +187,15 @@ final class CategoriaModel
         }
     }
 
+    /** Uma categoria especial pela chave (MotorFinanceiro::CAT_*), ativa ou não. */
+    public static function porChave(string $chave): ?array
+    {
+        $stmt = Database::connection()->prepare('SELECT * FROM categorias WHERE chave = :c');
+        $stmt->execute(['c' => $chave]);
+        $row = $stmt->fetch();
+        return $row ?: null;
+    }
+
     public static function porNome(string $nome): ?array
     {
         $pdo = Database::connection();

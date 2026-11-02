@@ -50,7 +50,7 @@ final class PrevisaoEdicao
         $veio = $cat === ($d['fatura']['cat'] ?? null)
             ? (float) ($d['fatura']['faturas'][$mes]['pago'] ?? 0.0)
             : (float) ($d['real'][$mes][$cat] ?? 0.0);
-        $desconto = $c['nome'] === MotorFinanceiro::CAT_SALARIO && $parcela > 0.004 ? $parcela : 0.0;
+        $desconto = ($c['chave'] ?? null) === MotorFinanceiro::CAT_SALARIO && $parcela > 0.004 ? $parcela : 0.0;
         $previsto = (float) ($d['prev'][$mes][$cat] ?? 0.0) - $desconto;
         if (!self::veioMenos($veio, $previsto)) {
             return null;
