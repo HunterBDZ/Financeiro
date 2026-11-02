@@ -92,6 +92,8 @@ CREATE TABLE cartao_compras (
   usuario_id INTEGER NOT NULL REFERENCES usuarios (id),
   criado_em TEXT NOT NULL DEFAULT (agora_local()) CHECK (criado_em IS datetime(criado_em)),
   atualizado_em TEXT NOT NULL DEFAULT (agora_local()) CHECK (atualizado_em IS datetime(atualizado_em)),
+  importacao_id INTEGER REFERENCES importacoes (id),
+  importacao_chave TEXT CHECK (length(importacao_chave) <= 64),
   CONSTRAINT chk_cc_parcelas CHECK (parcelas BETWEEN 1 AND 48),
   CONSTRAINT chk_cc_primeira CHECK (CAST(strftime('%d', primeira_fatura) AS INTEGER) = 1),
   CONSTRAINT chk_cc_valor CHECK (valor_total <> 0),
@@ -100,6 +102,8 @@ CREATE TABLE cartao_compras (
 CREATE INDEX idx_cc_cartao_fatura ON cartao_compras (cartao_id, primeira_fatura);
 CREATE INDEX cc_categoria ON cartao_compras (categoria_id);
 CREATE INDEX cc_usuario ON cartao_compras (usuario_id);
+CREATE INDEX idx_cc_importacao ON cartao_compras (importacao_id);
+CREATE INDEX idx_cc_importacao_chave ON cartao_compras (importacao_chave);
 CREATE TRIGGER dec_cartao_compras_valor_total_i AFTER INSERT ON cartao_compras WHEN NEW.valor_total IS NOT dec_fix(NEW.valor_total, 2) BEGIN UPDATE cartao_compras SET valor_total = dec_fix(NEW.valor_total, 2) WHERE rowid = NEW.rowid; END;
 CREATE TRIGGER dec_cartao_compras_valor_total_u AFTER UPDATE OF valor_total ON cartao_compras WHEN NEW.valor_total IS NOT dec_fix(NEW.valor_total, 2) BEGIN UPDATE cartao_compras SET valor_total = dec_fix(NEW.valor_total, 2) WHERE rowid = NEW.rowid; END;
 CREATE TRIGGER upd_cartao_compras AFTER UPDATE ON cartao_compras WHEN NEW.atualizado_em IS OLD.atualizado_em AND (NEW.cartao_id IS NOT OLD.cartao_id OR NEW.data IS NOT OLD.data OR NEW.descricao IS NOT OLD.descricao OR NEW.categoria_id IS NOT OLD.categoria_id OR NEW.valor_total IS NOT OLD.valor_total OR NEW.parcelas IS NOT OLD.parcelas OR NEW.primeira_fatura IS NOT OLD.primeira_fatura OR NEW.usuario_id IS NOT OLD.usuario_id OR NEW.criado_em IS NOT OLD.criado_em) BEGIN UPDATE cartao_compras SET atualizado_em = agora_local() WHERE rowid = NEW.rowid; END;
@@ -125,6 +129,8 @@ CREATE TABLE lancamentos (
   conta_id INTEGER NOT NULL DEFAULT 1 REFERENCES contas (id),
   cartao_id INTEGER REFERENCES cartoes (id),
   fatura TEXT CHECK (fatura IS date(fatura) AND (fatura IS NULL OR CAST(strftime('%d', fatura) AS INTEGER) = 1)),
+  importacao_id INTEGER REFERENCES importacoes (id),
+  importacao_chave TEXT CHECK (length(importacao_chave) <= 64),
   CONSTRAINT chk_valor_positivo CHECK (valor > 0),
   CONSTRAINT chk_lanc_fatura CHECK ((cartao_id IS NULL) = (fatura IS NULL))
 ) STRICT;
@@ -133,6 +139,8 @@ CREATE INDEX idx_data ON lancamentos (data);
 CREATE INDEX idx_categoria_data ON lancamentos (categoria_id, data);
 CREATE INDEX idx_lanc_conta_data ON lancamentos (conta_id, data);
 CREATE INDEX idx_lanc_cartao_fatura ON lancamentos (cartao_id, fatura);
+CREATE INDEX idx_lanc_importacao ON lancamentos (importacao_id);
+CREATE INDEX idx_lanc_importacao_chave ON lancamentos (importacao_chave);
 CREATE TRIGGER dec_lancamentos_valor_i AFTER INSERT ON lancamentos WHEN NEW.valor IS NOT dec_fix(NEW.valor, 2) BEGIN UPDATE lancamentos SET valor = dec_fix(NEW.valor, 2) WHERE rowid = NEW.rowid; END;
 CREATE TRIGGER dec_lancamentos_valor_u AFTER UPDATE OF valor ON lancamentos WHEN NEW.valor IS NOT dec_fix(NEW.valor, 2) BEGIN UPDATE lancamentos SET valor = dec_fix(NEW.valor, 2) WHERE rowid = NEW.rowid; END;
 CREATE TRIGGER upd_lancamentos AFTER UPDATE ON lancamentos WHEN NEW.atualizado_em IS OLD.atualizado_em AND (NEW.data IS NOT OLD.data OR NEW.descricao IS NOT OLD.descricao OR NEW.categoria_id IS NOT OLD.categoria_id OR NEW.valor IS NOT OLD.valor OR NEW.usuario_id IS NOT OLD.usuario_id OR NEW.criado_em IS NOT OLD.criado_em OR NEW.conta_id IS NOT OLD.conta_id OR NEW.cartao_id IS NOT OLD.cartao_id OR NEW.fatura IS NOT OLD.fatura) BEGIN UPDATE lancamentos SET atualizado_em = agora_local() WHERE rowid = NEW.rowid; END;
@@ -155,6 +163,42 @@ CREATE INDEX fk_transf_para ON transferencias (para_conta_id);
 CREATE INDEX fk_transf_usuario ON transferencias (usuario_id);
 CREATE TRIGGER dec_transferencias_valor_i AFTER INSERT ON transferencias WHEN NEW.valor IS NOT dec_fix(NEW.valor, 2) BEGIN UPDATE transferencias SET valor = dec_fix(NEW.valor, 2) WHERE rowid = NEW.rowid; END;
 CREATE TRIGGER dec_transferencias_valor_u AFTER UPDATE OF valor ON transferencias WHEN NEW.valor IS NOT dec_fix(NEW.valor, 2) BEGIN UPDATE transferencias SET valor = dec_fix(NEW.valor, 2) WHERE rowid = NEW.rowid; END;
+
+-- importar extrato: os lotes, as regras de categoria e as colunas de cada CSV (s0010)
+CREATE TABLE importacoes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  conta_id INTEGER REFERENCES contas (id),
+  cartao_id INTEGER REFERENCES cartoes (id),
+  nome TEXT NOT NULL CHECK (length(nome) <= 255),
+  formato TEXT NOT NULL CHECK (formato IN ('ofx', 'csv')),
+  hash TEXT NOT NULL CHECK (length(hash) <= 64),
+  linhas INTEGER NOT NULL DEFAULT 0 CHECK (linhas >= 0),
+  usuario_id INTEGER NOT NULL REFERENCES usuarios (id),
+  criado_em TEXT NOT NULL DEFAULT (agora_local()) CHECK (criado_em IS datetime(criado_em)),
+  desfeita_em TEXT CHECK (desfeita_em IS datetime(desfeita_em)),
+  CONSTRAINT chk_imp_destino CHECK ((conta_id IS NULL) <> (cartao_id IS NULL))
+) STRICT;
+CREATE INDEX idx_importacoes_criado ON importacoes (criado_em);
+CREATE INDEX fk_importacoes_conta ON importacoes (conta_id);
+CREATE INDEX fk_importacoes_cartao ON importacoes (cartao_id);
+CREATE INDEX fk_importacoes_usuario ON importacoes (usuario_id);
+
+CREATE TABLE importacao_regras (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  contem TEXT COLLATE AI_CI NOT NULL CHECK (length(contem) BETWEEN 2 AND 60),
+  categoria_id INTEGER NOT NULL REFERENCES categorias (id) ON DELETE CASCADE,
+  usuario_id INTEGER NOT NULL REFERENCES usuarios (id),
+  criado_em TEXT NOT NULL DEFAULT (agora_local()) CHECK (criado_em IS datetime(criado_em)),
+  UNIQUE (contem)
+) STRICT;
+CREATE INDEX fk_imp_regras_categoria ON importacao_regras (categoria_id);
+CREATE INDEX fk_imp_regras_usuario ON importacao_regras (usuario_id);
+
+CREATE TABLE importacao_layouts (
+  hash TEXT NOT NULL PRIMARY KEY CHECK (length(hash) <= 64),
+  mapa TEXT NOT NULL CHECK (length(mapa) <= 2000),
+  atualizado_em TEXT NOT NULL DEFAULT (agora_local()) CHECK (atualizado_em IS datetime(atualizado_em))
+) STRICT;
 
 CREATE TABLE login_tentativas (
   login TEXT COLLATE AI_CI NOT NULL PRIMARY KEY CHECK (length(login) <= 100),

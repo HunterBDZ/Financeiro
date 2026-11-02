@@ -501,7 +501,7 @@ function csrfCheck(): bool
 /**
  * Aviso depois de redirecionar (toast no layout). Tipos: success | warn | error.
  * $acao = ['url'=>'/lancamentos/12/excluir', 'label'=>'desfazer', 'campos'=>['volta'=>'/']]
- * vira um form POST com CSRF e os campos ocultos (ex.: DESFAZER).
+ * vira um form POST com CSRF e os campos ocultos (ex.: DESFAZER). Com 'confirmar' => frase, pede confirmação antes.
  */
 function flash(string $type, string $message, ?array $acao = null): void
 {

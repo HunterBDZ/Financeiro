@@ -79,6 +79,8 @@ foreach ($categorias as $c) {
     $classes[$classeDe($c)]['cats'][] = $c;
 }
 $catAtual = $categoria !== null ? (int) $categoria['id'] : 0;
+// "Importar extrato": com a conta filtrada, ela já vem escolhida
+$urlImportar = '/importar' . ($conta !== null ? '?destino=conta%3A' . (int) $conta['id'] : '');
 ?>
 <div class="ex">
     <aside class="ex-col" aria-label="<?= e(t('lançar')) ?>">
@@ -212,6 +214,7 @@ $catAtual = $categoria !== null ? (int) $categoria['id'] : 0;
                     <?php else: ?>
                         <p><?= e(t('Nada lançado em {mes}.', ['mes' => monthLabel($mes)])) ?></p>
                         <a class="btn btn-primary" href="/lancar?volta=<?= e($voltaEnc) ?>" data-lancar><?= e(t('Lançar')) ?></a>
+                        <a class="btn btn-ghost ex-importar" href="<?= e($urlImportar) ?>"><?= svgIcon('arrow-up', 16) ?><?= e(t('Importar extrato')) ?></a>
                     <?php endif; ?>
                 <?php endif; ?>
             </div>
@@ -235,6 +238,7 @@ $catAtual = $categoria !== null ? (int) $categoria['id'] : 0;
                         <?php endif; ?>
                     </div>
                 <?php endif; ?>
+                <a class="btn btn-ghost btn-sm ex-importar" href="<?= e($urlImportar) ?>"><?= svgIcon('arrow-up', 16) ?><?= e(t('Importar extrato')) ?></a>
                 <a class="btn btn-ghost btn-sm ex-csv" href="<?= e($urlPlanilha) ?>"><?= svgIcon('download', 16) ?><?= e(t('Exportar planilha (CSV)')) ?></a>
             </div>
 

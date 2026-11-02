@@ -23,6 +23,7 @@ use Financeiro\Controllers\ComecarController;
 use Financeiro\Controllers\RelatorioController;
 use Financeiro\Controllers\ContaController;
 use Financeiro\Controllers\TransferenciaController;
+use Financeiro\Controllers\ImportacaoController;
 
 $router = new Router();
 
@@ -55,6 +56,15 @@ $router->post('/transferencias/desfazer', [TransferenciaController::class, 'desf
 $router->get('/transferencias/{id}/editar', [TransferenciaController::class, 'editarForm']);
 $router->post('/transferencias/{id}/excluir', [TransferenciaController::class, 'excluir']);
 $router->post('/transferencias/{id}', [TransferenciaController::class, 'atualizar']);
+$router->get('/importar', [ImportacaoController::class, 'index']);
+$router->post('/importar', [ImportacaoController::class, 'enviar']);
+$router->get('/importar/modelo', [ImportacaoController::class, 'modelo']);
+$router->get('/importar/colunas', [ImportacaoController::class, 'colunasForm']);
+$router->post('/importar/colunas', [ImportacaoController::class, 'colunas']);
+$router->get('/importar/revisar', [ImportacaoController::class, 'revisarForm']);
+$router->post('/importar/revisar', [ImportacaoController::class, 'revisar']);
+$router->post('/importar/regras/{id}/remover', [ImportacaoController::class, 'removerRegra']);
+$router->post('/importar/{id}/desfazer', [ImportacaoController::class, 'desfazer']);
 $router->post('/categorias', [CategoriaController::class, 'criar']);
 $router->post('/categorias/{id}/remover', [CategoriaController::class, 'remover']);
 $router->get('/categorias/{id}/icone', [CategoriaController::class, 'iconeForm']);

@@ -1,4 +1,5 @@
 window.FIN_DIC = {
+    "1 para lançar": "1 para registrar",
     "1 {moeda} = {simbolo} {valor}, cotação de {data}": "1 {moeda} = {simbolo} {valor}, cotización del {data}",
     "A loja não liberou os dados. Preencha o nome, o valor e a foto.": "La tienda no compartió los datos. Complete el nombre, el monto y la foto.",
     "A parcela {parcela} está na fatura aberta, de {mes}.": "La cuota {parcela} está en la factura abierta, de {mes}.",
@@ -67,6 +68,7 @@ window.FIN_DIC = {
     "{gasto} de {meta}, passou {resto}": "{gasto} de {meta}, se pasó {resto}",
     "{gasto} de {meta}, restam {resto}": "{gasto} de {meta}, quedan {resto}",
     "{k} de {n}": "{k} de {n}",
+    "{n} para lançar": "{n} para registrar",
     "{plano}, de {inicio} a {fim}.": "{plano}, de {inicio} a {fim}.",
     "À vista, {valor}": "De contado, {valor}",
     "≈ {simbolo} {valor}, cotação de {data}": "≈ {simbolo} {valor}, cotización del {data}"

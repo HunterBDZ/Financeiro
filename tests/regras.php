@@ -2409,6 +2409,204 @@ if (Sql::sqlite()) {
             && CategoriaModel::porChave(MotorFinanceiro::CAT_SALARIO)['nome'] === 'Pagamento'
             && Investimentos::resumo(Relogio::hoje())['poupanca']['idEntra'] === $guard);
     });
+
+    // ---- importar extrato: OFX (SGML e XML) e CSV, números e datas, charset, identidade das linhas, cartão, regras,
+    // memória, repetidas, gravar e desfazer, limites e arquivos maliciosos. Os exemplos ficam em tests/dados/extratos.
+    $extratos = __DIR__ . '/dados/extratos/';
+    $lerOk = static function (string $bruto): array {
+        try {
+            return \Financeiro\Services\ExtratoArquivo::ler($bruto);
+        } catch (\InvalidArgumentException $e) {
+            return ['erro' => $e->getMessage()];
+        }
+    };
+    $sgml = $lerOk((string) file_get_contents($extratos . 'conta-sgml.ofx'));
+    $check('importar: OFX SGML em Windows-1252, com o charset do cabeçalho', ($sgml['formato'] ?? '') === 'ofx' && count($sgml['linhas']) === 6
+        && $sgml['linhas'][2]['descricao'] === 'AÇOUGUE SÃO JOÃO' && $sgml['linhas'][0]['valor'] === -123.45 && $sgml['linhas'][1]['valor'] === 3500.0
+        && $sgml['linhas'][0]['data'] === '2026-11-03' && $sgml['linhas'][0]['descricao'] === 'COMPRA NO DEBITO SUPERMERCADO BOM PRECO', json_encode($sgml, JSON_UNESCAPED_UNICODE));
+    $xml = $lerOk((string) file_get_contents($extratos . 'conta-xml.ofx'));
+    $check('importar: OFX XML, com entidade e NAME + MEMO', ($xml['formato'] ?? '') === 'ofx' && count($xml['linhas']) === 3 && $xml['linhas'][0]['valor'] === -1234.56
+        && $xml['linhas'][1]['descricao'] === 'RESTAURANTE SABOR & ARTE - Almoço de domingo' && $xml['linhas'][2]['fitid'] === 'X-2003', json_encode($xml, JSON_UNESCAPED_UNICODE));
+    $doMapa = static function (array $lido): array {
+        return \Financeiro\Services\ExtratoArquivo::aplicarMapa($lido['linhas'], \Financeiro\Services\ExtratoArquivo::mapaSugerido($lido['linhas']), $lido['sep']);
+    };
+    $csvBr = $lerOk((string) file_get_contents($extratos . 'conta.csv'));
+    $mapaBr = \Financeiro\Services\ExtratoArquivo::mapaSugerido($csvBr['linhas'] ?? []);
+    $apBr = $doMapa($csvBr);
+    $check('importar: CSV com ";" e vírgula decimal; "1.234,56" vira 1234,56; o saldo não é o valor', ($csvBr['sep'] ?? '') === ';'
+        && $mapaBr['data'] === 0 && $mapaBr['descricao'] === 1 && $mapaBr['valor'] === 2 && $mapaBr['cabecalho'] === true
+        && array_column($apBr['linhas'], 'valor') === [-1234.56, 3500.0, -42.5] && $apBr['linhas'][2]['descricao'] === 'Farmácia; perto de casa', json_encode([$mapaBr, $apBr], JSON_UNESCAPED_UNICODE));
+    $apUs = $doMapa($lerOk("Date,Description,Amount\n2026-11-03,\"Coffee, shop\",-4.50\n2026-11-04,Refund,\"1,234.56\"\n"));
+    $check('importar: CSV com "," e ponto decimal, data AAAA-MM-DD', array_column($apUs['linhas'], 'valor') === [-4.5, 1234.56]
+        && $apUs['linhas'][0]['descricao'] === 'Coffee, shop' && $apUs['linhas'][1]['data'] === '2026-11-04', json_encode($apUs));
+    $dc = $lerOk("Data;Descrição;Débito;Crédito;Saldo\n03/11/2026;Mercado;150,00;;1.000,00\n05/11/2026;Salário;;3.000,00;4.000,00\n");
+    $mapaDc = \Financeiro\Services\ExtratoArquivo::mapaSugerido($dc['linhas']);
+    $apDc = $doMapa($dc);
+    $check('importar: CSV com débito e crédito em colunas separadas', $mapaDc['valor'] === -1 && $mapaDc['debito'] === 2 && $mapaDc['credito'] === 3
+        && array_column($apDc['linhas'], 'valor') === [-150.0, 3000.0], json_encode([$mapaDc, $apDc]));
+    $num = [\Financeiro\Services\ExtratoArquivo::class, 'numero'];
+    $check('importar: números de extrato', $num('1.234,56', ',') === 1234.56 && $num('1.234,56', null) === 1234.56 && $num('1,234.56', '.') === 1234.56
+        && $num('(12,00)', ',') === -12.0 && $num('12,00-', ',') === -12.0 && $num('R$ -7,50', ',') === -7.5 && $num('1.234', ',') === 1234.0
+        && $num('45,90 D', ',') === -45.9 && $num('-1234.5', null) === -1234.5 && $num('abc', ',') === null && $num('', ',') === null && $num('12,', ',') === null);
+    $dt = [\Financeiro\Services\ExtratoArquivo::class, 'data'];
+    $check('importar: datas dd/mm/aaaa, dd/mm/aa, AAAA-MM-DD e com hora', $dt('03/11/2026') === '2026-11-03' && $dt('03/11/26') === '2026-11-03'
+        && $dt('2026-11-03') === '2026-11-03' && $dt('2026-11-03 14:30:00') === '2026-11-03' && $dt('11/03/2026', 'mdy') === '2026-11-03'
+        && $dt('31/02/2026') === null && $dt('ontem') === null
+        && \Financeiro\Services\ExtratoArquivo::ordemDatas(['11/03/2026', '12/25/2026']) === 'mdy' && \Financeiro\Services\ExtratoArquivo::ordemDatas(['25/12/2026']) === 'dmy');
+    $w1252 = $lerOk((string) mb_convert_encoding("Data;Descrição;Valor\n03/11/2026;Açougue São João;-10,00\n", 'Windows-1252', 'UTF-8'));
+    $check('importar: CSV em Windows-1252 vira UTF-8', ($w1252['linhas'][1][1] ?? '') === 'Açougue São João' && ($w1252['linhas'][0][1] ?? '') === 'Descrição', json_encode($w1252, JSON_UNESCAPED_UNICODE));
+    $check('importar: CSV em UTF-16 com BOM', ($lerOk("\xFF\xFE" . mb_convert_encoding("Data;Valor\n03/11/2026;-1,00\n", 'UTF-16LE', 'UTF-8'))['linhas'][1][1] ?? '') === '-1,00');
+    $erroDe = static fn(array $r): string => (string) ($r['erro'] ?? '');
+    $check('importar: arquivo grande demais é recusado antes de ler', str_contains($erroDe($lerOk(str_repeat('a;b;1,00' . "\n", 300000))), '2 MB'));
+    $muitas = "OFXHEADER:100\n<OFX><BANKTRANLIST>" . str_repeat("<STMTTRN><DTPOSTED>20261103<TRNAMT>-1.00<FITID>1</STMTTRN>", \Financeiro\Services\ExtratoArquivo::MAX_LINHAS + 1) . '</BANKTRANLIST></OFX>';
+    $check('importar: arquivo com linhas demais é recusado', str_contains($erroDe($lerOk($muitas)), 'mais de')
+        && str_contains($erroDe($lerOk(str_repeat("03/11/2026;x;-1,00\n", \Financeiro\Services\ExtratoArquivo::MAX_LINHAS + 60))), 'mais de'));
+    $xxe = '<?xml version="1.0"?><!DOCTYPE OFX [<!ENTITY x SYSTEM "file:///etc/passwd">]><OFX><BANKTRANLIST><STMTTRN><DTPOSTED>20261103</DTPOSTED><TRNAMT>-1.00</TRNAMT><NAME>&x;</NAME></STMTTRN></BANKTRANLIST></OFX>';
+    $check('importar: OFX com entidade externa (XXE) é recusado', $erroDe($lerOk($xxe)) !== '' && !str_contains((string) json_encode($lerOk($xxe)), 'root:'));
+    $check('importar: binário, planilha do Excel e PDF são recusados com a frase certa', $erroDe($lerOk("\x00\x01\x02binario\x00" . random_bytes(64))) !== ''
+        && str_contains($erroDe($lerOk("PK\x03\x04" . random_bytes(32))), 'Excel') && str_contains($erroDe($lerOk("%PDF-1.7\n")), 'PDF') && $erroDe($lerOk("  \n ")) !== '');
+    $check('importar: parcela no fim da descrição', \Financeiro\Services\Importacao::parcela('LOJA 03/10') === ['k' => 3, 'n' => 10, 'base' => 'LOJA']
+        && \Financeiro\Services\Importacao::parcela('LOJA PARC 2/6')['base'] === 'LOJA' && \Financeiro\Services\Importacao::parcela('CINEMA 15/10') === null
+        && \Financeiro\Services\Importacao::parcela('MERCADO 05/11', '2026-11-05') === null && \Financeiro\Services\Importacao::parcela('MERCADO') === null);
+
+    $emTransacao('importar extrato numa conta', static function () use ($pdo, $check, $render, $uid, $extratos, $catGasto): void {
+        $conta = ['tipo' => 'conta', 'id' => ContaModel::PRINCIPAL];
+        $bruto = (string) file_get_contents($extratos . 'conta-sgml.ofx');
+        $check('importar: o arquivo vai para a sessão, sem ser gravado', \Financeiro\Controllers\ImportacaoController::lerArquivo($bruto, 'conta-sgml.ofx', $conta) === null
+            && count($_SESSION['importar']['linhas']) === 6);
+        $est = $_SESSION['importar'];
+        $rev = \Financeiro\Services\Importacao::revisao($est['linhas'], $conta, 'ofx');
+        $check('importar: FITID repetido não junta linhas; duas iguais no mesmo dia são duas', count(array_unique(array_column($rev, 'chave'))) === 6
+            && array_column($rev, 'ordem') === [1, 1, 1, 1, 2, 1] && count(array_filter($rev, static fn($r) => $r['marcada'])) === 6, json_encode(array_column($rev, 'ordem')));
+        $check('importar: o sinal diz entrada ou gasto', array_column($rev, 'tipo') === ['gasto', 'entrada', 'gasto', 'gasto', 'gasto', 'gasto']);
+        // sem categoria não grava nada
+        $semCat = array_map(static fn(array $r): array => ['categoria_id' => null] + $r, $rev);
+        $g0 = \Financeiro\Services\Importacao::gravar($semCat, $conta, $est, $uid);
+        $check('importar: linha marcada sem categoria não deixa gravar nada', $g0['erro'] !== null && str_contains($g0['erro'], 'categoria')
+            && (int) $pdo->query('SELECT COUNT(*) FROM importacoes')->fetchColumn() === 0);
+        // categorias: gasto para as de saída, entrada para a de entrada
+        $catEntrada = (int) array_key_first(\Financeiro\Services\Importacao::permitidas('entrada'));
+        $escolhas = [];
+        foreach ($rev as $r) {
+            $escolhas[$r['i']] = ['m' => 1, 'c' => $r['tipo'] === 'entrada' ? $catEntrada : $catGasto];
+        }
+        $rev = \Financeiro\Services\Importacao::revisao($est['linhas'], $conta, 'ofx', $escolhas);
+        $g = \Financeiro\Services\Importacao::gravar($rev, $conta, $est, $uid);
+        $linhas = $pdo->query('SELECT conta_id, valor, descricao, categoria_id, importacao_chave FROM lancamentos WHERE importacao_id = ' . (int) $g['id'] . ' ORDER BY id')->fetchAll();
+        $check('importar: "Lançar todos" grava um lote, cada lançamento com importacao_id e a identidade', $g['erro'] === null && $g['n'] === 6 && count($linhas) === 6
+            && array_unique(array_map('intval', array_column($linhas, 'conta_id'))) === [ContaModel::PRINCIPAL] && (float) $linhas[0]['valor'] === 123.45
+            && (int) $linhas[1]['categoria_id'] === $catEntrada && $linhas[2]['descricao'] === 'AÇOUGUE SÃO JOÃO'
+            && (int) $pdo->query('SELECT linhas FROM importacoes WHERE id = ' . (int) $g['id'])->fetchColumn() === 6, json_encode([$g, $linhas], JSON_UNESCAPED_UNICODE));
+        $de = \Financeiro\Services\Importacao::revisao($est['linhas'], $conta, 'ofx');
+        $check('importar: o mesmo arquivo de novo vem todo como já importado, desmarcado', array_values(array_unique(array_column($de, 'dup'))) === ['importada']
+            && array_filter(array_column($de, 'marcada')) === [] && \Financeiro\Models\ImportacaoModel::jaImportado($est['hash']) !== null);
+        // um extrato que cobre parte do anterior, com uma linha nova: só ela vem marcada
+        $parte = array_slice($est['linhas'], 3);
+        $parte[] = ['data' => '2026-11-09', 'valor' => -7.5, 'descricao' => 'PADARIA DA ESQUINA 2', 'fitid' => '1009', 'categoria' => ''];
+        $rp = \Financeiro\Services\Importacao::revisao($parte, $conta, 'ofx');
+        $check('importar: extrato que repete parte do anterior: só o novo vem marcado, com a categoria da memória', array_column($rp, 'marcada') === [false, false, false, true]
+            && $rp[3]['sugestao'] === $catGasto && $rp[3]['origem'] === 'memoria', json_encode(array_map(static fn($r) => [$r['dup'], $r['ordem'], $r['sugestao'], $r['origem']], $rp)));
+        // lançado à mão: mesma data, valor e conta
+        LancamentoModel::criar('2026-11-11', 'almoço', $catGasto, 89.9, $uid, ContaModel::PRINCIPAL);
+        $linhasX = \Financeiro\Services\ExtratoArquivo::ler((string) file_get_contents($extratos . 'conta-xml.ofx'))['linhas'];
+        $rx = \Financeiro\Services\Importacao::revisao($linhasX, $conta, 'ofx');
+        $check('importar: o que já foi lançado à mão (mesma data, valor e conta) vem desmarcado, com aviso', $rx[1]['dup'] === 'parecida' && $rx[1]['parecida'] === 'almoço'
+            && !$rx[1]['marcada'] && $rx[0]['marcada'] && $rx[2]['marcada'] && $rx[0]['dup'] === null);
+        // regras: criadas na revisão, mudam as linhas que casam e valem nas próximas
+        $_SESSION['importar'] = $est;
+        $catOutra = (int) array_keys(\Financeiro\Services\Importacao::permitidas('gasto'))[1];
+        $r = \Financeiro\Controllers\ImportacaoController::criarRegra(['regra_texto' => 'Padaria', 'regra_categoria' => (string) $catOutra], $est, []);
+        $check('importar: "Sempre que tiver PADARIA, usar…" muda as linhas da revisão', $r['erro'] === null && ($r['escolhas'][3]['c'] ?? 0) === $catOutra
+            && ($r['escolhas'][4]['c'] ?? 0) === $catOutra && !isset($r['escolhas'][0]), json_encode($r));
+        $rr = \Financeiro\Services\Importacao::revisao($parte, $conta, 'ofx');
+        $check('importar: a regra vale nas próximas e ganha da memória', $rr[3]['sugestao'] === $catOutra && $rr[3]['origem'] === 'regra' && $rr[3]['regra'] === 'Padaria');
+        $check('importar: regra curta demais ou sem categoria é recusada', \Financeiro\Controllers\ImportacaoController::criarRegra(['regra_texto' => '12', 'regra_categoria' => (string) $catOutra], $est, [])['erro'] !== null
+            && \Financeiro\Controllers\ImportacaoController::criarRegra(['regra_texto' => 'mercado', 'regra_categoria' => ''], $est, [])['erro'] !== null);
+        $hRev = $render(\Financeiro\Controllers\ImportacaoController::class, 'revisarForm', []);
+        $check('importar: a tela de revisão tem as linhas, a categoria, a regra e "Lançar todos"', str_contains($hRev, 'name="marcar[0]"') && str_contains($hRev, 'name="cat[5]"')
+            && str_contains($hRev, 'Já foi importada antes.') && str_contains($hRev, 'name="regra_texto"') && str_contains($hRev, 'value="lancar"') && str_contains($hRev, 'Lançar todos')
+            && str_contains($hRev, 'name="token" value="' . $est['token'] . '"'));
+        $hIni = $render(\Financeiro\Controllers\ImportacaoController::class, 'index', []);
+        $check('importar: a tela inicial tem o destino, o arquivo, o modelo, as últimas importações e as regras', str_contains($hIni, 'action="/importar"') && str_contains($hIni, 'enctype="multipart/form-data"')
+            && str_contains($hIni, 'value="conta:' . ContaModel::PRINCIPAL . '"') && str_contains($hIni, 'href="/importar/modelo"') && str_contains($hIni, 'conta-sgml.ofx')
+            && str_contains($hIni, 'action="/importar/' . (int) $g['id'] . '/desfazer"') && str_contains($hIni, 'data-confirm=') && str_contains($hIni, 'Tem “Padaria”'));
+        $hExt = $render(LancamentosController::class, 'index', ['mes' => '2026-11-01']);
+        $check('importar: o Extrato tem "Importar extrato"', str_contains($hExt, 'href="/importar"') && str_contains($hExt, 'Importar extrato'));
+        // desfazer: o lote inteiro sai, e o arquivo pode entrar de novo
+        $antes = (int) $pdo->query('SELECT COUNT(*) FROM lancamentos')->fetchColumn();
+        $n = \Financeiro\Services\Importacao::desfazer((int) $g['id'], $uid);
+        $check('importar: "Desfazer importação" apaga o lote inteiro e só ele', $n === 6 && (int) $pdo->query('SELECT COUNT(*) FROM lancamentos')->fetchColumn() === $antes - 6
+            && $pdo->query('SELECT desfeita_em FROM importacoes WHERE id = ' . (int) $g['id'])->fetchColumn() !== null
+            && \Financeiro\Models\ImportacaoModel::jaImportado($est['hash']) === null && \Financeiro\Services\Importacao::desfazer((int) $g['id'], $uid) === 0);
+        $check('importar: depois de desfeito, as linhas voltam a vir marcadas', array_filter(array_column(\Financeiro\Services\Importacao::revisao($est['linhas'], $conta, 'ofx'), 'dup')) === []);
+        unset($_SESSION['importar']);
+    });
+
+    $emTransacao('importar fatura de cartão', static function () use ($pdo, $check, $uid, $extratos, $catGasto, $catFat): void {
+        $cartao = CartaoModel::padrao();
+        $destino = ['tipo' => 'cartao', 'id' => $cartao['id']];
+        $linhas = \Financeiro\Services\ExtratoArquivo::ler((string) file_get_contents($extratos . 'cartao.ofx'))['linhas'];
+        $rev = \Financeiro\Services\Importacao::revisao($linhas, $destino, 'ofx');
+        $fatura = CartaoFatura::faturaDe('2026-11-10', $cartao['fecha'], $cartao['vence']);
+        $check('importar cartão: compra, parcela k/n, pagamento e estorno', array_column($rev, 'tipo') === ['parcela', 'compra', 'pagamento', 'estorno'], json_encode(array_column($rev, 'tipo')));
+        $check('importar cartão: "03/10" vira 10 parcelas, a 1ª duas faturas antes da fatura da data', $rev[0]['k'] === 3 && $rev[0]['n'] === 10 && $rev[0]['fatura'] === $fatura
+            && $rev[0]['primeira'] === CartaoFatura::somaMeses($fatura, -2) && $rev[0]['total'] === 3000.0 && $rev[0]['gravar'] === 'LOJA DE MÓVEIS');
+        $check('importar cartão: o pagamento fica de fora, desmarcado; o estorno entra', !$rev[2]['pode'] && !$rev[2]['marcada'] && $rev[3]['pode'] && $rev[3]['marcada']
+            && !isset(\Financeiro\Services\Importacao::permitidas('compra')[$catFat]));
+        $escolhas = [];
+        foreach ($rev as $r) {
+            $escolhas[$r['i']] = ['m' => $r['pode'] ? 1 : 0, 'c' => $catGasto];
+        }
+        $g = \Financeiro\Services\Importacao::gravar(\Financeiro\Services\Importacao::revisao($linhas, $destino, 'ofx', $escolhas), $destino,
+            ['nome' => 'cartao.ofx', 'formato' => 'ofx', 'hash' => hash('sha256', 'cartao')], $uid);
+        $compras = $pdo->query('SELECT descricao, valor_total, parcelas, primeira_fatura FROM cartao_compras WHERE importacao_id = ' . (int) $g['id'] . ' ORDER BY id')->fetchAll();
+        $check('importar cartão: grava a compra parcelada, a compra e o estorno negativo; o pagamento não vira compra', $g['erro'] === null && count($compras) === 3
+            && $compras[0]['descricao'] === 'LOJA DE MÓVEIS' && (float) $compras[0]['valor_total'] === 3000.0 && (int) $compras[0]['parcelas'] === 10
+            && $compras[0]['primeira_fatura'] === CartaoFatura::somaMeses($fatura, -2) && (float) $compras[2]['valor_total'] === -59.9 && (int) $compras[2]['parcelas'] === 1
+            && (int) $pdo->query('SELECT COUNT(*) FROM lancamentos WHERE importacao_id = ' . (int) $g['id'])->fetchColumn() === 0, json_encode([$g, $compras], JSON_UNESCAPED_UNICODE));
+        // a fatura seguinte traz a mesma compra como "04/10", um mês depois: é a mesma compra
+        $seguinte = [['data' => CartaoFatura::somaMeses('2026-11-01', 1) === '2026-12-01' ? '2026-12-10' : '', 'valor' => -300.0, 'descricao' => 'LOJA DE MÓVEIS 04/10', 'fitid' => 'C-9', 'categoria' => '']];
+        $rs = \Financeiro\Services\Importacao::revisao($seguinte, $destino, 'ofx');
+        $check('importar cartão: a parcela seguinte da mesma compra, na fatura seguinte, vem como já importada', $rs[0]['dup'] === 'importada' && !$rs[0]['marcada'], json_encode($rs[0]));
+        $rd = \Financeiro\Services\Importacao::revisao($linhas, $destino, 'ofx');
+        $check('importar cartão: o mesmo arquivo de novo vem desmarcado', array_column($rd, 'marcada') === [false, false, false, false]);
+        // compra lançada à mão no cartão, na mesma data e valor
+        CartaoModel::criarCompra($cartao['id'], '2026-11-20', 'pizza', $catGasto, 45.0, 1, CartaoFatura::faturaDe('2026-11-20', $cartao['fecha'], $cartao['vence']), $uid);
+        $rm = \Financeiro\Services\Importacao::revisao([['data' => '2026-11-20', 'valor' => -45.0, 'descricao' => 'PIZZARIA', 'fitid' => '', 'categoria' => '']], $destino, 'ofx');
+        $check('importar cartão: compra já lançada à mão vem desmarcada', $rm[0]['dup'] === 'parecida' && $rm[0]['parecida'] === 'pizza');
+        // num CSV de cartão as compras costumam vir positivas: o sinal da maioria decide
+        $rc = \Financeiro\Services\Importacao::revisao([['data' => '2026-11-03', 'valor' => 20.0, 'descricao' => 'A', 'fitid' => '', 'categoria' => ''],
+            ['data' => '2026-11-04', 'valor' => 30.0, 'descricao' => 'B', 'fitid' => '', 'categoria' => ''], ['data' => '2026-11-05', 'valor' => -500.0, 'descricao' => 'PAGAMENTO EFETUADO', 'fitid' => '', 'categoria' => '']], $destino, 'csv');
+        $check('importar cartão: com compras positivas, o negativo é o pagamento', array_column($rc, 'tipo') === ['compra', 'compra', 'pagamento']);
+        $n = \Financeiro\Services\Importacao::desfazer((int) $g['id'], $uid);
+        $check('importar cartão: desfazer apaga as compras do lote', $n === 3 && (int) $pdo->query('SELECT COUNT(*) FROM cartao_compras WHERE importacao_id = ' . (int) $g['id'])->fetchColumn() === 0);
+    });
+
+    $emTransacao('importar CSV, colunas e modelo', static function () use ($check, $render, $extratos): void {
+        $conta = ['tipo' => 'conta', 'id' => ContaModel::PRINCIPAL];
+        $bruto = (string) file_get_contents($extratos . 'conta.csv');
+        $check('importar CSV: sem as colunas lembradas, vai para "Ligar as colunas"', \Financeiro\Controllers\ImportacaoController::lerArquivo($bruto, 'conta.csv', $conta) === null
+            && $_SESSION['importar']['linhas'] === null && $_SESSION['importar']['csv']['sep'] === ';');
+        $hCol = $render(\Financeiro\Controllers\ImportacaoController::class, 'colunasForm', []);
+        $check('importar CSV: a prévia e as colunas sugeridas', str_contains($hCol, 'name="data"') && str_contains($hCol, '<option value="2" selected>') && str_contains($hCol, 'Mercado do bairro')
+            && str_contains($hCol, 'name="debito"') && str_contains($hCol, 'name="cabecalho" value="1" checked'));
+        $lido = \Financeiro\Services\ExtratoArquivo::ler($bruto);
+        \Financeiro\Models\ImportacaoModel::salvarLayout(\Financeiro\Services\ExtratoArquivo::layout($lido['linhas'], ';', true), \Financeiro\Services\ExtratoArquivo::mapaSugerido($lido['linhas']));
+        \Financeiro\Controllers\ImportacaoController::lerArquivo($bruto, 'conta.csv', $conta);
+        $check('importar CSV: com o cabeçalho conhecido, pula as colunas', count((array) $_SESSION['importar']['linhas']) === 3);
+        unset($_SESSION['importar']);
+        // o modelo para quem vem do caderno: baixa, preenche e volta pela importação, com a categoria da planilha
+        ob_start();
+        (new \Financeiro\Controllers\ImportacaoController())->modelo();
+        $modelo = (string) ob_get_clean();
+        $check('importar: o modelo é um CSV com BOM, ";" e vírgula decimal', str_starts_with($modelo, "\u{FEFF}Data;Descrição;Valor;Categoria\r\n") && str_contains($modelo, ';-235,90;'), substr($modelo, 0, 80));
+        $lm = \Financeiro\Services\ExtratoArquivo::ler($modelo);
+        $am = \Financeiro\Services\ExtratoArquivo::aplicarMapa($lm['linhas'], \Financeiro\Services\ExtratoArquivo::mapaSugerido($lm['linhas']), $lm['sep']);
+        $rm = \Financeiro\Services\Importacao::revisao($am['linhas'], $conta, 'csv');
+        $salario = CategoriaModel::porChave(MotorFinanceiro::CAT_SALARIO);
+        $check('importar: o modelo preenchido entra, e a coluna de categoria escolhe a categoria', count($rm) === 3 && $rm[0]['sugestao'] === (int) $salario['id'] && $rm[0]['origem'] === 'csv'
+            && $rm[1]['origem'] === 'csv' && $rm[2]['origem'] !== 'csv', json_encode(array_map(static fn($r) => [$r['sugestao'], $r['origem']], $rm)));
+    });
 }
 
 echo "\n{$ok} ok, {$falhas} falha(s)\n";
