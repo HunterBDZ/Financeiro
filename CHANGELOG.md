@@ -2,8 +2,15 @@
 
 Cada versão publicada é uma tag `vX.Y.Z` deste repositório. Pacotes atualizam em Ajustes, em Backup e atualização; servidores, com `sudo financeiro-atualizar`.
 
-## A publicar
+## 1.10.0
 
+- **Início:** o cartão do saldo responde numa frase, por exemplo "Dá para gastar R$ 2.283,81 até o dia 30 sem passar da reserva". Os outros números ficam em "Ver detalhes".
+- **A mesma sobra em todas as telas:** "Sobra até hoje", "Sobra prevista" ou "Sobra do mês", com o mesmo número no Início, no Mês, no Fechar e no Relatório. A sobra é o balanço da conta, e no Mês a linha "Empréstimo e poupança" mostra o caminho das listas até ela. Valores sempre com centavos.
+- **Lançar:** as categorias mais usadas viram botões com ícone, com os gastos primeiro, e "Mais…" traz a lista completa com busca.
+- **Extrato:** busca em todos os meses, num ano ou entre datas, com valor mínimo e máximo e o total no topo. O botão "Exportar planilha (CSV)" baixa um arquivo que o Excel e o LibreOffice abrem direto.
+- **Cartão:** o pagamento vai para a fatura certa, mesmo quando é feito antes do mês do vencimento, e o plano não conta essa fatura de novo.
+- **Mês:** uma conta ou entrada que veio menor que o previsto pergunta se aquele foi o valor final. Com um toque, a previsão do mês fica exata. O falso "pago em parte" deixou de aparecer.
+- Os testes da atualização separam as regras, que rodam num banco de demonstração com data fixa, da conferência dos seus dados. Dia do mês, idioma ou dados diferentes não barram mais uma atualização.
 - **Servidor e Docker:** a primeira conta pede o código de instalação que aparece no fim da instalação, ou no log do Docker. Assim, ninguém da rede cria a conta antes de você.
 - **Servidor:** o `instalar.sh` usa SQLite e não instala mais MySQL. O `financeiro-atualizar` só instala versões assinadas por quem publica e, ao terminar, atualiza a si mesmo e o backup diário.
 - **Docker:** aceita só o endereço `localhost` até você mudar o `compose.yaml`.
