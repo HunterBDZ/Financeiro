@@ -1886,4 +1886,6 @@ return [
     'vence {data} · paga até {util}' => 'vence el {data} · pague hasta el {util}',
     'Começou o mês com {inicio}. Com a sobra, termina com {fim}.' => 'Empezó el mes con {inicio}. Con lo que sobra, termina con {fim}.',
     'Começou o mês com {inicio}. Com a sobra, menos {auto} que o plano adianta do empréstimo, termina com {fim}.' => 'Empezó el mes con {inicio}. Con lo que sobra, menos {auto} que el plan adelanta del préstamo, termina con {fim}.',
+    'Fim do mês' => 'Fin del mes',
+    'Saldo do mês anterior' => 'Saldo del mes anterior',
 ];

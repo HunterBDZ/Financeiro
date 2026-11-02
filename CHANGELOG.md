@@ -2,9 +2,13 @@
 
 Cada versão publicada é uma tag `vX.Y.Z` deste repositório. Pacotes atualizam em Ajustes, em Backup e atualização; servidores, com `sudo financeiro-atualizar`.
 
+## 1.11.4
+
+- **Mês:** o saldo do mês anterior aparece como uma linha das Entradas previstas e entra no total. O resumo fica "Entradas − Saídas = Fim do mês", o mesmo valor da previsão no topo. A frase "Começou o mês com…" da 1.11.3 saiu.
+
 ## 1.11.3
 
-- **Mês:** o resumo diz de onde o mês partiu e onde termina, por exemplo "Começou o mês com 86,43. Com a sobra, termina com 271,45". O que sobrou do mês anterior não é entrada: é o ponto de partida.
+- **Mês:** o resumo dizia de onde o mês partiu e onde termina (substituído na 1.11.4).
 
 ## 1.11.2
 

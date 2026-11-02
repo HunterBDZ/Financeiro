@@ -380,23 +380,30 @@ $linhaLeitura = static function (array $l, float $v): void { ?>
             <?php endif; ?>
         </section>
 
-        <!-- o resumo das listas abaixo, antes delas: a sobra com o nome da base; a renda é a sem a parcela -->
+        <!-- o resumo das listas abaixo, antes delas. O saldo do mês anterior entra nas Entradas: Entradas − Saídas (± empréstimo
+             e poupança) é o que fica na conta no fim do mês, o mesmo número da previsão do cartão escuro -->
+        <?php
+        $inicioMes = isset($linha['sobrou_mes_anterior'], $linha['fica_na_conta']) ? (float) $linha['sobrou_mes_anterior'] : null;
+        // o adiantamento que o plano sugere sozinho também sai da conta no fim do mês: vai junto com empréstimo e poupança
+        $movMes = (float) ($sobra['mov'] ?? 0.0) - ($inicioMes !== null ? (float) ($linha['amortizacao_auto'] ?? 0.0) : 0.0);
+        if ($inicioMes !== null) {      // a ponte parte do total da lista de entradas, que já tem o saldo do mês anterior
+            $ponte = Sobra::ponte(['bruto' => (float) $sobra['bruto'] + $inicioMes, 'parcela' => (float) $sobra['parcela']]);
+        }
+        ?>
         <div class="card mes-conta-rap-card">
             <dl class="mes-conta-rap num">
-                <div><dt><?= e(t('Entradas')) ?></dt><dd class="pos"><?= e(num((float) $sobra['renda'])) ?></dd></div>
+                <div><dt><?= e(t('Entradas')) ?></dt><dd class="pos"><?= e(num((float) $sobra['renda'] + ($inicioMes ?? 0.0))) ?></dd></div>
                 <div><dt><?= e(t('Saídas')) ?></dt><dd class="neg"><?= e(num((float) $sobra['saidas'])) ?></dd></div>
-                <?php if (abs((float) ($sobra['mov'] ?? 0.0)) >= 0.005): ?>
-                    <div><dt><?= e(t('Empréstimo e poupança')) ?></dt><dd class="<?= (float) $sobra['mov'] < 0 ? 'neg' : 'pos' ?>"><?= e(num((float) $sobra['mov'])) ?></dd></div>
+                <?php if (abs($movMes) >= 0.005): ?>
+                    <div><dt><?= e(t('Empréstimo e poupança')) ?></dt><dd class="<?= $movMes < 0 ? 'neg' : 'pos' ?>"><?= e(num($movMes)) ?></dd></div>
                 <?php endif; ?>
-                <div><dt><?= e(Sobra::rotulo((string) $sobra['base'])) ?> <?= dica('numeros', Sobra::rotulo((string) $sobra['base'])) ?></dt><dd class="<?= $sobraV < -0.004 ? 'neg' : 'pos' ?>" data-sobra="<?= e((string) $sobra['base']) ?>"><?= e(num($sobraV)) ?></dd></div>
+                <?php if ($inicioMes !== null): $fimMes = (float) $linha['fica_na_conta']; ?>
+                    <div><dt><?= e(t('Fim do mês')) ?></dt><dd class="<?= $fimMes < -0.004 ? 'neg' : 'pos' ?>" data-fim-mes><?= e(num($fimMes)) ?></dd></div>
+                <?php else: ?>
+                    <div><dt><?= e(Sobra::rotulo((string) $sobra['base'])) ?> <?= dica('numeros', Sobra::rotulo((string) $sobra['base'])) ?></dt><dd class="<?= $sobraV < -0.004 ? 'neg' : 'pos' ?>" data-sobra="<?= e((string) $sobra['base']) ?>"><?= e(num($sobraV)) ?></dd></div>
+                <?php endif; ?>
             </dl>
             <?php if ($ponte !== null): ?><p class="mes-ponte num"><?= e(t('Entradas: {conta}', ['conta' => $ponte])) ?></p><?php endif; ?>
-            <?php if (isset($linha['sobrou_mes_anterior'], $linha['fica_na_conta'])): // o ponto de partida: o que sobrou do mês anterior não é entrada ?>
-                <?php $autoMes = (float) ($linha['amortizacao_auto'] ?? 0.0); ?>
-                <p class="mes-ponte num" data-ponte-mes><?= e($autoMes >= 0.005
-                    ? t('Começou o mês com {inicio}. Com a sobra, menos {auto} que o plano adianta do empréstimo, termina com {fim}.', ['inicio' => num((float) $linha['sobrou_mes_anterior']), 'auto' => num($autoMes), 'fim' => num((float) $linha['fica_na_conta'])])
-                    : t('Começou o mês com {inicio}. Com a sobra, termina com {fim}.', ['inicio' => num((float) $linha['sobrou_mes_anterior']), 'fim' => num((float) $linha['fica_na_conta'])])) ?></p>
-            <?php endif; ?>
         </div>
 
         <?php if ($menu['fechar'] && substr($mes, 0, 7) === substr((string) $hoje, 0, 7)): ?>
@@ -407,13 +414,22 @@ $linhaLeitura = static function (array $l, float $v): void { ?>
         <section class="card mes-sec" id="entradas">
             <div class="card-head">
                 <h2 class="titulo"><?= $estado === 'real' ? e(t('Entradas')) : e(t('Entradas previstas')) ?></h2>
-                <span class="card-acao num pos"><?= e(num($totalEntrou)) ?></span>
+                <span class="card-acao num pos"><?= e(num($totalEntrou + ($inicioMes ?? 0.0))) ?></span>
             </div>
             <?php if ($estado !== 'real' && $parcelaDescontada > 0.004): ?><p class="mes-nota num"><?= e(t('{valor} vão para a parcela do empréstimo', ['valor' => num($parcelaDescontada)])) ?></p><?php endif; ?>
             <?php if ($editavel): ?>
                 <div class="mes-linhas"><?php foreach ($entradas as $l) { $linhaEntrada($l); } ?></div>
             <?php else: ?>
                 <ul class="mes-ros"><?php foreach ($entradas as $l) { $linhaLeitura($l, $valorEnt($l)); } ?></ul>
+            <?php endif; ?>
+            <?php if ($inicioMes !== null): // não é categoria: vem do plano, o que ficou na conta no fim do mês anterior ?>
+                <ul class="mes-ros mes-saldo-ant">
+                    <li class="mes-ro" data-saldo-anterior>
+                        <?= iconeCategoria(0, 'Guardar na poupança', 'Poupanca', 40, 'mes-ic') ?>
+                        <span class="mes-nome"><?= e(t('Saldo do mês anterior')) ?></span>
+                        <span class="num<?= $inicioMes < -0.004 ? ' neg' : '' ?>"><?= e(num($inicioMes)) ?></span>
+                    </li>
+                </ul>
             <?php endif; ?>
         </section>
 
