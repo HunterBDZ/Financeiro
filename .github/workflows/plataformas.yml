@@ -121,7 +121,7 @@ jobs:
       - name: O site abre
         run: |
           /Applications/Financeiro.app/Contents/Resources/financeiro abrir
-          for i in $(seq 1 60); do
+          for _ in $(seq 1 60); do
             c=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8484/login || true)
             case "$c" in 200|302) echo "site no ar: $c"; exit 0 ;; esac
             sleep 2
