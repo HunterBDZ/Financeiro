@@ -722,7 +722,10 @@ $emTransacao('categoria com ícone', static function () use ($check): void {
 Icones::limpar();
 $htmlEx = $render(LancamentosController::class, 'index', []);
 $htmlAjCat = $render(AjustesController::class, 'index', ['aberto' => 'categorias']);
-$semLancamentos = (int) $pdo->query('SELECT COUNT(*) FROM lancamentos')->fetchColumn() === 0;
+// o extrato abre no mês do calendário: no começo do mês ele pode ainda não ter lançamento
+$qtdMes = $pdo->prepare('SELECT COUNT(*) FROM lancamentos WHERE data >= ? AND data < ?');
+$qtdMes->execute([date('Y-m-01'), date('Y-m-01', strtotime('first day of next month'))]);
+$semLancamentos = (int) $qtdMes->fetchColumn() === 0;
 $check('extrato: ícone em cada lançamento, sem o painel de categorias', ($semLancamentos || str_contains($htmlEx, 'class="ci"')) && !str_contains($htmlEx, 'action="/categorias"'));
 $check('ajustes: categorias, com o ícone dobrado em "Escolher ícone"', str_contains($htmlAjCat, 'id="categorias" open') && str_contains($htmlAjCat, 'action="/categorias"')
     && str_contains($htmlAjCat, 'class="ic-escolher"') && str_contains($htmlAjCat, 'data-ic-sugerir') && str_contains($htmlAjCat, '/icone?volta='));
@@ -1320,7 +1323,7 @@ if (str_contains($htmlFe, 'name="aplicar"')) {
     $check('fechar: "Aplicar" vem desligado', preg_match('#name="aplicar" value="1"(?! checked)#', $htmlFe) === 1);
 }
 if (str_contains($htmlFe, 'action="/mes/fechar"')) {
-    $check('fechar: abre com a frase e cita os dias na confirmação', str_contains($htmlFe, 'fe-intro') && preg_match('#data-confirm="Ainda falta(m)? #u', $htmlFe) === 1);
+    $check('fechar: abre com a frase e confirma, citando os dias se ainda faltam', str_contains($htmlFe, 'fe-intro') && preg_match('#data-confirm="(Ainda falta(m)? |Fechar .*\? Dá para reabrir)#u', $htmlFe) === 1);
 }
 $mesCalT = date('Y-m-01');
 if ((string) (MotorFinanceiro::linhaDoMes($mesCalT)['situacao'] ?? '') === 'PREVISAO') {
