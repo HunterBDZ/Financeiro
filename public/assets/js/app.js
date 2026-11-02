@@ -5,7 +5,8 @@
 // - fecha details.menu ao clicar fora (e com Esc);
 // - [data-quando]: o radio value="outro" revela .quando-data (fallback para navegador sem :has);
 // - fecha o toast ([data-toast-fechar]);
-// - esconde a barra inferior enquanto um campo tem foco (fallback sem :has).
+// - esconde a barra inferior enquanto um campo tem foco (fallback sem :has);
+// - [data-conf-app]: no conferir de várias contas, a diferença de cada conta para o app.
 (function () {
     'use strict';
 
@@ -566,4 +567,25 @@
     }
     // voltar pelo histórico (bfcache) restaura o radio marcado sem disparar change
     window.addEventListener('pageshow', syncTodosQuando);
+
+    // conferir várias contas: a diferença de cada uma para o saldo do app, enquanto se digita. Em "outro dia",
+    // o saldo do app é de outra data: a conta fica para o servidor
+    function difConta(input) {
+        var out = input.parentNode.querySelector('[data-conf-dif]');
+        if (!out) { return; }
+        var outroDia = input.form && input.form.querySelector('input[name="quando"][value="outro"]:checked');
+        var txt = input.value.trim();
+        if (txt === '' || outroDia) { out.textContent = ''; return; }
+        var dif = Math.round((FIN.ler(txt) - parseFloat(input.getAttribute('data-conf-app'))) * 100) / 100;
+        out.textContent = Math.abs(dif) < 0.005 ? T('Bate') : T('Diferença de {valor}', { valor: (dif > 0 ? '+' : '−') + FIN.num(Math.abs(dif)) });
+        out.className = 'conf-dif num ' + (Math.abs(dif) < 0.005 ? 'pos' : 'neg');
+    }
+    document.addEventListener('input', function (ev) {
+        if (ev.target instanceof Element && ev.target.matches('[data-conf-app]')) { difConta(ev.target); }
+    });
+    document.addEventListener('change', function (ev) {
+        if (ev.target instanceof Element && ev.target.matches('input[name="quando"]') && ev.target.form) {
+            ev.target.form.querySelectorAll('[data-conf-app]').forEach(difConta);
+        }
+    });
 })();

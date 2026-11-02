@@ -144,6 +144,8 @@ use Financeiro\Models\MesModel;
 use Financeiro\Models\MetaModel;
 use Financeiro\Models\PrevisaoModel;
 use Financeiro\Models\UsuarioModel;
+use Financeiro\Models\ContaModel;
+use Financeiro\Controllers\TransferenciaController;
 use Financeiro\Services\EmprestimoSimulacao;
 use Financeiro\Services\Cotacao;
 use Financeiro\Services\LinkProduto;
@@ -678,7 +680,7 @@ MotorFinanceiro::limparCache();
 LancarForm::limparCache();
 $emTransacao('sem cartão cadastrado', static function () use ($pdo, $render, $check): void {
     $pdo->exec('UPDATE cartoes SET ativo = 0');
-    $check('cartão: sem cartão cadastrado, a aba pede o cadastro', CartaoModel::ativo() === null && str_contains($render(CartaoController::class, 'index', []), 'Cadastre o cartão'));
+    $check('cartão: sem cartão cadastrado, a aba pede o cadastro', CartaoModel::ativos() === [] && str_contains($render(CartaoController::class, 'index', []), 'Cadastre o cartão'));
 });
 $htmlBar = $render(MesController::class, 'index', []);
 preg_match('#<nav class="tabbar".*?</nav>#s', $htmlBar, $mB);
@@ -1928,7 +1930,7 @@ $check('fatura: no plano, o adiantamento sai no mês em que foi pago e desconta 
 
 // "veio menos": o valor final de uma conta e de uma entrada (o salário chega sem a parcela); dia a dia e fatura paga não perguntam
 $dAm = [
-    'cats' => [1 => ['id' => 1, 'nome' => MotorFinanceiro::CAT_SALARIO, 'grupo' => 'Entradas', 'sinal' => 1, 'operacional' => 1] + $catR,
+    'cats' => [1 => ['id' => 1, 'nome' => 'Salário', 'chave' => MotorFinanceiro::CAT_SALARIO, 'grupo' => 'Entradas', 'sinal' => 1, 'operacional' => 1] + $catR,
                5 => ['id' => 5, 'nome' => 'Luz', 'grupo' => 'Fixos', 'sinal' => -1, 'operacional' => 1] + $catR,
                10 => ['id' => 10, 'nome' => 'Mercado', 'grupo' => 'Dia a dia', 'sinal' => -1, 'operacional' => 1] + $catR,
                15 => ['id' => 15, 'nome' => 'Fatura do cartão', 'grupo' => 'Cartao', 'sinal' => -1, 'operacional' => 1] + $catR],
@@ -2155,6 +2157,259 @@ $emTransacao('busca em período', static function () use ($pdo, $check, $render,
     $_GET = [];
     $check('planilha: a rota entrega o resultado filtrado', str_starts_with($csvRota, "\u{FEFF}") && substr_count($csvRota, "\r\n") === 5);
 });
+
+// ---- 2.0: a migração de um banco da 1.10, contas, transferências, vários cartões, pagamento ligado à fatura, estorno e
+// chaves das categorias. Só SQLite: a 2.0 deixa o MySQL. O que grava é desfeito.
+if (Sql::sqlite()) {
+    // a estrutura de um banco: colunas na ordem (a restauração de backup compara), chaves estrangeiras, índices e gatilhos
+    $estrutura = static function (\PDO $p): array {
+        $out = [];
+        foreach ($p->query("SELECT type, name, tbl_name FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name")->fetchAll() as $o) {
+            $chave = $o['type'] . ' ' . $o['name'];
+            if ($o['type'] === 'table') {
+                $out[$chave] = array_map(static fn(array $c): string => implode('|', [$c['name'], $c['type'], $c['notnull'], (string) $c['dflt_value'], $c['pk'], $c['hidden']]),
+                    $p->query('PRAGMA table_xinfo("' . $o['name'] . '")')->fetchAll());
+                $out[$chave . ' fk'] = array_map(static fn(array $f): string => $f['from'] . '>' . $f['table'] . '.' . $f['to'],
+                    $p->query('PRAGMA foreign_key_list("' . $o['name'] . '")')->fetchAll());
+            } else {
+                $out[$chave] = $o['tbl_name'];
+            }
+        }
+        return $out;
+    };
+
+    // ---- a migração s0001 num banco da 1.10 com dados
+    $arq110 = sys_get_temp_dir() . '/financeiro-110-' . bin2hex(random_bytes(4)) . '.sqlite';
+    $arqNovo = $arq110 . '.novo';
+    try {
+        $v = new \Financeiro\SqliteConexao($arq110);
+        $v->exec((string) file_get_contents(__DIR__ . '/dados/schema-1.10.sqlite.sql'));
+        $v->exec("INSERT INTO usuarios (nome, login, senha_hash) VALUES ('Teste', 'teste', 'x')");
+        $catsV = [['Salário', 'Entradas', 1, 1], ['Fatura velha', 'Cartao', -1, 0], ['Fatura do cartão', 'Cartao', -1, 1], ['Mercado', 'Dia a dia', -1, 1],
+                  ['Guardar na poupança', 'Poupanca', -1, 1], ['Resgate da poupança', 'Poupanca', 1, 1], ['Crédito do empréstimo', 'Emprestimo', 1, 1],
+                  ['Amortização extra do empréstimo', 'Emprestimo', -1, 1], ['Parcela do empréstimo', 'Emprestimo', -1, 1],
+                  ['Aplicar em investimentos', 'Investimento', -1, 1], ['Resgate de investimentos', 'Investimento', 1, 1]];
+        $stV = $v->prepare('INSERT INTO categorias (nome, grupo, sinal, ativo, ordem) VALUES (?, ?, ?, ?, ?)');
+        foreach ($catsV as $i => [$n, $g, $s, $a]) {
+            $stV->execute([$n, $g, $s, $a, $i]);
+        }
+        $idV = static fn(string $nome): int => (int) $v->query('SELECT id FROM categorias WHERE nome = ' . $v->quote($nome))->fetchColumn();
+        $v->exec("INSERT INTO ajustes (chave, label, valor) VALUES ('saldo_ini', 'Saldo', 1234.56), ('data_inicio', 'Início', 20300101), ('usa_cartao', 'Cartão', 1)");
+        foreach (['2030-01-01', '2030-02-01', '2030-03-01', '2030-04-01', '2030-05-01'] as $m) {
+            $v->exec("INSERT INTO meses (mes, situacao) VALUES ('{$m}', 'PREVISAO')");
+        }
+        $v->exec("INSERT INTO cartoes (nome, dia_fechamento, dia_vencimento) VALUES ('Cartão da 1.10', 24, 2)");
+        $v->exec("INSERT INTO cartao_compras (cartao_id, data, descricao, categoria_id, valor_total, parcelas, primeira_fatura, usuario_id)
+                  VALUES (1, '2030-01-10', 'TV', {$idV('Mercado')}, 1250, 1, '2030-02-01', 1), (1, '2030-02-10', 'Sofá', {$idV('Mercado')}, 1200, 3, '2030-03-01', 1)");
+        $v->exec("INSERT INTO previsao (categoria_id, mes, valor) VALUES ({$idV('Fatura do cartão')}, '2030-04-01', 900)");
+        // pagamentos: a de fevereiro paga no dia 31 de janeiro; a de março em duas vezes; o seguinte, com março toda paga, adianta abril
+        $pagV = [['2030-01-31', 1250.0], ['2030-02-27', 300.0], ['2030-03-01', 100.0], ['2030-03-05', 50.0]];
+        $stL = $v->prepare('INSERT INTO lancamentos (data, descricao, categoria_id, valor, usuario_id) VALUES (?, ?, ?, ?, 1)');
+        foreach ($pagV as [$d, $val]) {
+            $stL->execute([$d, 'Fatura', $idV('Fatura do cartão'), $val]);
+        }
+        $stL->execute(['2030-01-05', 'Salário', $idV('Salário'), 5000.0]);
+        $stL->execute(['2030-01-06', 'apagado', $idV('Mercado'), 10.0]);
+        $v->exec("DELETE FROM lancamentos WHERE descricao = 'apagado'");
+        $v->exec("INSERT INTO saldo_conferencias (data, saldo_informado, usuario_id) VALUES ('2030-01-31', 3000, 1)");
+        $seqAntes = (int) $v->query("SELECT seq FROM sqlite_sequence WHERE name = 'lancamentos'")->fetchColumn();
+        // o que a 1.10 calculava na hora: atribuir() com a soma das parcelas e a previsão da fatura
+        $valoresV = CartaoFatura::totais([['valor_total' => 1250.0, 'parcelas' => 1, 'primeira_fatura' => '2030-02-01'], ['valor_total' => 1200.0, 'parcelas' => 3, 'primeira_fatura' => '2030-03-01']]);
+        $valoresV['2030-04-01'] = max($valoresV['2030-04-01'] ?? 0.0, 900.0);
+        $esperado = CartaoFatura::atribuir(array_map(static fn(array $p): array => ['data' => $p[0], 'valor' => $p[1]], $pagV), 24, 2, $valoresV);
+
+        $feitas = \Financeiro\Migrador::aplicar($v, \Financeiro\Migrador::pasta());
+        $check('migração 2.0: roda num banco da 1.10, o .sql antes do .php', $feitas === ['s0001_contas.sql', 's0001_contas.php'], json_encode($feitas));
+        $contasV = $v->query('SELECT id, nome, tipo, saldo_inicial, ativa FROM contas')->fetchAll();
+        $check('migração 2.0: a Conta principal nasce com o saldo inicial de antes', count($contasV) === 1 && (int) $contasV[0]['id'] === 1
+            && $contasV[0]['nome'] === 'Conta principal' && abs((float) $contasV[0]['saldo_inicial'] - 1234.56) < 0.001 && (int) $contasV[0]['ativa'] === 1, json_encode($contasV));
+        $check('migração 2.0: todo lançamento fica na Conta principal, com o mesmo id e o mesmo valor',
+            (int) $v->query('SELECT COUNT(*) FROM lancamentos WHERE conta_id <> 1')->fetchColumn() === 0
+            && (int) $v->query('SELECT COUNT(*) FROM lancamentos')->fetchColumn() === 5
+            && abs((float) $v->query('SELECT SUM(valor) FROM lancamentos')->fetchColumn() - 6700.0) < 0.001);
+        $vinc = $v->query('SELECT cartao_id, fatura FROM lancamentos WHERE categoria_id = ' . $idV('Fatura do cartão') . ' ORDER BY data, id')->fetchAll();
+        $check('migração 2.0: cada pagamento antigo fica na fatura que a regra da 1.10 dava',
+            array_column($vinc, 'fatura') === array_values($esperado) && array_values($esperado) === ['2030-02-01', '2030-03-01', '2030-03-01', '2030-04-01']
+            && array_unique(array_column($vinc, 'cartao_id')) === [1], json_encode([$vinc, $esperado]));
+        $check('migração 2.0: só o pagamento de fatura ganha cartão', (int) $v->query('SELECT COUNT(*) FROM lancamentos WHERE cartao_id IS NOT NULL')->fetchColumn() === 4);
+        $chavesV = $v->query('SELECT chave, nome FROM categorias WHERE chave IS NOT NULL')->fetchAll(\PDO::FETCH_KEY_PAIR);
+        $check('migração 2.0: as categorias especiais ganham a chave; a da fatura é a ativa, como antes', count($chavesV) === 9
+            && $chavesV['fatura'] === 'Fatura do cartão' && $chavesV['salario'] === 'Salário' && $chavesV['guardar'] === 'Guardar na poupança'
+            && $chavesV['resgate_investimento'] === 'Resgate de investimentos', json_encode($chavesV, JSON_UNESCAPED_UNICODE));
+        $check('migração 2.0: o cartão é pago pela Conta principal; a conferência antiga é do total',
+            (int) $v->query('SELECT conta_id FROM cartoes')->fetchColumn() === 1 && $v->query('SELECT conta_id FROM saldo_conferencias')->fetchColumn() === null);
+        $check('migração 2.0: o contador de ids continua de onde estava', (int) $v->query("SELECT seq FROM sqlite_sequence WHERE name = 'lancamentos'")->fetchColumn() === $seqAntes);
+        $v->exec("INSERT INTO cartao_compras (cartao_id, data, descricao, valor_total, parcelas, primeira_fatura, usuario_id) VALUES (1, '2030-02-11', 'devolução', -80, 1, '2030-03-01', 1)");
+        $estornoParcelado = '';
+        try {
+            $v->exec("INSERT INTO cartao_compras (cartao_id, data, descricao, valor_total, parcelas, primeira_fatura, usuario_id) VALUES (1, '2030-02-11', 'x', -80, 2, '2030-03-01', 1)");
+        } catch (\PDOException $e) {
+            $estornoParcelado = $e->getMessage();
+        }
+        $check('migração 2.0: o cartão aceita estorno (negativo), só em 1 parcela', $estornoParcelado !== '');
+        $check('migração 2.0: as chaves estrangeiras continuam certas', $v->query('PRAGMA foreign_key_check')->fetch() === false);
+        $novo = new \Financeiro\SqliteConexao($arqNovo);
+        $novo->exec((string) file_get_contents(dirname(__DIR__) . '/database/schema.sqlite.sql'));
+        $eV = $estrutura($v);
+        $eN = $estrutura($novo);
+        $check('migração 2.0: o banco migrado tem a mesma estrutura de um banco novo (colunas na mesma ordem, índices e gatilhos)', $eV === $eN,
+            json_encode(array_keys(array_diff_assoc(array_map('json_encode', $eV), array_map('json_encode', $eN)) + array_diff_assoc(array_map('json_encode', $eN), array_map('json_encode', $eV)))));
+        $check('migração 2.0: rodar de novo não faz nada', \Financeiro\Migrador::aplicar($v, \Financeiro\Migrador::pasta()) === []);
+    } catch (\Throwable $e) {
+        $check('migração 2.0', false, get_class($e) . ': ' . $e->getMessage() . ' em ' . basename($e->getFile()) . ':' . $e->getLine());
+    } finally {
+        $v = $novo = null;
+        foreach ([$arq110, $arqNovo] as $a) {
+            foreach (['', '-wal', '-shm'] as $s) {
+                @unlink($a . $s);
+            }
+        }
+    }
+
+    // ---- uma conta e um cartão: as telas são as de sempre
+    LancarForm::limparCache();
+    MotorFinanceiro::limparCache();
+    $check('uma conta: o banco da demonstração tem a Conta principal com o saldo inicial do plano', count(ContaModel::todas()) === 1 && !ContaModel::varias()
+        && abs(ContaModel::todas()[0]['saldo_inicial'] - AjusteModel::valor('saldo_ini')) < 0.001);
+    $h1Lanc = $render(LancamentosController::class, 'lancarForm', []);
+    $h1Ini = $render(DashboardController::class, 'index', []);
+    $h1Ext = $render(LancamentosController::class, 'index', []);
+    $h1Fe = $render(MesController::class, 'fecharForm', []);
+    $h1Aj = $render(AjustesController::class, 'index', []);
+    $h1Ct = $render(CartaoController::class, 'index', []);
+    $check('uma conta: o lançar não mostra conta, Transferir nem "Recebeu em"', !str_contains($h1Lanc, 'name="modo"') && !str_contains($h1Lanc, 'is-varias')
+        && !str_contains($h1Lanc, 'data-lf-entra') && str_contains($h1Lanc, 'name="pagou" value="conta" checked') && str_contains($h1Lanc, 'name="pagou" value="cartao"'));
+    $check('uma conta: o Início, o Extrato e o Fechar são os de sempre', !str_contains($h1Ini, 'saldo-contas') && !str_contains($h1Ini, 'saldo_conta[')
+        && str_contains($h1Ini, 'name="saldo_informado"') && !str_contains($h1Ext, 'name="conta"') && !str_contains($h1Ext, 'ex-transf')
+        && str_contains($h1Ext, 'Mais filtros: valor e quem lançou') && str_contains($h1Fe, 'name="saldo"') && !str_contains($h1Fe, 'saldo_conta['));
+    $check('uma conta: Ajustes tem Contas e o saldo do início continua no ponto de partida', str_contains($h1Aj, 'id="carteira"') && str_contains($h1Aj, 'valores[saldo_ini]'));
+    $check('um cartão: sem seletor de cartões; "Novo cartão" fica no menu', !str_contains($h1Ct, 'class="ct-cartoes"') && str_contains($h1Ct, 'class="menu-item" href="/cartao?novo=1"'));
+
+    // ---- várias contas: o saldo inicial do plano, transferências que não mudam o plano, o saldo de cada conta e as telas
+    $emTransacao('contas e transferências', static function () use ($pdo, $check, $render, $hoje, $mesHoje, $uid, $catGasto): void {
+        $iniAntes = AjusteModel::valor('saldo_ini');
+        $saldo1 = ContaModel::saldo(ContaModel::PRINCIPAL, $hoje);
+        $id2 = ContaModel::salvar(null, 'Carteira teste', 'dinheiro', 150.0);
+        MotorFinanceiro::limparCache();
+        LancarForm::limparCache();
+        $check('contas: o saldo inicial do plano é a soma dos saldos iniciais', abs(AjusteModel::valor('saldo_ini') - $iniAntes - 150.0) < 0.001 && ContaModel::varias());
+        $planoAntes = MotorFinanceiro::calcularPlano();
+        $r = TransferenciaController::criarDe(['valor' => '80,00', 'de_conta' => (string) ContaModel::PRINCIPAL, 'para_conta' => (string) $id2, 'quando' => 'hoje', 'descricao' => 'saque teste']);
+        MotorFinanceiro::limparCache();
+        $planoDepois = MotorFinanceiro::calcularPlano();
+        $saldos = ContaModel::saldos($hoje);
+        $check('transferência: grava e não muda o plano em nenhum mês', $r['erro'] === null && $r['id'] > 0 && $planoDepois === $planoAntes, (string) $r['erro']);
+        $check('transferência: sai de uma conta e entra na outra; o total continua o do motor', abs($saldos[ContaModel::PRINCIPAL] - ($saldo1 - 80.0)) < 0.001
+            && abs($saldos[$id2] - 230.0) < 0.001 && abs(array_sum($saldos) - LancamentoModel::saldoCalculado(AjusteModel::valor('saldo_ini'), $hoje)) < 0.001, json_encode($saldos));
+        $check('transferência: de uma conta para ela mesma ou sem valor é recusada',
+            TransferenciaController::criarDe(['valor' => '10', 'de_conta' => (string) $id2, 'para_conta' => (string) $id2, 'quando' => 'hoje'])['erro'] !== null
+            && TransferenciaController::criarDe(['valor' => '', 'de_conta' => '1', 'para_conta' => (string) $id2, 'quando' => 'hoje'])['erro'] !== null);
+        $idL = LancamentoModel::criar($hoje, 'lanche teste', $catGasto, 30.0, $uid, $id2);
+        MotorFinanceiro::limparCache();
+        $check('conta: o gasto sai da conta escolhida; o filtro do extrato acha só ele', abs(ContaModel::saldo($id2, $hoje) - 200.0) < 0.001
+            && (int) LancamentoModel::totais($mesHoje, ['conta_id' => $id2])['n'] === 1 && (int) LancamentoModel::find($idL)['conta_id'] === $id2);
+        LancamentoModel::atualizar($idL, $hoje, 'lanche teste', $catGasto, 35.0);
+        $check('conta: editar sem dizer a conta mantém a conta', (int) LancamentoModel::find($idL)['conta_id'] === $id2);
+        $hLanc = $render(LancamentosController::class, 'lancarForm', []);
+        $check('várias contas: o lançar tem as contas, os cartões, "Recebeu em" e o modo Transferir', str_contains($hLanc, 'name="modo" value="transferir"')
+            && str_contains($hLanc, 'value="conta:' . $id2 . '"') && str_contains($hLanc, 'data-lf-entra') && str_contains($hLanc, 'data-entrada="Recebeu em"')
+            && str_contains($hLanc, 'name="de_conta"') && str_contains($hLanc, 'data-so-gasto'));
+        $check('várias contas: o padrão do "Pagou com" é o da última vez', str_contains($hLanc, 'value="conta:' . $id2 . '" checked data-lf-padrao'));
+        $hIni = $render(DashboardController::class, 'index', []);
+        $check('várias contas: o Início mostra o total e, nos detalhes, cada conta; conferir pede cada uma', str_contains($hIni, 'class="saldo-contas num"')
+            && str_contains($hIni, 'Carteira teste') && str_contains($hIni, 'name="saldo_conta[' . $id2 . ']"') && !str_contains($hIni, 'name="saldo_informado"'));
+        $hExt = $render(LancamentosController::class, 'index', ['conta' => (string) $id2]);
+        $check('várias contas: o Extrato filtra pela conta, com o saldo dela e a transferência, fora dos totais', str_contains($hExt, 'class="ex-saldo-conta num"')
+            && str_contains($hExt, e(money(195.0))) && str_contains($hExt, 'saque teste') && str_contains($hExt, 'ex-transf') && str_contains($hExt, '↔ +80,00')
+            && str_contains($hExt, 'data-ex-total="gasto">' . e(money(35.0)) . '<'));
+        $hFe = $render(MesController::class, 'fecharForm', []);
+        $check('várias contas: fechar o mês pede o saldo do banco de cada conta', str_contains($hFe, 'name="saldo_conta[' . ContaModel::PRINCIPAL . ']"')
+            && str_contains($hFe, 'name="saldo_conta[' . $id2 . ']"') && str_contains($hFe, 'data-conf-app="195.00"'));
+        $hAj = $render(AjustesController::class, 'index', []);
+        $check('várias contas: o saldo do início de cada conta fica em Contas', str_contains($hAj, 'Carteira teste') && !str_contains($hAj, 'valores[saldo_ini]'));
+        \Financeiro\Models\SaldoConferenciaModel::registrar($hoje, 200.0, $uid, $id2);
+        \Financeiro\Models\SaldoConferenciaModel::registrar($hoje, 999.0, $uid, $id2);    // de novo no mesmo dia: substitui
+        $ultimas = \Financeiro\Models\SaldoConferenciaModel::ultimasPorConta();
+        $check('conferência: uma por conta e por dia; a do total fica de fora', count($ultimas) === 1 && (float) $ultimas[$id2]['saldo_informado'] === 999.0
+            && \Financeiro\Models\SaldoConferenciaModel::ultima()['conta_id'] === null);
+        // arquivar: só zerada; o saldo inicial dela continua na soma, porque os lançamentos dela continuam no motor
+        TransferenciaController::criarDe(['valor' => '195', 'de_conta' => (string) $id2, 'para_conta' => '1', 'quando' => 'hoje']);
+        $check('conta: zerada para arquivar', abs(ContaModel::saldo($id2, '9999-12-31')) < 0.001);
+        ContaModel::setAtiva($id2, false);
+        MotorFinanceiro::limparCache();
+        $check('conta arquivada: sai das telas; a soma das contas continua a do motor', !ContaModel::varias()
+            && abs(array_sum(ContaModel::saldos($hoje)) - LancamentoModel::saldoCalculado(AjusteModel::valor('saldo_ini'), $hoje)) < 0.001
+            && abs(AjusteModel::valor('saldo_ini') - $iniAntes - 150.0) < 0.001);
+    });
+    $emTransacao('saldo do início com uma conta', static function () use ($check): void {
+        $check('uma conta: o saldo do início digitado vai para a conta e para o plano', ContaModel::saldoInicialDaUnica(777.77)
+            && abs(ContaModel::todas()[0]['saldo_inicial'] - 777.77) < 0.001 && abs(AjusteModel::valor('saldo_ini') - 777.77) < 0.001);
+    });
+
+    // ---- vários cartões, o pagamento ligado à fatura e o estorno
+    $emTransacao('vários cartões', static function () use ($pdo, $check, $render, $hoje, $uid, $catGasto, $catFat): void {
+        $c1 = CartaoModel::padrao();
+        $c2 = CartaoModel::salvar(null, 'Cartão dois', 10, 20, null);
+        $r = CartaoController::criarCompraDe(['valor' => '300', 'categoria_id' => (string) $catGasto, 'data' => $hoje, 'parcelas' => '3', 'descricao' => 'compra dois'], $hoje, $c2);
+        $check('vários cartões: a compra vai para o cartão escolhido', $r['erro'] === null && $r['cartao'] === $c2 && CartaoModel::acharCompra($r['id'])['cartao_id'] === $c2);
+        $f2 = CartaoFatura::faturaDe($hoje, 10, 20);
+        $f1 = CartaoFatura::faturaDe($hoje, $c1['fecha'], $c1['vence']);
+        CartaoModel::setAlimentaPlano($c2, true);
+        CartaoFatura::sincronizarPlano($uid, $hoje);
+        MotorFinanceiro::limparCache();
+        $tot1 = CartaoFatura::totais(CartaoModel::compras($c1['id']));
+        $tot2 = CartaoFatura::totais(CartaoModel::compras($c2));
+        $mesL = max($f1, $f2);
+        $sitL = (string) $pdo->query("SELECT situacao FROM meses WHERE mes = '" . $mesL . "'")->fetchColumn();
+        $check('vários cartões: ligados ao plano, a Fatura do cartão é a soma das faturas de todos', $sitL !== 'PREVISAO'
+            || abs(PrevisaoModel::valor($catFat, $mesL) - (($tot1[$mesL] ?? 0.0) + ($tot2[$mesL] ?? 0.0))) < 0.01, json_encode([$mesL, PrevisaoModel::valor($catFat, $mesL)]));
+        $fPaga = CartaoFatura::somaMeses($f2, -1);
+        $idPg = LancamentoModel::criar($hoje, 'Fatura do cartão', $catFat, 123.45, $uid, null, ['cartao_id' => $c2, 'fatura' => $fPaga]);
+        MotorFinanceiro::limparCache();
+        $fp = CartaoFatura::faturasPagas(MotorFinanceiro::dados()['prev'], true);
+        $check('pagar fatura: o vínculo escolhido fica gravado; cada cartão tem as suas faturas pagas, e o plano soma', LancamentoModel::find($idPg)['fatura'] === $fPaga
+            && (int) LancamentoModel::find($idPg)['cartao_id'] === $c2 && abs($fp['porCartao'][$c2][$fPaga]['pago'] - 123.45) < 0.001
+            && abs($fp['faturas'][$fPaga]['pago'] - ($fp['porCartao'][$c1['id']][$fPaga]['pago'] ?? 0.0) - 123.45) < 0.001);
+        LancamentoModel::atualizar($idPg, $hoje, 'Fatura do cartão', $catFat, 200.0);
+        $check('pagar fatura: editar o valor mantém o cartão e a fatura', LancamentoModel::find($idPg)['fatura'] === $fPaga && (int) LancamentoModel::find($idPg)['cartao_id'] === $c2);
+        LancamentoModel::atualizar($idPg, $hoje, 'virou mercado', $catGasto, 200.0);
+        $check('pagar fatura: fora da categoria da fatura, o vínculo sai', LancamentoModel::find($idPg)['cartao_id'] === null && LancamentoModel::find($idPg)['fatura'] === null);
+        $hPg = $render(CartaoController::class, 'index', ['cartao' => (string) $c2, 'fatura' => $fPaga]);
+        $check('pagar fatura: a fatura fechada e ainda não paga do cartão escolhido tem o "Pagar fatura"', str_contains($hPg, 'action="/cartao/pagar"')
+            && str_contains($hPg, 'name="fatura" value="' . $fPaga . '"') && str_contains($hPg, 'name="cartao" value="' . $c2 . '"'));
+        $auto = LancamentoModel::criar($hoje, 'Fatura do cartão', $catFat, 10.0, $uid);
+        $vAuto = LancamentoModel::find($auto);
+        $check('pagar fatura: sem cartão escolhido, vai para o cartão com a fatura fechada em aberto', (int) $vAuto['cartao_id'] === $c2 && $vAuto['fatura'] === $fPaga, json_encode([$vAuto['cartao_id'], $vAuto['fatura']]));
+        $e = CartaoController::criarCompraDe(['valor' => '50', 'estorno' => '1', 'parcelas' => '3', 'parcela_atual' => '2', 'categoria_id' => (string) $catGasto, 'data' => $hoje, 'descricao' => 'devolução'], $hoje, $c2);
+        $ce = $e['erro'] === null ? CartaoModel::acharCompra($e['id']) : null;
+        $check('estorno: negativo, em 1 parcela, na fatura da data dele', $ce !== null && $ce['valor_total'] === -50.0 && $ce['parcelas'] === 1 && $ce['primeira_fatura'] === $f2
+            && str_contains($e['aviso'], 'Estorno'), json_encode([$e, $ce]));
+        $check('estorno: abate da fatura', abs((CartaoFatura::totais(CartaoModel::compras($c2))[$f2] ?? 0.0) - (($tot2[$f2] ?? 0.0) - 50.0)) < 0.001);
+        LancarForm::limparCache();
+        $hCt = $render(CartaoController::class, 'index', ['cartao' => (string) $c2]);
+        $check('vários cartões: a aba tem o seletor, mostra o cartão escolhido e "Novo cartão"', str_contains($hCt, 'class="ct-cartoes"')
+            && str_contains($hCt, 'href="/cartao?cartao=' . $c2 . '" aria-current="page"') && str_contains($hCt, 'Cartão dois · fecha dia 10 · vence dia 20')
+            && str_contains($hCt, 'class="chip ct-novo" href="/cartao?novo=1"'));
+        $hLc = $render(LancamentosController::class, 'lancarForm', ['pagou' => 'cartao:' . $c2]);
+        $check('vários cartões: no lançar, um botão para cada cartão, já no escolhido', str_contains($hLc, 'value="cartao:' . $c2 . '" checked')
+            && str_contains($hLc, 'value="cartao:' . $c1['id'] . '"') && str_contains($hLc, '&quot;cartoes&quot;'));
+        CartaoModel::arquivar($c2);
+        $check('vários cartões: arquivar tira o cartão da aba e do plano', count(CartaoModel::ativos()) === 1 && !CartaoModel::achar($c2)['alimenta_plano']);
+    });
+
+    // ---- as categorias especiais pela chave: o nome pode mudar
+    $emTransacao('chaves das categorias', static function () use ($pdo, $check, $catFat): void {
+        $pdo->exec("UPDATE categorias SET nome = 'Poupança do mês' WHERE chave = 'guardar'");
+        $pdo->exec("UPDATE categorias SET nome = 'Meu cartão de crédito' WHERE chave = 'fatura'");
+        $pdo->exec("UPDATE categorias SET nome = 'Pagamento' WHERE chave = 'salario'");
+        MotorFinanceiro::limparCache();
+        $d = MotorFinanceiro::dados();
+        $guard = (int) $pdo->query("SELECT id FROM categorias WHERE chave = 'guardar'")->fetchColumn();
+        $check('chaves: renomeadas, o motor e o Cartão continuam achando as categorias', $d['esp']['guard'] === $guard && CartaoModel::categoriaFatura() === $catFat
+            && CategoriaModel::porChave(MotorFinanceiro::CAT_SALARIO)['nome'] === 'Pagamento'
+            && Investimentos::resumo(Relogio::hoje())['poupanca']['idEntra'] === $guard);
+    });
+}
 
 echo "\n{$ok} ok, {$falhas} falha(s)\n";
 exit($falhas > 0 ? 1 : 0);

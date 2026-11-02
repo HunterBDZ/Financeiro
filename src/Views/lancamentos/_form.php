@@ -5,6 +5,9 @@
  * Com o cartão cadastrado: "Pagou com: Conta | Cartão". Cartão mostra as vezes, a prévia das faturas
  * que sobem (cartao.js) e "mais opções" (outra quantidade de vezes, compra antiga); o bloco some só
  * pelo CSS quando é Conta, então funciona sem JS. Quem grava é LancamentosController::store.
+ * Com mais de uma conta (ou de um cartão), "Pagou com" / "Recebeu em" mostra as contas e, num gasto, os cartões
+ * (valores conta:id e cartao:id), e o modo Transferir passa dinheiro de uma conta para outra. Com uma conta e um
+ * cartão, o formulário é o de sempre.
  */
 $modo   = in_array($modo ?? '', ['dialog', 'pagina', 'editar'], true) ? $modo : 'dialog';
 $pref   = preg_replace('/[^a-z0-9]/', '', (string) ($pref ?? 'lf')) ?: 'lf';
@@ -56,6 +59,27 @@ $foco   = $modo === 'pagina' && $topo !== false;
 $cartao = !$editar && is_array($cartao ?? null) ? $cartao : null;
 $pagou  = $cartao !== null && ($a['pagou'] ?? '') === 'cartao' ? 'cartao' : 'conta';
 $vezes  = (int) ($a['parcelas'] ?? 1) ?: 1;
+
+// várias contas ou vários cartões: as opções do "Pagou com", cada uma [valor, conta ou cartão, só num gasto]
+$cartoesF = $cartao !== null ? (is_array($cartoes ?? null) && $cartoes !== [] ? $cartoes : [$cartao]) : [];
+$contasF  = is_array($contas ?? null) ? $contas : [];
+$opcoes   = [];
+if ($contasF !== [] || count($cartoesF) > 1) {
+    foreach ($contasF !== [] ? $contasF : [null] as $ct) {
+        $opcoes[] = [$ct !== null ? 'conta:' . (int) $ct['id'] : 'conta', $ct, false];
+    }
+    foreach ($cartoesF as $k) {
+        $opcoes[] = [count($cartoesF) > 1 ? 'cartao:' . (int) $k['id'] : 'cartao', $k, true];
+    }
+    $valores = array_column($opcoes, 0);
+    $pedido = (string) ($a['pagou'] ?? ($l !== null ? 'conta:' . (int) ($l['conta_id'] ?? 0) : ($padrao ?? '')));
+    if ($pedido === 'cartao' && !in_array('cartao', $valores, true)) {
+        $pedido = 'cartao:' . (int) ($cartoesF[0]['id'] ?? 0);           // do botão da aba Cartão: o primeiro
+    }
+    $padraoV = in_array((string) ($padrao ?? ''), $valores, true) ? (string) $padrao : $valores[0];
+    $pagou = in_array($pedido, $valores, true) ? $pedido : $padraoV;
+}
+$transferir = !$editar && $contasF !== [] && ($a['modo'] ?? '') === 'transferir';
 ?>
 <form class="lf lf--<?= e($modo) ?>" method="post" action="<?= e($acao) ?>" novalidate
       data-lf data-lf-modo="<?= e($topo === false ? 'coluna' : $modo) ?>">
@@ -73,12 +97,38 @@ $vezes  = (int) ($a['parcelas'] ?? 1) ?: 1;
         </div>
     <?php endif; ?>
 
-    <?php if ($cartao !== null): ?>
+    <?php if (!$editar && $contasF !== []): ?>
+        <fieldset class="lf-modo" data-lf-modo-sel>
+            <legend class="sr-only"><?= e(t('O que fazer')) ?></legend>
+            <label class="chip-r"><input type="radio" name="modo" value="lancar"<?= $transferir ? '' : ' checked' ?>><span><?= e(t('Gasto ou entrada')) ?></span></label>
+            <label class="chip-r"><input type="radio" name="modo" value="transferir"<?= $transferir ? ' checked' : '' ?>><span><?= e(t('↔ Transferir')) ?></span></label>
+        </fieldset>
+    <?php endif; ?>
+    <?php if ($opcoes !== []): ?>
+        <fieldset class="ct-pagou is-varias" data-ct-pagou>
+            <legend class="lf-rot" data-pagou-rot data-gasto="<?= e(t('Pagou com')) ?>" data-entrada="<?= e(t('Recebeu em')) ?>"><?= e(t('Pagou com')) ?></legend>
+            <?php foreach ($opcoes as [$v, $o, $soGasto]): ?>
+                <label<?= $soGasto ? ' data-so-gasto' : '' ?>><input type="radio" name="pagou" value="<?= e($v) ?>"<?= $v === $pagou ? ' checked' : '' ?><?= $v === ($padraoV ?? null) ? ' data-lf-padrao' : '' ?>><?= $soGasto ? e($o['nome']) : ($o !== null ? '<span aria-hidden="true">' . e(\Financeiro\Models\ContaModel::TIPOS[$o['tipo']] ?? '') . '</span> ' . e(nomeConta($o)) : e(t('Conta'))) ?></label>
+            <?php endforeach; ?>
+        </fieldset>
+    <?php elseif ($cartao !== null): ?>
         <fieldset class="ct-pagou" data-ct-pagou>
             <legend class="sr-only"><?= e(t('Pagou com')) ?></legend>
             <label><input type="radio" name="pagou" value="conta"<?= $pagou === 'conta' ? ' checked' : '' ?>><?= e(t('Conta')) ?></label>
             <label><input type="radio" name="pagou" value="cartao"<?= $pagou === 'cartao' ? ' checked' : '' ?>><?= e($cartao['nome']) ?></label>
         </fieldset>
+    <?php endif; ?>
+    <?php if (!$editar && $contasF !== []): ?>
+        <div class="lf-transf" data-lf-transf>
+            <label><span><?= e(t('De')) ?></span>
+                <select name="de_conta">
+                    <?php foreach ($contasF as $i => $ct): ?><option value="<?= (int) $ct['id'] ?>"<?= (int) $ct['id'] === (int) ($a['de_conta'] ?? $contasF[0]['id']) ? ' selected' : '' ?>><?= e(nomeConta($ct)) ?></option><?php endforeach; ?>
+                </select></label>
+            <label><span><?= e(t('Para')) ?></span>
+                <select name="para_conta">
+                    <?php foreach ($contasF as $i => $ct): ?><option value="<?= (int) $ct['id'] ?>"<?= (int) $ct['id'] === (int) ($a['para_conta'] ?? $contasF[1]['id']) ? ' selected' : '' ?>><?= e(nomeConta($ct)) ?></option><?php endforeach; ?>
+                </select></label>
+        </div>
     <?php endif; ?>
 
     <p class="lf-quanto" aria-hidden="true"><?= $editar ? e(t('Valor')) : e(t('Quanto foi?')) ?></p>
@@ -90,7 +140,13 @@ $vezes  = (int) ($a['parcelas'] ?? 1) ?: 1;
     </div>
 
     <?php if ($cartao !== null): ?>
-        <div class="ct-bloco" data-ct-bloco data-ct="<?= e((string) json_encode(['fecha' => $cartao['fecha'], 'vence' => $cartao['vence'], 'aberta' => $cartao['aberta'], 'serie' => $cartao['serie']])) ?>">
+        <?php $cfgCt = ['fecha' => $cartao['fecha'], 'vence' => $cartao['vence'], 'aberta' => $cartao['aberta'], 'serie' => $cartao['serie']];
+        if (count($cartoesF) > 1) {     // um por cartão, pelo valor do "Pagou com"
+            foreach ($cartoesF as $k) {
+                $cfgCt['cartoes']['cartao:' . (int) $k['id']] = ['fecha' => $k['fecha'], 'vence' => $k['vence'], 'aberta' => $k['aberta'], 'serie' => $k['serie']];
+            }
+        } ?>
+        <div class="ct-bloco" data-ct-bloco data-ct="<?= e((string) json_encode($cfgCt)) ?>">
             <p class="lf-rot" id="<?= e($pref) ?>-vezes-rot"><?= e(t('Em quantas vezes?')) ?></p>
             <div class="ct-vezes" role="radiogroup" aria-labelledby="<?= e($pref) ?>-vezes-rot">
                 <?php foreach ([1, 2, 3, 4, 5, 6, 10, 12] as $k): ?>
@@ -106,7 +162,7 @@ $vezes  = (int) ($a['parcelas'] ?? 1) ?: 1;
                 </div>
                 <small data-ct-previa-sub></small>
             </div>
-            <details class="ct-antiga"<?= (($a['parcelas_outro'] ?? '0') !== '0' || ($a['parcela_atual'] ?? '0') !== '0') ? ' open' : '' ?>>
+            <details class="ct-antiga"<?= (($a['parcelas_outro'] ?? '0') !== '0' || ($a['parcela_atual'] ?? '0') !== '0' || ($a['estorno'] ?? '') === '1') ? ' open' : '' ?>>
                 <summary><?= e(t('Outras vezes ou compra antiga')) ?></summary>
                 <div class="ct-antiga-c">
                     <label for="<?= e($pref) ?>-outro"><?= e(t('Outra quantidade de vezes')) ?></label>
@@ -116,6 +172,7 @@ $vezes  = (int) ($a['parcelas'] ?? 1) ?: 1;
                     <input id="<?= e($pref) ?>-atual" name="parcela_atual" type="text" inputmode="numeric" maxlength="2" placeholder="<?= e(t('ex.: {n}', ['n' => 4])) ?>"
                            value="<?= ($a['parcela_atual'] ?? '0') !== '0' ? e((string) $a['parcela_atual']) : '' ?>" aria-describedby="<?= e($pref) ?>-atual-dica">
                     <small id="<?= e($pref) ?>-atual-dica"><?= e(t('Para lançar uma compra parcelada que já estava no cartão. Deixe vazio numa compra nova.')) ?></small>
+                    <label class="ct-estorno"><input type="checkbox" name="estorno" value="1"<?= ($a['estorno'] ?? '') === '1' ? ' checked' : '' ?>><span><?= e(t('É um estorno: o valor volta para o cartão')) ?></span></label>
                 </div>
             </details>
         </div>
@@ -130,7 +187,7 @@ $vezes  = (int) ($a['parcelas'] ?? 1) ?: 1;
         <div class="lf-chips">
             <?php foreach ($rapidasSel as $c): ?>
                 <label class="lf-chip">
-                    <input type="radio" name="categoria_id" value="<?= (int) $c['id'] ?>"<?= (int) $c['id'] === $catSel ? ' checked' : '' ?> data-lf-rapida>
+                    <input type="radio" name="categoria_id" value="<?= (int) $c['id'] ?>"<?= (int) $c['id'] === $catSel ? ' checked' : '' ?> data-lf-rapida<?= $opcoes !== [] && !empty($c['entra']) ? ' data-lf-entra' : '' ?>>
                     <span class="lf-chip-c"><?= iconeCategoria((int) $c['id'], (string) $c['nome'], (string) $c['grupo'], 36) ?><span class="lf-chip-n"><?= e($c['curto']) ?></span></span>
                 </label>
             <?php endforeach; ?>
@@ -149,7 +206,7 @@ $vezes  = (int) ($a['parcelas'] ?? 1) ?: 1;
                         <p class="lf-mais-gt" id="<?= e($gid) ?>"><?= e(t((string) $grupo)) ?></p>
                         <?php foreach ($itens as $c): ?>
                             <label class="lf-op" data-lf-op="<?= e(mb_strtolower($c['curto'] . ' ' . nomeCategoria($c['nome']))) ?>">
-                                <input type="radio" name="categoria_id" value="<?= (int) $c['id'] ?>"<?= $selNaLista !== null && (int) $c['id'] === $catSel ? ' checked' : '' ?>>
+                                <input type="radio" name="categoria_id" value="<?= (int) $c['id'] ?>"<?= $selNaLista !== null && (int) $c['id'] === $catSel ? ' checked' : '' ?><?= $opcoes !== [] && !empty($c['entra']) ? ' data-lf-entra' : '' ?>>
                                 <?= iconeCategoria((int) $c['id'], (string) $c['nome'], (string) $c['grupo'], 32) ?><span><?= e($c['curto']) ?></span>
                             </label>
                         <?php endforeach; ?>
@@ -184,7 +241,7 @@ $vezes  = (int) ($a['parcelas'] ?? 1) ?: 1;
     <?php endif; ?>
     <div class="aviso aviso-error lf-aviso" role="alert" data-lf-erro hidden></div>
 
-    <button type="submit" class="btn btn-primary btn-block lf-enviar" data-lf-enviar data-ct-rot="<?= $cartao !== null ? e(t('Lançar no cartão')) : '' ?>"><?= e($pagou === 'cartao' ? t('Lançar no cartão') : $botao) ?></button>
+    <button type="submit" class="btn btn-primary btn-block lf-enviar" data-lf-enviar data-ct-rot="<?= $cartao !== null ? e(t('Lançar no cartão')) : '' ?>"<?= !$editar && $contasF !== [] ? ' data-transf-rot="' . e(t('Transferir')) . '"' : '' ?>><?= e($transferir ? t('Transferir') : (str_starts_with($pagou, 'cartao') ? t('Lançar no cartão') : $botao)) ?></button>
 
     <?= csrfField() ?>
     <input type="hidden" name="volta" value="<?= e($volta) ?>" data-lf-volta>

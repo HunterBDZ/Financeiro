@@ -1,6 +1,7 @@
 <?php
 namespace Financeiro;
 
+use Financeiro\Models\ContaModel;
 use Financeiro\Models\WishlistModel;
 use Financeiro\Services\CartaoFatura;
 use Financeiro\Services\Horizonte;
@@ -10,6 +11,13 @@ use PDO;
 /** Os dados iniciais de um banco recém-criado: categorias, ajustes e, na demonstração, dados fictícios. */
 final class Preparo
 {
+    /** As categorias especiais de fábrica: nome => chave (categorias.chave, ver MotorFinanceiro::CAT_*). */
+    public const CHAVES = [
+        'Salário' => 'salario', 'Crédito do empréstimo' => 'credito_emprestimo', 'Amortização extra do empréstimo' => 'amortizacao',
+        'Guardar na poupança' => 'guardar', 'Resgate da poupança' => 'resgate_poupanca', 'Parcela do empréstimo' => 'parcela',
+        'Aplicar em investimentos' => 'aplicar', 'Resgate de investimentos' => 'resgate_investimento', 'Fatura do cartão' => 'fatura',
+    ];
+
     /** @return int quantas categorias criou */
     public static function preparar(PDO $pdo, bool $demo): int
     {
@@ -20,8 +28,7 @@ final class Preparo
             $usuarios = []; // a primeira conta nasce no site, em /criar-conta
         }
 
-        // nome, apelido, grupo, sinal, essencial. O motor e o Cartão acham pelo nome as de Empréstimo,
-        // Poupança, Investimentos, "Salário" e "Fatura do cartão": não renomeie essas.
+        // nome, apelido, grupo, sinal, essencial. O motor e o Cartão acham as especiais pela chave (CHAVES).
         $categorias = [
             ['Salário', null, 'Entradas', 1, 0],
             ['Outras entradas (13º, Pix, reembolsos)', 'Outras entradas', 'Entradas', 1, 0],
@@ -85,9 +92,9 @@ final class Preparo
         foreach (array_merge(glob($pasta . '/migrations/*.sql') ?: [], glob($pasta . '/migrations/*.php') ?: []) as $m) {
             $st->execute([basename($m)]);
         }
-        $st = $pdo->prepare('INSERT INTO categorias (nome, apelido, grupo, sinal, ordem, essencial) VALUES (?, ?, ?, ?, ?, ?)');
+        $st = $pdo->prepare('INSERT INTO categorias (nome, apelido, grupo, sinal, ordem, essencial, chave) VALUES (?, ?, ?, ?, ?, ?, ?)');
         foreach ($categorias as $i => [$nome, $apelido, $grupo, $sinal, $essencial]) {
-            $st->execute([$nome, $apelido, $grupo, $sinal, $i, $essencial]);
+            $st->execute([$nome, $apelido, $grupo, $sinal, $i, $essencial, self::CHAVES[$nome] ?? null]);
         }
         $cat = [];
         foreach ($pdo->query('SELECT id, nome FROM categorias') as $c) {
@@ -101,6 +108,9 @@ final class Preparo
         foreach ($ajustes as [$chave, $rotulo, $valor]) {
             $st->execute([$chave, $rotulo, $valor]);
         }
+        // a primeira conta, com o saldo inicial do plano (ajustes.saldo_ini é a soma das contas)
+        $pdo->prepare('INSERT INTO contas (id, nome, tipo, saldo_inicial, ordem) VALUES (?, ?, ?, ?, 0)')
+            ->execute([ContaModel::PRINCIPAL, ContaModel::NOME_PRINCIPAL, 'corrente', $ajustes[0][2]]);
         $st = $pdo->prepare('INSERT INTO usuarios (nome, login, senha_hash) VALUES (?, ?, ?)');
         foreach ($usuarios as $u) {
             $st->execute([$u['nome'], $u['login'], password_hash($u['senha'], PASSWORD_BCRYPT)]);
@@ -189,6 +199,7 @@ final class Preparo
             }
 
             CartaoFatura::sincronizarPlano($ids[0], $hoje);
+            CartaoFatura::preencherPagamentos($pdo);      // de que fatura é cada pagamento, como numa migração
 
             $pos = 0;
             $item = $pdo->prepare('INSERT INTO wishlist_itens (nome, url, valor, moeda, posicao, usuario_id) VALUES (?, ?, ?, ?, ?, ?)');

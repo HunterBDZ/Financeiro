@@ -5,6 +5,7 @@ use Financeiro\Auth;
 use Financeiro\Config;
 use Financeiro\Database;
 use Financeiro\Models\AjusteModel;
+use Financeiro\Models\ContaModel;
 use Financeiro\Models\LancamentoModel;
 use Financeiro\Models\MesModel;
 use Financeiro\Models\SaldoConferenciaModel;
@@ -50,7 +51,9 @@ final class DashboardController
         $saldoIni = AjusteModel::valor('saldo_ini');
         $matriz   = GastosMensais::matriz($ehHoje ? null : $hoje);
 
-        $conf  = self::conferencia($saldoIni, $hoje);
+        // com mais de uma conta: o saldo de cada uma (o total continua o do plano) e a conferência de cada uma
+        $contas = ContaModel::varias() ? self::contasHoje($hoje) : [];
+        $conf  = $contas !== [] ? self::conferenciaContas($contas, $hoje) : self::conferencia($saldoIni, $hoje);
 
         // CONTA (invariante 4): fica_na_conta do mês do CALENDÁRIO quando ele está REAL;
         // senão, o saldo calculado pelos lançamentos até hoje.
@@ -97,6 +100,7 @@ final class DashboardController
             'mesPrevisao'    => $mesPrev,
             'roteiro'        => self::roteiro(),
             'conta'          => $conta,
+            'contas'         => $contas,
             'conf'           => $conf,
             'conferirAberto' => $conferirAberto || $conferirErro !== null,
             'conferirErro'   => $conferirErro,
@@ -116,6 +120,9 @@ final class DashboardController
 
         $hoje  = Relogio::hoje();
         $volta = voltaSegura(is_string($_POST['volta'] ?? null) ? $_POST['volta'] : null, '/');
+        if (is_array($_POST['saldo_conta'] ?? null) && ContaModel::varias()) {
+            self::conferirContas($hoje, $volta);
+        }
         $bruto = is_string($_POST['saldo_informado'] ?? null) ? trim($_POST['saldo_informado']) : '';
         $dataPost = is_string($_POST['data'] ?? null) ? trim($_POST['data']) : '';
         $quando = is_string($_POST['quando'] ?? null) ? $_POST['quando'] : ($dataPost !== '' ? 'outro' : 'hoje');
@@ -146,6 +153,109 @@ final class DashboardController
         SaldoConferenciaModel::registrar($data, $saldo, (int) Auth::id());
         flash('success', t('Saldo conferido com o banco em {data}.', ['data' => diaMes($data)]));
         redirecionar($volta, 303);
+    }
+
+    /**
+     * Com várias contas, cada uma é conferida com o extrato dela, na mesma data (POST saldo_conta[id]). Em branco,
+     * a conta fica sem conferir.
+     */
+    private static function conferirContas(string $hoje, string $volta): never
+    {
+        $dataPost = is_string($_POST['data'] ?? null) ? trim($_POST['data']) : '';
+        $quando = is_string($_POST['quando'] ?? null) ? $_POST['quando'] : ($dataPost !== '' ? 'outro' : 'hoje');
+        $data = $quando === 'outro' ? $dataPost : $hoje;
+        [$saldos, $brutos, $erro] = self::lerSaldosContas((array) $_POST['saldo_conta']);
+        $minimo = date('Y-m-d', strtotime('-60 days', strtotime($hoje)));
+        $primeiro = MesModel::primeiroDia();
+        if ($primeiro !== null) {
+            $minimo = max($minimo, date('Y-m-d', strtotime('-1 day', strtotime($primeiro))));
+        }
+        if ($erro === null && $saldos === []) {
+            $erro = t('Digite o saldo de pelo menos uma conta.');
+        } elseif ($erro === null && (!in_array($quando, ['hoje', 'outro'], true) || !self::dataIso($data) || $data > $hoje || $data < $minimo)) {
+            $erro = t('Escolha uma data válida.');
+        }
+        if ($erro !== null) {
+            $_SESSION['conferir_erro'] = ['msg' => $erro, 'contas' => $brutos, 'quando' => $quando === 'outro' ? 'outro' : 'hoje', 'data' => self::dataIso($data) ? $data : $hoje];
+            redirecionar('/?conferir=erro#conferir', 303);
+        }
+        foreach ($saldos as $id => $v) {
+            SaldoConferenciaModel::registrar($data, $v, (int) Auth::id(), $id);
+        }
+        flash('success', t('Saldo conferido com o banco em {data}.', ['data' => diaMes($data)]));
+        redirecionar($volta, 303);
+    }
+
+    /**
+     * Os saldos digitados por conta (saldo_conta[id]), só das contas ativas; em branco fica de fora.
+     * @return array{0:array<int, float>, 1:array<int, string>, 2:?string} os valores, o que foi digitado e o erro
+     */
+    public static function lerSaldosContas(array $post): array
+    {
+        $saldos = $brutos = [];
+        $erro = null;
+        foreach (ContaModel::ativas() as $c) {
+            $bruto = is_string($post[$c['id']] ?? null) ? mb_substr(trim($post[$c['id']]), 0, 32) : '';
+            $brutos[$c['id']] = $bruto;
+            if ($bruto === '') {
+                continue;
+            }
+            $v = parseMoedaBr($bruto);
+            if ($v === null) {
+                $erro = t('Digite o saldo como aparece no banco, por exemplo 1.200,50.');
+                continue;
+            }
+            $saldos[$c['id']] = round($v, 2);
+        }
+        return [$saldos, $brutos, $erro];
+    }
+
+    /**
+     * As contas para o Início: as ativas e as arquivadas que ainda têm saldo, com o saldo de hoje.
+     * @return list<array>
+     */
+    private static function contasHoje(string $hoje): array
+    {
+        $saldos = ContaModel::saldos($hoje);
+        $out = [];
+        foreach (ContaModel::todas() as $c) {
+            $v = (float) ($saldos[$c['id']] ?? 0.0);
+            if ($c['ativa'] || abs($v) >= 0.005) {
+                $out[] = $c + ['saldo' => $v];
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * A última conferência de cada conta ativa, juntas: a data é a mais recente, e bate se todas batem. Como
+     * conferencia(), mas cada conta contra o saldo dela e o agendado dela.
+     */
+    private static function conferenciaContas(array $contas, string $hoje): ?array
+    {
+        $ultimas = SaldoConferenciaModel::ultimasPorConta();
+        $por = [];
+        foreach ($contas as $c) {
+            $u = $ultimas[$c['id']] ?? null;
+            if ($u === null || !$c['ativa']) {
+                continue;
+            }
+            $dif = round((float) $u['saldo_informado'] - ContaModel::saldo($c['id'], (string) $u['data']), 2);
+            $agendado = SaldoConferenciaModel::agendadoNa($u);
+            $por[$c['id']] = ['conta' => $c, 'data' => (string) $u['data'], 'saldo' => (float) $u['saldo_informado'], 'dif' => $dif,
+                              'bate' => abs($dif) <= 0.5 || abs($dif - $agendado) <= 0.5];
+        }
+        if ($por === []) {
+            return null;
+        }
+        $data = max(array_column($por, 'data'));
+        $difs = array_filter($por, static fn(array $p): bool => !$p['bate']);
+        return [
+            'data' => $data, 'saldo' => round(array_sum(array_column($por, 'saldo')), 2),
+            'dif' => round(array_sum(array_column($difs, 'dif')), 2), 'agendado' => 0.0,
+            'bate' => $difs === [], 'idade' => (int) (new \DateTimeImmutable($data))->diff(new \DateTimeImmutable($hoje))->format('%r%a'),
+            'contas' => $por,
+        ];
     }
 
     /* ------------------------------------------------------------------ blocos */

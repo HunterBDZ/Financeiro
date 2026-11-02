@@ -2,8 +2,8 @@
 use Financeiro\Site;
 
 /**
- * Ajustes. Na ordem do que mais se usa: a conta, o idioma, a moeda e o fuso, o que usa, o dinheiro,
- * as contas fixas e as categorias, as pessoas e, no fim, o Avançado. Cada grupo tem o seu SALVAR.
+ * Ajustes. Na ordem do que mais se usa: a conta, o idioma, a moeda e o fuso, o que usa, o dinheiro, as contas
+ * (onde o dinheiro está), as contas fixas e as categorias, as pessoas e, no fim, o Avançado. Cada grupo tem o seu SALVAR.
  * Todo value de dinheiro sai de numInput() (hífen ASCII): parseMoedaBr() lê de volta sem perder o sinal.
  */
 $csrf = csrfField();
@@ -138,6 +138,77 @@ $campo = static function (string $chave, string $rotulo, string $un = '', int $d
         </form>
     </details>
 
+    <!-- onde o dinheiro está: banco, banco digital, dinheiro vivo -->
+    <?php
+    $ativasD = array_values(array_filter($contasDinheiro, static fn(array $c): bool => $c['ativa']));
+    $arquivadasD = array_values(array_filter($contasDinheiro, static fn(array $c): bool => !$c['ativa']));
+    $erroConta = $erro !== null && ($erro['grupo'] ?? '') === 'carteira' ? $erro : null;
+    $inicioD = \Financeiro\Models\AjusteModel::dataInicio();
+    $tiposD = ['corrente' => t('Banco'), 'digital' => t('Banco digital'), 'dinheiro' => t('Dinheiro vivo'), 'outra' => t('Outra')];
+    $formConta = static function (?array $c) use ($csrf, $erroConta, $tiposD, $inicioD): void {
+        $id = (int) ($c['id'] ?? 0);
+        $volta = $erroConta !== null && (int) ($erroConta['conta'] ?? -1) === $id ? (array) ($erroConta['valores'] ?? []) : [];
+        $nome = (string) ($volta['nome'] ?? ($c !== null ? nomeConta($c) : ''));
+        $tipo = (string) ($volta['tipo'] ?? ($c['tipo'] ?? 'corrente'));
+        $saldo = (string) ($volta['saldo_inicial'] ?? ($c !== null ? numInput((float) $c['saldo_inicial']) : ''));
+        $pre = 'cd' . $id; ?>
+        <form class="aj-form aj-conta-form" method="post" action="/contas">
+            <?= $csrf ?><?php if ($c !== null): ?><input type="hidden" name="id" value="<?= $id ?>"><?php endif; ?>
+            <label class="campo"><span><?= e(t('Nome')) ?></span><input type="text" name="nome" maxlength="60" required autocomplete="off" value="<?= e($nome) ?>" placeholder="<?= e(t('ex.: Carteira')) ?>"></label>
+            <fieldset class="aj-conta-tipo">
+                <legend><?= e(t('Tipo')) ?></legend>
+                <?php foreach (\Financeiro\Models\ContaModel::TIPOS as $k => $icone): ?>
+                    <label class="chip-r"><input type="radio" name="tipo" value="<?= e($k) ?>"<?= $k === $tipo ? ' checked' : '' ?>><span><span aria-hidden="true"><?= e($icone) ?></span> <?= e($tiposD[$k]) ?></span></label>
+                <?php endforeach; ?>
+            </fieldset>
+            <div class="aj-campo">
+                <label for="<?= e($pre) ?>-saldo"><?= $inicioD !== null ? e(t('Saldo em {data}, no início do controle', ['data' => diaMesAno($inicioD)])) : e(t('Saldo no início do controle')) ?></label>
+                <span class="aj-input"><input id="<?= e($pre) ?>-saldo" type="text" name="saldo_inicial" inputmode="decimal" autocomplete="off" value="<?= e($saldo) ?>" placeholder="<?= e(numInput(0)) ?>"></span>
+            </div>
+            <button type="submit" class="btn btn-primary aj-salvar"><?= $c !== null ? e(t('Salvar')) : e(t('Criar conta')) ?></button>
+        </form>
+    <?php };
+    ?>
+    <details class="card dobra aj-grupo" id="carteira"<?= $aberto('carteira') ?>>
+        <summary><span class="titulo"><?= e(t('Contas')) ?></span></summary>
+        <p class="aj-ajuda"><?= e(t('Onde o dinheiro está: banco, banco digital ou dinheiro vivo. Toda conta ativa entra no saldo do Início.')) ?></p>
+        <ul class="aj-cd">
+            <?php foreach ($ativasD as $i => $c): $aberta = $erroConta !== null && (int) ($erroConta['conta'] ?? 0) === $c['id']; ?>
+                <li>
+                    <details class="aj-cd-i"<?= $aberta ? ' open' : '' ?>>
+                        <summary>
+                            <span class="aj-cd-ic" aria-hidden="true"><?= e(\Financeiro\Models\ContaModel::TIPOS[$c['tipo']] ?? '') ?></span>
+                            <span class="aj-cd-nome"><?= e(nomeConta($c)) ?></span>
+                            <span class="aj-cd-saldo num"><?= e(money((float) ($saldosContas[$c['id']] ?? 0.0))) ?></span>
+                        </summary>
+                        <?php $formConta($c); ?>
+                        <?php if (count($ativasD) > 1): ?>
+                            <div class="aj-cd-acoes">
+                                <?php if ($i > 0): ?><form method="post" action="/contas/<?= (int) $c['id'] ?>/mover"><?= $csrf ?><input type="hidden" name="direcao" value="-1"><button type="submit" class="btn btn-ghost btn-sm"><?= e(t('Subir')) ?></button></form><?php endif; ?>
+                                <?php if ($i < count($ativasD) - 1): ?><form method="post" action="/contas/<?= (int) $c['id'] ?>/mover"><?= $csrf ?><input type="hidden" name="direcao" value="1"><button type="submit" class="btn btn-ghost btn-sm"><?= e(t('Descer')) ?></button></form><?php endif; ?>
+                                <form method="post" action="/contas/<?= (int) $c['id'] ?>/arquivar" data-confirm="<?= e(t('Arquivar {nome}? Ela sai do lançar e do saldo; o que foi lançado nela continua no Extrato.', ['nome' => nomeConta($c)])) ?>"><?= $csrf ?><button type="submit" class="btn-link"><?= e(t('Arquivar')) ?></button></form>
+                            </div>
+                        <?php endif; ?>
+                    </details>
+                </li>
+            <?php endforeach; ?>
+        </ul>
+        <?php if ($arquivadasD !== []): ?>
+            <p class="aj-ess-grupo"><?= e(t('Arquivadas')) ?></p>
+            <ul class="aj-cd aj-cd-arq">
+                <?php foreach ($arquivadasD as $c): ?>
+                    <li><span class="aj-cd-ic" aria-hidden="true"><?= e(\Financeiro\Models\ContaModel::TIPOS[$c['tipo']] ?? '') ?></span><span class="aj-cd-nome"><?= e(nomeConta($c)) ?></span>
+                        <form method="post" action="/contas/<?= (int) $c['id'] ?>/reativar"><?= $csrf ?><button type="submit" class="btn-link"><?= e(t('Trazer de volta')) ?></button></form></li>
+                <?php endforeach; ?>
+            </ul>
+        <?php endif; ?>
+        <details class="aj-cd-nova"<?= $erroConta !== null && (int) ($erroConta['conta'] ?? -1) === 0 ? ' open' : '' ?>>
+            <summary class="btn btn-ghost"><?= svgIcon('plus', 16) ?><?= e(t('Nova conta')) ?></summary>
+            <?php $formConta(null); ?>
+        </details>
+        <?php $erroDe('carteira'); ?>
+    </details>
+
     <!-- 3: contas fixas -->
     <details class="card dobra aj-grupo" id="contas"<?= $aberto('contas') ?>>
         <summary><span class="titulo"><?= e(t('Contas fixas')) ?></span></summary>
@@ -241,7 +312,11 @@ $campo = static function (string $chave, string $rotulo, string $un = '', int $d
         </form>
         <form class="aj-form" method="post" action="/ajustes/salvar">
             <?= $csrf ?><input type="hidden" name="grupo" value="partida">
-            <?php $campo('saldo_ini', t('Saldo da conta no início')); ?>
+            <?php if (count($contasDinheiro) === 1): ?>
+                <?php $campo('saldo_ini', t('Saldo da conta no início')); ?>
+            <?php else: ?>
+                <p class="aj-ajuda"><?= t('O saldo de cada conta no início fica em {link}.', ['link' => '<a class="aj-link" href="/ajustes?aberto=carteira#carteira">' . e(t('Contas')) . '</a>']) ?></p>
+            <?php endif; ?>
             <?php $campo('poupanca_ini', t('Poupança no início')); ?>
             <?php $campo('investimentos_ini', t('Investimentos no início')); ?>
             <?php $erroDe('partida'); ?>

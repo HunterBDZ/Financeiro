@@ -4,6 +4,7 @@ namespace Financeiro\Services;
 use Financeiro\Config;
 use Financeiro\Database;
 use Financeiro\Models\AjusteModel;
+use Financeiro\Models\ContaModel;
 use Financeiro\Models\LancamentoModel;
 use Financeiro\Models\MesModel;
 use Financeiro\Relogio;
@@ -32,15 +33,16 @@ use Financeiro\Sql;
  */
 final class MotorFinanceiro
 {
-    // As categorias que o app procura pelo nome: o nome é o identificador delas, e só muda com migração.
-    public const CAT_SALARIO = 'Salário';
-    public const CAT_CREDITO = 'Crédito do empréstimo';
-    public const CAT_AMORT   = 'Amortização extra do empréstimo';
-    public const CAT_GUARDAR = 'Guardar na poupança';
-    public const CAT_RESGATE = 'Resgate da poupança';
-    public const CAT_PARCELA = 'Parcela do empréstimo';
-    public const CAT_APLICAR = 'Aplicar em investimentos';
-    public const CAT_RESGATE_INV = 'Resgate de investimentos';
+    // As categorias que o app procura, pela chave (categorias.chave): o nome delas pode mudar.
+    public const CAT_SALARIO = 'salario';
+    public const CAT_CREDITO = 'credito_emprestimo';
+    public const CAT_AMORT   = 'amortizacao';
+    public const CAT_GUARDAR = 'guardar';
+    public const CAT_RESGATE = 'resgate_poupanca';
+    public const CAT_PARCELA = 'parcela';
+    public const CAT_APLICAR = 'aplicar';
+    public const CAT_RESGATE_INV = 'resgate_investimento';
+    public const CAT_FATURA  = 'fatura';
 
     private static ?array $planoCache = null;
     private static ?array $dadosCache = null;
@@ -54,6 +56,7 @@ final class MotorFinanceiro
     {
         self::$planoCache = null;
         self::$dadosCache = null;
+        ContaModel::limparCache();
         SugestaoAlocacao::limparCache();
         GastosMensais::limparCache();
     }
@@ -89,16 +92,17 @@ final class MotorFinanceiro
 
         $cats = [];
         $esp  = ['cred' => null, 'amort' => null, 'guard' => null, 'resg' => null, 'parc' => null, 'aplic' => null, 'resgInv' => null];
-        $nomesEsp = [self::CAT_CREDITO => 'cred', self::CAT_AMORT => 'amort', self::CAT_GUARDAR => 'guard', self::CAT_RESGATE => 'resg', self::CAT_PARCELA => 'parc', self::CAT_APLICAR => 'aplic', self::CAT_RESGATE_INV => 'resgInv'];
-        foreach ($pdo->query('SELECT id, nome, apelido, grupo, sinal, operacional, essencial, ativo, ordem FROM categorias ORDER BY ordem, id') as $c) {
+        $chavesEsp = [self::CAT_CREDITO => 'cred', self::CAT_AMORT => 'amort', self::CAT_GUARDAR => 'guard', self::CAT_RESGATE => 'resg', self::CAT_PARCELA => 'parc', self::CAT_APLICAR => 'aplic', self::CAT_RESGATE_INV => 'resgInv'];
+        foreach ($pdo->query('SELECT id, nome, apelido, grupo, sinal, operacional, essencial, ativo, ordem, chave FROM categorias ORDER BY ordem, id') as $c) {
             $id = (int) $c['id'];
             $cats[$id] = [
                 'id' => $id, 'nome' => (string) $c['nome'], 'apelido' => $c['apelido'] !== null ? (string) $c['apelido'] : null,
                 'grupo' => (string) $c['grupo'], 'sinal' => (int) $c['sinal'], 'operacional' => (int) $c['operacional'],
                 'essencial' => (int) $c['essencial'], 'ativo' => (int) $c['ativo'], 'ordem' => (int) $c['ordem'],
+                'chave' => $c['chave'] !== null ? (string) $c['chave'] : null,
             ];
-            if (isset($nomesEsp[$c['nome']])) {
-                $esp[$nomesEsp[$c['nome']]] = $id;
+            if (isset($chavesEsp[(string) $c['chave']])) {
+                $esp[$chavesEsp[(string) $c['chave']]] = $id;
             }
         }
 

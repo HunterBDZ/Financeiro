@@ -316,3 +316,19 @@
 /* na coluna do extrato (estreita), o nome do botão cabe inteiro */
 .ex-col .lf-chip-c { padding-inline: 2px; }
 .ex-col .lf-chip-n { font-size: 12px; }
+
+/* ---------------------------------------------------------------- várias contas */
+/* o modo: lançar um gasto ou entrada, ou transferir entre contas; sem JS, o CSS mostra os campos de cada um */
+.lf-modo { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 0; padding: 0; border: 0; min-width: 0; }
+.lf-transf { display: none; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+.lf-transf > label { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.lf-transf > label > span { color: var(--text-2); font-size: 13px; font-weight: 650; }
+.lf:has(input[name="modo"][value="transferir"]:checked) .lf-transf { display: grid; }
+.lf:has(input[name="modo"][value="transferir"]:checked) :is(.ct-pagou, .ct-bloco, .lf-rot-linha, .lf-cats) { display: none; }
+
+/* extrato: transferências e o saldo da conta filtrada */
+.ex-transf-ic { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: var(--card-2); color: var(--text-2); font-size: 18px; font-weight: 700; }
+.ex-saldo-conta { color: var(--text-2); font-size: 14px; font-weight: 650; }
+.ex-saldo-conta b { color: var(--text); font-weight: 800; }
+.ex-saldo-conta b.neg { color: var(--neg); }
+.ex-campo-conta { grid-column: 1 / -1; }

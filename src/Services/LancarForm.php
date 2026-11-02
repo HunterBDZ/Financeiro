@@ -5,13 +5,14 @@ use Financeiro\Auth;
 use Financeiro\Database;
 use Financeiro\Models\CartaoModel;
 use Financeiro\Models\CategoriaModel;
+use Financeiro\Models\ContaModel;
 use Financeiro\Models\LancamentoModel;
 use Financeiro\Relogio;
 
 /**
  * Dados do formulário de lançar. O layout chama dados() em toda página
- * (o <dialog id="lancar">), então: no máximo 4 consultas (6 com o cartão cadastrado), todas limitadas,
- * e cache por requisição.
+ * (o <dialog id="lancar">), então: no máximo 4 consultas (mais 2 por cartão e 3 com várias contas), todas
+ * limitadas, e cache por requisição.
  */
 final class LancarForm
 {
@@ -24,9 +25,12 @@ final class LancarForm
      * @return array{
      *   outras: array<string, list<array{id:int,nome:string,curto:string,grupo:string}>>,
      *   descricoes: string[], hoje:string, ontem:string, data_min:string, data_max:string,
-     *   cartao: ?array{nome:string, fecha:int, vence:int, aberta:string, serie:list<array{0:string,1:float}>}
+     *   cartao: ?array{id:int, nome:string, fecha:int, vence:int, aberta:string, serie:list<array{0:string,1:float}>},
+     *   cartoes: list<array>, contas: list<array>, padrao: ?string
      * }
-     * cartao = para o "Pagou com: Cartão" e a prévia (as próximas 14 faturas, da aberta em diante).
+     * cartao = para o "Pagou com: Cartão" e a prévia (as próximas 14 faturas, da aberta em diante): o primeiro cartão;
+     * cartoes = todos, no mesmo formato. contas = as contas ativas, só com mais de uma (com uma, nada muda na tela);
+     * padrao = com várias contas, o "Pagou com" da última vez desta pessoa (conta:id ou cartao:id).
      * outras = a lista completa por classe, gastos antes de entradas; em cada grupo, o dia a dia primeiro,
      * pela frequência do usuário logado nos últimos 90 dias, depois a da casa, depois categorias.ordem.
      * rapidas = as RAPIDAS mais usadas (pela mesma frequência; sem uso, o dia a dia), os botões de um toque,
@@ -59,7 +63,8 @@ final class LancarForm
         $candidatas = [];
         foreach ($cats as $i => $c) {
             $id = (int) $c['id'];
-            $base = ['id' => $id, 'nome' => (string) $c['nome'], 'curto' => nomeCurto($c), 'grupo' => (string) $c['grupo']];
+            // entra: dinheiro que chega (renda ou resgate); com várias contas, o "Pagou com" vira "Recebeu em"
+            $base = ['id' => $id, 'nome' => (string) $c['nome'], 'curto' => nomeCurto($c), 'grupo' => (string) $c['grupo'], 'entra' => (int) $c['sinal'] === 1];
             $ehDia = $c['grupo'] === 'Dia a dia';
             $fq = [-($freq[$id]['meu'] ?? 0), -($freq[$id]['casa'] ?? 0)];
             if ((int) $c['operacional'] === 0) {
@@ -89,10 +94,9 @@ final class LancarForm
         }
         unset($g);
 
-        // 5–6) o cartão, se cadastrado: fechamento, vencimento e o que já está em cada fatura (para a prévia)
-        $cartao = CartaoModel::ativo();
-        $cartaoInfo = null;
-        if ($cartao !== null) {
+        // 5–6) os cartões: fechamento, vencimento e o que já está em cada fatura (para a prévia)
+        $cartoes = [];
+        foreach (CartaoModel::ativos() as $cartao) {
             $aberta = CartaoFatura::faturaDe($hoje, $cartao['fecha'], $cartao['vence']);
             $totais = CartaoFatura::totais(CartaoModel::compras($cartao['id']));
             $serie = [];
@@ -100,12 +104,17 @@ final class LancarForm
                 $m = CartaoFatura::somaMeses($aberta, $i);
                 $serie[] = [$m, (float) ($totais[$m] ?? 0.0)];
             }
-            $cartaoInfo = ['nome' => $cartao['nome'], 'fecha' => $cartao['fecha'], 'vence' => $cartao['vence'],
-                           'aberta' => $aberta, 'serie' => $serie];
+            $cartoes[] = ['id' => $cartao['id'], 'nome' => $cartao['nome'], 'fecha' => $cartao['fecha'], 'vence' => $cartao['vence'],
+                          'aberta' => $aberta, 'serie' => $serie];
         }
+        // 7–9) com várias contas: elas e o "Pagou com" da última vez
+        $contas = ContaModel::varias() ? ContaModel::ativas() : [];
 
         return self::$cache[$chave] = [
-            'cartao'     => $cartaoInfo,
+            'cartao'     => $cartoes[0] ?? null,
+            'cartoes'    => $cartoes,
+            'contas'     => $contas,
+            'padrao'     => $contas !== [] ? self::ultimaUsada($uid, $contas, $cartoes) : null,
             'outras'     => array_filter($outras),
             'rapidas'    => $rapidas,
             'descricoes' => $descricoes,
@@ -119,6 +128,27 @@ final class LancarForm
     public static function limparCache(): void
     {
         self::$cache = [];
+    }
+
+    /**
+     * O "Pagou com" do último lançamento ou compra desta pessoa, se a conta ou o cartão ainda está ativo.
+     * @return ?string conta:id ou cartao:id
+     */
+    private static function ultimaUsada(int $uid, array $contas, array $cartoes): ?string
+    {
+        $pdo = Database::connection();
+        $l = $pdo->prepare('SELECT conta_id, criado_em FROM lancamentos WHERE usuario_id = :u ORDER BY criado_em DESC, id DESC LIMIT 1');
+        $l->execute(['u' => $uid]);
+        $l = $l->fetch();
+        $c = $pdo->prepare('SELECT cartao_id, criado_em FROM cartao_compras WHERE usuario_id = :u ORDER BY criado_em DESC, id DESC LIMIT 1');
+        $c->execute(['u' => $uid]);
+        $c = $c->fetch();
+        $ativas = array_column($contas, 'id');
+        $ativos = array_column($cartoes, 'id');
+        if ($c && (!$l || (string) $c['criado_em'] > (string) $l['criado_em']) && in_array((int) $c['cartao_id'], $ativos, true)) {
+            return 'cartao:' . (int) $c['cartao_id'];
+        }
+        return $l && in_array((int) $l['conta_id'], $ativas, true) ? 'conta:' . (int) $l['conta_id'] : null;
     }
 
     /** Primeiro dia de MesModel::primeiro(), último dia de MesModel::ultimo() e a situação de $mes — 1 consulta. */

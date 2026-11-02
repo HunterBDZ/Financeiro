@@ -191,7 +191,7 @@
 
 /* no "+": "Pagou com", as vezes, a prévia; o bloco some quando é Conta (sem JS também) */
 fieldset.ct-pagou { border: 0; margin: 0 0 6px; min-width: 0; }
-.lf:has(.ct-pagou input[value="conta"]:checked) .ct-bloco { display: none; }
+.lf:has(.ct-pagou input[value^="conta"]:checked) .ct-bloco { display: none; }
 .ct-bloco { display: flex; flex-direction: column; gap: 10px; margin-bottom: 4px; }
 .ct-bloco > .lf-rot { margin: 0; }
 .ct-antiga-c { display: grid; gap: 6px; padding: 4px 0 6px; }
@@ -206,3 +206,25 @@ fieldset.ct-pagou { border: 0; margin: 0 0 6px; min-width: 0; }
 .mes-do-cartao::after { content: ""; flex: none; width: 8px; height: 8px; border-right: 2px solid var(--text-3); border-bottom: 2px solid var(--text-3);
                         transform: rotate(-45deg); transition: border-color .15s ease-out; }
 .mes-do-cartao:hover::after { border-color: var(--text); }
+
+/* várias contas ou vários cartões: "Pagou com" / "Recebeu em" com uma opção por conta e por cartão */
+.ct-pagou.is-varias { grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); }
+.ct-pagou.is-varias > legend { float: left; width: 100%; grid-column: 1 / -1; margin: 2px 4px 2px; padding: 0; }
+.ct-pagou.is-varias label { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 4px 10px; text-align: center; line-height: 1.25; overflow-wrap: anywhere; }
+.ct-pagou label[hidden] { display: none; }
+
+/* vários cartões: o seletor no topo da aba */
+.ct-cartoes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.ct-novo { color: var(--text-2); box-shadow: none; }
+
+/* pagar a fatura, dentro da fatura fechada ou vencida */
+.ct-pagar { margin-top: 14px; }
+.ct-pagar > summary { list-style: none; }
+.ct-pagar > summary::-webkit-details-marker { display: none; }
+.ct-pagar[open] > summary { margin-bottom: 12px; }
+.ct-pagar > .ct-form { padding: 14px; border-radius: 14px; background: var(--card-2); }
+
+/* estorno: a compra que volta para o cartão */
+.ct-estorno { display: flex; align-items: center; gap: 10px; min-height: var(--tap); color: var(--text); font-size: 14px; font-weight: 650; cursor: pointer; }
+.ct-estorno > input { width: 20px; height: 20px; flex: none; accent-color: var(--text); }
+.ct-antiga-c label.ct-estorno { color: var(--text); font-size: 14px; }

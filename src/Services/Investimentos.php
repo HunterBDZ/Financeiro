@@ -27,7 +27,7 @@ final class Investimentos
     private static function parte(array $p, string $hoje, int $ultimos): array
     {
         $pdo = Database::connection();
-        $ids = $pdo->prepare('SELECT nome, id FROM categorias WHERE nome IN (?, ?)');
+        $ids = $pdo->prepare('SELECT chave, id FROM categorias WHERE chave IN (?, ?)');
         $ids->execute([$p['entra'], $p['sai']]);
         $id = $ids->fetchAll(\PDO::FETCH_KEY_PAIR);
         $idEntra = isset($id[$p['entra']]) ? (int) $id[$p['entra']] : 0;

@@ -7,10 +7,20 @@
  *  · os parcelamentos, do que acaba antes para o que acaba depois; os dados do cartão.
  * Enquanto o cartão não alimenta o plano, um quadro compara a previsão digitada da Fatura do cartão
  * com a soma das parcelas lançadas, mês a mês, e oferece ligar.
- * Variáveis: $cartao (null = cadastrar), $painel, $hoje, $sel (fatura escolhida), $erro, $temCompras.
+ * Com mais de um cartão, um seletor no topo escolhe o cartão; "Novo cartão" (no menu, ou no seletor) cadastra outro.
+ * Uma fatura fechada ou vencida tem "Pagar fatura", que lança o pagamento já ligado a ela.
+ * Variáveis: $cartao (null = cadastrar), $cartoes (os ativos), $contas (as ativas, só com mais de uma), $painel,
+ * $hoje, $sel (fatura escolhida), $erro, $temCompras, $lancadoTodos (com vários cartões, a soma das faturas de todos).
  */
 $erro = is_array($erro ?? null) ? $erro : null;
 $cfg  = $cartao ?? null;
+$cartoes = $cartoes ?? [];
+$contas = $contas ?? [];
+$varios = count($cartoes) > 1;
+$urlCartao = static function (string $resto = '') use ($varios, $cfg): string {
+    $q = array_filter([$varios && $cfg !== null ? 'cartao=' . (int) $cfg['id'] : '', $resto], static fn(string $x): bool => $x !== '');
+    return '/cartao' . ($q !== [] ? '?' . implode('&', $q) : '');
+};
 $campo = static fn(string $k, string $padrao = ''): string => (string) ($erro[$k] ?? $padrao);
 $plastico = static function (string $titulo, string $sub, string $valor, string $status, array $pe, bool $vazio = false): void { ?>
     <section class="ct-plastico<?= $vazio ? ' ct-vazio-plastico' : '' ?>" aria-label="<?= e($titulo) ?>">
@@ -29,9 +39,10 @@ $plastico = static function (string $titulo, string $sub, string $valor, string 
         </div>
     </section>
 <?php };
-$formConfig = static function (?array $cfg, ?array $erro, callable $campo, bool $primeira): void { ?>
+$formConfig = static function (?array $cfg, ?array $erro, callable $campo, bool $primeira, bool $novo = false, array $contas = [], bool $comId = false): void { ?>
     <form class="ct-form" method="post" action="/cartao/config" id="cartao-config">
         <?= csrfField() ?>
+        <?php if ($novo): ?><input type="hidden" name="novo" value="1"><?php elseif ($cfg !== null && $comId): ?><input type="hidden" name="id" value="<?= (int) $cfg['id'] ?>"><?php endif; ?>
         <?php if ($erro !== null && isset($erro['msg'])): ?><p class="aviso aviso-error" role="alert"><?= e((string) $erro['msg']) ?></p><?php endif; ?>
         <label><span><?= e(t('Nome')) ?></span><input type="text" name="nome" maxlength="60" required placeholder="<?= e(t('Meu cartão')) ?>" value="<?= e($campo('nome', (string) ($cfg['nome'] ?? ''))) ?>"></label>
         <div class="ct-2">
@@ -39,6 +50,12 @@ $formConfig = static function (?array $cfg, ?array $erro, callable $campo, bool 
             <label><span><?= e(t('Vence no dia')) ?></span><input type="text" name="dia_vencimento" inputmode="numeric" maxlength="2" required placeholder="5" value="<?= e($campo('vence', isset($cfg['vence']) ? (string) $cfg['vence'] : '')) ?>"></label>
         </div>
         <label><span><?= e(t('Limite (opcional)')) ?></span><input type="text" name="limite" inputmode="decimal" placeholder="<?= e(numInput(0)) ?>" value="<?= e($campo('limite', isset($cfg['limite']) ? numInput((float) $cfg['limite']) : '')) ?>"></label>
+        <?php if ($contas !== []): ?>
+            <label><span><?= e(t('Conta que paga a fatura')) ?></span>
+                <select name="conta_id">
+                    <?php foreach ($contas as $ct): ?><option value="<?= (int) $ct['id'] ?>"<?= (int) $ct['id'] === (int) ($cfg['conta_id'] ?? 0) ? ' selected' : '' ?>><?= e(nomeConta($ct)) ?></option><?php endforeach; ?>
+                </select></label>
+        <?php endif; ?>
         <?php if ($primeira): ?>
             <p><?= e(t('Com o fechamento e o vencimento, o app sabe em que fatura cada compra cai. Depois de lançar as compras parceladas que já estão no cartão, você liga o cartão ao plano e a previsão da Fatura do cartão passa a sair delas.')) ?></p>
         <?php endif; ?>
@@ -46,14 +63,21 @@ $formConfig = static function (?array $cfg, ?array $erro, callable $campo, bool 
     </form>
 <?php };
 
-if ($cfg === null): ?>
+if ($cfg === null): $novo = $cartoes !== []; ?>
 <div class="ct">
-    <header class="ct-topo"><div><h1><?= e(t('Cartão')) ?></h1><p><?= e(t('Primeiro, conte ao app quando a fatura fecha e vence.')) ?></p></div></header>
+    <?php if ($novo): ?>
+        <header class="lf-topo ct-ed-topo">
+            <a class="lf-x lf-voltar" href="/cartao" aria-label="<?= e(t('voltar')) ?>"><?= svgIcon('chevron', 20, 'lf-seta') ?></a>
+            <h1 class="lf-titulo"><?= e(t('Novo cartão')) ?></h1>
+        </header>
+    <?php else: ?>
+        <header class="ct-topo"><div><h1><?= e(t('Cartão')) ?></h1><p><?= e(t('Primeiro, conte ao app quando a fatura fecha e vence.')) ?></p></div></header>
+    <?php endif; ?>
     <div class="ct-cima">
-        <?php $plastico(t('Fatura do mês'), t('seu cartão'), '—', '', [[t('Fecha'), t('dia —')], [t('Vence'), t('dia —')]], true); ?>
+        <?php $plastico(t('Fatura do mês'), $novo ? t('novo cartão') : t('seu cartão'), '—', '', [[t('Fecha'), t('dia —')], [t('Vence'), t('dia —')]], true); ?>
         <section class="card" aria-labelledby="ct-cad-t">
-            <h2 class="titulo" id="ct-cad-t"><?= e(t('Cadastre o cartão')) ?></h2>
-            <?php $formConfig(null, $erro, $campo, true); ?>
+            <h2 class="titulo" id="ct-cad-t"><?= $novo ? e(t('Cadastre o novo cartão')) : e(t('Cadastre o cartão')) ?></h2>
+            <?php $formConfig(null, $erro, $campo, !$novo, $novo, $contas); ?>
         </section>
     </div>
 </div>
@@ -96,19 +120,34 @@ $pe = [[t('Vence'), t('{dia} de {mes}', ['dia' => (int) substr($fAberta['vence']
 if ($p['livre'] !== null) {
     $pe[] = [t('Limite livre'), t('{livre} de {limite}', ['livre' => num((float) $p['livre']), 'limite' => num((float) $cfg['limite'])])];
 }
-$hrefLancar = '/lancar?pagou=cartao&volta=' . rawurlencode('/cartao');
+$pagouCartao = $varios ? 'cartao:' . (int) $cfg['id'] : 'cartao';
+$hrefLancar = '/lancar?pagou=' . rawurlencode($pagouCartao) . '&volta=' . rawurlencode($urlCartao());
 ?>
 <div class="ct">
     <header class="ct-topo">
-        <div><h1><?= e(t('Cartão')) ?></h1><p><?= e(t('{nome} · fecha dia {fecha} · vence dia {vence}', ['fecha' => (int) $cfg['fecha'], 'vence' => (int) $cfg['vence'], 'nome' => $cfg['nome']])) ?></p></div>
+        <div><h1><?= e(t('Cartão')) ?></h1><p><?= e(t('{nome} · fecha dia {fecha} · vence dia {vence}', ['fecha' => (int) $cfg['fecha'], 'vence' => (int) $cfg['vence'], 'nome' => $cfg['nome']])) ?></p><?php if ($varios): ?>
+            <nav class="ct-cartoes" aria-label="<?= e(t('cartões')) ?>">
+                <?php foreach ($cartoes as $c): ?>
+                    <a class="chip<?= $c['id'] === $cfg['id'] ? ' is-on' : '' ?>" href="/cartao?cartao=<?= (int) $c['id'] ?>"<?= $c['id'] === $cfg['id'] ? ' aria-current="page"' : '' ?>><?= e($c['nome']) ?></a>
+                <?php endforeach; ?>
+                <a class="chip ct-novo" href="/cartao?novo=1"><?= svgIcon('plus', 16) ?><?= e(t('Novo cartão')) ?></a>
+            </nav>
+        <?php endif; ?></div>
         <details class="menu mes-menu">
             <summary aria-label="<?= e(t('mais ações')) ?>"><?= svgIcon('more', 20) ?></summary>
             <div class="menu-painel">
                 <a class="menu-item" href="#cartao-config"><?= svgIcon('settings', 18) ?><?= e(t('Configurar o cartão')) ?></a>
                 <form method="post" action="/cartao/plano">
-                    <?= csrfField() ?><input type="hidden" name="ligar" value="<?= $cfg['alimenta_plano'] ? '0' : '1' ?>">
+                    <?= csrfField() ?><?php if ($varios): ?><input type="hidden" name="cartao" value="<?= (int) $cfg['id'] ?>"><?php endif; ?><input type="hidden" name="ligar" value="<?= $cfg['alimenta_plano'] ? '0' : '1' ?>">
                     <button type="submit" class="menu-item"><?= svgIcon('trend', 18) ?><?= $cfg['alimenta_plano'] ? e(t('Tirar do plano')) : e(t('Ligar ao plano')) ?></button>
                 </form>
+                <a class="menu-item" href="/cartao?novo=1"><?= svgIcon('plus', 18) ?><?= e(t('Novo cartão')) ?></a>
+                <?php if ($varios): ?>
+                    <form method="post" action="/cartao/arquivar" data-confirm="<?= e(t('Arquivar o cartão {nome}? As compras e os pagamentos dele continuam no Extrato e no plano.', ['nome' => $cfg['nome']])) ?>">
+                        <?= csrfField() ?><input type="hidden" name="cartao" value="<?= (int) $cfg['id'] ?>">
+                        <button type="submit" class="menu-item"><?= svgIcon('x', 18) ?><?= e(t('Arquivar o cartão')) ?></button>
+                    </form>
+                <?php endif; ?>
             </div>
         </details>
     </header>
@@ -121,14 +160,15 @@ $hrefLancar = '/lancar?pagou=cartao&volta=' . rawurlencode('/cartao');
                 <thead><tr><th scope="col"><?= e(t('Fatura')) ?></th><th scope="col"><?= e(t('Previsão de hoje')) ?></th><th scope="col"><?= e(t('Lançado no cartão')) ?></th></tr></thead>
                 <tbody>
                     <?php foreach (array_slice(array_filter($faturas, static fn($f) => $f['mes'] >= $aberta), 0, 6) as $f):
-                        $dif = abs((float) ($f['previsto'] ?? 0.0) - (float) $f['total']) >= 0.01; ?>
+                        $lancadoF = $varios ? (float) ($lancadoTodos[$f['mes']] ?? 0.0) : (float) $f['total'];
+                        $dif = abs((float) ($f['previsto'] ?? 0.0) - $lancadoF) >= 0.01; ?>
                         <tr><th scope="row"><?= e(monthLabel($f['mes'])) ?></th><td><?= e(num((float) ($f['previsto'] ?? 0.0))) ?></td>
-                            <td class="<?= $dif ? 'ct-dif' : 'ct-ok' ?>"><?= e(num((float) $f['total'])) ?><?= $dif ? '' : ' <span class="sr-only">' . e(t('(bate)')) . '</span>' ?></td></tr>
+                            <td class="<?= $dif ? 'ct-dif' : 'ct-ok' ?>"><?= e(num($lancadoF)) ?><?= $dif ? '' : ' <span class="sr-only">' . e(t('(bate)')) . '</span>' ?></td></tr>
                     <?php endforeach; ?>
                 </tbody>
             </table>
             <form method="post" action="/cartao/plano" class="ct-conf-acao">
-                <?= csrfField() ?><input type="hidden" name="ligar" value="1">
+                <?= csrfField() ?><?php if ($varios): ?><input type="hidden" name="cartao" value="<?= (int) $cfg['id'] ?>"><?php endif; ?><input type="hidden" name="ligar" value="1">
                 <button type="submit" class="btn"<?= $temCompras ? '' : ' disabled' ?>><?= e(t('Usar as faturas do cartão no plano')) ?></button>
             </form>
         </section>
@@ -145,7 +185,7 @@ $hrefLancar = '/lancar?pagou=cartao&volta=' . rawurlencode('/cartao');
                     $cls = 'ct-degrau' . ($f['status'] === 'paga' ? ' is-paga' : '') . ($f['mes'] === $aberta ? ' is-aberta' : '');
                     $ano = $j === 0 || substr($f['mes'], 5, 2) === '01' ? substr($f['mes'], 0, 4) : '';
                     ?>
-                    <a class="<?= $cls ?>" href="/cartao?fatura=<?= e($f['mes']) ?>#fatura" data-fatura="<?= e($ancora($f['mes'])) ?>"
+                    <a class="<?= $cls ?>" href="<?= e($urlCartao('fatura=' . $f['mes'])) ?>#fatura" data-fatura="<?= e($ancora($f['mes'])) ?>"
                        data-rot="<?= e(monthLabel($f['mes'])) ?>" data-v="<?= e(num($v)) ?>"<?= $f['mes'] === $selValido ? ' aria-current="true"' : '' ?>>
                         <span class="ct-degrau-barra" style="--h:<?= number_format(max(2.0, $v / $topo * 100), 1, '.', '') ?>%"></span>
                         <span><?= e(mesCurto($f['mes'])) ?></span><small><?= $ano !== '' ? e($ano) : '&nbsp;' ?></small>
@@ -159,7 +199,7 @@ $hrefLancar = '/lancar?pagou=cartao&volta=' . rawurlencode('/cartao');
     </div>
 
     <div class="ct-lado">
-        <p class="ct-lancar"><a class="btn btn-primary" href="<?= e($hrefLancar) ?>" data-lancar data-pagou="cartao"><?= svgIcon('plus', 18) ?><?= e(t('Lançar compra no cartão')) ?></a></p>
+        <p class="ct-lancar"><a class="btn btn-primary" href="<?= e($hrefLancar) ?>" data-lancar data-pagou="<?= e($pagouCartao) ?>"><?= svgIcon('plus', 18) ?><?= e(t('Lançar compra no cartão')) ?></a></p>
 
         <section class="card ct-parc-card" aria-labelledby="ct-parc-t">
             <div class="ct-parc-cab"><h2 id="ct-parc-t"><?= e(t('Parcelamentos')) ?></h2>
@@ -184,7 +224,7 @@ $hrefLancar = '/lancar?pagou=cartao&volta=' . rawurlencode('/cartao');
         <section class="card ct-dados-card" aria-labelledby="ct-dados-t">
             <details class="ct-config"<?= $erro !== null ? ' open' : '' ?>>
                 <summary><h2 class="titulo" id="ct-dados-t"><?= e($cfg['nome']) ?></h2><span class="ct-config-acao"><span class="se-fechado"><?= e(t('Configurar')) ?></span><span class="se-aberto"><?= e(t('Fechar')) ?></span></span></summary>
-                <?php $formConfig($cfg, $erro, $campo, false); ?>
+                <?php $formConfig($cfg, $erro, $campo, false, false, $contas, $varios); ?>
             </details>
             <dl class="ct-dados num">
                 <div><dt><?= e(t('Fecha')) ?></dt><dd><?= e(t('dia {n}', ['n' => (int) $cfg['fecha']])) ?></dd></div><div><dt><?= e(t('Vence')) ?></dt><dd><?= e(t('dia {n}', ['n' => (int) $cfg['vence']])) ?></dd></div>
@@ -219,6 +259,26 @@ $hrefLancar = '/lancar?pagou=cartao&volta=' . rawurlencode('/cartao');
                     <?php endforeach; ?>
                 <?php endforeach; ?>
                 <?php if ($f['itens'] !== []): ?><p class="ct-fat-total num"><span><?= e(t('Total da fatura')) ?></span><?= e(num((float) $f['total'])) ?></p><?php endif; ?>
+                <?php if (in_array($f['status'], ['fechada', 'vencida'], true) && !empty($temFatura)):
+                    $falta = $f['falta'] ?? max(0.0, (float) $f['total'] - (float) ($f['pago'] ?? 0.0)); ?>
+                    <details class="ct-pagar">
+                        <summary class="btn btn-ghost"><?= e(t('Pagar fatura')) ?></summary>
+                        <form class="ct-form" method="post" action="/cartao/pagar">
+                            <?= csrfField() ?><input type="hidden" name="cartao" value="<?= (int) $cfg['id'] ?>"><input type="hidden" name="fatura" value="<?= e($f['mes']) ?>">
+                            <div class="ct-2">
+                                <label><span><?= e(t('Valor pago')) ?></span><input type="text" name="valor" inputmode="decimal" required value="<?= $falta > 0.004 ? e(numInput($falta)) : '' ?>"></label>
+                                <label><span><?= e(t('Dia do pagamento')) ?></span><input type="date" name="data" required value="<?= e($hoje) ?>" max="<?= e($hoje) ?>"></label>
+                            </div>
+                            <?php if ($contas !== []): ?>
+                                <label><span><?= e(t('Pagou com')) ?></span>
+                                    <select name="conta_id">
+                                        <?php foreach ($contas as $ct): ?><option value="<?= (int) $ct['id'] ?>"<?= (int) $ct['id'] === (int) $cfg['conta_id'] ? ' selected' : '' ?>><?= e(nomeConta($ct)) ?></option><?php endforeach; ?>
+                                    </select></label>
+                            <?php endif; ?>
+                            <button class="btn btn-primary" type="submit"><?= e(t('Lançar o pagamento')) ?></button>
+                        </form>
+                    </details>
+                <?php endif; ?>
             </div>
         <?php endforeach; ?>
     </section>

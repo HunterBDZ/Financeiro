@@ -5,6 +5,7 @@ use Financeiro\Auth;
 use Financeiro\Database;
 use Financeiro\Models\AjusteModel;
 use Financeiro\Models\CategoriaModel;
+use Financeiro\Models\ContaModel;
 use Financeiro\Models\ContaRecorrenteModel;
 use Financeiro\Models\MesModel;
 use Financeiro\Models\PrevisaoModel;
@@ -87,6 +88,10 @@ final class ComecarController
         Site::salvarMoeda($moeda);
         Site::salvarFuso($fuso);
         foreach ($valores as $chave => $v) {
+            if ($chave === 'saldo_ini') {
+                ContaModel::saldoInicialDaUnica(round($v, 2));     // o saldo inicial do plano é a soma das contas
+                continue;
+            }
             AjusteModel::setValor($chave, round($v, 4));
         }
         Horizonte::mudarInicio($data);
@@ -103,7 +108,7 @@ final class ComecarController
         if ($v === null || $v < 0 || $dia === false) {
             self::voltarComErro(2, t('Confira os valores: use números como 1.200,50.'));
         }
-        $cat = CategoriaModel::porNome(MotorFinanceiro::CAT_SALARIO);
+        $cat = CategoriaModel::porChave(MotorFinanceiro::CAT_SALARIO);
         if ($cat !== null) {
             self::preverEmTodos((int) $cat['id'], $v, $dia);
         }

@@ -131,3 +131,18 @@
         grid-template-areas: "saldo resumo gastos" "ult conf gastos" "ult . .";
     }
 }
+
+/* várias contas: o saldo de cada uma em "Ver detalhes"; conferir pede o de cada uma */
+.saldo-contas { display: flex; flex-direction: column; margin: 6px 0 4px; color: var(--cofre-txt-2); font-size: 14px; }
+.saldo-contas > li { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 32px; }
+.saldo-contas > li + li { border-top: 1px solid rgba(255, 255, 255, .08); }
+.saldo-contas b { color: var(--cofre-txt); font-weight: 700; }
+.saldo-contas b.neg { color: var(--cofre-neg); }
+.conf-contas { display: flex; flex-direction: column; gap: 12px; }
+.conf-conta { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; }
+.conf-conta > label { color: var(--text-2); font-size: 13px; font-weight: 650; }
+.conf-app { color: var(--text-3); font-size: 12.5px; }
+.conf-dif { font-size: 13px; font-weight: 700; }
+.conf-dif:empty { display: none; }
+.conf-dif.pos { color: var(--pos); }
+.conf-dif.neg { color: var(--neg); }

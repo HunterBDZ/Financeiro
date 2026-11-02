@@ -23,7 +23,7 @@ public/      raiz do site: rotas e assets
 src/         Controllers, Models, Services e Views
 database/    schema.sqlite.sql, schema.sql, instalar.php, migrations/, migrations-sqlite/ e imagens da demonstração
 packaging/   pacotes de Linux, Windows e Mac, gerente do programa, php.ini, Caddyfile, entrada do Docker e o empacotador
-tests/       run.php, conferencia.php, regras.php e sistema.php, sem dependências; navegador/, com Playwright, só para desenvolver
+tests/       run.php, conferencia.php, regras.php e sistema.php, sem dependências; dados/, o schema da 1.10 para testar a migração; navegador/, com Playwright, só para desenvolver
 tools/       backup, atualização, importador e comparador de bancos, sprite de ícones e outros geradores
 docs/        manual de instalação, decisões e prints
 ```

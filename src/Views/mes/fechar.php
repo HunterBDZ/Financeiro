@@ -101,11 +101,16 @@ $ponteParcela = \Financeiro\Services\Sobra::ponte($sobra);
         <!-- 3: banco -->
         <section class="card fe-bloco" id="banco">
             <h2 class="fe-h"><?= e(t('Saldo no banco')) ?></h2>
+            <?php if (!empty($contasBanco)): ?>
+            <p class="fe-intro"><?= e(t('Quanto cada banco mostra em {data} (opcional)', ['data' => diaMes($dataBanco)])) ?></p>
+            <?php \Financeiro\View::partial('partials/saldos_contas', ['contas' => $contasBanco, 'digitado' => (array) ($erro['contas'] ?? []), 'pref' => 'fe', 'invalido' => $erro !== null]); ?>
+            <?php else: ?>
             <label class="campo">
                 <span><?= e(t('Quanto o banco mostra em {data} (opcional)', ['data' => diaMes($dataBanco)])) ?></span>
                 <input type="text" name="saldo" inputmode="decimal" autocomplete="off" enterkeyhint="done"
                        placeholder="<?= e(t('ex.: 1.546,00')) ?>" value="<?= e((string) ($erro['saldo'] ?? '')) ?>"<?= $erro !== null ? ' aria-invalid="true" aria-describedby="fe-erro" data-autofocus' : '' ?>>
             </label>
+            <?php endif; ?>
             <fieldset class="quando fe-quando" data-quando>
                 <legend class="sr-only"><?= e(t('data do saldo')) ?></legend>
                 <label class="chip-r"><input type="radio" name="quando" value="hoje" checked><span><?= $dataBanco === $hoje ? e(t('Hoje')) : e(diaMes($dataBanco)) ?></span></label>

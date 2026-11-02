@@ -5,6 +5,9 @@
  * $rotuloPeriodo, $valores (min/max como digitados), $erroValor, $params (filtros ativos, com mes), $limite,
  * $linhas, $totais, $filtrado, $renda (?float, só sem filtro), $urlAtual, $urlPlanilha,
  * $form (partial de lançar da coluna do desktop).
+ * Com mais de uma conta: $contas (todas, para o filtro), $conta (a filtrada, ou null), $transferencias (as do período,
+ * com ↔ e fora dos totais), $saldoConta (o saldo da conta filtrada); $nomesCartao (com mais de um cartão, o nome de
+ * cada um, para o pagamento de fatura dizer de qual cartão é).
  * A busca vale para o mês, o ano dele, todos os meses ou entre datas; "Mais filtros" tem valor e quem lançou.
  * Com filtro ou fora do mês, o topo responde com o total do que foi achado.
  */
@@ -35,14 +38,26 @@ $sufixo = $semMes !== [] ? '&' . http_build_query($semMes, '', '&', PHP_QUERY_RF
 $voltaEnc = rawurlencode($urlAtual);
 
 // agrupa por dia só quando a ordem é por dia; em valor/alfabética a lista é corrida
-// (cada linha já mostra a própria data).
+// (cada linha já mostra a própria data). As transferências entram no dia delas (ou no fim da lista corrida).
+$contas = $contas ?? [];
+$conta = $conta ?? null;
+$transferencias = $transferencias ?? [];
+$nomesCartao = $nomesCartao ?? [];
+$nomeContaDe = [];
+foreach ($contas as $c) {
+    $nomeContaDe[$c['id']] = nomeConta($c);
+}
 $dias = [];
 if ($ordem === '' || $ordem === 'dia-asc') {
     foreach ($linhas as $r) {
         $dias[$r['data']][] = $r;
     }
+    foreach ($transferencias as $tr) {
+        $dias[$tr['data']][] = ['transf' => true] + $tr;
+    }
+    $ordem === '' ? krsort($dias) : ksort($dias);
 } else {
-    $dias = $linhas === [] ? [] : ['tudo' => $linhas];
+    $dias = $linhas === [] && $transferencias === [] ? [] : ['tudo' => array_merge($linhas, array_map(static fn(array $tr): array => ['transf' => true] + $tr, $transferencias))];
 }
 $exibidas = count($linhas);
 $faltam   = max(0, (int) $totais['n'] - $exibidas);
@@ -130,10 +145,18 @@ $catAtual = $categoria !== null ? (int) $categoria['id'] : 0;
 
                 <button type="submit" class="btn btn-primary ex-busca-btn" aria-label="<?= e(t('buscar')) ?>"><?= svgIcon('search', 16) ?><span class="ex-busca-txt"><?= e(t('Buscar')) ?></span></button>
 
-                <?php $maisAberto = $valores['min'] !== '' || $valores['max'] !== '' || $quem > 0 || $erroValor !== null; ?>
+                <?php $maisAberto = $valores['min'] !== '' || $valores['max'] !== '' || $quem > 0 || $erroValor !== null || $conta !== null; ?>
                 <details class="ex-mais-filtros"<?= $maisAberto ? ' open' : '' ?>>
-                    <summary><?= e(t('Mais filtros: valor e quem lançou')) ?></summary>
+                    <summary><?= $contas !== [] ? e(t('Mais filtros: conta, valor e quem lançou')) : e(t('Mais filtros: valor e quem lançou')) ?></summary>
                     <div class="ex-mais-c">
+                        <?php if ($contas !== []): ?>
+                            <label class="ex-campo ex-campo-conta"><span><?= e(t('Conta')) ?></span>
+                                <select name="conta">
+                                    <option value=""><?= e(t('Todas as contas')) ?></option>
+                                    <?php foreach ($contas as $c): ?><option value="<?= (int) $c['id'] ?>"<?= $conta !== null && $c['id'] === $conta['id'] ? ' selected' : '' ?>><?= e(nomeConta($c)) ?></option><?php endforeach; ?>
+                                </select>
+                            </label>
+                        <?php endif; ?>
                         <label class="ex-campo"><span><?= e(t('Valor mínimo')) ?></span><input type="text" name="min" inputmode="decimal" autocomplete="off" placeholder="<?= e(numInput(0)) ?>" value="<?= e($valores['min']) ?>"<?= $erroValor !== null ? ' aria-describedby="ex-erro-valor"' : '' ?>></label>
                         <label class="ex-campo"><span><?= e(t('Valor máximo')) ?></span><input type="text" name="max" inputmode="decimal" autocomplete="off" placeholder="<?= e(numInput(0)) ?>" value="<?= e($valores['max']) ?>"<?= $erroValor !== null ? ' aria-describedby="ex-erro-valor"' : '' ?>></label>
                         <?php if (count($usuarios) > 1): ?>
@@ -154,6 +177,9 @@ $catAtual = $categoria !== null ? (int) $categoria['id'] : 0;
                     <?php if ($q !== ''): ?>
                         <a class="chip is-on ex-chip-x" href="<?= e($url(['q' => ''])) ?>" aria-label="<?= e(t('tirar busca')) ?>">“<?= e($q) ?>” <span aria-hidden="true">×</span></a>
                     <?php endif; ?>
+                    <?php if ($conta !== null): ?>
+                        <a class="chip is-on ex-chip-x" href="<?= e($url(['conta' => ''])) ?>" aria-label="<?= e(t('tirar filtro {nome}', ['nome' => nomeConta($conta)])) ?>"><?= e(nomeConta($conta)) ?> <span aria-hidden="true">×</span></a>
+                    <?php endif; ?>
                     <?php if ($categoria !== null): ?>
                         <a class="chip is-on ex-chip-x" href="<?= e($url(['cat' => ''])) ?>" aria-label="<?= e(t('tirar filtro {nome}', ['nome' => nomeCurto($categoria)])) ?>"><?= e(nomeCurto($categoria)) ?> <span aria-hidden="true">×</span></a>
                     <?php endif; ?>
@@ -163,12 +189,15 @@ $catAtual = $categoria !== null ? (int) $categoria['id'] : 0;
                     <?php foreach ($usuarios as $u): if ($quem > 0 && (int) $u['id'] === $quem): ?>
                         <a class="chip is-on ex-chip-x" href="<?= e($url(['quem' => ''])) ?>" aria-label="<?= e(t('tirar filtro {nome}', ['nome' => (string) $u['nome']])) ?>"><?= e((string) $u['nome']) ?> <span aria-hidden="true">×</span></a>
                     <?php endif; endforeach; ?>
-                    <a class="ex-limpar" href="<?= e($url(['f' => '', 'cat' => '', 'q' => '', 'min' => '', 'max' => '', 'quem' => '', 'periodo' => '', 'de' => '', 'ate' => ''])) ?>"><?= e(t('Limpar filtros')) ?></a>
+                    <a class="ex-limpar" href="<?= e($url(['f' => '', 'cat' => '', 'conta' => '', 'q' => '', 'min' => '', 'max' => '', 'quem' => '', 'periodo' => '', 'de' => '', 'ate' => ''])) ?>"><?= e(t('Limpar filtros')) ?></a>
                 </div>
             <?php endif; ?>
         </div>
 
-        <?php if ($linhas === []): ?>
+        <?php if (!empty($saldoConta)): ?>
+            <p class="ex-saldo-conta num"><?= t('Saldo de {conta} em {data}: {valor}', ['conta' => e(nomeConta($saldoConta['conta'])), 'data' => e(diaMes($saldoConta['data'])), 'valor' => '<b class="' . ($saldoConta['valor'] < -0.004 ? 'neg' : '') . '">' . e(money($saldoConta['valor'])) . '</b>']) ?></p>
+        <?php endif; ?>
+        <?php if ($linhas === [] && $transferencias === []): ?>
             <div class="card ex-vazio">
                 <?php if ($modo !== '' || $valores['min'] !== '' || $valores['max'] !== '' || $quem > 0): ?>
                     <p><?= e(t('Nada encontrado com esses filtros em {periodo}.', ['periodo' => $rotuloPeriodo])) ?></p>
@@ -214,6 +243,17 @@ $catAtual = $categoria !== null ? (int) $categoria['id'] : 0;
                     <?php if ($agrupado): ?><h2 class="ex-dia"><?= e($rotuloDia((string) $data)) ?></h2><?php endif; ?>
                     <ul class="lista">
                         <?php foreach ($rows as $r): ?>
+                            <?php if (!empty($r['transf'])):
+                                $de = (int) $r['de_conta_id'];
+                                $para = (int) $r['para_conta_id'];
+                                $sinalT = $conta === null ? '' : ($conta['id'] === $para ? '+' : MENOS);
+                                $quandoT = $agrupado ? '' : ', ' . \Financeiro\Idioma::diaSemana((int) date('w', strtotime($r['data']))) . ' ' . diaMes($r['data']); ?>
+                                <li><a class="lista-i ex-linha ex-transf" href="/transferencias/<?= (int) $r['id'] ?>/editar?volta=<?= e($voltaEnc) ?>">
+                                    <span class="ex-transf-ic" aria-hidden="true">↔</span>
+                                    <span class="lista-n"><b><?= e(trim((string) $r['descricao']) !== '' ? (string) $r['descricao'] : t('Transferência')) ?></b><small><?= e(t('De {de} para {para}', ['de' => $nomeContaDe[$de] ?? '', 'para' => $nomeContaDe[$para] ?? '']) . $quandoT) ?></small></span>
+                                    <span class="lista-v"><b class="num ex-v-mov">↔ <?= e($sinalT . num((float) $r['valor'])) ?></b><small class="ex-mov"><?= e(t('Transferência')) ?></small><?php if ($r['data'] > $hoje): ?><small class="ex-agendado"><?= e(t('agendado')) ?></small><?php endif; ?></span>
+                                </a></li>
+                            <?php continue; endif; ?>
                             <?php
                             $mov = (int) $r['operacional'] !== 1;
                             $ent = !$mov && (int) $r['sinal'] > 0;
@@ -225,7 +265,7 @@ $catAtual = $categoria !== null ? (int) $categoria['id'] : 0;
                             <?php $desc = descricaoTela(trim((string) $r['descricao']), $cat); $rot = $desc !== '' ? $desc : nomeCurto($cat); ?>
                             <li><a class="lista-i ex-linha" href="/lancamentos/<?= (int) $r['id'] ?>/editar?volta=<?= e($voltaEnc) ?>"<?= $i === $limite - 60 && $i > 0 ? ' id="ex-r' . $i . '"' : '' ?>>
                                 <?= iconeCategoria((int) $r['categoria_id'], (string) $r['categoria_nome'], (string) $r['grupo'], 40) ?>
-                                <span class="lista-n"><b><?= e($rot) ?></b><?php $mesmoNome = mb_strtolower($rot) === mb_strtolower(nomeCurto($cat)); $quando = $agrupado ? '' : \Financeiro\Idioma::diaSemana((int) date('w', strtotime($r['data']))) . ' ' . diaMes($r['data']); $sub = implode(', ', array_filter([$mesmoNome ? '' : nomeCurto($cat), $quando])); ?><?php if ($sub !== ''): ?><small><?= e($sub) ?></small><?php endif; ?></span>
+                                <span class="lista-n"><b><?= e($rot) ?></b><?php $mesmoNome = mb_strtolower($rot) === mb_strtolower(nomeCurto($cat)); $quando = $agrupado ? '' : \Financeiro\Idioma::diaSemana((int) date('w', strtotime($r['data']))) . ' ' . diaMes($r['data']); $sub = implode(', ', array_filter([$mesmoNome ? '' : nomeCurto($cat), isset($r['cartao_id'], $nomesCartao[(int) $r['cartao_id']]) ? $nomesCartao[(int) $r['cartao_id']] : '', $contas !== [] && $conta === null ? ($nomeContaDe[(int) $r['conta_id']] ?? '') : '', $quando])); ?><?php if ($sub !== ''): ?><small><?= e($sub) ?></small><?php endif; ?></span>
                                 <span class="lista-v"><b class="num <?= $cls ?>"><?= e($txt) ?></b><?php if ($mov): ?><small class="ex-mov"><?= e(t('Movimentação')) ?></small><?php endif; ?><?php if ($r['data'] > $hoje): ?><small class="ex-agendado"><?= e(t('agendado')) ?></small><?php endif; ?></span>
                             </a></li>
                             <?php $i++; ?>

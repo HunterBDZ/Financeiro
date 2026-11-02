@@ -3,39 +3,61 @@ namespace Financeiro\Models;
 
 use Financeiro\Database;
 
-/** Conferências do saldo com o banco. */
+/**
+ * Conferências do saldo com o banco. conta_id NULL = o total, como as de antes da 2.0 e as de quem tem uma conta só;
+ * com várias contas, cada conta é conferida com o extrato dela.
+ */
 final class SaldoConferenciaModel
 {
-    /** A conferência mais recente (maior data; empate = a última registrada), ou null. */
+    /** A conferência do total mais recente (maior data; empate = a última registrada), ou null. */
     public static function ultima(): ?array
     {
         $pdo = Database::connection();
         $stmt = $pdo->query(
-            'SELECT sc.id, sc.data, sc.saldo_informado, sc.criado_em, u.nome AS usuario_nome
+            'SELECT sc.id, sc.data, sc.saldo_informado, sc.criado_em, sc.conta_id, u.nome AS usuario_nome
              FROM saldo_conferencias sc
              JOIN usuarios u ON u.id = sc.usuario_id
+             WHERE sc.conta_id IS NULL
              ORDER BY sc.data DESC, sc.id DESC
              LIMIT 1'
         );
         return $stmt->fetch() ?: null;
     }
 
-    /** Uma conferência por dia: registrar de novo no mesmo dia substitui a anterior. */
-    public static function registrar(string $data, float $saldoInformado, int $usuarioId): void
+    /**
+     * A conferência mais recente de cada conta.
+     * @return array<int, array> conta_id => conferência
+     */
+    public static function ultimasPorConta(): array
+    {
+        $out = [];
+        $rows = Database::connection()->query(
+            'SELECT sc.id, sc.data, sc.saldo_informado, sc.criado_em, sc.conta_id
+             FROM saldo_conferencias sc WHERE sc.conta_id IS NOT NULL ORDER BY sc.data DESC, sc.id DESC'
+        )->fetchAll();
+        foreach ($rows as $r) {
+            $out[(int) $r['conta_id']] ??= $r;
+        }
+        return $out;
+    }
+
+    /** Uma conferência por dia (e por conta): registrar de novo no mesmo dia substitui a anterior. */
+    public static function registrar(string $data, float $saldoInformado, int $usuarioId, ?int $contaId = null): void
     {
         $pdo = Database::connection();
-        $pdo->prepare('DELETE FROM saldo_conferencias WHERE data = :data')->execute(['data' => $data]);
+        $pdo->prepare('DELETE FROM saldo_conferencias WHERE data = :data AND conta_id IS :conta')->execute(['data' => $data, 'conta' => $contaId]);
         $stmt = $pdo->prepare(
-            'INSERT INTO saldo_conferencias (data, saldo_informado, usuario_id)
-             VALUES (:data, :saldo, :usuario_id)'
+            'INSERT INTO saldo_conferencias (data, saldo_informado, usuario_id, conta_id)
+             VALUES (:data, :saldo, :usuario_id, :conta)'
         );
-        $stmt->execute(['data' => $data, 'saldo' => $saldoInformado, 'usuario_id' => $usuarioId]);
+        $stmt->execute(['data' => $data, 'saldo' => $saldoInformado, 'usuario_id' => $usuarioId, 'conta' => $contaId]);
     }
 
     /**
      * "Agendado" da conferência (D10, invariante 16): Σ sinal·valor dos lançamentos com data
      * DEPOIS da conferência que JÁ estavam registrados quando ela foi feita — o débito
-     * agendado que o banco pode (ou não) já ter descontado do saldo mostrado.
+     * agendado que o banco pode (ou não) já ter descontado do saldo mostrado. Numa conferência de
+     * uma conta, só os lançamentos dela.
      */
     public static function agendadoNa(array $conferencia): float
     {
@@ -47,13 +69,14 @@ final class SaldoConferenciaModel
         if ($data === '' || $criado === '' || $data < substr($criado, 0, 10)) {
             return 0.0;
         }
+        $conta = isset($conferencia['conta_id']) ? (int) $conferencia['conta_id'] : null;
         $stmt = Database::connection()->prepare(
             'SELECT COALESCE(SUM(l.valor * c.sinal), 0)
              FROM lancamentos l
              JOIN categorias c ON c.id = l.categoria_id
-             WHERE l.data > :data AND l.criado_em <= :criado'
+             WHERE l.data > :data AND l.criado_em <= :criado' . ($conta !== null ? ' AND l.conta_id = :conta' : '')
         );
-        $stmt->execute(['data' => $data, 'criado' => $criado]);
+        $stmt->execute(['data' => $data, 'criado' => $criado] + ($conta !== null ? ['conta' => $conta] : []));
         return round((float) $stmt->fetchColumn(), 2);
     }
 }
