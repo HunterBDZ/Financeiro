@@ -653,14 +653,16 @@ if ($prevMeses !== [] && $catDia > 0) {
         $pdo->prepare('DELETE FROM previsao WHERE categoria_id = :c AND mes = :m')->execute(['c' => $catDia, 'm' => $mC]);
         MetaModel::definir($catDia, 222.0);
         MotorFinanceiro::limparCache();
+        // numa conta nova, o primeiro mês é parcial: a meta vale proporcional aos dias que restam
+        $metaDoMes = (float) (MotorFinanceiro::dados()['prev'][$mC][$catDia] ?? 222.0);
         $lote = PrevisaoLote::congelar($mC, $uid);
-        $check('congelar grava a meta como linha do mês', $lote !== null && abs((float) $linhaCrua($catDia, $mC) - 222.0) < 0.001);
+        $check('congelar grava a meta como linha do mês', $lote !== null && abs((float) $linhaCrua($catDia, $mC) - $metaDoMes) < 0.001);
         $ult = PrevisaoLote::ultimoDesfazivel();
         $check('congelamento fica fora do "desfazer última alteração"', $ult === null || $ult['lote'] !== $lote);
         MesModel::setSituacao($mC, 'REAL');
         MetaModel::definir($catDia, 333.0);
         MotorFinanceiro::limparCache();
-        $check('mês fechado não muda quando a meta muda', abs(PrevisaoModel::valor($catDia, $mC) - 222.0) < 0.001);
+        $check('mês fechado não muda quando a meta muda', abs(PrevisaoModel::valor($catDia, $mC) - $metaDoMes) < 0.001);
         MesModel::setSituacao($mC, 'PREVISAO');
         PrevisaoLote::descongelar($mC, $uid);
         MotorFinanceiro::limparCache();

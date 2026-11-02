@@ -73,7 +73,7 @@ function gerenteAmbiente(array $lugar, string $sistema = PHP_OS_FAMILY): array
 {
     $bin = gerenteBinarios($lugar['programa'], $sistema);
     $env = array_filter(getenv(), 'is_string');
-    unset($env['FIN_SEMENTE']);
+    unset($env['FIN_SEMENTE'], $env['PHPRC'], $env['PHP_INI_SCAN_DIR']);
     $env['FIN_DADOS'] = $lugar['dados'];
     $env['FIN_PORTA'] = (string) $lugar['porta'];
     $env['FIN_APP'] = str_replace('\\', '/', $lugar['programa'] . '/app');

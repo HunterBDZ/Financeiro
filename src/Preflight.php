@@ -44,7 +44,7 @@ final class Preflight
         $local = Rede::requisicaoLocal();
         $config = Paths::dados() !== null || !$portatil ? Paths::config() : null;
         if ($config !== null && is_file($config) && !is_readable($config)) {
-            $out[] = $local ? t('Não consegui ler a configuração em {caminho}.', ['caminho' => $config]) : t('Não consegui ler a configuração.');
+            $out[] = $local ? t('Não consegui ler a configuração em {caminho}.', ['caminho' => Paths::paraMostrar($config)]) : t('Não consegui ler a configuração.');
         }
         if ($portatil || $driver === 'sqlite') {
             $dados = Paths::dados();
@@ -53,7 +53,7 @@ final class Preflight
                     $out[] = t('Não achei uma pasta para guardar os dados. Defina a variável FIN_DADOS.');
                 }
             } elseif (!self::pastaGravavel($dados)) {
-                $out[] = $local ? t('Não consigo gravar na pasta de dados {caminho}.', ['caminho' => $dados]) : t('Não consigo gravar na pasta de dados.');
+                $out[] = $local ? t('Não consigo gravar na pasta de dados {caminho}.', ['caminho' => Paths::paraMostrar($dados)]) : t('Não consigo gravar na pasta de dados.');
             }
         }
         // só antes de o banco existir: a cada página, seria uma conexão a mais à toa

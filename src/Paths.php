@@ -57,6 +57,12 @@ final class Paths
         return (bool) preg_match('~^(/|\\\\|[A-Za-z]:[/\\\\])~', $caminho);
     }
 
+    /** O caminho como a pessoa o vê no sistema dela. */
+    public static function paraMostrar(string $caminho): string
+    {
+        return PHP_OS_FAMILY === 'Windows' ? str_replace('/', '\\', $caminho) : $caminho;
+    }
+
     /** Renomeia. No Windows, um antivírus ou uma página em andamento podem segurar o arquivo por instantes: espera. */
     public static function renomear(string $de, string $para, int $segundos = 30): bool
     {

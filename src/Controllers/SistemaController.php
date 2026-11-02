@@ -52,7 +52,7 @@ final class SistemaController
             'nomeAdministrador' => (string) (UsuarioModel::find((int) UsuarioModel::administradorId())['nome'] ?? ''),
             'tipo' => Atualizacao::tipo(), 'versao' => Atualizacao::versaoAtual(), 'estado' => $estado, 'consulta' => is_array($consulta) ? $consulta : null,
             'backupDisponivel' => Backup::disponivel(), 'backups' => array_map(static fn(array $b): array => ['rotulo' => self::rotuloBackup($b, $motivos)] + $b, $backups),
-            'pastaBackups' => Backup::disponivel() && Rede::requisicaoLocal() ? Backup::pasta() : null,
+            'pastaBackups' => Backup::disponivel() && Rede::requisicaoLocal() ? Paths::paraMostrar(Backup::pasta()) : null,
             'limiteEnvio' => self::limiteEnvio(),
         ], 'ajustes');
 
