@@ -2912,7 +2912,8 @@ $emTransacao('barra com o valor do mês', static function () use ($pdo, $check, 
     MotorFinanceiro::limparCache();
     preg_match('#id="cat-' . $catB . '".*?</details>#s', $render(MesController::class, 'index', ['mes' => $mesB]), $mB2);
     $check('Mês: 750 de 800 (o valor do mês, não a meta de 1.000) fica "Na meta"', str_contains($mB2[0] ?? '', 'Na meta'), substr($mB2[0] ?? '', 0, 400));
-    $check('Mês: valor próprio zero e nada gasto, sem situação de meta', ($mZ[0] ?? '') !== '' && !str_contains($mZ[0], 'da meta') && !str_contains($mZ[0], 'Na meta'), substr($mZ[0] ?? '', 0, 300));
+    $check('Mês: sem previsão no mês e sem gasto, a categoria sai da lista e fica em "Incluir"', ($mZ[0] ?? '') === ''
+        && preg_match('#<details class="mes-incluir".*?value="' . $catZ . '"#s', $html) === 1);
 });
 
 // ---- categoria fixa (conta) ou que varia (com meta); ordenar a fatura e os parcelamentos

@@ -2,6 +2,10 @@
 
 Cada versão publicada é uma tag `vX.Y.Z` deste repositório. Pacotes atualizam em Ajustes, em Backup e atualização; servidores, com `sudo financeiro-atualizar`.
 
+## 1.11.7
+
+- **Mês:** só aparecem os gastos com meta ou com valor previsto no mês, mesmo sem nada lançado, e os que tiveram lançamento no mês. Uma categoria sem meta, sem previsão e sem gasto fica fora da lista. Para trazê-la para um mês, use "Incluir categoria".
+
 ## 1.11.6
 
 - **Mês:** a linha "Saldo do mês anterior" ganhou o traço que separa as linhas, como as outras.

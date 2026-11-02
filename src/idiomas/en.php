@@ -1890,4 +1890,5 @@ return [
     'Saldo do mês anterior' => 'Previous month balance',
     'meta {valor}' => 'goal {valor}',
     'Saídas previstas' => 'Expected outflows',
+    'Incluir categoria em {mes}' => 'Include category in {mes}',
 ];
