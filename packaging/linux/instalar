@@ -55,7 +55,7 @@ cat > "$HOME/.local/share/applications/financeiro.desktop" <<DESKTOP
 Type=Application
 Name=Financeiro
 Comment=Controle o dinheiro da sua casa
-Exec=$DESTINO/financeiro
+Exec="$DESTINO/financeiro"
 Icon=$DESTINO/app/public/assets/img/marca.svg
 Terminal=false
 Categories=Office;Finance;
@@ -69,7 +69,7 @@ if command -v systemctl >/dev/null 2>&1 && systemctl --user show-environment >/d
 Description=Financeiro
 
 [Service]
-ExecStart=$DESTINO/financeiro servir
+ExecStart="$DESTINO/financeiro" servir
 Restart=always
 RestartSec=2
 
