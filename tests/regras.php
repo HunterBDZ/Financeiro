@@ -388,8 +388,8 @@ if ($mesMeta === null) {
     try {
         (new MesController())->index();
         $html = (string) ob_get_clean();
-        $check('meta pinta a barra no mês', str_contains($html, 'meta-barra') && str_contains($html, 'fora-meta'),
-            'sem meta-barra/fora-meta no HTML');
+        $check('meta pinta a barra no mês', str_contains($html, 'Acima da meta') && str_contains($html, 'fora-meta'),
+            'sem "Acima da meta" no HTML');
     } catch (\Throwable $e) {
         ob_end_clean();
         $check('meta pinta a barra no mês', false, get_class($e) . ': ' . $e->getMessage());
@@ -2889,6 +2889,7 @@ if (Sql::sqlite()) {
     });
 }
 // ---- Mês: com valor próprio no mês, a barra compara com ele, não com a meta de todo mês
+// ---- Mês: com valor próprio no mês, a situação (abaixo, na meta, acima) compara com ele, não com a meta de todo mês
 $emTransacao('barra com o valor do mês', static function () use ($pdo, $check, $render): void {
     $mesB = \Financeiro\Relogio::mes();
     $pdo->exec("INSERT INTO categorias (nome, grupo, sinal, ativo, ordem, essencial) VALUES ('Teste barra do mês', 'Dia a dia', -1, 1, 998, 1)");
@@ -2903,8 +2904,31 @@ $emTransacao('barra com o valor do mês', static function () use ($pdo, $check, 
     $html = $render(MesController::class, 'index', ['mes' => $mesB]);
     preg_match('#id="cat-' . $catB . '".*?</details>#s', $html, $mB);
     preg_match('#id="cat-' . $catZ . '".*?</details>#s', $html, $mZ);
-    $check('Mês: com valor próprio, a barra diz "de 800,00", não a meta de todo mês', str_contains($mB[0] ?? '', '0,00 de 800,00') && !str_contains($mB[0] ?? '', 'de 1.000,00'), substr($mB[0] ?? '', 0, 400));
-    $check('Mês: valor próprio zero e nada gasto, sem barra', ($mZ[0] ?? '') !== '' && !str_contains($mZ[0], 'meta-barra'), substr($mZ[0] ?? '', 0, 300));
+    $check('Mês: com valor próprio e nada gasto, "Abaixo da meta"', str_contains($mB[0] ?? '', 'Abaixo da meta'), substr($mB[0] ?? '', 0, 400));
+    LancamentoModel::criar(\Financeiro\Relogio::hoje(), 'teste barra', $catB, 750.0, (int) $pdo->query('SELECT MIN(id) FROM usuarios')->fetchColumn());
+    MotorFinanceiro::limparCache();
+    preg_match('#id="cat-' . $catB . '".*?</details>#s', $render(MesController::class, 'index', ['mes' => $mesB]), $mB2);
+    $check('Mês: 750 de 800 (o valor do mês, não a meta de 1.000) fica "Na meta"', str_contains($mB2[0] ?? '', 'Na meta'), substr($mB2[0] ?? '', 0, 400));
+    $check('Mês: valor próprio zero e nada gasto, sem situação de meta', ($mZ[0] ?? '') !== '' && !str_contains($mZ[0], 'da meta') && !str_contains($mZ[0], 'Na meta'), substr($mZ[0] ?? '', 0, 300));
+});
+
+// ---- categoria fixa (conta) ou que varia (com meta); ordenar a fatura e os parcelamentos
+$emTransacao('categoria fixa e ordem do cartão', static function () use ($pdo, $check, $render): void {
+    $idF = CategoriaModel::criar('Teste conta fixa', 'saida', true, null, true);
+    $idV = CategoriaModel::criar('Teste gasto que varia', 'saida', false, null, false);
+    $grupoDe = static fn(?int $id): string => (string) $pdo->query('SELECT grupo FROM categorias WHERE id = ' . (int) $id)->fetchColumn();
+    $check('categoria: fixa vira conta (Fixos), a que varia fica no dia a dia', $grupoDe($idF) === 'Fixos' && $grupoDe($idV) === 'Dia a dia');
+    $html = $render(CartaoController::class, 'index', ['ordem' => 'alfa']);
+    if (preg_match('#<div class="ct-fat" id="[^"]*">(.*?)</div>\s*(?:<div class="ct-fat"|</section>)#s', $html, $mF) === 1) {
+        preg_match_all('#<span class="ct-linha-n"><b>([^<]+)</b>#', $mF[1], $nm);
+        $nomes = array_map(static fn(string $n): string => mb_strtolower(html_entity_decode($n)), $nm[1]);
+        $ord = $nomes;
+        sort($ord, SORT_LOCALE_STRING);
+        $check('cartão: "De A a Z" ordena a fatura', count($nomes) < 2 || $nomes === $ord, json_encode($nomes));
+    } else {
+        $check('cartão: "De A a Z" ordena a fatura', !str_contains($html, 'ct-linha-n'), 'fatura não achada');
+    }
+    $check('cartão: os seletores de ordem estão na tela', !str_contains($html, 'ct-fat') || (str_contains($html, 'name="ordem"') && str_contains($html, 'De A a Z')));
 });
 
 echo "\n{$ok} ok, {$falhas} falha(s)\n";

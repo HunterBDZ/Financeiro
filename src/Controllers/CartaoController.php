@@ -57,6 +57,9 @@ final class CartaoController
             'pageTitle' => t('cartão · financeiro'), 'cartao' => $cartao, 'painel' => $painel, 'hoje' => $hoje,
             'sel' => $sel, 'erro' => $erro, 'temCompras' => $compras !== [], 'cartoes' => $cartoes, 'contas' => $contas,
             'lancadoTodos' => $lancadoTodos, 'temFatura' => $cat !== null,
+            // como ordenar a lista da fatura e a dos parcelamentos (como no Extrato); '' = o padrão de cada uma
+            'ordem' => in_array($_GET['ordem'] ?? '', ['valor-asc', 'alfa', 'parcelas-desc', 'parcelas-asc'], true) ? (string) $_GET['ordem'] : '',
+            'ordemp' => in_array($_GET['ordemp'] ?? '', ['valor-desc', 'valor-asc', 'alfa', 'faltam-desc'], true) ? (string) $_GET['ordemp'] : '',
         ], 'cartao');
     }
 

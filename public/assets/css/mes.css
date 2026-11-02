@@ -83,6 +83,7 @@ details.mes-ed:target > summary { animation: mes-realce 1.6s ease-out 1; }   /* 
 .mes-status-vence { color: var(--warn); }
 .mes-status-venceu { color: var(--neg); }
 .mes-status-previsto { color: var(--text-3); }
+.mes-status-data { color: var(--text-3); white-space: nowrap; }
 .mes-status-previsto::before { background: transparent; box-shadow: inset 0 0 0 1.4px currentColor; }
 
 /* barra da meta do mês */

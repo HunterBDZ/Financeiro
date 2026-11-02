@@ -228,3 +228,8 @@ fieldset.ct-pagou { border: 0; margin: 0 0 6px; min-width: 0; }
 .ct-estorno { display: flex; align-items: center; gap: 10px; min-height: var(--tap); color: var(--text); font-size: 14px; font-weight: 650; cursor: pointer; }
 .ct-estorno > input { width: 20px; height: 20px; flex: none; accent-color: var(--text); }
 .ct-antiga-c label.ct-estorno { color: var(--text); font-size: 14px; }
+
+/* ordenar a fatura e os parcelamentos, como no Extrato */
+.ct-ordem { display: flex; justify-content: flex-end; margin: 6px 0 4px; }
+.ct-ordem select { width: auto; min-width: 0; padding-left: 12px; padding-right: 34px; background-position: right 12px center; font-size: 14px; }
+.ct-ordem-fat { margin: 0 0 6px; }

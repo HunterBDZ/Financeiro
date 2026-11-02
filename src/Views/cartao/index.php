@@ -214,9 +214,28 @@ $hrefLancar = '/lancar?pagou=' . rawurlencode($pagouCartao) . '&volta=' . rawurl
             </div>
             <?php if ($p['parcelamentos'] === []): ?>
                 <p class="ct-escada-sub" style="margin-top:8px"><?= e(t('Nenhuma compra parcelada ainda. Compras parceladas aparecem aqui quando você as registra.')) ?></p>
-            <?php else: ?>
+            <?php else:
+                $listaP = $p['parcelamentos'];
+                $nomeP = static fn(array $x): string => mb_strtolower((string) $x['compra']['descricao']);
+                match ($ordemp ?? '') {
+                    'valor-desc'  => usort($listaP, static fn($a, $b) => $b['valor'] <=> $a['valor']),
+                    'valor-asc'   => usort($listaP, static fn($a, $b) => $a['valor'] <=> $b['valor']),
+                    'alfa'        => usort($listaP, static fn($a, $b) => strcoll($nomeP($a), $nomeP($b))),
+                    'faltam-desc' => usort($listaP, static fn($a, $b) => [$b['faltam'], $b['restante']] <=> [$a['faltam'], $a['restante']]),
+                    default       => null,                          // o padrão: a que acaba antes
+                };
+                $ordem = $ordem ?? ''; ?>
+                <form class="ct-ordem" method="get" action="/cartao#ct-parc-t">
+                    <?php foreach (array_filter(['cartao' => is_string($_GET['cartao'] ?? null) ? $_GET['cartao'] : '', 'fatura' => $selValido, 'ordem' => $ordem]) as $k => $v): ?><input type="hidden" name="<?= e($k) ?>" value="<?= e($v) ?>"><?php endforeach; ?>
+                    <select name="ordemp" aria-label="<?= e(t('ordenar os parcelamentos')) ?>" data-autosubmit>
+                        <?php foreach (['' => t('Acaba antes'), 'faltam-desc' => t('Mais parcelas faltando'), 'valor-desc' => t('Maior parcela'), 'valor-asc' => t('Menor parcela'), 'alfa' => t('De A a Z')] as $ov => $olbl): ?>
+                            <option value="<?= e($ov) ?>"<?= ($ordemp ?? '') === $ov ? ' selected' : '' ?>><?= e($olbl) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <noscript><button type="submit" class="btn btn-ghost"><?= e(t('Ordenar')) ?></button></noscript>
+                </form>
                 <ul class="ct-parc">
-                    <?php foreach ($p['parcelamentos'] as $pc): $c = $pc['compra']; ?>
+                    <?php foreach ($listaP as $pc): $c = $pc['compra']; ?>
                         <li><a class="ct-parc-i" href="/cartao/compras/<?= (int) $c['id'] ?>/editar">
                             <?= iconeCategoria((int) ($c['categoria_id'] ?? 0), (string) ($c['categoria_nome'] ?? $c['descricao']), (string) ($c['categoria_grupo'] ?? ''), 40) ?>
                             <span class="ct-parc-l1"><span><?= e(descricaoTela((string) $c['descricao'], ['nome' => $c['categoria_nome'] ?? '', 'apelido' => $c['categoria_apelido'] ?? ''])) ?></span><span class="num"><?= e(num((float) $pc['valor'])) ?></span></span>
@@ -243,9 +262,31 @@ $hrefLancar = '/lancar?pagou=' . rawurlencode($pagouCartao) . '&volta=' . rawurl
     </div>
 
     <section class="card ct-fatura" id="fatura" aria-label="<?= e(t('fatura escolhida')) ?>">
+        <?php $ordem = $ordem ?? ''; ?>
+        <form class="ct-ordem ct-ordem-fat" method="get" action="/cartao#fatura">
+            <?php foreach (array_filter(['cartao' => is_string($_GET['cartao'] ?? null) ? $_GET['cartao'] : '', 'fatura' => $selValido, 'ordemp' => $ordemp ?? '']) as $k => $v): ?><input type="hidden" name="<?= e($k) ?>" value="<?= e($v) ?>"><?php endforeach; ?>
+            <select name="ordem" aria-label="<?= e(t('ordenar a fatura')) ?>" data-autosubmit>
+                <?php foreach (['' => t('Maior valor'), 'valor-asc' => t('Menor valor'), 'alfa' => t('De A a Z'), 'parcelas-desc' => t('Mais parcelas'), 'parcelas-asc' => t('Menos parcelas')] as $ov => $olbl): ?>
+                    <option value="<?= e($ov) ?>"<?= $ordem === $ov ? ' selected' : '' ?>><?= e($olbl) ?></option>
+                <?php endforeach; ?>
+            </select>
+            <noscript><button type="submit" class="btn btn-ghost"><?= e(t('Ordenar')) ?></button></noscript>
+        </form>
         <?php foreach ($faturas as $f):
-            $parcs = array_values(array_filter($f['itens'], static fn($it) => (int) $it['compra']['parcelas'] > 1));
-            $avista = array_values(array_filter($f['itens'], static fn($it) => (int) $it['compra']['parcelas'] === 1));
+            $itensF = $f['itens'];
+            $nomeF = static fn(array $x): string => mb_strtolower((string) $x['compra']['descricao']);
+            match ($ordem) {
+                'valor-asc'     => usort($itensF, static fn($a, $b) => $a['valor'] <=> $b['valor']),
+                'alfa'          => usort($itensF, static fn($a, $b) => strcoll($nomeF($a), $nomeF($b))),
+                'parcelas-desc' => usort($itensF, static fn($a, $b) => [(int) $b['compra']['parcelas'], $b['valor']] <=> [(int) $a['compra']['parcelas'], $a['valor']]),
+                'parcelas-asc'  => usort($itensF, static fn($a, $b) => [(int) $a['compra']['parcelas'], $b['valor']] <=> [(int) $b['compra']['parcelas'], $a['valor']]),
+                default         => null,
+            };
+            // no padrão, parcelas e compras à vista em dois grupos; com outra ordem, uma lista só, na ordem pedida
+            $grupos = $ordem === ''
+                ? [[t('Parcelas'), array_values(array_filter($itensF, static fn($it) => (int) $it['compra']['parcelas'] > 1))],
+                   [t('Compras à vista'), array_values(array_filter($itensF, static fn($it) => (int) $it['compra']['parcelas'] === 1))]]
+                : [['', $itensF]];
             ?>
             <div class="ct-fat" id="<?= e($ancora($f['mes'])) ?>"<?= $f['mes'] === $selValido ? '' : ' hidden' ?>>
                 <div class="ct-fat-cab"><h2><?= e(t('Fatura de {mes}', ['mes' => mesExtenso($f['mes'])])) ?> <span class="ct-fat-ano num"><?= e(substr($f['mes'], 0, 4)) ?></span></h2><b class="num"><?= e(num((float) $f['total'])) ?></b></div>
@@ -253,8 +294,8 @@ $hrefLancar = '/lancar?pagou=' . rawurlencode($pagouCartao) . '&volta=' . rawurl
                 <?php if ($f['itens'] === []): ?>
                     <p class="ct-vazio-fat"><?= $f['mes'] < $aberta ? e(t('As compras desta fatura não foram lançadas aqui.')) : e(t('Nenhuma compra nesta fatura ainda.')) ?></p>
                 <?php endif; ?>
-                <?php foreach ([[t('Parcelas'), $parcs], [t('Compras à vista'), $avista]] as [$rot, $lista]): if ($lista === []) { continue; } ?>
-                    <p class="ct-grupo"><?= e($rot) ?></p>
+                <?php foreach ($grupos as [$rot, $lista]): if ($lista === []) { continue; } ?>
+                    <?php if ($rot !== ''): ?><p class="ct-grupo"><?= e($rot) ?></p><?php endif; ?>
                     <?php foreach ($lista as $it): $c = $it['compra']; ?>
                         <a class="ct-linha" href="/cartao/compras/<?= (int) $c['id'] ?>/editar">
                             <?= iconeCategoria((int) ($c['categoria_id'] ?? 0), (string) ($c['categoria_nome'] ?? $c['descricao']), (string) ($c['categoria_grupo'] ?? ''), 40) ?>

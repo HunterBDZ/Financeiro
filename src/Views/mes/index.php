@@ -25,16 +25,14 @@ $metaEstado = static function (float $gasto, ?float $meta): ?array {
     $fora = $gasto > $meta + 0.004;
     return ['cls' => $fora ? 'fora-meta' : 'na-meta', 'fora' => $fora, 'meta' => $meta, 'frac' => $meta > 0.004 ? $gasto / $meta : 1.0];
 };
-// Barrinha verde (dentro) / vermelha (fora) + referência da meta. '' quando não há meta.
-$metaBarra = static function (float $gasto, ?float $meta) use ($pct, $metaEstado): string {
+// A situação diante da meta, em palavras e cor: abaixo (até 90%), na meta (90% a 100%), acima. '' sem meta.
+$metaBarra = static function (float $gasto, ?float $meta) use ($metaEstado): string {
     $m = $metaEstado($gasto, $meta);
     if ($m === null) {
         return '';
     }
-    $ref = $m['fora'] ? t('passou de {valor}', ['valor' => num($m['meta'])]) : t('{gasto} de {meta}', ['gasto' => num($gasto), 'meta' => num($m['meta'])]);
-    return '<span class="mes-l2 meta-barra ' . $m['cls'] . '">'
-        . '<span class="bullet bullet-sm meta-bar" style="--pct:' . $pct($m['frac']) . '"><span class="bullet-fill"></span></span>'
-        . '<span class="meta-ref num">' . e($ref) . '</span></span>';
+    [$txt, $cls] = $m['fora'] ? [t('Acima da meta'), 'venceu'] : ($m['frac'] >= 0.9 ? [t('Na meta'), 'vence'] : [t('Abaixo da meta'), 'pago']);
+    return '<span class="mes-l2"><span class="mes-status mes-status-' . $cls . '">' . e($txt) . '</span></span>';
 };
 // Sufixo de classe para pintar o valor de verde/vermelho quando há meta.
 $metaValCls = static function (float $gasto, ?float $meta) use ($metaEstado): string {
@@ -219,8 +217,7 @@ $linhaConta = static function (array $l) use ($estado, $valorConta, $fmt, $metaB
     // Situação da conta na 2ª linha, em texto com um ponto de cor: pago, veio menos, vence, venceu, previsto.
     $selo = '';
     $seloCls = 'previsto';
-    $gastoConta = (float) ($l['pago'] ?? $l['real']);
-    $metaConta  = $estado === 'previsto' ? null : (!empty($l['ajuste']) ? (float) $l['prev'] : ($l['meta'] ?? null));
+    $seloData = '';
     if ($estado === 'aberto') {
         $pagoTotal = $l['pago'] > 0.004 && $l['pago'] >= $l['prev'] - 0.004;
         $am = $l['a_menos'] ?? null;
@@ -233,27 +230,25 @@ $linhaConta = static function (array $l) use ($estado, $valorConta, $fmt, $metaB
             $selo = ($l['data_pagamento'] ?? null) !== null && $l['data_pagamento'] < $mes
                 ? t('Pago em {data}', ['data' => diaMes((string) $l['data_pagamento'])]) : t('Pago');
             $seloCls = 'pago';
-        } elseif ($st === 'atrasado') {
-            $selo = t('Venceu {data}', ['data' => diaMes((string) $l['vencimento'])]);
-            $seloCls = 'venceu';
-        } elseif ($st === 'pendente') {
-            // vence num dia que não é útil: diz também até quando dá para pagar sem atraso
-            $selo = ($l['paga_ate'] ?? $l['vencimento']) !== $l['vencimento']
-                ? t('Vence {data} · paga até {util}', ['data' => diaMes((string) $l['vencimento']), 'util' => diaMes((string) $l['paga_ate'])])
-                : t('Vence {data}', ['data' => diaMes((string) $l['vencimento'])]);
-            $seloCls = 'vence';
         } else {
-            $selo = t('Previsto');
+            $selo = t('Não pago');
+            $seloCls = 'venceu';
+            if (in_array($st, ['atrasado', 'pendente'], true)) {
+                $seloData = $st === 'atrasado' ? t('venceu {data}', ['data' => diaMes((string) $l['vencimento'])])
+                    : (($l['paga_ate'] ?? $l['vencimento']) !== $l['vencimento'] // vence em dia não útil: até quando paga sem atraso
+                        ? t('vence {data} · paga até {util}', ['data' => diaMes((string) $l['vencimento']), 'util' => diaMes((string) $l['paga_ate'])])
+                        : t('vence {data}', ['data' => diaMes((string) $l['vencimento'])]));
+            }
         }
     }
     $abreLinha($l); ?>
         <span class="mes-sum">
             <span class="mes-l1">
                 <span class="mes-nome"><?= e(nomeCategoria($l['nome_completo'])) ?></span>
-                <span class="mes-val num<?= $metaValCls($gastoConta, $metaConta) ?>"><?= e($fmt($valorConta($l))) ?></span>
+                <span class="mes-val num"><?= e($fmt($valorConta($l))) ?></span>
             </span>
-            <?php if ($selo !== ''): ?><span class="mes-l2"><span class="mes-status mes-status-<?= e($seloCls) ?>"><?= e($selo) ?></span></span><?php endif; ?>
-            <?= $metaBarra($gastoConta, $metaConta) ?><?= $origem($l) ?>
+            <?php if ($selo !== ''): ?><span class="mes-l2"><span class="mes-status mes-status-<?= e($seloCls) ?>"><?= e($selo) ?></span><?php if ($seloData !== ''): ?><span class="mes-status-data"> · <?= e($seloData) ?></span><?php endif; ?></span><?php endif; ?>
+            <?= $origem($l) ?>
         </span>
         </summary>
         <?php $painel($l, 'conta'); ?>
