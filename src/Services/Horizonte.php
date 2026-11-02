@@ -1,10 +1,10 @@
 <?php
 namespace Financeiro\Services;
 
-use Financeiro\Sql;
 use Financeiro\Database;
 use Financeiro\Models\AjusteModel;
 use Financeiro\Models\MesModel;
+use Financeiro\Sql;
 
 /**
  * Os meses do plano não têm fim: sempre existem MESES_A_FRENTE depois do mês de hoje. Um mês novo nasce

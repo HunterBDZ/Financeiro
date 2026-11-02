@@ -2,6 +2,7 @@
 namespace Financeiro\Models;
 
 use Financeiro\Database;
+use Financeiro\Sql;
 use PDO;
 use PDOException;
 
@@ -393,7 +394,7 @@ final class LancamentoModel
     public static function descricoesFrequentes(string $desde, int $limite = 30): array
     {
         $stmt = Database::connection()->prepare(
-            'SELECT l.descricao
+            'SELECT ' . Sql::menorTextoExato('l.descricao') . ' AS descricao
              FROM lancamentos l
              JOIN categorias c ON c.id = l.categoria_id
              WHERE l.data >= :desde AND l.descricao <> c.nome

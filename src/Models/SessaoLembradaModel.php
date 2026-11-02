@@ -1,8 +1,8 @@
 <?php
 namespace Financeiro\Models;
 
-use Financeiro\Sql;
 use Financeiro\Database;
+use Financeiro\Sql;
 
 /**
  * "Lembrar este aparelho". Uma linha por aparelho, chave = seletor (público,

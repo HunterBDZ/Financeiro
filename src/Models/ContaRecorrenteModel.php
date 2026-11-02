@@ -1,8 +1,8 @@
 <?php
 namespace Financeiro\Models;
 
-use Financeiro\Sql;
 use Financeiro\Database;
+use Financeiro\Sql;
 
 /** Contas recorrentes. ChecklistContas depende de ativas(): assinatura e colunas congeladas. */
 final class ContaRecorrenteModel

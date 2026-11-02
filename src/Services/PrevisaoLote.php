@@ -1,10 +1,10 @@
 <?php
 namespace Financeiro\Services;
 
-use Financeiro\Sql;
 use Financeiro\Database;
 use Financeiro\Models\AjusteModel;
 use Financeiro\Models\PrevisaoModel;
+use Financeiro\Sql;
 
 /**
  * Único caminho de gravação da previsão: grava um lote de células

@@ -4,7 +4,7 @@
  * e no centavo, e o HTML das telas. Cada lado roda em processos próprios, numa transação desfeita no fim: nenhum banco muda.
  *
  * Uso: php tools/comparar-bancos.php --a=/pasta/do/mysql --b=/pasta/do/sqlite [--php="frankenphp php-cli"] [--mostrar]
- *   --a, --b   pastas de dados (FIN_DADOS), cada uma com o seu config.env. Vazio = config/.env do repositório.
+ *   --a, --b   pastas de dados (FIN_DADOS), cada uma com o seu config.env. A palavra site = o config/.env do repositório.
  *   --php      o PHP a usar nos processos; precisa do driver do banco de cada lado
  *   --mostrar  mostra o trecho que difere. Sem isso, só a tela e a linha: o conteúdo pode ser pessoal.
  *
@@ -40,7 +40,7 @@ function rodar(string $php, string $dados, array $args): array
     $cmd = array_merge(comandoPhp($php), [__FILE__], $args, ['--saida=' . $saida]);
     $env = getenv();
     unset($env['FIN_DADOS']);
-    if ($dados !== '') {
+    if ($dados !== 'site') {
         $env['FIN_DADOS'] = $dados;
     }
     $proc = proc_open($cmd, [0 => ['file', PHP_OS_FAMILY === 'Windows' ? 'NUL' : '/dev/null', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, null, $env);
@@ -321,6 +321,8 @@ function filhoPagina(PDO $pdo, string $uri, string $idioma, int $usuario, string
             $corpo = ob_get_clean() . $corpo;
         }
         $corpo = preg_replace('/(name="csrf_token" value=")[^"]*/', '$1CSRF', (string) $corpo);
+        // a hora em que o PDF foi gerado, e o /ID, que é calculado com ela
+        $corpo = preg_replace(['/\/CreationDate <[0-9A-F]+>/', '/\/ID \[<[0-9a-f]+> <[0-9a-f]+>\]/'], '', (string) $corpo);
         file_put_contents($saida, serialize(['status' => (int) http_response_code(), 'cabecalhos' => headers_list(), 'corpo' => (string) $corpo]));
     });
     ob_start();

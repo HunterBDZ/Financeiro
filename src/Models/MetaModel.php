@@ -1,8 +1,8 @@
 <?php
 namespace Financeiro\Models;
 
-use Financeiro\Sql;
 use Financeiro\Database;
+use Financeiro\Sql;
 
 /**
  * Metas de gasto por categoria (uma meta mensal por categoria; tabela `metas`).

@@ -1,8 +1,8 @@
 <?php
 namespace Financeiro\Models;
 
-use Financeiro\Sql;
 use Financeiro\Database;
+use Financeiro\Sql;
 
 /**
  * Previsão por categoria × mês. Leitura sempre pela view `previsao_efetiva` (a meta é a previsão

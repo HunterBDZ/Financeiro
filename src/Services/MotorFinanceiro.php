@@ -1,12 +1,12 @@
 <?php
 namespace Financeiro\Services;
 
-use Financeiro\Sql;
 use Financeiro\Config;
 use Financeiro\Database;
 use Financeiro\Models\AjusteModel;
 use Financeiro\Models\LancamentoModel;
 use Financeiro\Models\MesModel;
+use Financeiro\Sql;
 
 /**
  * Motor de cálculo — porta fiel da cascata do plano.

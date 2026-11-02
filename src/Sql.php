@@ -55,6 +55,12 @@ final class Sql
         return (self::sqlite() ? 'MIN(' : 'LEAST(') . $a . ', ' . $b . ')';
     }
 
+    /** Num GROUP BY de texto sem acento e sem caixa: "Café" e "cafe" viram um grupo, e este escolhe sempre a mesma grafia. */
+    public static function menorTextoExato(string $coluna): string
+    {
+        return 'MIN(' . $coluna . (self::sqlite() ? ' COLLATE BINARY)' : ' COLLATE utf8mb4_bin)');
+    }
+
     public static function se(string $condicao, string $sim, string $nao): string
     {
         return (self::sqlite() ? 'IIF(' : 'IF(') . $condicao . ', ' . $sim . ', ' . $nao . ')';

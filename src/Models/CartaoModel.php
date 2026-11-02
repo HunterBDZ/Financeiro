@@ -1,8 +1,8 @@
 <?php
 namespace Financeiro\Models;
 
-use Financeiro\Sql;
 use Financeiro\Database;
+use Financeiro\Sql;
 
 /**
  * O cartão de crédito da casa (tabela `cartoes`; por enquanto um ativo, a tabela aceita mais) e as

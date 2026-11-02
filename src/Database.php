@@ -41,6 +41,10 @@ final class Database
     private static function conectarSqlite(): PDO
     {
         try {
+            // nunca cria um banco vazio por engano: quem cria é a primeira execução ou o importador
+            if (!is_file(Paths::banco())) {
+                throw new PDOException('arquivo não encontrado');
+            }
             self::$instance = new SqliteConexao(Paths::banco());
         } catch (PDOException $e) {
             error_log('Falha ao abrir o banco: ' . $e->getMessage());

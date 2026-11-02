@@ -1,9 +1,9 @@
 <?php
 namespace Financeiro\Services;
 
-use Financeiro\Sql;
 use Financeiro\Database;
 use Financeiro\Site;
+use Financeiro\Sql;
 
 /**
  * Moedas da Wishlist e a conversão para a moeda do site. A fonte dá tudo em reais, então as outras moedas

@@ -1,8 +1,8 @@
 <?php
 namespace Financeiro\Services;
 
-use Financeiro\Sql;
 use Financeiro\Database;
+use Financeiro\Sql;
 
 /**
  * Dados do gráfico "gastos mês a mês": previsto e real por categoria × mês, só das

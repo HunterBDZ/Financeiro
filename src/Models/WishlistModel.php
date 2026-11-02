@@ -1,8 +1,8 @@
 <?php
 namespace Financeiro\Models;
 
-use Financeiro\Sql;
 use Financeiro\Database;
+use Financeiro\Sql;
 
 /** Itens da Wishlist. `posicao` é a ordem da lista; excluir é reversível (some de vez depois de 30 dias). */
 final class WishlistModel

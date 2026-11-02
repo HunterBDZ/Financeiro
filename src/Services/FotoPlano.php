@@ -1,9 +1,9 @@
 <?php
 namespace Financeiro\Services;
 
-use Financeiro\Sql;
 use Financeiro\Database;
 use Financeiro\Models\AjusteModel;
+use Financeiro\Sql;
 
 /**
  * A memória do plano: na primeira requisição de cada mês, guarda o que ele prevê a partir dali. O plano

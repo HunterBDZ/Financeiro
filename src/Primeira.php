@@ -41,18 +41,15 @@ final class Primeira
     public static function garantir(): void
     {
         if (!Paths::portatil()) {
+            self::criarPastas();                                // site antigo com PASTA_DADOS, depois de migrar
             return;
         }
         if (self::tudoPronto()) {
             Config::load(Paths::config());
             return;
         }
+        self::criarPastas();
         $dados = (string) Paths::dados();
-        foreach ([$dados, Paths::sessoes(), dirname(Paths::log())] as $pasta) {
-            if (!is_dir($pasta)) {
-                @mkdir($pasta, 0700, true);
-            }
-        }
         // duas primeiras páginas ao mesmo tempo: uma cria, a outra espera
         $trava = fopen($dados . '/primeira.trava', 'c');
         if ($trava === false || !flock($trava, LOCK_EX)) {
@@ -69,6 +66,18 @@ final class Primeira
         } finally {
             flock($trava, LOCK_UN);
             fclose($trava);
+        }
+    }
+
+    private static function criarPastas(): void
+    {
+        if (Paths::dados() === null) {
+            return;
+        }
+        foreach ([Paths::sessoes(), dirname(Paths::log())] as $pasta) {
+            if (!is_dir($pasta)) {
+                @mkdir($pasta, 0700, true);
+            }
         }
     }
 
