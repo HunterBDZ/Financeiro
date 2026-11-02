@@ -1669,6 +1669,6 @@ return [
     'Mais parcelas' => 'Most installments',
     'Menos parcelas' => 'Fewest installments',
     'Ordenar' => 'Sort',
-    'Começou o mês com {inicio}. Com a sobra, termina com {fim}.' => 'Started the month with {inicio}. With the surplus, it ends with {fim}.',
-    'Começou o mês com {inicio}. Com a sobra, menos {auto} que o plano adianta do empréstimo, termina com {fim}.' => 'Started the month with {inicio}. With the surplus, minus {auto} the plan prepays on the loan, it ends with {fim}.',
+    'Fim do mês' => 'End of month',
+    'Saldo do mês anterior' => 'Previous month balance',
 ];

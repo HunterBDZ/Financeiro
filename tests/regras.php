@@ -2057,7 +2057,10 @@ if (MotorFinanceiro::linhaDoMes($mesSb) === null || $catSb === 0) {
         $check('sobra: Início mostra a sobra até hoje (com o resgate: balanço é balanço) com o nome dela',
             in_array([$hojeSb['base'], num($hojeSb['sobra'])], $ini, true), json_encode([$ini, $hojeSb]));
         $check('sobra: Fechar mostra a mesma sobra até hoje', in_array([$hojeSb['base'], num($hojeSb['sobra'])], $fe, true), json_encode($fe));
-        $check('sobra: Mês mostra a sobra prevista, a mesma do plano', in_array([$prevSb['base'], num($prevSb['sobra'])], $mesV, true), json_encode($mesV));
+        $linhaSb = MotorFinanceiro::linhaDoMes($mesSb);
+        $check('Mês: o resumo termina no fim do mês, o mesmo número da previsão do plano', str_contains($mesH, 'data-fim-mes>' . num((float) $linhaSb['fica_na_conta']) . '<'));
+        $check('Mês: o saldo do mês anterior é uma linha das entradas e entra no total', str_contains($mesH, 'data-saldo-anterior')
+            && str_contains($mesH, num((float) $linhaSb['sobrou_mes_anterior'])));
         $check('sobra: as listas do Mês somam as saídas do resumo', str_contains($mesH, '<span class="card-acao num neg">' . num($prevSb['saidas']) . '</span>'));
         $check('sobra: o Relatório usa as mesmas', $rl !== null && ($rl['encerrado']
             ? abs($rl['sobrou'] - $prevSb['sobra']) < 0.005
