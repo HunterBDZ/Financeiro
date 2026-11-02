@@ -35,7 +35,7 @@
 /* categoria em um toque: as mais usadas em botões (rádios), o resto em "Mais…", com busca */
 .lf-rot { color: var(--text-2); font-size: 13px; font-weight: 650; margin: 4px 0 -4px; }
 .lf-cats { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-.lf-chips { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 6px; }
+.lf-chips { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }   /* duas fileiras de 4, em qualquer largura */
 .lf-chip { position: relative; display: flex; min-width: 0; cursor: pointer; }
 .lf-chip > input, .lf-op > input { position: absolute; top: 0; left: 0; width: 1px; height: 1px; margin: 0; opacity: 0; pointer-events: none; }
 .lf-chip-c {
@@ -44,7 +44,7 @@
     background: var(--campo, var(--card-2)); box-shadow: inset 0 0 0 1px var(--line);
     transition: background-color .12s ease-out, box-shadow .12s ease-out;
 }
-.lf-chip-n { max-width: 100%; color: var(--text); font-size: 12.5px; font-weight: 650; line-height: 1.2; text-align: center; overflow-wrap: anywhere; hyphens: auto;
+.lf-chip-n { max-width: 100%; color: var(--text); font-size: 12.5px; font-weight: 650; line-height: 1.2; text-align: center; overflow-wrap: anywhere; hyphens: manual;
              display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .lf-chip:hover > .lf-chip-c { box-shadow: inset 0 0 0 1px var(--line-2); }
 .lf-chip > input:checked + .lf-chip-c { background: var(--card); box-shadow: inset 0 0 0 2px var(--text); }
@@ -203,8 +203,8 @@
     .ex-col { display: block; position: sticky; top: 28px; }
     .ex-col .card { --campo: var(--card-2); }
     .ex-filtros-row {
-        grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) minmax(0, .7fr) auto;
-        grid-template-areas: "busca busca busca btn" "per cat ordem ordem" "datas datas datas datas" "mais mais mais mais";
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) minmax(0, 1fr);
+        grid-template-areas: "busca busca btn" "per cat ordem" "datas datas datas" "mais mais mais";
     }
     .ex-mais-c { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.3fr); }
     .ex-campo-quem { grid-column: auto; }
@@ -312,3 +312,6 @@
 .ic-salvar { position: sticky; bottom: calc(86px + env(safe-area-inset-bottom, 0px)); box-shadow: 0 12px 30px -12px rgba(0, 0, 0, .45); }
 @media (min-width: 1024px) { .ic-salvar { bottom: 20px; } }
 .lf-mais-gt::first-letter { text-transform: uppercase; }
+/* na coluna do extrato (estreita), o nome do botão cabe inteiro */
+.ex-col .lf-chip-c { padding-inline: 2px; }
+.ex-col .lf-chip-n { font-size: 12px; }
