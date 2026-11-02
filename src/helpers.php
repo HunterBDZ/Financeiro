@@ -429,8 +429,7 @@ function inicialUsuario(?string $nome): string
 /** Mesma regra do bootstrap.php: HTTPS direto ou atrás do vhost :443. */
 function requisicaoHttps(): bool
 {
-    return (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
-        || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
+    return \Financeiro\Rede::https();
 }
 
 /**

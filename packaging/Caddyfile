@@ -1,0 +1,15 @@
+# FrankenPHP no computador da pessoa: só no próprio computador, em HTTP, sem servir arquivos com ponto.
+# Uso, da raiz do projeto: PHP_INI_SCAN_DIR=packaging FIN_DADOS=/pasta frankenphp run --config packaging/Caddyfile
+{
+	auto_https off
+	admin off
+	frankenphp
+}
+
+http://localhost:{$FIN_PORTA:8484} http://127.0.0.1:{$FIN_PORTA:8484} {
+	bind 127.0.0.1
+	root * public
+	@comPonto path_regexp (^|/)\.
+	respond @comPonto 404
+	php_server
+}

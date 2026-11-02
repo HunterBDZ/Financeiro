@@ -1,6 +1,8 @@
 <?php
 namespace Financeiro\Services;
 
+use Financeiro\Config;
+use Financeiro\Paths;
 use Financeiro\Site;
 
 /**
@@ -127,6 +129,10 @@ final class LinkProduto
                     return strlen($parte);
                 },
             ]);
+            $ca = self::arquivoCa();
+            if ($ca !== null) {
+                curl_setopt($c, CURLOPT_CAINFO, $ca);
+            }
             $ok = curl_exec($c);
             $status = (int) curl_getinfo($c, CURLINFO_RESPONSE_CODE);
             $tipo = (string) curl_getinfo($c, CURLINFO_CONTENT_TYPE);
@@ -323,5 +329,16 @@ final class LinkProduto
             return null;
         }
         return ['tipo' => self::TIPOS_FOTO[$i[2]], 'largura' => (int) $i[0], 'altura' => (int) $i[1], 'dados' => $dados];
+    }
+
+    /** Certificados raiz para o curl: o da configuração ou o que vai junto no pacote. Sem nenhum, vale o do sistema. */
+    private static function arquivoCa(): ?string
+    {
+        foreach ([(string) Config::get('CA_ARQUIVO', ''), Paths::raiz() . '/packaging/cacert.pem'] as $arquivo) {
+            if ($arquivo !== '' && is_readable($arquivo)) {
+                return $arquivo;
+            }
+        }
+        return null;
     }
 }

@@ -3,6 +3,7 @@ namespace Financeiro\Controllers;
 
 use Financeiro\Auth;
 use Financeiro\Models\UsuarioModel;
+use Financeiro\Primeira;
 use Financeiro\View;
 
 final class AuthController
@@ -29,11 +30,13 @@ final class AuthController
         if (!UsuarioModel::nenhum()) {
             redirecionar('/login', 302);
         }
+        self::exigirContaPermitida();
         View::renderAuth('auth/criar', ['erro' => null, 'nome' => '', 'login' => '']);
     }
 
     public function criarConta(): void
     {
+        self::exigirContaPermitida();
         csrfCheck();
 
         $nome = is_string($_POST['nome'] ?? null) ? mb_substr(trim($_POST['nome']), 0, 100) : '';
@@ -62,6 +65,13 @@ final class AuthController
         }
         Auth::attempt($login, $senha);
         redirecionar('/comecar', 303);
+    }
+
+    private static function exigirContaPermitida(): void
+    {
+        if (!Primeira::contaPermitida()) {
+            renderErro(403, t('Crie a conta no próprio computador'), t('Abra o Financeiro no computador onde ele está instalado para criar a primeira conta. Depois, os outros aparelhos podem entrar'));
+        }
     }
 
     public function login(): void
