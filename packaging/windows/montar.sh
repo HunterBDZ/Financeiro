@@ -94,5 +94,5 @@ if [ -n "${FIN_WIN_PFX:-}" ]; then
 fi
 
 NOME=financeiro-$VERSAO-windows-x86_64.exe
-makensis -V2 -INPUTCHARSET UTF8 -DVERSAO="$VERSAO" -DORIGEM="$PROG" -DSAIDA="$SAIDA/$NOME" -DICONE="$AQUI/../icones/financeiro.ico" ${ASSINAR[@]+"${ASSINAR[@]}"} "$AQUI/financeiro.nsi"
+makensis -V2 -INPUTCHARSET UTF8 -DVERSAO="$VERSAO" -DORIGEM="$PROG" -DSAIDA="$SAIDA/$NOME" -DICONE="$AQUI/../icones/financeiro.ico" -DLADO="$AQUI/lado.bmp" ${ASSINAR[@]+"${ASSINAR[@]}"} "$AQUI/financeiro.nsi"
 ls -la "$SAIDA/$NOME"

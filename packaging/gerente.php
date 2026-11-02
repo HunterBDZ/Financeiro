@@ -147,6 +147,7 @@ function gerenteServir(array $lugar): int
         $st = proc_get_status($proc);
         file_put_contents($dados . '/programa.pid', getmypid() . ' ' . (int) $st['pid']);
         while (proc_get_status($proc)['running']) {
+            clearstatcache();
             if (!$ligado || is_file($dados . '/parar') || is_file($dados . '/reiniciar')) {
                 proc_terminate($proc);
                 break;
@@ -242,6 +243,7 @@ function gerenteParar(array $lugar): void
     }
     gerenteMarcar($dados . '/parar');
     for ($i = 0; $i < 40; $i++) {
+        clearstatcache();
         if (!is_file($dados . '/programa.pid') && !gerenteNoAr($lugar['porta'])) {
             @unlink($dados . '/parar');
             return;

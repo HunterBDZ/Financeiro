@@ -1,5 +1,5 @@
 ; Instalador do Financeiro para Windows: por usuário, sem administrador e sem perguntas.
-; makensis -INPUTCHARSET UTF8 -DVERSAO=1.2.3 -DORIGEM=pasta -DSAIDA=arquivo.exe -DICONE=financeiro.ico [-DASSINAR="comando %1"] financeiro.nsi
+; makensis -INPUTCHARSET UTF8 -DVERSAO=1.2.3 -DORIGEM=pasta -DSAIDA=arquivo.exe -DICONE=financeiro.ico -DLADO=lado.bmp [-DASSINAR="comando %1"] financeiro.nsi
 Unicode true
 Target amd64-unicode
 SetCompressor /SOLID lzma
@@ -32,6 +32,7 @@ VIAddVersionKey /LANG=0 "LegalCopyright" "AGPL-3.0-or-later"
 
 !define MUI_ICON "${ICONE}"
 !define MUI_UNICON "${ICONE}"
+!define MUI_WELCOMEFINISHPAGE_BITMAP "${LADO}"
 !define MUI_ABORTWARNING
 !define MUI_FINISHPAGE_RUN
 !define MUI_FINISHPAGE_RUN_FUNCTION AbrirAgora

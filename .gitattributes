@@ -12,6 +12,7 @@ packaging/windows/*.cmd text eol=crlf
 *.ttf binary
 *.ico binary
 *.icns binary
+*.bmp binary
 
 # Não use export-ignore em tests/: o atualizador usa git archive e roda tests/run.php.
 public/assets/css/temas.css linguist-generated
