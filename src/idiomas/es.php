@@ -1673,4 +1673,5 @@ return [
     'Saldo do mês anterior' => 'Saldo del mes anterior',
     'meta {valor}' => 'meta {valor}',
     'Saídas previstas' => 'Salidas previstas',
+    'Incluir categoria em {mes}' => 'Incluir categoría en {mes}',
 ];

@@ -78,11 +78,11 @@ $sortDesc($diaEss, $valorDia);
 $sortDesc($diaNaoEss, $valorDia);
 $diaZerEss    = array_values(array_filter($diaZeradas, static fn($l) => $l['essencial']));
 $diaZerNaoEss = array_values(array_filter($diaZeradas, static fn($l) => !$l['essencial']));
-// zeradas continuam no grupo, no fim: primeiro as que têm meta
 $temMeta       = static fn(array $l): bool => (float) ($l['meta'] ?? 0.0) > 0.004;
-$comMetaEss    = array_merge(array_values(array_filter($diaZerEss, $temMeta)), array_values(array_filter($diaZerEss, static fn($l) => !$temMeta($l))));
-$comMetaNaoEss = array_merge(array_values(array_filter($diaZerNaoEss, $temMeta)), array_values(array_filter($diaZerNaoEss, static fn($l) => !$temMeta($l))));
-$semMov        = [];       // antes ficavam recolhidas em "Sem movimento"; agora aparecem nos grupos, no fim
+// o Mês mostra só o que tem meta ou previsão no mês, ou que teve gasto: sem nada disso, a categoria fica fora (e em "Incluir")
+$comMetaEss    = [];
+$comMetaNaoEss = [];
+$semMov        = [];
 
 $totalEss    = array_sum(array_map($valorConta, $essContas)) + array_sum(array_map($valorDia, $diaEss));
 $totalNaoEss = array_sum(array_map($valorConta, $naoEssContas)) + array_sum(array_map($valorDia, $diaNaoEss));
@@ -281,13 +281,13 @@ $incluirConta = static function () use ($incluir, $csrf, $mes, $mesLbl, $erroLin
         $porGrupo[grupoLabel($l['grupo'])][] = $l;
     } ?>
     <details class="mes-incluir" id="incluir"<?= $erro !== null ? ' open' : '' ?>>
-        <summary><?= svgIcon('plus', 16) ?><?= e(t('Incluir conta em {mes}', ['mes' => $mesLbl])) ?></summary>
+        <summary><?= svgIcon('plus', 16) ?><?= e(t('Incluir categoria em {mes}', ['mes' => $mesLbl])) ?></summary>
         <form class="mes-form" method="post" action="/mes/previsao">
             <?= $csrf ?>
             <input type="hidden" name="mes" value="<?= e($mes) ?>">
             <input type="hidden" name="ancora" value="incluir">
             <label class="mes-form-campo">
-                <span><?= e(t('conta')) ?></span>
+                <span><?= e(t('categoria')) ?></span>
                 <select name="categoria_id" required>
                     <option value=""><?= e(t('escolher…')) ?></option>
                     <?php foreach ($porGrupo as $g => $ls): ?>

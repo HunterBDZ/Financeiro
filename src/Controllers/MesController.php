@@ -101,7 +101,11 @@ final class MesController
                     if ($temValor) {
                         $dia[] = $l;
                     } else {
+                        // sem meta nem previsão no mês e sem gasto: fora da lista (dá para incluir no mês, como uma conta)
                         $diaZeradas[] = $l;
+                        if ($editavel && $l['ativo']) {
+                            $incluir[] = $l;
+                        }
                     }
                     break;
                 case 'Fixos':
