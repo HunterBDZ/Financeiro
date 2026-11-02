@@ -131,6 +131,13 @@ final class Atualizacao
         return is_file($env) ? [$env] : (array) preg_split('/\s+/', $env);
     }
 
+    /** A pasta atual dos processos. No pacote de Windows, o php.ini e as extensões são relativos à pasta bin. */
+    private static function pastaDoProcesso(string $outra): string
+    {
+        $bin = dirname(Paths::raiz()) . '/bin';
+        return PHP_OS_FAMILY === 'Windows' && is_dir($bin) ? $bin : $outra;
+    }
+
     /** Sem esperar: a página volta na hora e acompanha pelo estado. */
     public static function iniciar(string $versao): void
     {
@@ -144,7 +151,7 @@ final class Atualizacao
         if (PHP_OS_FAMILY === 'Windows') {
             // escapeshellarg troca % e ! por espaços, e esses caracteres podem estar no nome da pessoa
             $aspas = static fn(string $p): string => '"' . str_replace('"', '', $p) . '"';
-            $proc = proc_open('start /B "" ' . implode(' ', array_map($aspas, $partes)) . ' > ' . $aspas(self::pasta() . '/ultima.log') . ' 2>&1', [], $p, Paths::dados(), $env);
+            $proc = proc_open('start /B "" ' . implode(' ', array_map($aspas, $partes)) . ' > ' . $aspas(self::pasta() . '/ultima.log') . ' 2>&1', [], $p, self::pastaDoProcesso((string) Paths::dados()), $env);
         } else {
             $cmd = implode(' ', array_map('escapeshellarg', $partes));
             $proc = proc_open('nohup ' . $cmd . ' > ' . escapeshellarg(self::pasta() . '/ultima.log') . ' 2>&1 < /dev/null &', [], $p, Paths::dados(), $env);
@@ -276,7 +283,7 @@ final class Atualizacao
         $env = array_filter(getenv(), 'is_string');
         $env['FIN_DADOS'] = $dados ?? (string) Paths::dados();
         $saidaLog = self::pasta() . '/processo.log';
-        $proc = proc_open([...self::comandoPhp(), ...$args], [0 => ['file', PHP_OS_FAMILY === 'Windows' ? 'NUL' : '/dev/null', 'r'], 1 => ['file', $saidaLog, 'w'], 2 => ['file', $saidaLog, 'a']], $p, dirname($args[0], 2), $env);
+        $proc = proc_open([...self::comandoPhp(), ...$args], [0 => ['file', PHP_OS_FAMILY === 'Windows' ? 'NUL' : '/dev/null', 'r'], 1 => ['file', $saidaLog, 'w'], 2 => ['file', $saidaLog, 'a']], $p, self::pastaDoProcesso(dirname($args[0], 2)), $env);
         if (!is_resource($proc)) {
             throw new \RuntimeException($erro);
         }

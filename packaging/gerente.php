@@ -78,16 +78,21 @@ function gerenteAmbiente(array $lugar, string $sistema = PHP_OS_FAMILY): array
     $env['FIN_PORTA'] = (string) $lugar['porta'];
     $env['FIN_APP'] = str_replace('\\', '/', $lugar['programa'] . '/app');
     $env['FIN_GERENCIADO'] = '1';
-    $env['FIN_PROGRAMA'] = $lugar['programa'];
     $env['FIN_PHP'] = implode("\t", $bin['php']) . "\t";    // com tabulação: o caminho pode ter espaços
     $env['XDG_CONFIG_HOME'] = $lugar['dados'] . '/caddy';
     $env['XDG_DATA_HOME'] = $lugar['dados'] . '/caddy';
     if ($sistema === 'Windows') {
-        $env['PHPRC'] = $lugar['programa'] . '/conf';
+        $env['PHPRC'] = '..\\conf';     // relativo à pasta bin: ver gerentePastaAtual
     } else {
         $env['PHP_INI_SCAN_DIR'] = $lugar['programa'] . '/conf';
     }
     return $env;
+}
+
+/** A pasta atual do que o gerente inicia. No Windows, é a bin: o php.ini e as extensões são relativos a ela, por causa dos acentos. */
+function gerentePastaAtual(array $lugar): string
+{
+    return PHP_OS_FAMILY === 'Windows' ? $lugar['programa'] . '/bin' : $lugar['dados'];
 }
 
 /** Só a tela de Usar no celular liga isto. */
@@ -131,7 +136,7 @@ function gerenteServir(array $lugar): int
         @unlink($dados . '/reiniciar');
         $env = gerenteAmbiente($lugar);
         $env['FIN_BIND'] = gerenteEndereco($dados);
-        $proc = proc_open([$bin['servidor'], 'run', '--config', $config], [0 => ['file', $nulo, 'r'], 1 => ['file', $log, 'a'], 2 => ['file', $log, 'a']], $tubos, $dados, $env);
+        $proc = proc_open([$bin['servidor'], 'run', '--config', $config], [0 => ['file', $nulo, 'r'], 1 => ['file', $log, 'a'], 2 => ['file', $log, 'a']], $tubos, gerentePastaAtual($lugar), $env);
         if (!is_resource($proc)) {
             gerenteDormir($dados, 3);
             if (is_file($dados . '/parar')) {
@@ -456,7 +461,7 @@ function gerente(array $argv): int
                 return 2;
             }
             $bin = gerenteBinarios($lugar['programa']);
-            $proc = proc_open([...$bin['php'], $lugar['programa'] . '/app/tools/redefinir-senha.php', $argv[2]], [], $tubos, null, gerenteAmbiente($lugar));
+            $proc = proc_open([...$bin['php'], $lugar['programa'] . '/app/tools/redefinir-senha.php', $argv[2]], [], $tubos, gerentePastaAtual($lugar), gerenteAmbiente($lugar));
             return is_resource($proc) ? proc_close($proc) : 1;
         default:
             echo "Use: financeiro abrir, iniciar, parar, status ou senha LOGIN\n";

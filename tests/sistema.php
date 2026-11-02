@@ -224,7 +224,7 @@ require __DIR__ . '/../packaging/gerente.php';
 $lugarT = ['programa' => 'C:/Users/Pessoa com espaço/Programs/Financeiro', 'dados' => 'C:/Users/Pessoa com espaço/Financeiro', 'porta' => 8484];
 $envWin = gerenteAmbiente($lugarT, 'Windows');
 $check('gerente: Windows usa os programas da pasta bin', gerenteBinarios($lugarT['programa'], 'Windows') === ['servidor' => $lugarT['programa'] . '/bin/frankenphp.exe', 'php' => [$lugarT['programa'] . '/bin/php.exe']]);
-$check('gerente: Windows acha o php.ini por PHPRC', $envWin['PHPRC'] === $lugarT['programa'] . '/conf' && $envWin['FIN_GERENCIADO'] === '1');
+$check('gerente: Windows acha o php.ini com caminho relativo, sem acentos', $envWin['PHPRC'] === '..\\conf' && $envWin['FIN_GERENCIADO'] === '1');
 $check('gerente: o comando do PHP chega inteiro', Atualizacao::lerComandoPhp($envWin['FIN_PHP']) === [$lugarT['programa'] . '/bin/php.exe']);
 $check('gerente: o Caddyfile recebe a barra normal', !str_contains(gerenteAmbiente(['programa' => 'C:\\P\\F'] + $lugarT, 'Windows')['FIN_APP'], '\\'));
 $envMac = gerenteAmbiente(['programa' => '/U/a/Library/Application Support/Financeiro/programa'] + $lugarT, 'Darwin');
