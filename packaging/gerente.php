@@ -273,12 +273,13 @@ function gerenteNavegador(string $url): void
     if (getenv('FIN_SEM_NAVEGADOR') === '1') {
         return;
     }
-    $cmd = match (PHP_OS_FAMILY) {
-        'Windows' => ['rundll32', 'url.dll,FileProtocolHandler', $url],
-        'Darwin' => ['open', $url],
-        default => ['xdg-open', $url],
-    };
-    $proc = @proc_open($cmd, [], $tubos);
+    if (PHP_OS_FAMILY === 'Windows') {
+        // em lista, o PHP põe cada parte entre aspas, e o rundll32 não abre "url.dll,FileProtocolHandler" com aspas;
+        // a URL não tem espaço nem aspas: a porta é número, e o caminho do arquivo vai codificado
+        $proc = @proc_open('rundll32 url.dll,FileProtocolHandler ' . $url, [], $tubos, null, null, ['bypass_shell' => true]);
+    } else {
+        $proc = @proc_open([PHP_OS_FAMILY === 'Darwin' ? 'open' : 'xdg-open', $url], [], $tubos);
+    }
     if (is_resource($proc)) {
         proc_close($proc);
     }
