@@ -4,6 +4,7 @@ namespace Financeiro\Controllers;
 use Financeiro\Auth;
 use Financeiro\Models\MesModel;
 use Financeiro\Models\WishlistModel;
+use Financeiro\Relogio;
 use Financeiro\Services\Cotacao;
 use Financeiro\Services\LinkProduto;
 use Financeiro\Services\MotorFinanceiro;
@@ -28,7 +29,7 @@ final class WishlistController
         Auth::requireLogin();
         $taxas = Cotacao::atuais();
         $itens = self::comReais(WishlistModel::ativos(), $taxas);
-        $hoje  = date('Y-m-d');
+        $hoje  = Relogio::hoje();
         $dados = MotorFinanceiro::dados();
         $prev  = null;
         $parcelas = in_array((int) ($_GET['parcelas'] ?? 1), WishlistPrevisao::PARCELAS, true) ? (int) ($_GET['parcelas'] ?? 1) : 1;
@@ -248,7 +249,7 @@ final class WishlistController
         if ($item === null) {
             redirecionar(self::VOLTA, 303);
         }
-        WishlistModel::marcarComprado((int) $id, date('Y-m-d'));
+        WishlistModel::marcarComprado((int) $id, Relogio::hoje());
         flash('success', t('{nome} saiu da lista · Lance o gasto para ele entrar no Extrato', ['nome' => $item['nome']]),
             ['url' => self::VOLTA . '/' . (int) $id . '/devolver', 'label' => t('desfazer')]);
         $q = ['descricao' => (string) $item['nome'], 'volta' => self::VOLTA];

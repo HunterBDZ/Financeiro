@@ -6,6 +6,7 @@ use Financeiro\Database;
 use Financeiro\Models\CartaoModel;
 use Financeiro\Models\CategoriaModel;
 use Financeiro\Models\LancamentoModel;
+use Financeiro\Relogio;
 
 /**
  * Dados do formulário de lançar. O layout chama dados() em toda página
@@ -28,7 +29,7 @@ final class LancarForm
      */
     public static function dados(?string $hoje = null): array
     {
-        $hoje ??= date('Y-m-d');
+        $hoje ??= Relogio::hoje();
         $uid = (int) (Auth::id() ?? 0);
         $chave = $hoje . '|' . $uid;
         if (isset(self::$cache[$chave])) {

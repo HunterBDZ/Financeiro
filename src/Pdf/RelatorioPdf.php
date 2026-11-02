@@ -2,6 +2,7 @@
 namespace Financeiro\Pdf;
 
 use Financeiro\Idioma;
+use Financeiro\Relogio;
 use Financeiro\Services\RelatorioDados;
 use Financeiro\SiteIcone;
 
@@ -37,10 +38,11 @@ final class RelatorioPdf
 
     public function __construct(private array $r)
     {
+        $agora = Relogio::agora();     // no fuso do site, que vai junto: -03'00'
         $this->d = new Documento(
             t('Relatório: {titulo}', ['titulo' => $r['titulo']]),
             Idioma::html(),
-            date('YmdHis') . "-03'00'"
+            $agora->format('YmdHis') . str_replace(':', "'", $agora->format('P')) . "'"
         );
     }
 

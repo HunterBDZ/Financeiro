@@ -1,7 +1,6 @@
 <?php
 namespace Financeiro;
 
-use DateTimeImmutable;
 use DateTimeInterface;
 use DateTimeZone;
 use Financeiro\Models\AjusteModel;
@@ -112,7 +111,7 @@ final class Site
     /** `-03:00`, `+05:30`: o deslocamento em vigor no instante pedido (agora, por padrão), com o horário de verão. */
     public static function deslocamento(string $fuso, ?DateTimeInterface $quando = null): string
     {
-        $seg = (new DateTimeZone($fuso))->getOffset($quando ?? new DateTimeImmutable());
+        $seg = (new DateTimeZone($fuso))->getOffset($quando ?? Relogio::agora());
         return ($seg < 0 ? '-' : '+') . sprintf('%02d:%02d', intdiv(abs($seg), 3600), intdiv(abs($seg) % 3600, 60));
     }
 
@@ -126,7 +125,7 @@ final class Site
         if (!in_array(self::fuso(), $nomes, true)) {
             $nomes[] = self::fuso();
         }
-        $agora = new DateTimeImmutable();
+        $agora = Relogio::agora();
         $out = [];
         foreach ($nomes as $nome) {
             $out[$nome] = str_replace('_', ' ', $nome) . ' (UTC' . self::deslocamento($nome, $agora) . ')';

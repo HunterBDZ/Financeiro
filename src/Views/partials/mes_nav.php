@@ -10,7 +10,7 @@
  * todos os meses por ano, cada um com o ponto do estado. Setas redondas à direita.
  * O h1 da tela fica escondido para leitor de tela (o botão mostra o mesmo texto).
  */
-$mes    = (string) ($mes ?? date('Y-m-01'));
+$mes    = (string) ($mes ?? \Financeiro\Relogio::mes());
 $meses  = $meses ?? [];
 $href   = (string) ($href ?? '?mes=');
 $sufixo = (string) ($sufixo ?? '');

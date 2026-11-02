@@ -14,7 +14,7 @@ $a      = is_array($antigo ?? null) ? $antigo : [];
 $topo   = $topo ?? true;
 $volta  = voltaSegura((string) ($volta ?? '/'), '/');
 $outras = $outras ?? [];
-$hoje   = (string) ($hoje ?? date('Y-m-d'));
+$hoje   = (string) ($hoje ?? \Financeiro\Relogio::hoje());
 
 $erro = isset($a['erro']) && is_string($a['erro']) ? $a['erro'] : null;
 $dup  = isset($a['duplicado']) && is_array($a['duplicado']) ? $a['duplicado'] : null;

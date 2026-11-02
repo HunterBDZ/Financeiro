@@ -8,6 +8,7 @@ use Financeiro\Models\LancamentoModel;
 use Financeiro\Models\MesModel;
 use Financeiro\Models\MetaModel;
 use Financeiro\Models\SaldoConferenciaModel;
+use Financeiro\Relogio;
 use Financeiro\Services\CartaoFatura;
 use Financeiro\Services\ChecklistContas;
 use Financeiro\Services\MotorFinanceiro;
@@ -31,7 +32,7 @@ final class MesController
     public function index(): void
     {
         Auth::requireLogin();
-        $hoje  = date('Y-m-d');
+        $hoje  = Relogio::hoje();
         $meses = MesModel::todos();
         if ($meses === []) {
             View::render('dashboard/vazio', ['pageTitle' => t('mês · financeiro')], 'mes');
@@ -233,7 +234,7 @@ final class MesController
         $final = null;
         try {
             if ($acao === 'final' || $acao === 'falta') {
-                $final = self::valorFinal($d, $cat, $mes, $acao, date('Y-m-d'));
+                $final = self::valorFinal($d, $cat, $mes, $acao, \Financeiro\Relogio::hoje());
                 if ($final === null || $acao === 'falta') {
                     flash('success', $final['aviso'] ?? t('Nada mudou.'));     // falta: nada é gravado
                     redirecionar($volta, 303);
@@ -333,7 +334,7 @@ final class MesController
     public function fecharForm(): void
     {
         Auth::requireLogin();
-        $hoje   = date('Y-m-d');
+        $hoje   = Relogio::hoje();
         $meses  = MesModel::todos();
         $mesCal = substr($hoje, 0, 7) . '-01';
         // sem ?mes=: o mais antigo ainda em PREVISAO até o mês do calendário
@@ -476,7 +477,7 @@ final class MesController
         Auth::requireLogin();
         csrfCheck();
 
-        $hoje = date('Y-m-d');
+        $hoje = Relogio::hoje();
         $mes = self::mesPost();
         if ($mes === null) {
             flash('error', t('Não encontramos esse mês. Volte e tente de novo.'));

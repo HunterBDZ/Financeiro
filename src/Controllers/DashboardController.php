@@ -8,6 +8,7 @@ use Financeiro\Models\AjusteModel;
 use Financeiro\Models\LancamentoModel;
 use Financeiro\Models\MesModel;
 use Financeiro\Models\SaldoConferenciaModel;
+use Financeiro\Relogio;
 use Financeiro\Services\GastosMensais;
 use Financeiro\Services\MotorFinanceiro;
 use Financeiro\View;
@@ -23,7 +24,7 @@ final class DashboardController
         Auth::requireLogin();
 
         $hoje = self::hoje();
-        $ehHoje = $hoje === date('Y-m-d');
+        $ehHoje = $hoje === Relogio::hoje();
         $plano = $ehHoje
             ? MotorFinanceiro::calcularPlano()
             : MotorFinanceiro::calcular(MotorFinanceiro::dados(), ['hoje' => $hoje]);
@@ -105,7 +106,7 @@ final class DashboardController
         Auth::requireLogin();
         csrfCheck();
 
-        $hoje  = date('Y-m-d');
+        $hoje  = Relogio::hoje();
         $volta = voltaSegura(is_string($_POST['volta'] ?? null) ? $_POST['volta'] : null, '/');
         $bruto = is_string($_POST['saldo_informado'] ?? null) ? trim($_POST['saldo_informado']) : '';
         $dataPost = is_string($_POST['data'] ?? null) ? trim($_POST['data']) : '';
@@ -229,7 +230,7 @@ final class DashboardController
         if (is_string($h) && Config::get('APP_ENV', 'production') === 'development' && self::dataIso($h)) {
             return $h;
         }
-        return date('Y-m-d');
+        return Relogio::hoje();
     }
 
     private static function dataIso(string $d): bool

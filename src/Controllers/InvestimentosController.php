@@ -2,6 +2,7 @@
 namespace Financeiro\Controllers;
 
 use Financeiro\Auth;
+use Financeiro\Relogio;
 use Financeiro\Services\Investimentos;
 use Financeiro\View;
 
@@ -13,7 +14,7 @@ final class InvestimentosController
         Auth::requireLogin();
         View::render('investimentos/index', [
             'pageTitle' => t('investimentos · financeiro'),
-            'resumo' => Investimentos::resumo(date('Y-m-d')),
+            'resumo' => Investimentos::resumo(Relogio::hoje()),
         ], 'investimentos');
     }
 }

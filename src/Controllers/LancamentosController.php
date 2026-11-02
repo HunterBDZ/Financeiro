@@ -8,6 +8,7 @@ use Financeiro\Models\MesModel;
 use Financeiro\Models\MetaModel;
 use Financeiro\Models\PrevisaoModel;
 use Financeiro\Models\UsuarioModel;
+use Financeiro\Relogio;
 use Financeiro\Services\LancarForm;
 use Financeiro\Services\MotorFinanceiro;
 use Financeiro\View;
@@ -31,7 +32,7 @@ final class LancamentosController
         Auth::requireLogin();
 
         $meses  = MesModel::todos();
-        $mesCal = date('Y-m-01');
+        $mesCal = Relogio::mes();
         $padrao = mesValido($mesCal, $meses, MesModel::ultimo() ?? $mesCal);
         $mes    = mesValido(self::get('mes'), $meses, $padrao);
 
@@ -87,7 +88,7 @@ final class LancamentosController
             'meses'      => $meses,
             'situacao'   => $situacao,
             'estado'     => estadoMes($mes, $situacao),
-            'hoje'       => date('Y-m-d'),
+            'hoje'       => Relogio::hoje(),
             'usuarios'   => $usuarios,
             'f'          => $f,
             'quem'       => $quem,
@@ -240,7 +241,7 @@ final class LancamentosController
         csrfCheck();
 
         $l = LancamentoModel::find((int) $id);
-        $mesL = $l ? substr($l['data'], 0, 8) . '01' : date('Y-m-01');
+        $mesL = $l ? substr($l['data'], 0, 8) . '01' : Relogio::mes();
         $volta = voltaSegura(self::post('volta'), '/lancamentos?mes=' . $mesL);
         if (preg_match('#^/lancamentos/' . (int) $id . '/editar(?:[?\#]|$)#', $volta)) {
             $volta = '/lancamentos?mes=' . $mesL;       // a página de edição dele deixou de existir
@@ -327,7 +328,7 @@ final class LancamentosController
     /** `quando` (hoje|ontem|outro + data) → Y-m-d. Sem `quando`, usa `data` se vier (clientes antigos). */
     public static function dataDoQuando(array $in, ?string $hoje = null): string
     {
-        $hoje ??= date('Y-m-d');
+        $hoje ??= Relogio::hoje();
         $quando = is_string($in['quando'] ?? null) ? $in['quando'] : '';
         $data   = is_string($in['data'] ?? null) ? trim($in['data']) : '';
         return match ($quando) {

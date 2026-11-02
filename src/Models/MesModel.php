@@ -2,6 +2,7 @@
 namespace Financeiro\Models;
 
 use Financeiro\Database;
+use Financeiro\Relogio;
 use Financeiro\Sql;
 
 final class MesModel
@@ -47,7 +48,7 @@ final class MesModel
      */
     public static function referencia(?string $hoje = null): string
     {
-        $cal = date('Y-m-01', strtotime($hoje ?? date('Y-m-d')));
+        $cal = date('Y-m-01', strtotime($hoje ?? Relogio::hoje()));
         $pdo = Database::connection();
         $stmt = $pdo->prepare(
             "SELECT mes FROM meses WHERE situacao = 'PREVISAO' AND mes >= :cal ORDER BY mes LIMIT 1"

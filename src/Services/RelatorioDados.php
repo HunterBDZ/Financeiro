@@ -5,6 +5,7 @@ use Financeiro\Database;
 use Financeiro\Models\AjusteModel;
 use Financeiro\Models\CartaoModel;
 use Financeiro\Models\LancamentoModel;
+use Financeiro\Relogio;
 
 /**
  * Os fatos dos relatórios, os mesmos na tela e no PDF. Juízo só sobre mês encerrado, porque o plano do
@@ -27,7 +28,7 @@ final class RelatorioDados
     /** Os períodos que dá para escolher. @return array{meses:list<array{mes:string,estado:string}>, anos:list<int>, mesPadrao:?string, anoPadrao:?int} */
     public static function periodos(?string $hoje = null): array
     {
-        $hoje ??= date('Y-m-d');
+        $hoje ??= Relogio::hoje();
         $mesHoje = substr($hoje, 0, 8) . '01';
         $meses = [];
         $anos = [];
@@ -51,7 +52,7 @@ final class RelatorioDados
 
     public static function mensal(string $mes, ?string $hoje = null): ?array
     {
-        $hoje ??= date('Y-m-d');
+        $hoje ??= Relogio::hoje();
         $dados = MotorFinanceiro::dados();
         $plano = MotorFinanceiro::calcular($dados, ['hoje' => $hoje]);
         $l = $plano[$mes] ?? null;
@@ -69,7 +70,7 @@ final class RelatorioDados
         $nomeMes = self::maiuscula(mesExtenso($mes));
         $ano = substr($mes, 0, 4);
         return [
-            'tipo' => 'mensal', 'mes' => $mes, 'estado' => (string) $l['estado'], 'encerrado' => $encerrado, 'gerado' => date('Y-m-d H:i'), 'hoje' => $hoje,
+            'tipo' => 'mensal', 'mes' => $mes, 'estado' => (string) $l['estado'], 'encerrado' => $encerrado, 'gerado' => Relogio::agora()->format('Y-m-d H:i'), 'hoje' => $hoje,
             'titulo' => t('{mes} de {ano}', ['mes' => $nomeMes, 'ano' => $ano]),
             'situacao' => $encerrado ? t('Mês encerrado') : t('Mês em andamento: lançado até {data}, o resto é planejado', ['data' => diaMes(min($hoje, date('Y-m-t', (int) strtotime($mes))))]),
             'manchete' => self::manchete($sobrou, $encerrado, (float) $l['fica_na_conta']),
@@ -603,7 +604,7 @@ final class RelatorioDados
 
     public static function anual(int $ano, ?string $hoje = null): ?array
     {
-        $hoje ??= date('Y-m-d');
+        $hoje ??= Relogio::hoje();
         $dados = MotorFinanceiro::dados();
         $plano = MotorFinanceiro::calcular($dados, ['hoje' => $hoje]);
         $meses = array_values(array_filter(array_keys($plano), static fn($m) => (int) substr((string) $m, 0, 4) === $ano));
@@ -642,7 +643,7 @@ final class RelatorioDados
             }
         }
         return [
-            'tipo' => 'anual', 'ano' => $ano, 'gerado' => date('Y-m-d H:i'), 'hoje' => $hoje, 'titulo' => $titulo, 'encerrados' => $n, 'totalMeses' => count($meses),
+            'tipo' => 'anual', 'ano' => $ano, 'gerado' => Relogio::agora()->format('Y-m-d H:i'), 'hoje' => $hoje, 'titulo' => $titulo, 'encerrados' => $n, 'totalMeses' => count($meses),
             'situacao' => $n > 0 ? t('De {de} a {ate}. Só os meses encerrados entram nos totais.', ['de' => monthLabel($encerrados[0]), 'ate' => monthLabel(end($encerrados))]) : t('Os totais aparecem quando o primeiro mês for encerrado.'),
             'manchete' => $n === 0 ? t('Ainda não há mês encerrado neste ano.') : ($sobrou > 0.004 ? t('Sobraram {valor}.', ['valor' => money($sobrou)]) : ($sobrou < -0.004 ? t('Faltaram {valor}.', ['valor' => money(abs($sobrou))]) : t('Entrou o mesmo que saiu.'))),
             'entrou' => $entrou, 'saiu' => $saiu, 'sobrou' => $sobrou, 'guardou' => round($some('poupanca_liquido') + $some('invest_liquido'), 2),

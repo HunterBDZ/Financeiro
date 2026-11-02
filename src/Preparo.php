@@ -51,7 +51,7 @@ final class Preparo
             ['Aplicar em investimentos', null, 'Investimento', -1, 0],
         ];
 
-        $mesAtual = date('Y-m-01');
+        $mesAtual = Relogio::mes();
         $somaMes = static fn(string $mes, int $n): string => date('Y-m-01', strtotime($mes . ' ' . ($n >= 0 ? '+' : '') . $n . ' month'));
         $inicio = $somaMes($mesAtual, $demo ? -2 : 0);
         // sem demonstração, os meses nascem na primeira configuração, no site, a partir da data que a pessoa escolher
@@ -108,7 +108,7 @@ final class Preparo
 
         if ($demo) {
             $ids = array_map('intval', $pdo->query('SELECT id FROM usuarios ORDER BY id')->fetchAll(PDO::FETCH_COLUMN));
-            $hoje = date('Y-m-d');
+            $hoje = Relogio::hoje();
             mt_srand(2026);
 
             $st = $pdo->prepare('INSERT INTO metas (categoria_id, valor) VALUES (?, ?)');

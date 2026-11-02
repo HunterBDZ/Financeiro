@@ -22,10 +22,19 @@ final class Manutencao
         @unlink((string) self::arquivo());
     }
 
+    /**
+     * Na hora da máquina, de propósito: quem liga e quem confere podem ser processos diferentes. A hora vai escrita
+     * dentro do arquivo; o financeiro-atualizar só cria o arquivo vazio, e aí vale a data dele.
+     */
     public static function ativa(): bool
     {
         $a = self::arquivo();
-        return $a !== null && is_file($a) && time() - (int) filemtime($a) < self::VALIDADE;
+        if ($a === null || !is_file($a)) {
+            return false;
+        }
+        $escrita = trim((string) @file_get_contents($a));
+        $desde = ctype_digit($escrita) ? (int) $escrita : (int) @filemtime($a);
+        return time() - $desde < self::VALIDADE;
     }
 
     public static function exigir(): void

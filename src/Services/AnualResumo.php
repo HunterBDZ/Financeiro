@@ -201,7 +201,7 @@ final class AnualResumo
         $mes = (string) $linha['mes'];
         $real = $dados['real'][$mes] ?? [];
         $estado = (string) ($linha['estado'] ?? 'previsto');
-        $prev = $estado === 'real' ? [] : MotorFinanceiro::previsaoDoMes($dados, $mes, $estado, substr($hoje ?? date('Y-m-d'), 0, 7) . '-01');
+        $prev = $estado === 'real' ? [] : MotorFinanceiro::previsaoDoMes($dados, $mes, $estado, substr($hoje ?? \Financeiro\Relogio::hoje(), 0, 7) . '-01');
         $base = $estado === 'real' ? $real : ($estado === 'aberto' ? $prev + $real : $prev);
         $out = [];
         foreach ($base as $c => $_) {

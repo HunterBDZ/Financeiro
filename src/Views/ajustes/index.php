@@ -208,7 +208,7 @@ $campo = static function (string $chave, string $rotulo, string $un = '', int $d
             <?php $inicioPlano = \Financeiro\Models\AjusteModel::dataInicio(); ?>
             <div class="aj-campo">
                 <label for="aj-data_inicio"><?= e(t('Início do controle')) ?></label>
-                <span class="aj-input aj-input-mes"><input id="aj-data_inicio" type="date" name="data_inicio" value="<?= e((string) $inicioPlano) ?>" max="<?= e(date('Y-m-d')) ?>" required></span>
+                <span class="aj-input aj-input-mes"><input id="aj-data_inicio" type="date" name="data_inicio" value="<?= e((string) $inicioPlano) ?>" max="<?= e(\Financeiro\Relogio::hoje()) ?>" required></span>
             </div>
             <p class="aj-ajuda"><?= e(t('Os valores abaixo são o que você tinha no início desse dia. Lançamentos valem a partir dele.')) ?></p>
             <button type="submit" class="btn btn-ghost aj-salvar"><?= e(t('Salvar início')) ?></button>

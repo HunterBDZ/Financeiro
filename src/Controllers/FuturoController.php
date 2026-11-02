@@ -3,6 +3,7 @@ namespace Financeiro\Controllers;
 
 use Financeiro\Auth;
 use Financeiro\Models\MesModel;
+use Financeiro\Relogio;
 use Financeiro\Services\AnualResumo;
 use Financeiro\Services\MotorFinanceiro;
 use Financeiro\View;
@@ -23,7 +24,7 @@ final class FuturoController
     public function index(): void
     {
         Auth::requireLogin();
-        $hoje  = date('Y-m-d');
+        $hoje  = Relogio::hoje();
         $base  = MotorFinanceiro::calcularPlano();
         if ($base === []) {
             View::render('dashboard/vazio', ['pageTitle' => t('simular · financeiro')], 'simular');

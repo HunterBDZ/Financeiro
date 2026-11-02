@@ -30,7 +30,7 @@ final class SqliteConexao extends \Pdo\Sqlite
         parent::exec('PRAGMA foreign_keys = ON');
         parent::exec('PRAGMA journal_mode = WAL');
         $this->createCollation('AI_CI', [Colacao::class, 'comparar']);
-        $this->createFunction('agora_local', static fn(): string => date('Y-m-d H:i:s'), 0);
+        $this->createFunction('agora_local', static fn(): string => Relogio::agora()->format('Y-m-d H:i:s'), 0);
         $this->createFunction('dec_fix', [Colacao::class, 'decimal'], 2);
         $like = static function (?string $padrao, ?string $texto, ?string $escape = null): ?int {
             return $padrao === null || $texto === null ? null : (int) Colacao::like($padrao, $texto, $escape);

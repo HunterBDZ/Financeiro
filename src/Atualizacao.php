@@ -131,8 +131,8 @@ final class Atualizacao
         return is_file($env) ? [$env] : (array) preg_split('/\s+/', $env);
     }
 
-    /** A pasta atual dos processos. No pacote de Windows, o php.ini e as extensões são relativos à pasta bin. */
-    private static function pastaDoProcesso(string $outra): string
+    /** A pasta atual dos processos, também os dos testes. No pacote de Windows, o php.ini e as extensões são relativos à pasta bin. */
+    public static function pastaDoProcesso(string $outra): string
     {
         $bin = dirname(Paths::raiz()) . '/bin';
         return PHP_OS_FAMILY === 'Windows' && is_dir($bin) ? $bin : $outra;

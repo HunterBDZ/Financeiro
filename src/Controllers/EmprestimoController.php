@@ -5,6 +5,7 @@ use Financeiro\Auth;
 use Financeiro\Models\AjusteModel;
 use Financeiro\Models\LancamentoModel;
 use Financeiro\Models\MesModel;
+use Financeiro\Relogio;
 use Financeiro\Services\EmprestimoSimulacao;
 use Financeiro\Services\MotorFinanceiro;
 use Financeiro\View;
@@ -23,7 +24,7 @@ final class EmprestimoController
     public function index(): void
     {
         Auth::requireLogin();
-        $hoje  = date('Y-m-d');
+        $hoje  = Relogio::hoje();
         $dados = MotorFinanceiro::dados();
         if ($dados['meses'] === []) {
             View::render('dashboard/vazio', ['pageTitle' => t('empréstimo') . ' · financeiro'], 'emprestimo');
@@ -82,7 +83,7 @@ final class EmprestimoController
     {
         Auth::requireLogin();
         csrfCheck();
-        $hoje = date('Y-m-d');
+        $hoje = Relogio::hoje();
         $ref  = MesModel::referencia($hoje);
         $brutos = (array) ($_POST['valores'] ?? []);
         ['valores' => $valores, 'erro' => $errado] = AjustesController::lerValores($brutos, AjusteModel::DO_EMPRESTIMO);
@@ -142,7 +143,7 @@ final class EmprestimoController
     {
         Auth::requireLogin();
         csrfCheck();
-        $hoje  = date('Y-m-d');
+        $hoje  = Relogio::hoje();
         $dados = MotorFinanceiro::dados();
         $cat   = $dados['esp']['amort'];
         $campoValor = trim(is_string($_POST['valor'] ?? null) ? $_POST['valor'] : '');

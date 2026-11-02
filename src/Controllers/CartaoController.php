@@ -5,6 +5,7 @@ use Financeiro\Auth;
 use Financeiro\Models\CartaoModel;
 use Financeiro\Models\CategoriaModel;
 use Financeiro\Models\MesModel;
+use Financeiro\Relogio;
 use Financeiro\Services\CartaoFatura;
 use Financeiro\Services\MotorFinanceiro;
 use Financeiro\View;
@@ -20,7 +21,7 @@ final class CartaoController
     public function index(): void
     {
         Auth::requireLogin();
-        $hoje   = date('Y-m-d');
+        $hoje   = Relogio::hoje();
         $cartao = CartaoModel::ativo();
         $erro   = $_SESSION['cartao_erro'] ?? null;
         unset($_SESSION['cartao_erro']);
@@ -100,7 +101,7 @@ final class CartaoController
      */
     public static function criarCompraDe(array $in, ?string $hoje = null): array
     {
-        $hoje ??= date('Y-m-d');
+        $hoje ??= Relogio::hoje();
         $cartao = CartaoModel::ativo();
         if ($cartao === null) {
             return ['erro' => t('Cadastre o cartão primeiro, na aba Cartão.'), 'aviso' => '', 'id' => 0];
@@ -126,7 +127,7 @@ final class CartaoController
         }
         $erro = $_SESSION['cartao_erro'] ?? null;
         unset($_SESSION['cartao_erro']);
-        $aberta = CartaoFatura::faturaDe(date('Y-m-d'), $cartao['fecha'], $cartao['vence']);
+        $aberta = CartaoFatura::faturaDe(Relogio::hoje(), $cartao['fecha'], $cartao['vence']);
         $meses = [];
         for ($i = -36; $i <= 12; $i++) {
             $meses[] = CartaoFatura::somaMeses($aberta, $i);
@@ -149,7 +150,7 @@ final class CartaoController
         }
         $in = $_POST;
         $prim = is_string($in['primeira_fatura'] ?? null) && preg_match('/^\d{4}-\d{2}-01$/D', $in['primeira_fatura']) ? $in['primeira_fatura'] : null;
-        [$erro, $d] = self::validarCompra($in + ['parcela_atual' => ''], $cartao, date('Y-m-d'));
+        [$erro, $d] = self::validarCompra($in + ['parcela_atual' => ''], $cartao, Relogio::hoje());
         if ($erro === null && $prim === null) {
             $erro = t('Escolha a fatura da 1ª parcela.');
         }
