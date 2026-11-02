@@ -1,0 +1,136 @@
+/* ==========================================================================
+   importar.css — Importar extrato: escolher o arquivo, ligar as colunas do CSV e revisar.
+   A revisão é uma tabela no computador e, no celular, um cartão por linha (marca, descrição e
+   valor em cima; data e avisos no meio; categoria embaixo, na largura toda).
+   ========================================================================== */
+
+.imp { display: flex; flex-direction: column; gap: 14px; min-width: 0; max-width: 760px; }
+.imp > * { min-width: 0; }
+.imp--revisar { max-width: none; }
+.imp-topo { display: flex; align-items: center; gap: 12px; }
+.imp-sub { color: var(--text-2); font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+.imp-sub a, .imp-pendente a { font-weight: 750; text-decoration: underline; text-underline-offset: 3px; }
+.imp-ajuda { color: var(--text-2); font-size: 13px; line-height: 1.45; }
+.imp-ajuda:empty { display: none; }
+.imp-vazio { color: var(--text-2); font-size: 14px; }
+
+/* formulários */
+.imp-form { display: grid; gap: 16px; }
+.imp-campo { display: block; min-width: 0; }
+.imp-campo > span { display: block; margin-bottom: 6px; color: var(--text-2); font-size: 13px; font-weight: 650; }
+.imp-campo .imp-ajuda { margin-top: 6px; }
+.imp-arquivo { gap: 8px; }
+.imp-continuar { justify-self: start; min-width: 160px; }
+.imp-check { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 650; cursor: pointer; }
+.imp-colunas { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); align-items: end; gap: 12px; }
+.imp-duas { display: grid; gap: 12px; }
+.imp-duas > summary { color: var(--text); font-size: 14px; font-weight: 700; min-height: var(--tap); display: flex; align-items: center; }
+.imp-duas[open] > summary { margin-bottom: 4px; }
+
+/* blocos de baixo: modelo, últimas importações, regras */
+.imp-bloco { display: grid; gap: 10px; }
+.imp-bloco h2, .imp-regra h2 { font-size: 16px; font-weight: 750; }
+.imp-bloco p { color: var(--text-2); font-size: 14px; line-height: 1.5; }
+.imp-modelo .btn { justify-self: start; }
+.imp-hist { display: grid; }
+.imp-hist-i { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); min-width: 0; }
+.imp-hist-i:first-child { border-top: 0; padding-top: 0; }
+.imp-hist-n { display: grid; gap: 2px; min-width: 0; }
+.imp-hist-n b { font-size: 14.5px; overflow-wrap: anywhere; }
+.imp-hist-n small, .imp-hist-v small { color: var(--text-2); }
+.imp-hist-v { display: flex; align-items: center; gap: 10px; flex: none; }
+.imp-hist-v form { margin: 0; }
+.imp-hist-i.is-desfeita .imp-hist-n b { color: var(--text-2); text-decoration: line-through; }
+
+/* prévia do CSV */
+.imp-previa { display: grid; gap: 10px; padding-bottom: 8px; }
+.imp-previa-t { font-size: 14px; font-weight: 700; color: var(--text-2); overflow-wrap: anywhere; }
+.imp-rolar { overflow-x: auto; margin-inline: -4px; padding: 0 4px 8px; }
+.imp-rolar:focus-visible { outline: 2px solid var(--foco); outline-offset: 2px; border-radius: 8px; }
+.imp-tabela-previa { font-size: 13px; }
+.imp-tabela-previa th, .imp-tabela-previa td { padding: 8px 10px; text-align: left; white-space: nowrap; border-bottom: 1px solid var(--line); }
+.imp-tabela-previa th { color: var(--text-2); font-weight: 700; }
+.imp-tabela-previa tr.is-cab td { font-weight: 750; background: var(--card-2); }
+
+/* revisão: resumo */
+.imp-resumo { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.imp-resumo .chip { cursor: default; box-shadow: none; }
+.imp-resumo .chip:not(.is-on):hover { background: var(--card); }
+.imp-chip-aviso { background: var(--warn-bg); border-color: transparent; color: var(--text); }
+.imp-resumo .chip.imp-chip-aviso:hover { background: var(--warn-bg); }
+.imp-todas { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; font-size: 14px; font-weight: 700; cursor: pointer; }
+
+/* revisão: a tabela */
+.imp-lista { padding: 0; overflow: hidden; }
+.imp-tabela { font-size: 14px; }
+.imp-tabela th { padding: 12px 10px; text-align: left; color: var(--text-2); font-size: 13px; font-weight: 700; border-bottom: 1px solid var(--line); }
+.imp-tabela td { padding: 12px 10px; vertical-align: top; border-bottom: 1px solid var(--line); }
+.imp-tabela tbody tr:last-child td { border-bottom: 0; }
+.imp-tabela th:first-child, .imp-tabela td:first-child { padding-left: 16px; }
+.imp-tabela th:last-child, .imp-tabela td:last-child { padding-right: 16px; }
+.imp-c-marca { width: 64px; }
+.imp-c-data { width: 96px; color: var(--text-2); font-weight: 650; }
+.imp-c-data label { cursor: pointer; }
+.imp-c-cat { width: 280px; }
+.imp-c-valor { width: 130px; text-align: right !important; }
+.imp-c-valor b { font-size: 15px; font-weight: 750; }
+.imp-desc { display: block; font-weight: 700; overflow-wrap: anywhere; cursor: pointer; }
+.imp-nota, .imp-aviso, .imp-origem { display: block; margin-top: 3px; color: var(--text-2); font-size: 12.5px; line-height: 1.4; }
+.imp-aviso { display: flex; align-items: flex-start; gap: 5px; color: var(--warn); font-weight: 650; }
+.imp-aviso svg { margin-top: 1px; }
+.imp-c-cat select { min-height: 42px; font-size: 15px; }
+.imp-cat-pe { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 8px; }
+.imp-cat-pe:empty { display: none; }
+.imp-sempre { min-height: 32px; padding: 0 2px; font-size: 12.5px; font-weight: 700; color: var(--text-2); }
+.imp-sempre:hover { color: var(--text); }
+.imp-l.is-aviso td:first-child { box-shadow: inset 3px 0 0 var(--warn); }
+.imp-l.is-fora td:not(:first-child) { opacity: .62; }
+.imp-l:not(.is-marcada) .imp-desc { color: var(--text-2); }
+.imp-l.is-sem-cat select { box-shadow: inset 0 0 0 2px var(--warn); }
+
+/* revisão: regra e botões */
+.imp-regra { display: grid; gap: 10px; scroll-margin-top: 16px; }
+.imp-regra-campos { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; align-items: end; gap: 12px; }
+.imp-acoes {
+    position: sticky; z-index: 30; bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+    display: flex; justify-content: flex-end; gap: 10px;
+    padding: 10px; border-radius: 18px; border: 1px solid var(--line);
+    background: color-mix(in srgb, var(--card) 94%, transparent);
+    -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+    box-shadow: var(--sombra-flutua);
+}
+.imp-lancar { min-width: 180px; }
+.imp-acoes-dica { text-align: right; }
+.imp-rev-form { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+
+/* o Extrato: "Importar extrato" fica à direita, junto da planilha */
+.ex-resumo-linha .ex-importar { margin-left: auto; }
+.ex-resumo-linha .ex-importar + .ex-csv { margin-left: 0; }
+
+@media (min-width: 1024px) {
+    .imp-acoes { bottom: 16px; }
+}
+
+/* celular: cada linha da revisão vira um cartão */
+@media (max-width: 760px) {
+    .imp-tabela thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+    .imp-tabela, .imp-tabela tbody { display: block; }
+    .imp-tabela tr {
+        display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
+        grid-template-areas: "m data valor" "m desc desc" "cat cat cat";
+        gap: 2px 12px; padding: 14px 16px; border-bottom: 1px solid var(--line);
+    }
+    .imp-tabela tbody tr:last-child { border-bottom: 0; }
+    .imp-tabela td, .imp-tabela td:first-child, .imp-tabela td:last-child { display: block; width: auto; padding: 0; border: 0; }
+    .imp-c-marca { grid-area: m; padding-top: 2px !important; }
+    .imp-c-desc { grid-area: desc; }
+    .imp-c-valor { grid-area: valor; }
+    .imp-c-data { grid-area: data; align-self: center; font-size: 13px; }
+    .imp-c-cat { grid-area: cat; margin-top: 8px; }
+    .imp-l.is-aviso td:first-child { box-shadow: none; }
+    .imp-l.is-aviso { box-shadow: inset 3px 0 0 var(--warn); }
+    .imp-regra-campos { grid-template-columns: 1fr; }
+    .imp-acoes { justify-content: stretch; }
+    .imp-acoes .btn { flex: 1 1 0; min-width: 0; }
+    .imp-continuar { justify-self: stretch; }
+}

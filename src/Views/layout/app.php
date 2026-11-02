@@ -43,8 +43,8 @@ if (!$usaEmprestimo) {
 
 $publico = __DIR__ . '/../../../public';
 $existe  = static fn(string $p): bool => is_file($publico . $p);
-$estilos = array_filter(['/assets/css/style.css', '/assets/css/inicio.css', '/assets/css/lancar.css', '/assets/css/mes.css', '/assets/css/investimentos.css', '/assets/css/relatorio.css', '/assets/css/cartao.css', '/assets/css/emprestimo.css', '/assets/css/wishlist.css', '/assets/css/temas-tela.css', '/assets/css/temas.css'], $existe);
-$scripts = array_filter(['/assets/js/app.js', '/assets/js/lancar.js', '/assets/js/mes.js', '/assets/js/cartao.js', '/assets/js/emprestimo.js', '/assets/js/wishlist.js', '/assets/js/temas.js', '/assets/js/relatorio.js', '/assets/js/fuso.js'], $existe);
+$estilos = array_filter(['/assets/css/style.css', '/assets/css/inicio.css', '/assets/css/lancar.css', '/assets/css/mes.css', '/assets/css/investimentos.css', '/assets/css/relatorio.css', '/assets/css/cartao.css', '/assets/css/emprestimo.css', '/assets/css/wishlist.css', '/assets/css/importar.css', '/assets/css/temas-tela.css', '/assets/css/temas.css'], $existe);
+$scripts = array_filter(['/assets/js/app.js', '/assets/js/lancar.js', '/assets/js/mes.js', '/assets/js/cartao.js', '/assets/js/emprestimo.js', '/assets/js/wishlist.js', '/assets/js/importar.js', '/assets/js/temas.js', '/assets/js/relatorio.js', '/assets/js/fuso.js'], $existe);
 
 $uri     = (string) ($_SERVER['REQUEST_URI'] ?? '/');
 $volta   = voltaSegura($uri, '/');
@@ -173,7 +173,7 @@ $marca = '<span class="marca"><img src="' . e(SiteIcone::url()) . '" alt="" widt
     <?php $segs = explode(' · ', (string) $flash['message']); ?>
     <span class="toast-msg"><span class="toast-linhas"><?php foreach ($segs as $i => $t): ?><span class="toast-seg"><?php if ($i > 0): ?><span class="sr-only"> · </span><?php endif; ?><?= e($t) ?></span><?php endforeach; ?></span></span>
     <?php if (!empty($flash['acao']['url']) && is_string($flash['acao']['url'])): ?>
-        <form class="toast-acao" method="post" action="<?= e(voltaSegura($flash['acao']['url'], '/')) ?>">
+        <form class="toast-acao" method="post" action="<?= e(voltaSegura($flash['acao']['url'], '/')) ?>"<?= is_string($flash['acao']['confirmar'] ?? null) ? ' data-confirm="' . e($flash['acao']['confirmar']) . '"' : '' ?>>
             <?= csrfField() ?>
             <?php foreach ((array) ($flash['acao']['campos'] ?? []) as $campo => $valor): ?>
                 <input type="hidden" name="<?= e((string) $campo) ?>" value="<?= e((string) $valor) ?>">
