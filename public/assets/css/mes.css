@@ -660,6 +660,7 @@ dl.fe-ponte > .fe-ponte-fim { margin-top: 2px; padding-top: 4px; border-top: 1px
 .sis-grupo .aj-salvar { margin-top: 4px; }
 .sis-comando { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--card-2); font-size: 13px; line-height: 1.6; overflow-x: auto; }
 .sis-pasta { overflow-wrap: anywhere; }
+.sis-grupo .aviso a { font-weight: 650; text-decoration: underline; text-underline-offset: 3px; }
 .sis-notas pre { margin: 8px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; font-size: 14px; }
 .sis-acao > summary, .sis-notas > summary { cursor: pointer; font-weight: 650; min-height: 32px; }
 .sis-acao[open] > summary { margin-bottom: 8px; }

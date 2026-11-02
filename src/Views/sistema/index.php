@@ -1,7 +1,7 @@
 <?php
 /**
  * Backup e atualização. Variáveis: $pode, $administrador, $nomeAdministrador, $tipo, $versao, $estado, $consulta,
- * $backupDisponivel, $backups, $pastaBackups, $limiteEnvio.
+ * $programa (Atualizacao::programa, null fora dos pacotes), $versoes, $backupDisponivel, $backups, $pastaBackups, $limiteEnvio.
  */
 $csrf = csrfField();
 $senha = static function (string $id): void { ?>
@@ -21,6 +21,15 @@ $senha = static function (string $id): void { ?>
     <section class="card sis-grupo" id="versao" aria-labelledby="sis-versao-t">
         <h2 class="titulo" id="sis-versao-t"><?= e(t('Versão')) ?></h2>
         <p><?= e(t('Você está na versão {versao}.', ['versao' => $versao])) ?></p>
+        <?php if ($programa !== null): ?>
+            <p class="aj-ajuda sis-programa"><?= e($programa['frankenphp'] !== null
+                ? t('Programa que roda o site: FrankenPHP {frankenphp}, com PHP {php}.', ['frankenphp' => $programa['frankenphp'], 'php' => $programa['php']])
+                : t('Programa que roda o site: PHP {php}.', ['php' => $programa['php']])) ?></p>
+            <?php if ($programa['instalar'] !== null): ?>
+                <p class="aviso aviso-warn" id="sis-programa-velho"><?= e(t('Há uma versão nova do programa que roda o Financeiro. Para instalar, baixe o instalador da versão {versao} e instale por cima. Os seus dados ficam.', ['versao' => $programa['instalar']])) ?>
+                    <a href="<?= e($versoes) ?>" rel="noopener"><?= e(t('Abrir a página de versões')) ?></a></p>
+            <?php endif; ?>
+        <?php endif; ?>
 
         <?php if ($estado !== null && $estado['fase'] === 'rodando'): ?>
             <p class="aviso" role="status"><?= e(t('Atualizando para a versão {versao}.', ['versao' => $estado['versao']])) ?> <?= e(t($estado['etapa'])) ?>… <?= e(t('Você pode continuar nesta página.')) ?></p>

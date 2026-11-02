@@ -1612,6 +1612,111 @@ foreach (['instalar.sh', 'README.md', 'README.en.md', 'docs/INSTALACAO.md', '.gi
     }
 }
 
+// ---- o programa do pacote: o manifesto recomenda o FrankenPHP e o PHP, e /sistema avisa quando o instalado é mais velho
+$prT = static fn(string $tipo, ?string $fp, string $php, ?array $rec, string $atual = '1.10.0'): ?array
+    => \Financeiro\Atualizacao::programa($tipo, ['frankenphp' => $fp, 'php' => $php], $rec, $atual);
+$recT = ['versao' => '1.11.0', 'frankenphp' => '1.13.4', 'php' => '8.5.12'];
+$check('programa: igual ao recomendado, sem aviso', ($prT('pacote', '1.13.4', '8.5.12', $recT) ?? ['instalar' => 'x'])['instalar'] === null);
+$check('programa: mais novo que o recomendado, sem aviso', ($prT('pacote', '1.14.0', '8.6.0', $recT) ?? ['instalar' => 'x'])['instalar'] === null);
+$check('programa: PHP mais velho avisa, e 8.5.9 é mais velho que 8.5.12', ($prT('pacote', '1.13.4', '8.5.9', $recT)['instalar'] ?? null) === '1.11.0');
+$check('programa: FrankenPHP mais velho avisa, mesmo com o PHP em dia', ($prT('pacote', '1.9.10', '8.5.12', $recT)['instalar'] ?? null) === '1.11.0');
+$check('programa: pacote de antes do programa.json compara só o PHP', ($prT('pacote', null, '8.5.12', $recT) ?? ['instalar' => 'x'])['instalar'] === null
+    && ($prT('pacote', null, '8.4.14', $recT)['instalar'] ?? null) === '1.11.0');
+$check('programa: sem recomendação (manifesto antigo ou sem consulta), sem aviso', ($prT('pacote', '1.0.0', '8.4.0', null) ?? ['instalar' => 'x'])['instalar'] === null);
+$check('programa: o instalador indicado nunca é mais velho que o site', ($prT('pacote', '1.0.0', '8.4.0', $recT, '1.12.0')['instalar'] ?? null) === '1.12.0');
+$check('programa: servidor, Docker e pasta de desenvolvimento não mostram nada',
+    $prT('servidor', '1.0.0', '8.4.0', $recT) === null && $prT('docker', '1.0.0', '8.4.0', $recT) === null && $prT('dev', '1.0.0', '8.4.0', $recT) === null);
+$check('programa: na Microsoft Store, só a linha: quem troca o programa é a loja', ($prT('loja', '1.0.0', '8.4.0', $recT) ?? ['instalar' => 'x'])['instalar'] === null);
+$instT = \Financeiro\Atualizacao::programaInstalado();
+$check('programa: o PHP instalado é o que roda agora', $instT['php'] === PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION . '.' . PHP_RELEASE_VERSION
+    && ($instT['frankenphp'] === null || preg_match('/^\d+\.\d+\.\d+$/', $instT['frankenphp']) === 1));
+
+// a recomendação guardada na pasta de dados, que o manifesto sem o campo não apaga
+\Financeiro\Atualizacao::guardarRecomendado(['versao' => '1.11.0', 'programa' => null]);
+$check('programa: sem consulta, nada recomendado', \Financeiro\Atualizacao::programaRecomendado() === null);
+\Financeiro\Atualizacao::guardarRecomendado(['versao' => '1.11.0', 'programa' => ['frankenphp' => '1.13.4', 'php' => '8.5.12']]);
+\Financeiro\Atualizacao::guardarRecomendado(['versao' => '1.11.1', 'programa' => null]);
+$check('programa: guarda o recomendado, e manifesto sem o campo não apaga', \Financeiro\Atualizacao::programaRecomendado() === $recT);
+
+// a tela: o aviso aparece com o programa velho e some depois do pacote novo; fora do pacote, nada
+$telaT = static function (string $tipo, ?array $programa): string {
+    ob_start();
+    \Financeiro\View::partial('sistema/index', ['pode' => true, 'administrador' => true, 'nomeAdministrador' => 'teste', 'tipo' => $tipo, 'versao' => '1.10.0',
+        'estado' => null, 'consulta' => null, 'programa' => $programa, 'versoes' => 'https://github.com/dono/nome/releases',
+        'backupDisponivel' => true, 'backups' => [], 'pastaBackups' => null, 'limiteEnvio' => '8 MB']);
+    return (string) ob_get_clean();
+};
+$recGuardT = \Financeiro\Atualizacao::programaRecomendado();
+$velhoT = $telaT('pacote', \Financeiro\Atualizacao::programa('pacote', ['frankenphp' => '1.12.0', 'php' => '8.4.14'], $recGuardT, '1.10.0'));
+$check('programa: com o programa velho, /sistema avisa e indica a versão e a página de versões',
+    str_contains($velhoT, 'id="sis-programa-velho"') && str_contains($velhoT, 'baixe o instalador da versão 1.11.0 e instale por cima. Os seus dados ficam.')
+    && str_contains($velhoT, 'href="https://github.com/dono/nome/releases"') && str_contains($velhoT, 'FrankenPHP 1.12.0, com PHP 8.4.14'));
+$novoT = $telaT('pacote', \Financeiro\Atualizacao::programa('pacote', ['frankenphp' => '1.13.4', 'php' => '8.5.12'], $recGuardT, '1.11.0'));
+$check('programa: depois do pacote novo, o aviso some e a linha fica', !str_contains($novoT, 'sis-programa-velho') && str_contains($novoT, 'Programa que roda o site: FrankenPHP 1.13.4, com PHP 8.5.12.'));
+$servT = $telaT('servidor', \Financeiro\Atualizacao::programa('servidor', ['frankenphp' => null, 'php' => '8.1.0'], $recGuardT, '1.10.0'));
+$check('programa: no servidor, /sistema não fala do programa', !str_contains($servT, 'Programa que roda o site') && !str_contains($servT, 'sis-programa-velho') && str_contains($servT, 'sudo financeiro-atualizar'));
+Idioma::usar('en');
+$enT = $telaT('pacote', \Financeiro\Atualizacao::programa('pacote', ['frankenphp' => '1.12.0', 'php' => '8.4.14'], $recGuardT, '1.10.0'));
+Idioma::usar('pt');
+$check('programa: o aviso sai traduzido', str_contains($enT, 'download the installer for version 1.11.0') && str_contains($enT, 'Open the versions page'));
+$sisT = $pagina(\Financeiro\Controllers\SistemaController::class, 'index', '/sistema');
+// aqui é a pasta de quem desenvolve; depois de uma atualização pela tela, é o próprio pacote
+$check('programa: a tela de verdade só fala do programa num pacote', str_contains($sisT, 'id="versao"')
+    && in_array(\Financeiro\Atualizacao::tipo(), ['pacote', 'loja'], true) === str_contains($sisT, 'Programa que roda o site'));
+@unlink(\Financeiro\Atualizacao::pasta() . '/recomendado.json');
+
+// o manifesto do assinador de verdade, com e sem o campo; a assinatura continua conferindo
+if (function_exists('sodium_crypto_sign_keypair') && function_exists('proc_open')) {
+    $parT = sodium_crypto_sign_keypair();
+    $pubT = base64_encode(sodium_crypto_sign_publickey($parT));
+    $dirT = (string) getenv('FIN_REGRAS_PASTA') . '/assinar';
+    @mkdir($dirT, 0700);
+    file_put_contents($dirT . '/financeiro-app-9.9.9.tar.gz', 'conteúdo qualquer');
+    $assinarT = static function (array $extra) use ($dirT, $parT): array {
+        @unlink($dirT . '/atualizacao.json');
+        $env = array_filter(getenv(), 'is_string');
+        $env['FIN_CHAVE_ATUALIZACAO'] = base64_encode(sodium_crypto_sign_secretkey($parT));
+        $proc = proc_open([...\Financeiro\Atualizacao::comandoPhp(), __DIR__ . '/../tools/assinar-atualizacao.php', '--pacote=' . $dirT . '/financeiro-app-9.9.9.tar.gz', '--versao=9.9.9', ...$extra],
+            [0 => ['file', PHP_OS_FAMILY === 'Windows' ? 'NUL' : '/dev/null', 'r'], 1 => ['pipe', 'w'], 2 => ['redirect', 1]], $tubos, \Financeiro\Atualizacao::pastaDoProcesso(dirname(__DIR__)), $env);
+        $saida = is_resource($proc) ? (string) stream_get_contents($tubos[1]) : '';
+        $fim = is_resource($proc) ? proc_close($proc) : -1;
+        return [$fim, $saida, (string) @file_get_contents($dirT . '/atualizacao.json'), (string) @file_get_contents($dirT . '/atualizacao.json.sig')];
+    };
+    [$fimT, , $jsonT, $sigT] = $assinarT(['--frankenphp=1.13.4', '--php=8.5.12']);
+    $mT = $fimT === 0 ? \Financeiro\Atualizacao::lerManifesto($jsonT, $sigT, $pubT) : [];
+    $check('manifesto: com o campo, a assinatura confere e o programa vem junto', ($mT['programa'] ?? null) === ['frankenphp' => '1.13.4', 'php' => '8.5.12'] && ($mT['versao'] ?? '') === '9.9.9', "saída {$fimT}");
+    $mudadoT = str_replace('"8.5.12"', '"8.5.11"', $jsonT);
+    $erroT = '';
+    try {
+        \Financeiro\Atualizacao::lerManifesto($mudadoT, $sigT, $pubT);
+    } catch (\RuntimeException $e) {
+        $erroT = $e->getMessage();
+    }
+    $check('manifesto: mexer no programa recomendado quebra a assinatura', $mudadoT !== $jsonT && str_contains($erroT, 'assinatura'));
+    [$fimT, , $jsonT, $sigT] = $assinarT([]);
+    $mT = $fimT === 0 ? \Financeiro\Atualizacao::lerManifesto($jsonT, $sigT, $pubT) : [];
+    $check('manifesto: sem o campo, como os antigos, continua valendo', $fimT === 0 && !str_contains($jsonT, 'programa') && array_key_exists('programa', $mT) && $mT['programa'] === null);
+    [$fimT] = $assinarT(['--frankenphp=1.13']);
+    $check('manifesto: o assinador recusa programa pela metade', $fimT === 2);
+    $estranhoT = json_encode(['versao' => '9.9.9', 'pacote' => 'financeiro-app-9.9.9.tar.gz', 'sha256' => str_repeat('a', 64), 'tamanho' => 10, 'programa' => ['frankenphp' => 'última', 'php' => 8]]);
+    $sigEstranhoT = base64_encode(sodium_crypto_sign_detached((string) $estranhoT, sodium_crypto_sign_secretkey($parT)));
+    $check('manifesto: campo fora do formato é ignorado, sem barrar a atualização', \Financeiro\Atualizacao::lerManifesto((string) $estranhoT, $sigEstranhoT, $pubT)['programa'] === null);
+}
+
+// a montagem: as versões num lugar só, conferidas no binário, gravadas em programa.json e passadas ao assinador
+$envProgT = __DIR__ . '/../packaging/programa.env';
+if (is_file($envProgT) && is_file(__DIR__ . '/../packaging/empacotar.sh')) {
+    $textoEnvT = (string) file_get_contents($envProgT);
+    $check('montagem: programa.env tem o FrankenPHP e o PHP dele', (bool) preg_match('/^FRANKENPHP=\d+\.\d+\.\d+$/m', $textoEnvT) && (bool) preg_match('/^PHP_DO_FRANKENPHP=\d+\.\d+\.\d+$/m', $textoEnvT));
+    foreach (['packaging/empacotar.sh', 'packaging/windows/montar.sh', 'packaging/macos/montar.sh'] as $arqT) {
+        $sT = (string) @file_get_contents(__DIR__ . '/../' . $arqT);
+        $check('montagem: ' . $arqT . ' lê programa.env, confere o PHP e grava programa.json',
+            (str_contains($sT, 'programa.env"') || str_contains($sT, '. packaging/programa.env'))
+            && !preg_match('/^FRANKENPHP=/m', $sT) && str_contains($sT, 'X-Powered-By: PHP/$PHP_DO_FRANKENPHP') && str_contains($sT, 'programa.json'));
+    }
+    $check('montagem: o atualizacao.json recebe o programa', str_contains((string) file_get_contents(__DIR__ . '/../packaging/empacotar.sh'), '--frankenphp="$FRANKENPHP" --php="$PHP_DO_FRANKENPHP"'));
+}
+
 // ---- pagamento de fatura na fatura certa e conta que veio mais barata (dados de mentira; o que grava é desfeito)
 // cada pagamento vai para a fatura mais recente que já tinha fechado na data dele; se ela está toda paga, para a seguinte
 $pgT = static fn(string $data, float $valor): array => ['data' => $data, 'valor' => $valor];

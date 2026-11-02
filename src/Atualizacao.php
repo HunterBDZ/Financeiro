@@ -8,6 +8,9 @@ namespace Financeiro;
  *
  * O que a versão diz de si vem em atualizacao.json, assinado com uma chave que fica fora do repositório
  * (tools/assinar-atualizacao.php); a chave pública é a de baixo. Só consulta quando a pessoa pede.
+ *
+ * A atualização troca só a pasta app: o FrankenPHP (e o PHP dentro dele) só muda com um pacote novo. O manifesto
+ * recomenda o programa dos pacotes daquela versão; a tela avisa quando o instalado é mais velho.
  */
 final class Atualizacao
 {
@@ -51,18 +54,25 @@ final class Atualizacao
     }
 
     /**
-     * O que o repositório oferece agora, com a assinatura conferida.
-     * @return array{versao:string, pacote:string, sha256:string, tamanho:int, notas:string}
+     * O que o repositório oferece agora, com a assinatura conferida. No pacote, guarda o programa recomendado.
+     * @return array{versao:string, pacote:string, sha256:string, tamanho:int, notas:string, programa:?array{frankenphp:string, php:string}}
      * @throws \RuntimeException com o motivo, para a tela
      */
     public static function consultar(): array
     {
         $json = self::baixarTexto(self::base() . '/atualizacao.json');
         $assinatura = self::baixarTexto(self::base() . '/atualizacao.json.sig');
-        return self::lerManifesto($json, $assinatura, self::CHAVE_PUBLICA);
+        $m = self::lerManifesto($json, $assinatura, self::CHAVE_PUBLICA);
+        if (self::tipo() === 'pacote') {
+            self::guardarRecomendado($m);
+        }
+        return $m;
     }
 
-    /** @return array{versao:string, pacote:string, sha256:string, tamanho:int, notas:string} */
+    /**
+     * "programa" é opcional: manifestos de antes dele continuam valendo, e um campo fora do formato é ignorado.
+     * @return array{versao:string, pacote:string, sha256:string, tamanho:int, notas:string, programa:?array{frankenphp:string, php:string}}
+     */
     public static function lerManifesto(string $json, string $assinatura, string $chave): array
     {
         if (!function_exists('sodium_crypto_sign_verify_detached')) {
@@ -79,7 +89,73 @@ final class Atualizacao
             || !preg_match('/^[0-9a-f]{64}$/', (string) ($m['sha256'] ?? '')) || (int) ($m['tamanho'] ?? 0) <= 0 || (int) $m['tamanho'] > self::MAXIMO) {
             throw new \RuntimeException('A resposta sobre a versão nova veio incompleta.');
         }
-        return ['versao' => $m['versao'], 'pacote' => $m['pacote'], 'sha256' => $m['sha256'], 'tamanho' => (int) $m['tamanho'], 'notas' => (string) ($m['notas'] ?? '')];
+        return ['versao' => $m['versao'], 'pacote' => $m['pacote'], 'sha256' => $m['sha256'], 'tamanho' => (int) $m['tamanho'], 'notas' => (string) ($m['notas'] ?? ''),
+            'programa' => self::lerPrograma($m['programa'] ?? null)];
+    }
+
+    /** @return array{frankenphp:string, php:string}|null */
+    private static function lerPrograma(mixed $p): ?array
+    {
+        if (!is_array($p) || !is_string($p['frankenphp'] ?? null) || !is_string($p['php'] ?? null)
+            || !preg_match('/^\d+\.\d+\.\d+$/', $p['frankenphp']) || !preg_match('/^\d+\.\d+\.\d+$/', $p['php'])) {
+            return null;
+        }
+        return ['frankenphp' => $p['frankenphp'], 'php' => $p['php']];
+    }
+
+    // ---- o programa que roda o site, nos pacotes
+
+    /**
+     * O FrankenPHP que veio no pacote (programa.json, ao lado de PACOTE) e o PHP que roda agora. Pacote de antes do
+     * programa.json: só o PHP.
+     * @return array{frankenphp:?string, php:string}
+     */
+    public static function programaInstalado(): array
+    {
+        $p = json_decode((string) @file_get_contents(dirname(Paths::raiz()) . '/programa.json'), true);
+        $fp = is_array($p) && is_string($p['frankenphp'] ?? null) && preg_match('/^\d+\.\d+\.\d+$/', $p['frankenphp']) ? $p['frankenphp'] : null;
+        return ['frankenphp' => $fp, 'php' => PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION . '.' . PHP_RELEASE_VERSION];
+    }
+
+    /** O que o último manifesto consultado recomenda, com a versão que traz esse programa. @return array{versao:string, frankenphp:string, php:string}|null */
+    public static function programaRecomendado(): ?array
+    {
+        $r = json_decode((string) @file_get_contents(self::pasta() . '/recomendado.json'), true);
+        $p = is_array($r) ? self::lerPrograma($r) : null;
+        return $p !== null && preg_match('/^\d+\.\d+\.\d+$/', (string) ($r['versao'] ?? '')) ? ['versao' => (string) $r['versao']] + $p : null;
+    }
+
+    /** Manifesto sem "programa" não apaga o que já se sabe. @param array{versao:string, programa:?array{frankenphp:string, php:string}} $m */
+    public static function guardarRecomendado(array $m): void
+    {
+        if ($m['programa'] === null) {
+            return;
+        }
+        try {
+            self::prepararPasta();
+            file_put_contents(self::pasta() . '/recomendado.json', json_encode(['versao' => $m['versao']] + $m['programa']), LOCK_EX);
+        } catch (\Throwable $e) {
+            error_log('atualização: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * O que a tela de sistema mostra do programa. Nada no servidor, no Docker e na pasta de quem desenvolve: lá, quem
+     * atualiza o PHP é o sistema ou a imagem. Na Microsoft Store, a loja troca o pacote inteiro: só a linha, sem aviso.
+     * instalar = a versão cujo instalador traz o programa recomendado, quando o instalado é mais velho.
+     * @param array{frankenphp:?string, php:string} $instalado  @param array{versao:string, frankenphp:string, php:string}|null $recomendado
+     * @return array{frankenphp:?string, php:string, instalar:?string}|null
+     */
+    public static function programa(string $tipo, array $instalado, ?array $recomendado, string $atual): ?array
+    {
+        if ($tipo !== 'pacote' && $tipo !== 'loja') {
+            return null;
+        }
+        $velho = $tipo === 'pacote' && $recomendado !== null && (version_compare($instalado['php'], $recomendado['php'], '<')
+            || ($instalado['frankenphp'] !== null && version_compare($instalado['frankenphp'], $recomendado['frankenphp'], '<')));
+        // o instalador não volta para uma versão mais velha que a do site
+        $instalar = $velho ? (version_compare($recomendado['versao'], $atual, '<') ? $atual : $recomendado['versao']) : null;
+        return $instalado + ['instalar' => $instalar];
     }
 
     public static function maisNova(string $versao): bool

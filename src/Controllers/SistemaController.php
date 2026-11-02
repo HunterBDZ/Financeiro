@@ -44,13 +44,16 @@ final class SistemaController
         $consulta = $_SESSION['sis_consulta'] ?? null;
         unset($_SESSION['sis_consulta']);
         $backups = Backup::disponivel() && $pode ? Backup::listar() : [];
+        $tipo = Atualizacao::tipo();
         $motivos = ['diario' => t('do dia'), 'manual' => t('feito por você'), 'antes-atualizacao' => t('antes de atualizar'), 'antes-restaurar' => t('antes de restaurar')];
 
         View::render('sistema/index', [
             'pageTitle' => t('backup e atualização · financeiro'),
             'pode' => $pode, 'administrador' => Auth::administrador(),
             'nomeAdministrador' => (string) (UsuarioModel::find((int) UsuarioModel::administradorId())['nome'] ?? ''),
-            'tipo' => Atualizacao::tipo(), 'versao' => Atualizacao::versaoAtual(), 'estado' => $estado, 'consulta' => is_array($consulta) ? $consulta : null,
+            'tipo' => $tipo, 'versao' => Atualizacao::versaoAtual(), 'estado' => $estado, 'consulta' => is_array($consulta) ? $consulta : null,
+            'programa' => Atualizacao::programa($tipo, Atualizacao::programaInstalado(), Atualizacao::programaRecomendado(), Atualizacao::versaoAtual()),
+            'versoes' => 'https://github.com/' . Atualizacao::repositorio() . '/releases',
             'backupDisponivel' => Backup::disponivel(), 'backups' => array_map(static fn(array $b): array => ['rotulo' => self::rotuloBackup($b, $motivos)] + $b, $backups),
             'pastaBackups' => Backup::disponivel() && Rede::requisicaoLocal() ? Paths::paraMostrar(Backup::pasta()) : null,
             'limiteEnvio' => self::limiteEnvio(),

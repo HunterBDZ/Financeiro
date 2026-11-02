@@ -41,7 +41,7 @@ docs/        manual de instalação, decisões e prints
 
 - **`Backup`:** `VACUUM INTO` numa pasta `backups` da pasta de dados. A cópia do dia sai na primeira página do dia. Restaurar leva a cópia à versão atual e troca as linhas numa transação só, sem mexer no arquivo aberto.
 - **`Migrador`:** `database/migrations-sqlite`, ao atualizar e ao abrir um pacote novo. Banco novo nasce com as migrações marcadas, porque o schema já as traz.
-- **`Atualizacao`:** roda em processo próprio (`tools/atualizar.php`) e grava o andamento em `atualizacao/estado.json`. A troca é por `rename` da pasta `app`, então só vale no pacote. `Manutencao` segura as páginas enquanto o banco e o programa mudam.
+- **`Atualizacao`:** roda em processo próprio (`tools/atualizar.php`) e grava o andamento em `atualizacao/estado.json`. A troca é por `rename` da pasta `app`, então só vale no pacote. `Manutencao` segura as páginas enquanto o banco e o programa mudam. O FrankenPHP fica de fora da troca: `Atualizacao::programa` compara o `programa.json` do pacote e o PHP que roda com o `"programa"` do manifesto, e a tela avisa quando é hora de instalar o pacote novo.
 - **`Rede` e `QrCode`:** o programa reinicia ao ligar a rede, porque precisa ouvir em outro endereço. O app grava `ACESSO_REDE` e cria o arquivo `reiniciar`, que `packaging/linux/financeiro` olha a cada segundo.
 
 O endereço do repositório, para o código, fica no arquivo `REPOSITORIO`. O `instalar.sh` e os documentos têm o endereço escrito, e um teste confere que batem.

@@ -91,6 +91,8 @@ Tudo fica em **Ajustes → Backup e atualização**, com a primeira conta criada
 
 Instalar um pacote mais novo por cima também funciona: os dados ficam, e o banco acompanha ao abrir.
 
+**O programa que roda o site.** O pacote traz junto o FrankenPHP, com o PHP dentro dele. **Atualizar agora** troca só o Financeiro, não esse programa. Por isso, a tela mostra numa linha discreta as versões do FrankenPHP e do PHP. Depois de **Procurar versão nova**, se houver um programa mais novo, aparece o aviso "Há uma versão nova do programa que roda o Financeiro", com o número da versão e o link para [Versões](https://github.com/HunterBDZ/Financeiro/releases). Baixe o instalador dessa versão para o seu sistema e instale por cima, como na primeira vez. Os dados ficam. Vale a pena, porque o PHP antigo deixa de receber correções de segurança. Em servidor e em Docker, a tela não mostra nada disso: o PHP vem do sistema ou da imagem.
+
 ## Com Docker
 
 Para quem já usa Docker, em servidor, NAS ou Raspberry Pi. Na pasta do repositório:
