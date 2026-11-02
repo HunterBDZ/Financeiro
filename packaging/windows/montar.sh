@@ -9,7 +9,6 @@
 # base64 e FIN_WIN_SENHA, a senha dele. Sem eles, sai sem assinar, e o Windows avisa ao abrir (docs/INSTALACAO.md).
 set -euo pipefail
 
-FRANKENPHP=1.13.4
 ZIP_SHA=66b9b7322fe39a0027113cec9fd1c21a1d9d3d51ae4500ade1c9a2960555587e
 # o endereço versionado traz o próprio SHA-256; o curto da Microsoft muda a cada versão
 VCREDIST_SHA=cc0ff0eb1dc3f5188ae6300faef32bf5beeba4bdd6e8e445a9184072096b713b
@@ -32,6 +31,9 @@ done
 [[ "$VERSAO" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "versão inválida: $VERSAO" >&2; exit 2; }
 
 AQUI=$(cd "$(dirname "$0")" && pwd)
+# FRANKENPHP e PHP_DO_FRANKENPHP
+# shellcheck source=packaging/programa.env
+. "$AQUI/../programa.env"
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 mkdir -p "$SAIDA"
@@ -56,6 +58,8 @@ for f in frankenphp.exe php.exe php8ts.dll brotlicommon.dll brotlidec.dll brotli
     pthreadVC3.dll libsqlite3.dll libsodium.dll libcrypto-3-x64.dll libssl-3-x64.dll libssh2.dll nghttp2.dll; do
     install -m 644 "$TMP/fp/$f" "$PROG/bin/$f"
 done
+php_dentro=$(LC_ALL=C grep -a -o 'X-Powered-By: PHP/[0-9][0-9.]*' "$PROG/bin/php8ts.dll" | sort -u)
+[ "$php_dentro" = "X-Powered-By: PHP/$PHP_DO_FRANKENPHP" ] || { echo "o FrankenPHP de Windows não traz o PHP $PHP_DO_FRANKENPHP: corrija packaging/programa.env" >&2; exit 1; }
 for f in php_pdo_sqlite php_mbstring php_curl php_sodium; do
     install -m 644 "$TMP/fp/ext/$f.dll" "$PROG/bin/ext/$f.dll"
 done
@@ -72,6 +76,7 @@ cp "$AQUI/lancador.rc" "$TMP/lancador.rc"
 x86_64-w64-mingw32-windres -I "$TMP" "$TMP/lancador.rc" -O coff -o "$TMP/lancador.res"
 x86_64-w64-mingw32-gcc -municode -mwindows -O2 -s -o "$PROG/financeiro.exe" "$AQUI/lancador.c" "$TMP/lancador.res"
 echo "windows-x86_64" > "$PROG/PACOTE"
+printf '{"frankenphp": "%s", "php": "%s"}\n' "$FRANKENPHP" "$PHP_DO_FRANKENPHP" > "$PROG/programa.json"
 
 if [ "$SO_PASTA" = 1 ]; then
     rm -rf "$SAIDA/programa"

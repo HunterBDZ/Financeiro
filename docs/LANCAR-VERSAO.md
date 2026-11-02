@@ -33,6 +33,25 @@ Numa tag, `.github/workflows/release.yml` testa, monta os pacotes com `packaging
 
 O app é um pacote só para todo sistema: `financeiro-app-X.Y.Z.tar.gz`, com o `atualizacao.json` assinado. Quem instalou em qualquer sistema baixa o mesmo arquivo. O FrankenPHP não muda numa atualização pela tela: para mudar, a pessoa instala o pacote novo.
 
+### O programa dos pacotes (FrankenPHP e PHP)
+
+Para a pessoa saber quando instalar o pacote novo:
+
+- `packaging/programa.env` guarda, num lugar só, o `FRANKENPHP` dos pacotes e o `PHP_DO_FRANKENPHP`, o PHP que vem dentro dele.
+- Cada montagem confere esse PHP no próprio binário, sem rodá-lo, e para com "não traz o PHP" se não bater.
+- Cada montagem grava `programa.json` ao lado de `PACOTE`, por exemplo `{"frankenphp": "1.13.4", "php": "8.5.12"}`.
+- O `empacotar.sh` passa as duas versões ao `tools/assinar-atualizacao.php` (`--frankenphp` e `--php`). Elas entram no `atualizacao.json` assinado, no campo opcional `"programa"`.
+- Manifestos sem o campo continuam valendo, e um campo fora do formato é ignorado.
+- Num pacote, **Procurar versão nova** guarda essa recomendação na pasta de dados (`atualizacao/recomendado.json`).
+- A tela **Backup e atualização** compara a recomendação com o `programa.json` e com o PHP que roda. Se o instalado for mais velho, avisa a pessoa para baixar o instalador da versão nova e instalar por cima.
+- Pacotes de antes do `programa.json` comparam só o PHP. Servidor, Docker e Microsoft Store não recebem o aviso.
+
+Para trocar o FrankenPHP:
+
+1. Mude as duas linhas de `programa.env`.
+2. Mude os três SHA-256 (veja abaixo).
+3. Mude a imagem do `Dockerfile`, que tem a sua própria linha.
+
 ### Windows e Mac
 
 O instalador de Windows sai em Linux, com `nsis`, `p7zip-full` e `mingw-w64`. O `.dmg` só sai num Mac: o `release.yml` tem um job para isso. Em **Actions → Windows e Mac**, um botão monta, instala e testa nos dois sistemas de verdade. Rode antes de lançar: esse job só roda à mão, porque gasta mais da cota do GitHub.

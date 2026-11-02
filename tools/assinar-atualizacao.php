@@ -2,6 +2,9 @@
 /**
  * Prepara o que o app baixa para se atualizar: atualizacao.json e a assinatura dele.
  * Uso: php tools/assinar-atualizacao.php --chave=ARQUIVO --pacote=financeiro-app-1.2.3.tar.gz --versao=1.2.3 [--notas=CHANGELOG.md]
+ *        [--frankenphp=1.13.4 --php=8.5.12]
+ * --frankenphp e --php: o programa que vai nos pacotes desta versão (packaging/programa.env). Entram em "programa", e o
+ * site de um pacote mais velho avisa que há um instalador novo. Sem eles, o campo fica de fora, como antes.
  * A chave privada é um base64 de 64 bytes e nunca entra no repositório. FIN_CHAVE_ATUALIZACAO vale no lugar de --chave.
  * Gere o par com --gerar=ARQUIVO: o privado vai para o arquivo; o público sai na tela e entra em Atualizacao::CHAVE_PUBLICA.
  */
@@ -10,7 +13,7 @@ declare(strict_types=1);
 if (PHP_SAPI !== 'cli') {
     exit("Rode pela linha de comando.\n");
 }
-$op = getopt('', ['chave:', 'pacote:', 'versao:', 'notas:', 'gerar:']);
+$op = getopt('', ['chave:', 'pacote:', 'versao:', 'notas:', 'gerar:', 'frankenphp:', 'php:']);
 if (isset($op['gerar'])) {
     if (file_exists((string) $op['gerar'])) {
         fwrite(STDERR, "Esse arquivo já existe.\n");
@@ -28,6 +31,14 @@ $privada = base64_decode(trim($chave), true);
 if ($privada === false || strlen($privada) !== SODIUM_CRYPTO_SIGN_SECRETKEYBYTES || empty($op['pacote']) || empty($op['versao'])) {
     fwrite(STDERR, "Faltou a chave, o pacote ou a versão.\n");
     exit(2);
+}
+$programa = null;
+if (isset($op['frankenphp']) || isset($op['php'])) {
+    $programa = ['frankenphp' => (string) ($op['frankenphp'] ?? ''), 'php' => (string) ($op['php'] ?? '')];
+    if (!preg_match('/^\d+\.\d+\.\d+$/', $programa['frankenphp']) || !preg_match('/^\d+\.\d+\.\d+$/', $programa['php'])) {
+        fwrite(STDERR, "--frankenphp e --php vão juntos, no formato 1.2.3.\n");
+        exit(2);
+    }
 }
 $pacote = (string) $op['pacote'];
 $versao = (string) $op['versao'];
@@ -47,7 +58,7 @@ if (isset($op['notas'])) {
 $json = json_encode([
     'versao' => $versao, 'pacote' => basename($pacote), 'sha256' => hash_file('sha256', $pacote),
     'tamanho' => filesize($pacote), 'notas' => trim($notas),
-], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) . "\n";
+] + ($programa !== null ? ['programa' => $programa] : []), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) . "\n";
 $pasta = dirname($pacote);
 file_put_contents($pasta . '/atualizacao.json', $json);
 file_put_contents($pasta . '/atualizacao.json.sig', base64_encode(sodium_crypto_sign_detached($json, $privada)) . "\n");

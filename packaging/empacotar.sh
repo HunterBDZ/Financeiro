@@ -12,7 +12,6 @@
 #   --chave        chave privada da atualização, ou FIN_CHAVE_ATUALIZACAO no ambiente. Sem nenhuma, não assina.
 set -euo pipefail
 
-FRANKENPHP=1.13.4
 declare -A SOMA=(
     [x86_64]=3bbd2f11929550e3b35ddb407c7981ef14bc5337e705c910068f85a6ccbf91f3
     [aarch64]=35eebf7462790c897ebf8c464c24f7a93ffcbc7012376ed0f1f66defa935585d
@@ -37,6 +36,9 @@ done
 
 RAIZ=$(git rev-parse --show-toplevel)
 cd "$RAIZ"
+# FRANKENPHP e PHP_DO_FRANKENPHP
+# shellcheck source=packaging/programa.env
+. packaging/programa.env
 VERSAO=$(git show HEAD:VERSION | tr -d '[:space:]')
 mkdir -p "$SAIDA"
 SAIDA=$(cd "$SAIDA" && pwd)
@@ -68,6 +70,8 @@ for arq in ${LISTA[@]+"${LISTA[@]}"}; do
         curl -fsSL -o "$bin" "https://github.com/php/frankenphp/releases/download/v$FRANKENPHP/frankenphp-linux-$arq"
     fi
     echo "${SOMA[$arq]}  $bin" | sha256sum -c --quiet - || { echo "o FrankenPHP de $arq não confere" >&2; exit 1; }
+    php_dentro=$(LC_ALL=C grep -a -o 'X-Powered-By: PHP/[0-9][0-9.]*' "$bin" | sort -u)
+    [ "$php_dentro" = "X-Powered-By: PHP/$PHP_DO_FRANKENPHP" ] || { echo "o FrankenPHP de $arq não traz o PHP $PHP_DO_FRANKENPHP: corrija packaging/programa.env" >&2; exit 1; }
 
     nome=financeiro-$VERSAO-linux-$arq
     pac=$TMP/$nome
@@ -80,6 +84,7 @@ for arq in ${LISTA[@]+"${LISTA[@]}"}; do
     install -m 644 packaging/Caddyfile "$pac/programa/Caddyfile"
     install -m 644 packaging/php.ini "$pac/programa/conf/php.ini"
     echo "linux-$arq" > "$pac/programa/PACOTE"
+    printf '{"frankenphp": "%s", "php": "%s"}\n' "$FRANKENPHP" "$PHP_DO_FRANKENPHP" > "$pac/programa/programa.json"
     "${EMPACOTE[@]}" -C "$TMP" -cf - "$nome" | gzip -6 > "$SAIDA/$nome.tar.gz"
     rm -rf "$pac"
 done
@@ -92,7 +97,8 @@ fi
 # ---- assinatura: o site só aceita o que esta chave assinou
 if [ -n "$CHAVE" ] || [ -n "${FIN_CHAVE_ATUALIZACAO:-}" ]; then
     # shellcheck disable=SC2086
-    $PHP tools/assinar-atualizacao.php ${CHAVE:+--chave="$CHAVE"} --pacote="$SAIDA/$APP" --versao="$VERSAO" --notas=CHANGELOG.md
+    $PHP tools/assinar-atualizacao.php ${CHAVE:+--chave="$CHAVE"} --pacote="$SAIDA/$APP" --versao="$VERSAO" --notas=CHANGELOG.md \
+        --frankenphp="$FRANKENPHP" --php="$PHP_DO_FRANKENPHP"
 else
     echo "Sem chave: atualizacao.json não foi gerado." >&2
 fi

@@ -9,7 +9,6 @@
 # FIN_MAC_SENHA e FIN_MAC_TIME, também notariza. Sem eles, sai sem Developer ID, e o Mac avisa ao abrir (docs/INSTALACAO.md).
 set -euo pipefail
 
-FRANKENPHP=1.13.4
 SOMA=ca6dfe20ec16a695a2e1509b26a1aa79537b0dab5b1ae4db1cc6b35304653f17
 APP_TAR=""; SAIDA=""; BINARIO=""; SEM_DMG=0
 while [ $# -gt 0 ]; do
@@ -25,6 +24,9 @@ done
 [ -n "$APP_TAR" ] && [ -n "$SAIDA" ] || { echo "faltou --app-tar ou --saida" >&2; exit 2; }
 
 AQUI=$(cd "$(dirname "$0")" && pwd)
+# FRANKENPHP e PHP_DO_FRANKENPHP
+# shellcheck source=packaging/programa.env
+. "$AQUI/../programa.env"
 mkdir -p "$SAIDA"
 SAIDA=$(cd "$SAIDA" && pwd)
 TMP=$(mktemp -d)
@@ -36,6 +38,8 @@ if [ -z "$BINARIO" ]; then
     curl -fsSL -o "$BINARIO" "https://github.com/php/frankenphp/releases/download/v$FRANKENPHP/frankenphp-mac-arm64"
 fi
 [ "$(soma "$BINARIO")" = "$SOMA" ] || { echo "o FrankenPHP de Mac não confere" >&2; exit 1; }
+[ "$(LC_ALL=C grep -a -o 'X-Powered-By: PHP/[0-9][0-9.]*' "$BINARIO" | sort -u)" = "X-Powered-By: PHP/$PHP_DO_FRANKENPHP" ] \
+    || { echo "o FrankenPHP de Mac não traz o PHP $PHP_DO_FRANKENPHP: corrija packaging/programa.env" >&2; exit 1; }
 
 PALCO=$TMP/palco
 APP=$PALCO/Financeiro.app
@@ -55,6 +59,7 @@ cp "$AQUI/../icones/financeiro.icns" "$RES/financeiro.icns"
 cp "$PROG/app/packaging/php.ini" "$PROG/conf/php.ini"
 cp "$PROG/app/packaging/gerente-inicio.php" "$PROG/gerente.php"
 echo "macos-arm64" > "$PROG/PACOTE"
+printf '{"frankenphp": "%s", "php": "%s"}\n' "$FRANKENPHP" "$PHP_DO_FRANKENPHP" > "$PROG/programa.json"
 if [ "$(uname -s)" = Darwin ]; then
     cc -arch arm64 -mmacosx-version-min=12.0 -O2 -o "$APP/Contents/MacOS/Financeiro" "$AQUI/lancador.c"
 else
