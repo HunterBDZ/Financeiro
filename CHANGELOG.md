@@ -2,6 +2,12 @@
 
 Cada versão publicada é uma tag `vX.Y.Z` deste repositório. Pacotes atualizam em Ajustes, em Backup e atualização; servidores, com `sudo financeiro-atualizar`.
 
+## 1.11.2
+
+- **Mês:** as contas fixas mostram só "Pago" em verde ou "Não pago" em vermelho, com o vencimento ao lado. Os gastos que variam mostram, em cores, se estão "Abaixo da meta", "Na meta" (de 90% a 100%) ou "Acima da meta". A comparação usa o valor do próprio mês, se ele tiver um. As barras com "x de y" saíram.
+- **Criar categoria:** ao criar um gasto, escolha se o valor é fixo todo mês (uma conta, com valor e dia de vencimento) ou se varia, com uma meta opcional.
+- **Cartão:** a fatura pode ser ordenada por maior ou menor valor, de A a Z ou por mais ou menos parcelas. Os parcelamentos, por quando acabam, parcelas que faltam, valor da parcela ou de A a Z.
+
 ## 1.11.1
 
 - **Mês:** quando um mês tem valor próprio para uma categoria, a barra compara o que foi gasto com esse valor, e não com a meta de todo mês. Exemplo: "0,00 de 800,00" em novembro, mesmo com a meta de 1.000,00. Com valor zero e nada gasto, a barra some.

@@ -206,3 +206,8 @@ fieldset.ct-pagou { border: 0; margin: 0 0 6px; min-width: 0; }
 .mes-do-cartao::after { content: ""; flex: none; width: 8px; height: 8px; border-right: 2px solid var(--text-3); border-bottom: 2px solid var(--text-3);
                         transform: rotate(-45deg); transition: border-color .15s ease-out; }
 .mes-do-cartao:hover::after { border-color: var(--text); }
+
+/* ordenar a fatura e os parcelamentos, como no Extrato */
+.ct-ordem { display: flex; justify-content: flex-end; margin: 6px 0 4px; }
+.ct-ordem select { width: auto; min-width: 0; padding-left: 12px; padding-right: 34px; background-position: right 12px center; font-size: 14px; }
+.ct-ordem-fat { margin: 0 0 6px; }

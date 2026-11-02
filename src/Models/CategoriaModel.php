@@ -125,7 +125,7 @@ final class CategoriaModel
      * $nome: 1–100 caracteres já aparados pelo controller. $icone: chave já validada (ou null:
      * vale a sugestão pelo nome, ver Icones::daCategoria).
      */
-    public static function criar(string $nome, string $tipo, bool $essencial, ?string $icone = null): ?int
+    public static function criar(string $nome, string $tipo, bool $essencial, ?string $icone = null, bool $fixo = false): ?int
     {
         $nome = trim($nome);
         if ($nome === '' || mb_strlen($nome) > 100 || !in_array($tipo, ['entrada', 'saida'], true)) {
@@ -135,7 +135,7 @@ final class CategoriaModel
             return null;                                    // nome já usado (inclusive em categoria inativa)
         }
         $entrada = $tipo === 'entrada';
-        $grupo = $entrada ? 'Entradas' : 'Dia a dia';
+        $grupo = $entrada ? 'Entradas' : ($fixo ? 'Fixos' : 'Dia a dia');
         $sinal = $entrada ? 1 : -1;
         $ess   = (!$entrada && $essencial) ? 1 : 0;
 

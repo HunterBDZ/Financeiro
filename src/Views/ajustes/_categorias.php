@@ -40,6 +40,27 @@ foreach ($categorias as $c) {
                 <label class="chip-r"><input type="radio" name="essencial" value="0"><span><?= e(t('Não essencial')) ?></span></label>
             </div>
         </fieldset>
+        <?php // só para saída; o CSS mostra os campos da escolha (fixo ou varia) com :has(), sem JS ?>
+        <fieldset class="ex-nova-opts ex-nova-valor">
+            <legend><?= e(t('O valor é')) ?></legend>
+            <div class="chip-row">
+                <label class="chip-r"><input type="radio" name="valor_tipo" value="varia" checked><span><?= e(t('Varia (gasto do dia a dia)')) ?></span></label>
+                <label class="chip-r"><input type="radio" name="valor_tipo" value="fixo"><span><?= e(t('Fixo todo mês (conta)')) ?></span></label>
+            </div>
+            <div class="ex-nova-varia">
+                <label class="campo"><span><?= e(t('Meta de gasto por mês (opcional)')) ?></span>
+                    <input type="text" name="meta" inputmode="decimal" autocomplete="off" placeholder="<?= e(t('ex.: 400')) ?>">
+                </label>
+            </div>
+            <div class="ex-nova-fixo">
+                <label class="campo"><span><?= e(t('Valor por mês (opcional)')) ?></span>
+                    <input type="text" name="valor_fixo" inputmode="decimal" autocomplete="off" placeholder="<?= e(t('ex.: 159,90')) ?>">
+                </label>
+                <label class="campo"><span><?= e(t('Vence no dia (opcional)')) ?></span>
+                    <input type="number" name="dia_vencimento" min="1" max="31" inputmode="numeric" placeholder="<?= e(t('ex.: 10')) ?>">
+                </label>
+            </div>
+        </fieldset>
         <details class="ic-escolher">
             <summary><span><?= e(t('Escolher ícone')) ?></span> <small><?= e(t('Sem escolher, o ícone vem do nome.')) ?></small></summary>
             <?php View::partial('partials/icone_picker', ['sugerir' => true, 'semDica' => true, 'legenda' => t('Ícone')]); ?>

@@ -4,6 +4,8 @@ namespace Financeiro\Controllers;
 use Financeiro\Auth;
 use Financeiro\Icones;
 use Financeiro\Models\CategoriaModel;
+use Financeiro\Models\ContaRecorrenteModel;
+use Financeiro\Models\MetaModel;
 use Financeiro\View;
 
 /**
@@ -27,6 +29,12 @@ final class CategoriaController
         $tipo = ($_POST['tipo'] ?? '') === 'entrada' ? 'entrada' : 'saida';
         $essencial = ($_POST['essencial'] ?? '') === '1';
         $icone = is_string($_POST['icone'] ?? null) && Icones::existe($_POST['icone']) ? $_POST['icone'] : null;
+        // gasto: fixo (conta, com valor e dia de vencimento) ou que varia (com meta); os dois valores são opcionais
+        $fixo = $tipo === 'saida' && ($_POST['valor_tipo'] ?? '') === 'fixo';
+        $campoValor = $fixo ? 'valor_fixo' : 'meta';
+        $brutoValor = is_string($_POST[$campoValor] ?? null) ? trim($_POST[$campoValor]) : '';
+        $valorMes = $brutoValor === '' ? null : parseMoedaBr($brutoValor);
+        $dia = (int) ($_POST['dia_vencimento'] ?? 0);
 
         if ($nome === '') {
             flash('error', t('Digite o nome da categoria.'));
@@ -37,13 +45,28 @@ final class CategoriaController
             redirecionar($volta, 303);
         }
 
-        $id = CategoriaModel::criar($nome, $tipo, $essencial, $icone);
+        if ($tipo === 'saida' && $brutoValor !== '' && ($valorMes === null || $valorMes < 0 || $valorMes > valorMaximo())) {
+            flash('error', t('Valor inválido. Use só números, como 150 ou 150,90.'));
+            redirecionar($volta, 303);
+        }
+        if ($fixo && $dia !== 0 && ($dia < 1 || $dia > 31)) {
+            flash('error', t('O dia do vencimento vai de 1 a 31.'));
+            redirecionar($volta, 303);
+        }
+
+        $id = CategoriaModel::criar($nome, $tipo, $essencial, $icone, $fixo);
         if ($id === null) {
             flash('error', t('Já existe uma categoria chamada {nome}.', ['nome' => $nome]));
             redirecionar($volta, 303);
         }
+        if ($tipo === 'saida' && $valorMes !== null && $valorMes > 0.004) {
+            MetaModel::definir($id, round($valorMes, 2));    // a meta é a previsão padrão de todo mês
+        }
+        if ($fixo && $dia >= 1) {
+            ContaRecorrenteModel::upsert($id, $dia);
+        }
 
-        $rotulo = $tipo === 'entrada' ? t('entrada') : ($essencial ? t('gasto essencial') : t('gasto não essencial'));
+        $rotulo = $tipo === 'entrada' ? t('entrada') : ($fixo ? t('conta fixa') : ($essencial ? t('gasto essencial') : t('gasto não essencial')));
         flash('success', t('{nome} criada · {tipo}', ['tipo' => $rotulo, 'nome' => $nome]));
         redirecionar($volta, 303);
     }
