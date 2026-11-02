@@ -5,7 +5,7 @@
 Você precisa de um computador com **Ubuntu 24.04 ou mais novo**, que fique ligado e na sua rede. Nele, rode:
 
 ```sh
-git clone git@github.com:HunterBDZ/Financeiro.git
+git clone https://github.com/HunterBDZ/Financeiro.git
 sudo bash Financeiro/instalar.sh
 ```
 
@@ -69,7 +69,7 @@ sudo -u www-data php /var/www/financeiro/tools/redefinir-senha.php LOGIN
 | O que aparece | Causa provável | O que fazer |
 |---|---|---|
 | `as portas 80 ou 443 já estão em uso` | Outro programa usa as portas do site | Pare esse programa e rode o instalador de novo |
-| `não consegui entrar no MySQL` | O MySQL já tinha senha de root | Entre em contato com quem mantém o projeto |
+| `não consegui entrar no MySQL` | O MySQL já tinha senha de root | [Abra uma issue](https://github.com/HunterBDZ/Financeiro/issues) |
 | `Erro interno. Tente novamente` | O app não conectou no banco | Confira `DB_*` em `config/.env` e veja `sudo tail /var/log/apache2/financeiro-error.log` |
 | `Class "Pdo\Mysql" not found` | PHP anterior a 8.4 | Atualize o PHP |
 | `Call to undefined function mb_…` | Falta a extensão `mbstring` | `sudo apt install php-mbstring` e recarregue o Apache |
@@ -79,7 +79,7 @@ sudo -u www-data php /var/www/financeiro/tools/redefinir-senha.php LOGIN
 | `Arquivo de configuração não encontrado` | Falta o `.env`, ou o dono está errado | Rode o instalador de novo |
 | `O banco está sem as tabelas` | O `schema.sql` não foi importado | Rode o instalador de novo |
 | `outra atualização está rodando` | Dois comandos ao mesmo tempo | Espere o outro terminar |
-| `os testes da versão … falharam no ensaio` | A versão nova não funciona no seu ambiente | O site não mudou. Não insista e avise quem mantém o projeto |
+| `os testes da versão … falharam no ensaio` | A versão nova não funciona no seu ambiente | O site não mudou. Não insista e [abra uma issue](https://github.com/HunterBDZ/Financeiro/issues) |
 | Bloqueado no login | 5 tentativas erradas | Espere 10 minutos |
 | `Unknown collation: utf8mb4_0900_ai_ci` | O banco não é MySQL 8 | Use MySQL 8 |
 | Aviso de JIT do PCRE no log | O kernel bloqueia memória JIT | Coloque `pcre.jit=0` no `php.ini` e recarregue o Apache |

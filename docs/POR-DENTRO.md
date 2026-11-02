@@ -21,9 +21,9 @@ flowchart LR
 ```text
 public/      raiz do site: rotas e assets
 src/         Controllers, Models, Services e Views
-database/    schema.sql, instalar.php e migrations/
+database/    schema.sql, instalar.php, migrations/ e imagens da demonstração
 tests/       run.php, sem dependências
-tools/       backup, publicação e sprite de ícones
+tools/       backup, atualização, sprite de ícones e outros geradores
 docs/        manual de instalação, decisões e prints
 ```
 
@@ -32,8 +32,10 @@ docs/        manual de instalação, decisões e prints
 O cálculo mora em `MotorFinanceiro::calcular()`, que é aritmética pura: as simulações rodam o motor de novo com outras opções, sem tocar no banco.
 
 ```sh
-php tests/run.php    # roda numa transação desfeita no fim; os dados não mudam
+php tests/run.php    # o que grava é desfeito no fim; os dados não mudam
 ```
+
+Os testes usam o banco de `config/.env`. Para desenvolver, prepare um banco de demonstração, como em [Como contribuir](../CONTRIBUTING.md#rodar-localmente).
 
 ## Acessibilidade
 

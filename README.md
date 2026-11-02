@@ -10,7 +10,7 @@ Sem assinatura, sem nuvem e sem pedir a senha do seu banco.
 
 [![Versão 1.7.0](https://img.shields.io/badge/vers%C3%A3o-1.7.0-blue)](CHANGELOG.md) ![PHP 8.4+](https://img.shields.io/badge/PHP-8.4%2B-777BB4?logo=php&logoColor=white) ![MySQL 8](https://img.shields.io/badge/MySQL-8-4479A1?logo=mysql&logoColor=white) ![Sem dependências](https://img.shields.io/badge/depend%C3%AAncias-nenhuma-success)
 
-[Diferenciais](#diferenciais) · [Telas](#telas) · [Como funciona](#como-funciona) · [Instalar](#instalar) · [Atualizar](#atualizar) · [Documentação](#documentação)
+[Diferenciais](#diferenciais) · [Telas](#telas) · [Como funciona](#como-funciona) · [Instalar](#instalar) · [Atualizar](#atualizar) · [Documentação](#documentação) · [English](README.en.md)
 
 <br>
 
@@ -108,7 +108,7 @@ Funciona no computador e no celular.
 Em um computador com Ubuntu 24.04 ou mais novo, rode:
 
 ```sh
-git clone git@github.com:HunterBDZ/Financeiro.git
+git clone https://github.com/HunterBDZ/Financeiro.git
 sudo bash Financeiro/instalar.sh
 ```
 
@@ -145,12 +145,13 @@ As mudanças de cada versão ficam no [`CHANGELOG.md`](CHANGELOG.md).
 - **[Por dentro](docs/POR-DENTRO.md):** arquitetura, pastas, testes e acessibilidade.
 - **[Segurança](docs/SEGURANCA.md):** como o app protege contas e dados.
 - **[Como lançar uma versão](docs/LANCAR-VERSAO.md):** para quem desenvolve.
-- **[Decisões e operação](docs/decisoes.md):** o porquê de cada regra.
+- **[Decisões](docs/decisoes.md):** o porquê de cada regra.
+- **[Como contribuir](CONTRIBUTING.md)** e **[como relatar uma falha](SECURITY.md).**
 
 ## Status e licença
 
 **Status:** em desenvolvimento ativo. As mudanças de cada versão estão no [`CHANGELOG.md`](CHANGELOG.md).
 
-**Licença:** © 2026 [HunterBDZ](https://github.com/HunterBDZ). Todos os direitos reservados.
+**Licença:** © 2026 Hunter. Distribuído sob a [AGPL-3.0-or-later](LICENSE).
 
-**Componentes de terceiros:** fontes Manrope e Sora sob licença OFL. Veja os créditos dos [temas](tools/temas/CREDITOS.md) e dos [ícones](tools/icones/CREDITOS.md).
+**Componentes de terceiros:** fontes Manrope, Sora e JetBrains Mono sob a licença OFL e ícones Noto Emoji sob a Apache-2.0. Veja os [avisos de terceiros](THIRD_PARTY_NOTICES.md).

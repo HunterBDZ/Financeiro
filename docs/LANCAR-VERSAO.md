@@ -14,7 +14,7 @@ Para quem desenvolve. Quem só usa o site segue a [atualização do manual](INST
 
 ## Passo a passo
 
-1. Desenvolva e teste na staging: `php tests/run.php`.
+1. Desenvolva e teste num banco de demonstração ([como preparar](../CONTRIBUTING.md#rodar-localmente)): `php tests/run.php`.
 2. Se o banco mudou:
    - crie `database/migrations/AAAA_MM_DD_descricao.sql` (estrutura) e, se precisar mudar dados, um `.php` com o mesmo prefixo;
    - faça a migração funcionar se rodar de novo, porque ela só é registrada depois de terminar;

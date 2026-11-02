@@ -116,6 +116,9 @@ if [ ! -f "$DEST/VERSION" ]; then
         dono=$(stat -c %U "$CLONE")
         git_c() { sudo -H -u "$dono" git -C "$CLONE" "$@"; }
         versao=${FIN_VERSAO:-$(git_c tag --list 'v[0-9]*' --sort=-v:refname | head -1)}
+        if [ -z "$versao" ]; then
+            printf 'Aviso: o repositório ainda não tem versão publicada. Instalando o commit atual: o financeiro-atualizar só funciona depois da 1ª tag.\n' >&2
+        fi
         git_c archive "${versao:-HEAD}" | tar -x -C "$DEST" || falhou
     fi
 fi
