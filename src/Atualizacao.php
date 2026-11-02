@@ -111,11 +111,24 @@ final class Atualizacao
     /** O comando do PHP para os processos: FIN_PHP vem de quem iniciou o programa. @return list<string> */
     public static function comandoPhp(): array
     {
-        $env = getenv('FIN_PHP');
-        if (is_string($env) && trim($env) !== '') {
-            return preg_split('/\s+/', trim($env));
+        return self::lerComandoPhp((string) getenv('FIN_PHP')) ?? (stripos(basename(PHP_BINARY), 'frankenphp') !== false ? [PHP_BINARY, 'php-cli'] : [PHP_BINARY]);
+    }
+
+    /**
+     * As partes vêm separadas por tabulação, porque o caminho pode ter espaços. Sem tabulação, vale o que os pacotes
+     * de Linux já instalados mandam: um arquivo só, ou programa e argumento separados por espaço.
+     * @return list<string>|null
+     */
+    public static function lerComandoPhp(string $env): ?array
+    {
+        if (str_contains($env, "\t")) {
+            return array_values(array_filter(explode("\t", $env), static fn(string $p): bool => $p !== ''));
         }
-        return stripos(basename(PHP_BINARY), 'frankenphp') !== false ? [PHP_BINARY, 'php-cli'] : [PHP_BINARY];
+        $env = trim($env);
+        if ($env === '') {
+            return null;
+        }
+        return is_file($env) ? [$env] : (array) preg_split('/\s+/', $env);
     }
 
     /** Sem esperar: a página volta na hora e acompanha pelo estado. */
@@ -123,13 +136,19 @@ final class Atualizacao
     {
         self::prepararPasta();
         self::marcar('rodando', 'Começando', $versao);
-        $partes = [...self::comandoPhp(), Paths::raiz() . '/tools/atualizar.php', '--versao=' . $versao];
-        $cmd = implode(' ', array_map('escapeshellarg', $partes));
-        $log = escapeshellarg(self::pasta() . '/ultima.log');
+        // o primeiro arquivo de um processo fica aberto até ele sair, e o Windows não troca uma pasta com arquivo aberto
+        $lancador = self::pasta() . '/lancar.php';
+        file_put_contents($lancador, '<?php require ' . var_export(Paths::raiz() . '/tools/atualizar.php', true) . ";\n");
+        $partes = [...self::comandoPhp(), $lancador, '--versao=' . $versao];
         $env = array_filter(getenv(), 'is_string');
-        $proc = PHP_OS_FAMILY === 'Windows'
-            ? proc_open('start /B "" ' . $cmd . ' > ' . $log . ' 2>&1', [], $p, Paths::dados(), $env)
-            : proc_open('nohup ' . $cmd . ' > ' . $log . ' 2>&1 < /dev/null &', [], $p, Paths::dados(), $env);
+        if (PHP_OS_FAMILY === 'Windows') {
+            // escapeshellarg troca % e ! por espaços, e esses caracteres podem estar no nome da pessoa
+            $aspas = static fn(string $p): string => '"' . str_replace('"', '', $p) . '"';
+            $proc = proc_open('start /B "" ' . implode(' ', array_map($aspas, $partes)) . ' > ' . $aspas(self::pasta() . '/ultima.log') . ' 2>&1', [], $p, Paths::dados(), $env);
+        } else {
+            $cmd = implode(' ', array_map('escapeshellarg', $partes));
+            $proc = proc_open('nohup ' . $cmd . ' > ' . escapeshellarg(self::pasta() . '/ultima.log') . ' 2>&1 < /dev/null &', [], $p, Paths::dados(), $env);
+        }
         if (!is_resource($proc)) {
             self::marcar('falhou', '', $versao, 'Não deu para iniciar a atualização.', '', true);
             return;
@@ -189,11 +208,11 @@ final class Atualizacao
             Database::fechar();
             self::rodar([$programa . '/app.novo/tools/migrar.php'], null, 120, 'Uma mudança no banco falhou.');
             self::removerPasta($programa . '/app.antes');
-            if (!rename($programa . '/app', $programa . '/app.antes')) {
+            if (!Paths::renomear($programa . '/app', $programa . '/app.antes')) {
                 throw new \RuntimeException('Não deu para trocar o programa.');
             }
             $trocou = true;
-            if (!rename($programa . '/app.novo', $programa . '/app')) {
+            if (!Paths::renomear($programa . '/app.novo', $programa . '/app')) {
                 throw new \RuntimeException('Não deu para trocar o programa.');
             }
             self::marcar('rodando', 'Conferindo o site', $versao);
@@ -299,9 +318,9 @@ final class Atualizacao
             if ($trocou) {
                 if (is_dir($programa . '/app') && is_dir($programa . '/app.antes')) {
                     self::removerPasta($programa . '/app.novo');
-                    rename($programa . '/app', $programa . '/app.novo');
+                    Paths::renomear($programa . '/app', $programa . '/app.novo');
                 }
-                if (!is_dir($programa . '/app') && !rename($programa . '/app.antes', $programa . '/app')) {
+                if (!is_dir($programa . '/app') && !Paths::renomear($programa . '/app.antes', $programa . '/app')) {
                     return false;
                 }
             }
@@ -318,7 +337,7 @@ final class Atualizacao
         $e = ['fase' => $fase, 'etapa' => $etapa, 'versao' => $versao, 'mensagem' => $mensagem, 'de' => $de, 'intacto' => $intacto, 'quando' => time()];
         $tmp = self::pasta() . '/estado.novo';
         file_put_contents($tmp, json_encode($e, JSON_UNESCAPED_UNICODE));
-        rename($tmp, self::pasta() . '/estado.json');
+        Paths::renomear($tmp, self::pasta() . '/estado.json', 5);
     }
 
     private static function prepararPasta(): void

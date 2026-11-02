@@ -58,7 +58,9 @@ $check('banco novo: o schema já traz as migrações da pasta', Migrador::penden
 $pdo->exec("INSERT INTO usuarios (nome, login, senha_hash) VALUES ('Pessoa', 'pessoa', 'x')");
 $pdo->exec("INSERT INTO ajustes (chave, label, valor) VALUES ('teste_backup', 'teste', 111)");
 $b1 = Backup::criar('manual');
-$check('backup: o arquivo existe e é privado', is_file($b1) && (fileperms($b1) & 0077) === 0);
+// no Windows, quem protege a pasta de dados são as permissões do perfil da pessoa, não os bits do arquivo
+$privado = static fn(string $arq): bool => PHP_OS_FAMILY === 'Windows' || (fileperms($arq) & 0077) === 0;
+$check('backup: o arquivo existe e é privado', is_file($b1) && $privado($b1));
 $check('backup: aparece na lista', Backup::listar()[0]['nome'] === basename($b1));
 $check('backup: motivo desconhecido é recusado', $erroDe(static fn() => Backup::criar('outro')) !== '');
 $check('backup: nome fora da lista não vira caminho', Backup::caminho('../config.env') === null && Backup::caminho('financeiro-1.sqlite') === null);
@@ -194,7 +196,7 @@ Primeira::gravarConfig('ACESSO_REDE', '1');
 Primeira::gravarConfig('CHAVE_NOVA', 'x');
 $conf = (string) file_get_contents(Paths::config());
 $check('configuração: troca uma linha e acrescenta outra', str_contains($conf, "ACESSO_REDE=1\n") && !str_contains($conf, 'ACESSO_REDE=0') && str_contains($conf, "CHAVE_NOVA=x\n") && str_contains($conf, 'DB_DRIVER=sqlite'));
-$check('configuração: continua privada', (fileperms(Paths::config()) & 0077) === 0);
+$check('configuração: continua privada', $privado(Paths::config()));
 
 // ---- rede
 $ip = Rede::ipLocal();
@@ -203,6 +205,58 @@ $qr = QrCode::matriz('http://192.168.0.10:8484');
 $check('QR: 25 módulos na versão 2, com localizadores', count($qr) === 25 && $qr[0][0] && $qr[0][6] && !$qr[0][7] && $qr[24][0] && $qr[0][24] && !$qr[7][7]);
 $check('QR: SVG com rótulo escapado', str_contains(QrCode::svg('http://x', 'a"b'), 'aria-label="a&quot;b"'));
 $check('QR: texto grande demais é recusado', $erroDe(static fn() => QrCode::matriz(str_repeat('x', 300))) !== '');
+
+// ---- comando do PHP e arquivos em uso
+$check('comando do PHP: caminho com espaço e argumento', Atualizacao::lerComandoPhp("C:/Pessoa com espaço/frankenphp\tphp-cli") === ['C:/Pessoa com espaço/frankenphp', 'php-cli']);
+$check('comando do PHP: como os pacotes antigos de Linux mandam', Atualizacao::lerComandoPhp('/opt/bin/frankenphp php-cli') === ['/opt/bin/frankenphp', 'php-cli']);
+$check('comando do PHP: um arquivo só, mesmo com espaço', Atualizacao::lerComandoPhp(__FILE__) === [__FILE__]);
+$check('comando do PHP: vazio usa o PHP atual', Atualizacao::lerComandoPhp('') === null);
+$deArq = $dados . '/renomear-a';
+$paraArq = $dados . '/renomear-b';
+file_put_contents($deArq, 'x');
+$check('renomear: troca o arquivo', Paths::renomear($deArq, $paraArq, 1) && is_file($paraArq) && !is_file($deArq));
+$check('renomear: arquivo que não existe falha, sem esperar à toa', !Paths::renomear($deArq, $paraArq, 0));
+unlink($paraArq);
+
+// ---- gerente: Windows e Mac
+define('FIN_GERENTE_SO_FUNCOES', true);
+require __DIR__ . '/../packaging/gerente.php';
+$lugarT = ['programa' => 'C:/Users/Pessoa com espaço/Programs/Financeiro', 'dados' => 'C:/Users/Pessoa com espaço/Financeiro', 'porta' => 8484];
+$envWin = gerenteAmbiente($lugarT, 'Windows');
+$check('gerente: Windows usa os programas da pasta bin', gerenteBinarios($lugarT['programa'], 'Windows') === ['servidor' => $lugarT['programa'] . '/bin/frankenphp.exe', 'php' => [$lugarT['programa'] . '/bin/php.exe']]);
+$check('gerente: Windows acha o php.ini por PHPRC', $envWin['PHPRC'] === $lugarT['programa'] . '/conf' && $envWin['FIN_GERENCIADO'] === '1');
+$check('gerente: o comando do PHP chega inteiro', Atualizacao::lerComandoPhp($envWin['FIN_PHP']) === [$lugarT['programa'] . '/bin/php.exe']);
+$check('gerente: o Caddyfile recebe a barra normal', !str_contains(gerenteAmbiente(['programa' => 'C:\\P\\F'] + $lugarT, 'Windows')['FIN_APP'], '\\'));
+$envMac = gerenteAmbiente(['programa' => '/U/a/Library/Application Support/Financeiro/programa'] + $lugarT, 'Darwin');
+$check('gerente: Mac acha o php.ini pela pasta', str_ends_with($envMac['PHP_INI_SCAN_DIR'], 'programa/conf') && !isset($envMac['PHPRC']));
+$check('gerente: Mac tem o programa e o php-cli em partes', count(Atualizacao::lerComandoPhp($envMac['FIN_PHP'])) === 2 && Atualizacao::lerComandoPhp($envMac['FIN_PHP'])[1] === 'php-cli');
+$xmlAgente = gerenteAgenteXml(['/Applications/A&B.app/frankenphp', 'php-cli', '/x/gerente.php', 'servir'], '/Applications/A&B.app/frankenphp', '/x');
+$docAgente = new DOMDocument();
+$check('gerente: o início automático do Mac é um plist válido', @$docAgente->loadXML($xmlAgente) && str_contains($xmlAgente, 'A&amp;B') && str_contains($xmlAgente, '<key>RunAtLoad</key>') && str_contains($xmlAgente, GERENTE_ROTULO));
+$pastaG = $dados . '/gerente-teste';
+mkdir($pastaG);
+file_put_contents($pastaG . '/config.env', "ACESSO_REDE=0\n");
+$check('gerente: fora da rede por padrão', gerenteEndereco($pastaG) === '127.0.0.1');
+file_put_contents($pastaG . '/config.env', "ACESSO_REDE=1\n");
+$check('gerente: na rede só quando a tela liga', gerenteEndereco($pastaG) === '0.0.0.0');
+file_put_contents($pastaG . '/porta', '9191');
+$check('gerente: a porta salva continua valendo', gerentePorta($pastaG) === 9191);
+// o .app traz o programa; a pasta de dados fica com o mais novo
+$sem = $pastaG . '/semente';
+mkdir($sem . '/app', 0755, true);
+file_put_contents($sem . '/app/VERSION', "1.2.0\n");
+file_put_contents($sem . '/gerente.php', '<?php');
+$lugarM = ['programa' => $sem, 'dados' => $pastaG, 'porta' => 1];
+$usarM = gerenteInstalarDoApp($lugarM);
+$check('gerente: a primeira abertura leva o programa para a pasta de dados', $usarM['programa'] === $pastaG . '/programa' && trim((string) file_get_contents($pastaG . '/programa/app/VERSION')) === '1.2.0');
+file_put_contents($pastaG . '/programa/app/VERSION', "1.3.0\n");
+gerenteInstalarDoApp($lugarM);
+$check('gerente: um .app mais velho não desfaz a atualização feita pela tela', trim((string) file_get_contents($pastaG . '/programa/app/VERSION')) === '1.3.0');
+file_put_contents($sem . '/app/VERSION', "1.4.0\n");
+gerenteInstalarDoApp($lugarM);
+$check('gerente: um .app mais novo substitui', trim((string) file_get_contents($pastaG . '/programa/app/VERSION')) === '1.4.0' && !is_dir($pastaG . '/programa.antes'));
+gerenteApagar($pastaG);
+$check('gerente: apagar limpa a pasta inteira', !is_dir($pastaG));
 
 echo "{$ok} ok, {$falhas} falha(s)\n";
 exit($falhas > 0 ? 1 : 0);

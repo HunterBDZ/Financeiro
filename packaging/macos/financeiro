@@ -1,0 +1,20 @@
+#!/bin/sh
+# O que o ícone do Financeiro faz, e o comando para o Terminal:
+#   /Applications/Financeiro.app/Contents/Resources/financeiro [abrir|iniciar|parar|status|senha LOGIN]
+AQUI=$(cd "$(dirname "$0")" && pwd)
+case "$AQUI" in
+    */AppTranslocation/*|/Volumes/*)
+        case "$(defaults read -g AppleLocale 2>/dev/null)" in
+            pt*) T='Arraste o Financeiro para a pasta Aplicativos e abra de lá.' ;;
+            es*) T='Arrastre Financeiro a la carpeta Aplicaciones y ábralo desde allí.' ;;
+            *) T='Drag Financeiro to the Applications folder and open it from there.' ;;
+        esac
+        osascript -e "display dialog \"$T\" buttons {\"OK\"} default button 1 with title \"Financeiro\"" >/dev/null 2>&1
+        exit 1
+        ;;
+esac
+FIN_BIN=$(cd "$AQUI/../MacOS" && pwd)/frankenphp
+FIN_SEMENTE=1
+export FIN_BIN FIN_SEMENTE
+[ $# -gt 0 ] || set -- abrir
+exec "$FIN_BIN" php-cli "$AQUI/programa/app/packaging/gerente.php" "$@"

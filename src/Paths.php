@@ -57,6 +57,19 @@ final class Paths
         return (bool) preg_match('~^(/|\\\\|[A-Za-z]:[/\\\\])~', $caminho);
     }
 
+    /** Renomeia. No Windows, um antivírus ou uma página em andamento podem segurar o arquivo por instantes: espera. */
+    public static function renomear(string $de, string $para, int $segundos = 30): bool
+    {
+        $fim = PHP_OS_FAMILY === 'Windows' ? microtime(true) + $segundos : 0;
+        while (!@rename($de, $para)) {
+            if (microtime(true) >= $fim) {
+                return false;
+            }
+            usleep(250000);
+        }
+        return true;
+    }
+
     /** Fora de Documentos, para serviços de nuvem não mexerem no banco enquanto ele está aberto. */
     private static function padraoDoSistema(): ?string
     {

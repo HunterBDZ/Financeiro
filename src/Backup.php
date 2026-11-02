@@ -39,7 +39,7 @@ final class Backup
         try {
             self::copiarPara($tmp);
             self::conferir($tmp);
-            if (!rename($tmp, $final)) {
+            if (!Paths::renomear($tmp, $final)) {
                 throw new \RuntimeException('Não deu para guardar a cópia.');
             }
         } finally {
@@ -179,7 +179,7 @@ final class Backup
         @chmod($tmp, 0600);
         @unlink($banco . '-wal');
         @unlink($banco . '-shm');
-        if (!rename($tmp, $banco)) {
+        if (!Paths::renomear($tmp, $banco)) {
             throw new \RuntimeException('Não deu para pôr o backup no lugar.');
         }
     }

@@ -2,12 +2,16 @@
 *.sh text eol=lf
 packaging/linux/financeiro text eol=lf
 packaging/linux/instalar text eol=lf
+packaging/macos/* text eol=lf
+packaging/windows/*.cmd text eol=crlf
 
 *.jpg binary
 *.png binary
 *.webp binary
 *.woff2 binary
 *.ttf binary
+*.ico binary
+*.icns binary
 
 # Não use export-ignore em tests/: o atualizador usa git archive e roda tests/run.php.
 public/assets/css/temas.css linguist-generated

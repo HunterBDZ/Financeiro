@@ -16,7 +16,9 @@ DADOS=${FIN_DADOS:-${XDG_DATA_HOME:-$HOME/.local/share}/financeiro}
 UNIDADE=$HOME/.config/systemd/user/financeiro.service
 
 export FIN_DADOS="$DADOS" FIN_PORTA="$PORTA" FIN_APP="$AQUI/app" FIN_GERENCIADO=1
-export PHP_INI_SCAN_DIR="$AQUI/conf" FIN_PHP="$BIN php-cli"
+# separados por tabulação: o caminho pode ter espaços
+FIN_PHP=$(printf '%s\tphp-cli' "$BIN")
+export PHP_INI_SCAN_DIR="$AQUI/conf" FIN_PHP
 
 tem_servico() { [ -f "$UNIDADE" ] && systemctl --user --version >/dev/null 2>&1 && systemctl --user show-environment >/dev/null 2>&1; }
 no_ar() { "$BIN" php-cli -r "exit(@fsockopen('127.0.0.1', $PORTA, \$e, \$t, 1) ? 0 : 1);" >/dev/null 2>&1; }

@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
-# Monta os arquivos de uma versão, a partir do commit atual: os pacotes de Linux, o pacote só do app (que o site baixa
-# para se atualizar), o atualizacao.json assinado e o SHA256SUMS.
+# Monta os arquivos de uma versão, a partir do commit atual: os pacotes de Linux, o instalador de Windows, o pacote só
+# do app (o mesmo em todo sistema: é o que o site baixa para se atualizar), o atualizacao.json assinado e o SHA256SUMS.
+# O .dmg de Mac só sai num Mac: packaging/macos/montar.sh, com o pacote do app que sai daqui.
 #
-#   packaging/empacotar.sh --saida PASTA [--arq x86_64,aarch64] [--binario ARQUIVO] [--ca ARQUIVO] [--chave ARQUIVO] [--php COMANDO]
+#   packaging/empacotar.sh --saida PASTA [--sistemas linux,windows] [--arq x86_64,aarch64] [--binario ARQUIVO]
+#                          [--zip-windows ARQUIVO] [--vcredist ARQUIVO] [--ca ARQUIVO] [--chave ARQUIVO] [--php COMANDO]
 #
-#   --binario   FrankenPHP já baixado; o SHA-256 tem de bater com o daqui. Sem ele, baixa do projeto.
-#   --ca        certificados raiz; sem ele, baixa de curl.se
-#   --chave     chave privada da atualização, ou FIN_CHAVE_ATUALIZACAO no ambiente. Sem nenhuma, não assina.
+#   --binario      FrankenPHP de Linux já baixado; o SHA-256 tem de bater com o daqui. Sem ele, baixa do projeto.
+#   --zip-windows, --vcredist   o mesmo, para Windows: ver packaging/windows/montar.sh
+#   --ca           certificados raiz; sem ele, baixa de curl.se
+#   --chave        chave privada da atualização, ou FIN_CHAVE_ATUALIZACAO no ambiente. Sem nenhuma, não assina.
 set -euo pipefail
 
 FRANKENPHP=1.13.4
@@ -14,12 +17,15 @@ declare -A SOMA=(
     [x86_64]=3bbd2f11929550e3b35ddb407c7981ef14bc5337e705c910068f85a6ccbf91f3
     [aarch64]=35eebf7462790c897ebf8c464c24f7a93ffcbc7012376ed0f1f66defa935585d
 )
-SAIDA=""; ARQS=x86_64,aarch64; BINARIO=""; CA=""; CHAVE=""; PHP=php
+SAIDA=""; SISTEMAS=linux,windows; ARQS=x86_64,aarch64; BINARIO=""; ZIP_WIN=""; VCREDIST=""; CA=""; CHAVE=""; PHP=php
 while [ $# -gt 0 ]; do
     case "$1" in
         --saida) SAIDA=$2; shift ;;
+        --sistemas) SISTEMAS=$2; shift ;;
         --arq) ARQS=$2; shift ;;
         --binario) BINARIO=$2; shift ;;
+        --zip-windows) ZIP_WIN=$2; shift ;;
+        --vcredist) VCREDIST=$2; shift ;;
         --ca) CA=$2; shift ;;
         --chave) CHAVE=$2; shift ;;
         --php) PHP=$2; shift ;;
@@ -51,9 +57,10 @@ EMPACOTE=(tar --format=ustar --owner=0 --group=0 --numeric-owner --sort=name)
 APP=financeiro-app-$VERSAO.tar.gz
 "${EMPACOTE[@]}" -C "$TMP/montar" -cf - app | gzip -9 > "$SAIDA/$APP"
 
-# ---- os pacotes de cada arquitetura
+# ---- os pacotes de Linux, um por arquitetura
 IFS=, read -ra LISTA <<< "$ARQS"
-for arq in "${LISTA[@]}"; do
+[[ ",$SISTEMAS," == *,linux,* ]] || LISTA=()
+for arq in ${LISTA[@]+"${LISTA[@]}"}; do
     [ -n "${SOMA[$arq]:-}" ] || { echo "arquitetura desconhecida: $arq" >&2; exit 2; }
     bin=${BINARIO:-}
     if [ -z "$bin" ]; then
@@ -77,6 +84,11 @@ for arq in "${LISTA[@]}"; do
     rm -rf "$pac"
 done
 
+# ---- o instalador de Windows
+if [[ ",$SISTEMAS," == *,windows,* ]]; then
+    packaging/windows/montar.sh --app "$TMP/montar/app" --versao "$VERSAO" --saida "$SAIDA" ${ZIP_WIN:+--zip "$ZIP_WIN"} ${VCREDIST:+--vcredist "$VCREDIST"}
+fi
+
 # ---- assinatura: o site só aceita o que esta chave assinou
 if [ -n "$CHAVE" ] || [ -n "${FIN_CHAVE_ATUALIZACAO:-}" ]; then
     # shellcheck disable=SC2086
@@ -84,5 +96,5 @@ if [ -n "$CHAVE" ] || [ -n "${FIN_CHAVE_ATUALIZACAO:-}" ]; then
 else
     echo "Sem chave: atualizacao.json não foi gerado." >&2
 fi
-( cd "$SAIDA" && sha256sum -- *.tar.gz > SHA256SUMS )
+( cd "$SAIDA" && find . -maxdepth 1 -type f ! -name SHA256SUMS -printf '%f\0' | LC_ALL=C sort -z | xargs -0 sha256sum -- > SHA256SUMS )
 ls -la "$SAIDA"

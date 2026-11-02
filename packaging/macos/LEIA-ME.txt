@@ -1,0 +1,27 @@
+Financeiro para Mac (chip Apple)
+
+Para instalar, arraste o Financeiro para a pasta Aplicativos e abra de lá. O site abre no navegador, e você cria a sua conta.
+
+Se o Mac disser que não pode verificar o aplicativo:
+  1. Abra Ajustes do Sistema, depois Privacidade e Segurança.
+  2. Desça até o fim e clique em Abrir Mesmo Assim, ao lado do nome Financeiro.
+  3. Confirme com a sua senha do Mac.
+
+Os seus dados ficam em ~/Library/Application Support/Financeiro.
+Os backups, a atualização e o acesso pelo celular ficam na tela, em Ajustes.
+
+Para desinstalar, dê dois cliques em "Desinstalar o Financeiro".
+
+Licença: AGPL-3.0-or-later. O código-fonte e os avisos de terceiros estão no próprio aplicativo.
+
+-----
+
+Financeiro for Mac (Apple chip)
+
+Drag Financeiro to the Applications folder and open it from there. If the Mac says it cannot verify the app, open System Settings, then Privacy & Security, scroll down, click Open Anyway next to Financeiro and confirm with your Mac password.
+
+-----
+
+Financeiro para Mac (chip de Apple)
+
+Arrastre Financeiro a la carpeta Aplicaciones y ábralo desde allí. Si el Mac dice que no puede verificar la app, abra Ajustes del Sistema, luego Privacidad y Seguridad, baje hasta el final, haga clic en Abrir Igualmente junto a Financeiro y confirme con la contraseña de su Mac.

@@ -105,7 +105,7 @@ final class Primeira
         $pdo->exec('PRAGMA journal_mode = DELETE');
         $pdo = null;
         @chmod($novo, 0600);
-        if (!rename($novo, $destino)) {
+        if (!Paths::renomear($novo, $destino)) {
             throw new \RuntimeException('Não deu para criar o banco.');
         }
     }
@@ -132,6 +132,6 @@ final class Primeira
         $tmp = $arquivo . '.novo';
         file_put_contents($tmp, $conteudo);
         @chmod($tmp, 0600);
-        rename($tmp, $arquivo);
+        Paths::renomear($tmp, $arquivo, 5);
     }
 }

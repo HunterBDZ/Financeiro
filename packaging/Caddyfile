@@ -10,7 +10,7 @@
 
 http://:{$FIN_PORTA:8484} {
 	bind {$FIN_BIND:127.0.0.1}
-	root * {$FIN_APP:public/..}/public
+	root * "{$FIN_APP:public/..}/public"
 	@comPonto path_regexp (^|/)\.
 	respond @comPonto 404
 	encode zstd gzip
