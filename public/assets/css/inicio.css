@@ -29,6 +29,31 @@
 
 .dash-grade { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
 
+/* cartão do saldo: uma frase que responde quanto dá para gastar; o resto fica em "Ver detalhes" */
+.saldo-frase { margin: -4px 0 14px; color: var(--cofre-txt); font-size: 16px; font-weight: 600; line-height: 1.45; text-wrap: pretty; }
+.saldo-frase b { font-weight: 800; white-space: nowrap; }
+.saldo-frase.is-abaixo b { color: var(--cofre-warn); }
+.saldo-frase.is-vermelho b { color: var(--cofre-neg); }
+.saldo-frase-2 { display: block; margin-top: 4px; color: var(--cofre-txt-2); font-size: 14px; font-weight: 600; }
+.saldo-frase-2 b { color: var(--cofre-txt); font-weight: 750; }
+.saldo :focus-visible { outline-color: var(--cofre-ok); }
+.saldo-det { margin-top: 8px; }
+.saldo-det > summary {
+    display: inline-flex; align-items: center; gap: 6px; min-height: var(--tap); margin-bottom: -10px;
+    color: var(--cofre-txt-2); font-size: 14px; font-weight: 700; list-style: none;
+}
+.saldo-det > summary::after {
+    content: ""; width: 7px; height: 7px; margin-left: 2px;
+    border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
+    transform: rotate(45deg) translateY(-2px); transition: transform .2s ease-out;
+}
+.saldo-det[open] > summary::after { transform: rotate(-135deg) translateY(-1px); }
+.saldo-det > summary:hover { color: var(--cofre-txt); }
+.saldo-det[open] > summary { margin-bottom: 0; }
+.saldo-det-c { padding: 2px 0 2px; }
+.saldo-det-c > :first-child { margin-top: 0; }
+.resumo-ponte { display: block; color: var(--text-2); font-size: 12.5px; font-weight: 600; }
+
 /* o mês em três linhas */
 .resumo > li { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 8px 0; }
 .resumo > li + li { border-top: 1px solid var(--line); }

@@ -13,6 +13,7 @@ use Financeiro\Services\ChecklistContas;
 use Financeiro\Services\MotorFinanceiro;
 use Financeiro\Services\PrevisaoEdicao;
 use Financeiro\Services\PrevisaoLote;
+use Financeiro\Services\Sobra;
 use Financeiro\Services\SugestaoAlocacao;
 use Financeiro\View;
 
@@ -158,6 +159,8 @@ final class MesController
             'dia' => $dia, 'diaZeradas' => $diaZeradas, 'contasAbertas' => $abertas, 'contasPagas' => $pagas,
             'entradas' => $entradas, 'linha' => $linha, 'menu' => $menu,
             'incluir' => $incluir, 'erroLinha' => $erroLinha,
+            // o resumo do mês: a mesma linha do plano que dá a previsão do fim do mês
+            'sobra' => Sobra::prevista($linha),
         ], 'mes');
     }
 
@@ -230,7 +233,7 @@ final class MesController
         $ultimoCel = (string) end($celulas)[1];
         $segs = [$oQue, monthLabel($mes) . ($ultimoCel !== $mes ? ' → ' . monthLabel($ultimoCel) : '')];
         if (isset($antes[$mes], $depois[$mes])) {
-            $segs[] = t('fim de {mes} {antes} → {depois}', ['mes' => mesCurto($mes), 'antes' => num((float) $antes[$mes]['fica_na_conta'], 0), 'depois' => num((float) $depois[$mes]['fica_na_conta'], 0)]);
+            $segs[] = t('fim de {mes} {antes} → {depois}', ['mes' => mesCurto($mes), 'antes' => num((float) $antes[$mes]['fica_na_conta']), 'depois' => num((float) $depois[$mes]['fica_na_conta'])]);
         }
         $reserva = (float) ($d['aj']['reserva_minima'] ?? 0.0);
         $alerta  = PrevisaoEdicao::piorou($antes, $depois, $mes, $reserva);
@@ -398,7 +401,12 @@ final class MesController
             'pageTitle' => $real ? t('{mes} · fechado · financeiro', ['mes' => monthLabel($mes)]) : t('fechar {mes} · financeiro', ['mes' => monthLabel($mes)]),
             'mes' => $mes, 'meses' => $meses, 'hoje' => $hoje, 'bloqueado' => false, 'real' => $real,
             'entrou' => $entrou, 'saiu' => $saiu, 'saldoMes' => $balanco,
-            'guardado' => max(0.0, (float) $linha['poupanca_liquido']) + max(0.0, (float) ($linha['invest_liquido'] ?? 0.0)),
+            // a sobra até hoje (no mês fechado, a do mês) e o que leva dela ao balanço: as movimentações
+            'sobra' => Sobra::de($linha) + ['base' => $real ? 'mes' : 'hoje'],
+            'movimentos' => [
+                'cred' => (float) $linha['credito_emprestimo'], 'amort' => (float) $linha['amortizacao_extra'],
+                'poup' => (float) $linha['poupanca_liquido'], 'inv' => (float) ($linha['invest_liquido'] ?? 0.0),
+            ],
             'contaAntes' => (float) $linha['sobrou_mes_anterior'], 'contaDepois' => (float) $linha['fica_na_conta'],
             'desvios' => $desvios, 'avisoParcela' => $avisoParcela,
             'dataBanco' => $dataBanco, 'dataMin' => self::dataMinBanco($hoje), 'faltam' => max(0, $faltam),
@@ -567,10 +575,10 @@ final class MesController
 
     /* ================================================================== internos */
 
-    /** `1.200` · `159,90`: centavos só quando há. */
+    /** `1.200,00` · `159,90`: dinheiro sempre com centavos (docs/decisoes.md). */
     private static function valorCurto(float $v): string
     {
-        return num($v, fmod(abs($v), 1) > 0.004 ? 2 : 0);
+        return num($v);
     }
 
     private static function situacaoEm(array $meses, string $mes): string

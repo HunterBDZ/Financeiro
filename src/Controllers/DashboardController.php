@@ -10,6 +10,7 @@ use Financeiro\Models\MesModel;
 use Financeiro\Models\SaldoConferenciaModel;
 use Financeiro\Services\GastosMensais;
 use Financeiro\Services\MotorFinanceiro;
+use Financeiro\Services\Sobra;
 use Financeiro\View;
 
 /**
@@ -58,6 +59,8 @@ final class DashboardController
             : LancamentoModel::saldoCalculado($saldoIni, $hoje);
 
         $painel = self::painel($matriz[$mesRef] ?? null, $mesRef, $estadoRef);
+        // a sobra do cartão do mês, com o nome da base (a mesma conta do Mês, do Fechar e do Relatório)
+        $sobra = $estadoRef === 'previsto' ? Sobra::prevista($linhaRef) : (Sobra::ateHoje($mesRef, $ehHoje ? null : $hoje) ?? Sobra::prevista($linhaRef));
         $ultimos = LancamentoModel::listar($mesRef, ['limite' => 3]);
 
         // meses anteriores ao calendário ainda abertos: lembrete de fechar
@@ -77,6 +80,9 @@ final class DashboardController
         }
         unset($_SESSION['conferir_erro']);
 
+        $previsaoFim = $linhaPrev['situacao'] !== 'REAL' ? (float) $linhaPrev['fica_na_conta'] : null;
+        $fimSemAdiantar = $previsaoFim !== null ? self::fimSemAdiantar($linhaPrev, $mesPrev, $hoje) : null;
+
         View::render('dashboard/index', [
             'pageTitle'      => t('início · financeiro'),
             'hoje'           => $hoje,
@@ -84,8 +90,9 @@ final class DashboardController
             'mesCal'         => $mesCal,
             'estadoRef'      => $estadoRef,
             'reserva'        => $reserva,
-            'previsaoFim'    => $linhaPrev['situacao'] !== 'REAL' ? (float) $linhaPrev['fica_na_conta'] : null,
-            'previsaoSemAdiantar' => self::previsaoSemAdiantar($linhaPrev, $mesPrev),
+            'previsaoFim'    => $previsaoFim,
+            'previsaoSemAdiantar' => $fimSemAdiantar !== null && abs($fimSemAdiantar - (float) $previsaoFim) >= 1.0 ? $fimSemAdiantar : null,
+            'resposta'       => self::resposta($previsaoFim, $fimSemAdiantar, $reserva),
             'mesPrevisao'    => $mesPrev,
             'roteiro'        => self::roteiro(),
             'conta'          => $conta,
@@ -93,6 +100,7 @@ final class DashboardController
             'conferirAberto' => $conferirAberto || $conferirErro !== null,
             'conferirErro'   => $conferirErro,
             'painel'         => $painel,
+            'sobra'          => $sobra,
             'ultimos'        => $ultimos,
             'alertas'        => $alertas,
             'v2'             => MotorFinanceiro::v2(),
@@ -175,7 +183,8 @@ final class DashboardController
         $outrasItens = [];
         foreach (LancamentoModel::entradasDoMes($mesRef) as $c) {
             $v = $previsto ? $c['previsto'] : $c['real'];
-            if ($v < 0.005) {
+            // crédito do empréstimo e resgates são movimentações: não são renda (nem entram na sobra)
+            if ($v < 0.005 || !$c['operacional']) {
                 continue;
             }
             if ($c['grupo'] === 'Entradas' && mb_stripos($c['nome'], 'sal') === 0) {
@@ -237,18 +246,41 @@ final class DashboardController
         return preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $d, $m) === 1 && checkdate((int) $m[2], (int) $m[3], (int) $m[1]);
     }
 
-    /** Quem escolheu adiantar o empréstimo vê também como a conta fica sem isso: o adiantamento não sai sozinho. */
-    private static function previsaoSemAdiantar(array $linha, string $mes): ?float
+    /**
+     * A conta no fim do mês sem o adiantamento automático do empréstimo: o mesmo plano com `objetivo` 3.
+     * Sem empréstimo ou com "só a meta", é a própria previsão. O adiantamento não sai sozinho da conta.
+     */
+    private static function fimSemAdiantar(array $linha, string $mes, string $hoje): float
     {
         if ($linha['situacao'] === 'REAL' || !AjusteModel::usa('usa_emprestimo') || (int) round(AjusteModel::valor('objetivo', 1.0)) === 3) {
+            return (float) $linha['fica_na_conta'];
+        }
+        $l = MotorFinanceiro::calcular(MotorFinanceiro::dados(), ['objetivo' => 3, 'hoje' => $hoje])[$mes] ?? null;
+        return $l !== null ? (float) $l['fica_na_conta'] : (float) $linha['fica_na_conta'];
+    }
+
+    /**
+     * A frase do cartão do saldo, com a base do plano (docs/decisoes.md). $semAdiantar (S) é o fim do mês sem
+     * adiantar o empréstimo; $fim (P), a previsão com o plano. S abaixo da reserva: quanto falta (para zerar,
+     * se S é negativo). S acima: S − reserva dá para gastar até o fim do mês; se o plano adianta o empréstimo,
+     * S − P vai para lá.
+     * @return ?array{tipo:string, valor:float, adianta:float}  tipo: vermelho | abaixo | justo | gastar
+     */
+    public static function resposta(?float $fim, ?float $semAdiantar, float $reserva): ?array
+    {
+        if ($fim === null || $semAdiantar === null) {
             return null;
         }
-        foreach (MotorFinanceiro::calcular(MotorFinanceiro::dados(), ['objetivo' => 3]) as $l) {
-            if ($l['mes'] === $mes && abs((float) $l['fica_na_conta'] - (float) $linha['fica_na_conta']) >= 1.0) {
-                return (float) $l['fica_na_conta'];
-            }
+        $reserva = max(0.0, $reserva);
+        if ($semAdiantar < -0.004) {
+            return ['tipo' => 'vermelho', 'valor' => round(-$semAdiantar, 2), 'adianta' => 0.0];
         }
-        return null;
+        if ($semAdiantar < $reserva - 0.004) {
+            return ['tipo' => 'abaixo', 'valor' => round($reserva - $semAdiantar, 2), 'adianta' => 0.0];
+        }
+        $livre = round($semAdiantar - $reserva, 2);
+        $adianta = round(max(0.0, $semAdiantar - $fim), 2);
+        return ['tipo' => $livre < 0.005 ? 'justo' : 'gastar', 'valor' => $livre, 'adianta' => $adianta < 0.005 ? 0.0 : min($adianta, $livre)];
     }
 
     /** O roteiro de quem está começando: some quando está tudo feito ou quando a pessoa dispensa. */

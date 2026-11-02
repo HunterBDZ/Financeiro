@@ -189,7 +189,7 @@ $check('Início sem o selo "Acima da reserva"', !str_contains($htmlIni, 'Acima d
 $mesPrevT = MesModel::referencia(date('Y-m-d'));
 $linhaPrevT = MotorFinanceiro::linhaDoMes($mesPrevT);
 if ($linhaPrevT !== null && $linhaPrevT['situacao'] !== 'REAL') {
-    $valPrevT = num((float) $linhaPrevT['fica_na_conta'], 0);
+    $valPrevT = num((float) $linhaPrevT['fica_na_conta']);
     $tagPrev = 'data-previsao-fim>Previsão para o fim de ' . mesExtenso($mesPrevT) . ': <b>' . $valPrevT . '</b>';
     $check('Início: previsão do fim do mês vem do mesmo plano do Anual', str_contains($htmlIni, $tagPrev) && str_contains($htmlAno, $valPrevT));
     // com o mês atual já fechado, o Início olha para o próximo, e o Mês continua no atual

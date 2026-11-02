@@ -3,12 +3,13 @@ use Financeiro\Auth;
 
 /**
  * Início — o mês de referência pelo que aconteceu de verdade (lançamentos).
- * Saudação; o cartão do saldo (em conta hoje contra a reserva, com o olho que esconde os valores);
- * o mês em três linhas (entrou, saiu, resultado; o detalhe fica dobrado); para onde foi;
- * conferir com o banco; últimos lançamentos.
+ * Saudação; o cartão do saldo (em conta hoje, uma frase que responde quanto dá para gastar e o resto
+ * dobrado em "Ver detalhes", com o olho que esconde os valores); o mês em três linhas (entrou, saiu e a
+ * sobra com o nome da base; o detalhe fica dobrado); para onde foi; conferir com o banco; últimos lançamentos.
  * Variáveis: $hoje, $mesRef, $mesCal, $estadoRef, $reserva, $conta, $conf, $conferirAberto,
- * $conferirErro, $painel, $ultimos, $alertas.
+ * $conferirErro, $painel, $sobra (Sobra), $resposta (DashboardController::resposta), $ultimos, $alertas.
  */
+use Financeiro\Services\Sobra;
 
 $p        = $painel;
 $previsto = $p['base'] === 'previsto';
@@ -27,8 +28,38 @@ if ($mesRef === $mesCal && $estadoRef !== 'real') {
     $prog = ['dia' => $dia, 'dias' => $dias, 'pct' => (int) round($dia / $dias * 100)];
 }
 
-$balanco  = (float) $p['balanco'];
+// a sobra do mês com o nome da base; a renda é a sem a parcela (a ponte mostra a conta)
+$balanco  = (float) $sobra['sobra'];
+$ponte    = Sobra::ponte($sobra);
 $topMax   = $p['top'] !== [] ? max(array_column($p['top'], 'valor')) : 0.0;
+
+// a frase do cartão do saldo: o mês da previsão, o dia em que ele termina e o valor em destaque
+$mesFrase  = $mesPrevisao === $mesCal ? t('Este mês') : mb_convert_case(mesExtenso($mesPrevisao), MB_CASE_TITLE);
+$diaFim    = diasNoMes($mesPrevisao);
+$valorB    = static fn(float $v): string => '<b class="num">' . e(money($v)) . '</b>';
+$frase     = null;
+$fraseMais = null;
+if ($resposta !== null) {
+    $v = (float) $resposta['valor'];
+    $frase = match ($resposta['tipo']) {
+        'vermelho' => t('{mes} fecha no vermelho: faltam {valor} para zerar.', ['mes' => e($mesFrase), 'valor' => $valorB($v)]),
+        'abaixo'   => t('{mes} fecha abaixo da reserva: faltam {valor}.', ['mes' => e($mesFrase), 'valor' => $valorB($v)]),
+        'justo'    => e($reserva > 0.004 ? t('{mes} fecha na reserva, sem folga para gastar mais.', ['mes' => $mesFrase]) : t('{mes} fecha zerado, sem folga para gastar mais.', ['mes' => $mesFrase])),
+        default    => $mesPrevisao === $mesCal
+            ? ($reserva > 0.004
+                ? t('Dá para gastar {valor} até o dia {dia} sem passar da reserva.', ['valor' => $valorB($v), 'dia' => $diaFim])
+                : t('Dá para gastar {valor} até o dia {dia} sem ficar no vermelho.', ['valor' => $valorB($v), 'dia' => $diaFim]))
+            : ($reserva > 0.004
+                ? t('Dá para gastar {valor} até o fim de {mes} sem passar da reserva.', ['valor' => $valorB($v), 'mes' => e(mesExtenso($mesPrevisao))])
+                : t('Dá para gastar {valor} até o fim de {mes} sem ficar no vermelho.', ['valor' => $valorB($v), 'mes' => e(mesExtenso($mesPrevisao))])),
+    };
+    $a = (float) $resposta['adianta'];
+    if ($a > 0.004) {
+        $fraseMais = abs($a - $v) < 0.01
+            ? e(t('Pelo plano, esse valor vai adiantar o empréstimo, e o mês fecha na reserva.'))
+            : t('Pelo plano, {valor} disso vai adiantar o empréstimo.', ['valor' => $valorB($a)]);
+    }
+}
 
 // saudação e a data por extenso
 $hora      = (int) date('G');
@@ -102,16 +133,26 @@ $quandoFoi   = static function (string $data) use ($hoje): string {
                 <?php if ($estadoSaldo !== ''): ?><span class="saldo-estado"><?= e($estadoSaldo) ?></span><?php endif; ?>
             </div>
             <p class="saldo-v num"><small><?= e(moedaSimbolo()) ?></small><?= e($contaInt) ?><span><?= e($contaCent) ?></span></p>
-            <div class="saldo-medidor" aria-hidden="true"><i style="--p:<?= e(number_format($pReserva, 1, '.', '')) ?>%"></i></div>
-            <?php if ($reserva > 0.004 || $vermelho): ?>
-            <p class="saldo-rod num">
-                <span><?php if ($vermelho): ?><?= t('Faltam {valor} para zerar', ['valor' => '<b>' . e(num(abs($conta))) . '</b>']) ?><?php elseif ($abaixo): ?><?= t('Faltam {valor} para a reserva', ['valor' => '<b>' . e(num(abs($dif))) . '</b>']) ?><?php else: ?><?= t('{valor} acima da reserva', ['valor' => '<b>' . e(num($dif)) . '</b>']) ?><?php endif; ?></span>
-                <span><?= t('Reserva {valor}', ['valor' => '<b>' . e(num($reserva, 0)) . '</b>']) ?> <?= dica('reserva', t('Reserva')) ?></span>
-            </p>
+            <?php if ($frase !== null): ?>
+                <p class="saldo-frase is-<?= e((string) $resposta['tipo']) ?>" data-saldo-frase="<?= e((string) $resposta['tipo']) ?>"><?= $frase ?> <?= dica('gastar', t('esse valor')) ?><?php if ($fraseMais !== null): ?> <span class="saldo-frase-2"><?= $fraseMais ?></span><?php endif; ?></p>
             <?php endif; ?>
-            <?php if ($previsaoFim !== null): ?>
-                <p class="saldo-prev num" data-previsao-fim><?= t('Previsão para o fim de {mes}: {valor}', ['mes' => e(mesExtenso($mesPrevisao)), 'valor' => '<b>' . e(num($previsaoFim, 0)) . '</b>']) ?> <?= dica('previsao', t('previsão')) ?></p>
-                <?php if (!empty($previsaoSemAdiantar)): ?><p class="saldo-prev num"><?= t('Sem adiantar o empréstimo: {valor}', ['valor' => '<b>' . e(num($previsaoSemAdiantar, 0)) . '</b>']) ?></p><?php endif; ?>
+            <div class="saldo-medidor" aria-hidden="true"><i style="--p:<?= e(number_format($pReserva, 1, '.', '')) ?>%"></i></div>
+            <?php if ($reserva > 0.004 || $vermelho || $previsaoFim !== null): ?>
+            <details class="saldo-det">
+                <summary><?= e(t('Ver detalhes')) ?></summary>
+                <div class="saldo-det-c">
+                    <?php if ($reserva > 0.004 || $vermelho): ?>
+                    <p class="saldo-rod num">
+                        <span><?php if ($vermelho): ?><?= t('Faltam {valor} para zerar', ['valor' => '<b>' . e(num(abs($conta))) . '</b>']) ?><?php elseif ($abaixo): ?><?= t('Faltam {valor} para a reserva', ['valor' => '<b>' . e(num(abs($dif))) . '</b>']) ?><?php else: ?><?= t('{valor} acima da reserva', ['valor' => '<b>' . e(num($dif)) . '</b>']) ?><?php endif; ?></span>
+                        <span><?= t('Reserva {valor}', ['valor' => '<b>' . e(num($reserva)) . '</b>']) ?> <?= dica('reserva', t('Reserva')) ?></span>
+                    </p>
+                    <?php endif; ?>
+                    <?php if ($previsaoFim !== null): ?>
+                        <p class="saldo-prev num" data-previsao-fim><?= t('Previsão para o fim de {mes}: {valor}', ['mes' => e(mesExtenso($mesPrevisao)), 'valor' => '<b>' . e(num($previsaoFim)) . '</b>']) ?> <?= dica('previsao', t('previsão')) ?></p>
+                        <?php if (!empty($previsaoSemAdiantar)): ?><p class="saldo-prev num"><?= t('Sem adiantar o empréstimo: {valor}', ['valor' => '<b>' . e(num($previsaoSemAdiantar)) . '</b>']) ?></p><?php endif; ?>
+                    <?php endif; ?>
+                </div>
+            </details>
             <?php endif; ?>
         </section>
 
@@ -122,9 +163,9 @@ $quandoFoi   = static function (string $data) use ($hoje): string {
                 <?php if ($prog !== null): ?><span class="card-acao num"><?= e(t('dia {dia} de {dias}', ['dia' => $prog['dia'], 'dias' => $prog['dias']])) ?></span><?php else: ?><span class="estado estado-<?= e($estadoRef) ?>"><?= e(estadoLabel($estadoRef)) ?></span><?php endif; ?>
             </div>
             <ul class="resumo">
-                <li><span class="ri pos"><?= svgIcon('arrow-up', 16) ?></span><span class="resumo-n"><?= e(t('Entrou')) ?></span><b class="num pos"><?= e(num($p['entradas'])) ?></b></li>
-                <li><span class="ri neg"><?= svgIcon('arrow-down', 16) ?></span><span class="resumo-n"><?= e(t('Saiu')) ?></span><b class="num neg"><?= e(num($p['saidas'])) ?></b></li>
-                <li class="resumo-total"><span class="resumo-n"><?= e($balanco < -0.004 ? t('Déficit do mês') : t('Sobra do mês')) ?></span><b class="num <?= $balanco < -0.004 ? 'neg' : 'pos' ?>"><?= e(($balanco < -0.004 ? MENOS : '') . num(abs($balanco))) ?></b></li>
+                <li><span class="ri pos"><?= svgIcon('arrow-up', 16) ?></span><span class="resumo-n"><?= e(t('Entrou')) ?><?php if ($ponte !== null): ?><small class="resumo-ponte num"><?= e($ponte) ?></small><?php endif; ?></span><b class="num pos"><?= e(num((float) $sobra['renda'])) ?></b></li>
+                <li><span class="ri neg"><?= svgIcon('arrow-down', 16) ?></span><span class="resumo-n"><?= e(t('Saiu')) ?></span><b class="num neg"><?= e(num((float) $sobra['saidas'])) ?></b></li>
+                <li class="resumo-total"><span class="resumo-n"><?= e(Sobra::rotulo((string) $sobra['base'])) ?> <?= dica('numeros', Sobra::rotulo((string) $sobra['base'])) ?></span><b class="num <?= $balanco < -0.004 ? 'neg' : 'pos' ?>" data-sobra="<?= e((string) $sobra['base']) ?>"><?= e(num($balanco)) ?></b></li>
             </ul>
             <details class="resumo-det">
                 <summary><?= e(t('Ver o detalhe')) ?></summary>
@@ -139,8 +180,8 @@ $quandoFoi   = static function (string $data) use ($hoje): string {
                     <div><dt><?= e(t('Essenciais')) ?></dt><dd><?= e(num($p['ess'])) ?></dd></div>
                     <div><dt><?= e(t('Não essenciais')) ?></dt><dd><?= e(num($p['naoess'])) ?></dd></div>
                 </dl>
-                <?php if ($p['entradas'] > 0.004): ?>
-                    <p class="dash-nota"><?= e(t('As saídas foram {pct}% das entradas.', ['pct' => $share($p['saidas'], $p['entradas'])])) ?></p>
+                <?php if ((float) $sobra['renda'] > 0.004): ?>
+                    <p class="dash-nota"><?= e(t('As saídas foram {pct}% das entradas.', ['pct' => $share((float) $sobra['saidas'], (float) $sobra['renda'])])) ?></p>
                 <?php endif; ?>
             </details>
         </section>
@@ -160,7 +201,7 @@ $quandoFoi   = static function (string $data) use ($hoje): string {
                             <a class="barras-i" href="/lancamentos?mes=<?= e($mesRef) ?>&amp;cat=<?= (int) $t['id'] ?>">
                                 <?= iconeCategoria((int) $t['id'], (string) $t['nome_banco'], '', 40, 'barras-ic') ?>
                                 <span class="barras-n"><?= e($t['nome']) ?></span>
-                                <span class="barras-v num"><?= e(num($t['valor'], 0)) ?><small><?= $share($t['valor'], $p['saidas']) ?>%</small></span>
+                                <span class="barras-v num"><?= e(num($t['valor'])) ?><small><?= $share($t['valor'], $p['saidas']) ?>%</small></span>
                                 <span class="trilho" aria-hidden="true"><i style="--w:<?= $topMax > 0 ? round($t['valor'] / $topMax * 100, 1) : 0 ?>%"></i></span>
                             </a>
                         </li>
