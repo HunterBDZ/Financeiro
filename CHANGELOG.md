@@ -2,7 +2,7 @@
 
 Cada versão publicada é uma tag `vX.Y.Z` deste repositório. Pacotes atualizam em Ajustes, em Backup e atualização; servidores, com `sudo financeiro-atualizar`.
 
-## A publicar
+## 1.9.0
 
 - **Windows:** instalador que não pede administrador nem usa terminal. O app inicia com a sessão, e o ícone abre o navegador. Ao desinstalar, os dados só saem se você escolher.
 - **Mac com chip Apple:** arraste para Aplicativos e abra. Mac Intel não é atendido, porque o FrankenPHP não tem versão oficial para ele.
