@@ -2,7 +2,7 @@
 
 ## Instalar
 
-Você precisa de um computador com **Ubuntu 24.04 ou mais novo**, que fique ligado e na sua rede. Nele, rode:
+Você precisa de um computador com **Ubuntu 24.04 ou mais novo, Debian 13 ou um derivado deles** (Linux Mint, LMDE), que fique ligado e na sua rede. Nele, rode:
 
 ```sh
 git clone https://github.com/HunterBDZ/Financeiro.git
@@ -20,7 +20,7 @@ Para dar acesso a outra pessoa, use **Ajustes → Pessoas**.
 
 ### O que o instalador faz
 
-- Instala Apache, PHP e MySQL, se faltarem. No Ubuntu 24.04, o PHP 8.4 ou mais novo vem do repositório `ppa:ondrej/php`.
+- Instala Apache, PHP e MySQL, se faltarem. Onde o sistema não oferece MySQL, como no Debian 13, usa MariaDB 11.4.5 ou mais novo. No Ubuntu 24.04 e no Mint, o PHP 8.4 ou mais novo vem do repositório `ppa:ondrej/php`.
 - Coloca o site em `/var/www/financeiro`, cria o banco com uma senha aleatória e publica o site em HTTPS.
 - Ativa o backup diário em `/var/backups/financeiro`, guardando 30 dias, e instala o comando `financeiro-atualizar`.
 
@@ -69,7 +69,7 @@ sudo -u www-data php /var/www/financeiro/tools/redefinir-senha.php LOGIN
 | O que aparece | Causa provável | O que fazer |
 |---|---|---|
 | `as portas 80 ou 443 já estão em uso` | Outro programa usa as portas do site | Pare esse programa e rode o instalador de novo |
-| `não consegui entrar no MySQL` | O MySQL já tinha senha de root | [Abra uma issue](https://github.com/HunterBDZ/Financeiro/issues) |
+| `não consegui entrar no banco` | O MySQL ou o MariaDB já tinha senha de root | [Abra uma issue](https://github.com/HunterBDZ/Financeiro/issues) |
 | `Erro interno. Tente novamente` | O app não conectou no banco | Confira `DB_*` em `config/.env` e veja `sudo tail /var/log/apache2/financeiro-error.log` |
 | `Class "Pdo\Mysql" not found` | PHP anterior a 8.4 | Atualize o PHP |
 | `Call to undefined function mb_…` | Falta a extensão `mbstring` | `sudo apt install php-mbstring` e recarregue o Apache |
@@ -81,10 +81,10 @@ sudo -u www-data php /var/www/financeiro/tools/redefinir-senha.php LOGIN
 | `outra atualização está rodando` | Dois comandos ao mesmo tempo | Espere o outro terminar |
 | `os testes da versão … falharam no ensaio` | A versão nova não funciona no seu ambiente | O site não mudou. Não insista e [abra uma issue](https://github.com/HunterBDZ/Financeiro/issues) |
 | Bloqueado no login | 5 tentativas erradas | Espere 10 minutos |
-| `Unknown collation: utf8mb4_0900_ai_ci` | O banco não é MySQL 8 | Use MySQL 8 |
+| `Unknown collation: utf8mb4_0900_ai_ci` | O banco é anterior ao MySQL 8 ou ao MariaDB 11.4.5 | Use MySQL 8 ou MariaDB 11.4.5 ou mais novo |
 | Aviso de JIT do PCRE no log | O kernel bloqueia memória JIT | Coloque `pcre.jit=0` no `php.ini` e recarregue o Apache |
 
 ## Personalizar
 
-- **Moeda e fuso horário:** ficam em Ajustes e na primeira configuração, no site. Trocar a moeda muda só o símbolo: nada é convertido. O fuso não depende das tabelas de fuso do MySQL.
+- **Moeda e fuso horário:** ficam em Ajustes e na primeira configuração, no site. Trocar a moeda muda só o símbolo: nada é convertido. O fuso não depende das tabelas de fuso do banco.
 - **Categorias:** crie novas no Extrato. Não renomeie as de empréstimo e poupança, `Salário` e `Fatura do cartão`: o cálculo as encontra pelo nome.

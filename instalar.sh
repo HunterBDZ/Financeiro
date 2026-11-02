@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Instala o Financeiro num Ubuntu com um comando, sem nenhuma pergunta:
+# Instala o Financeiro com um comando, sem nenhuma pergunta, em Ubuntu 24.04 ou mais novo, Debian 13 ou derivados:
 #
 #   sudo bash instalar.sh
 #
-# Instala o que falta (Apache, PHP e MySQL), cria o banco com uma senha aleatória, publica o site em
+# Instala o que falta (Apache, PHP e MySQL, ou MariaDB 11.4.5+ onde não há MySQL), cria o banco com uma senha aleatória, publica o site em
 # HTTPS e ativa o backup diário. A conta da pessoa é criada depois, no navegador. Se parar no meio,
 # é só rodar de novo. Não mexe num Financeiro que já esteja instalado, nem no firewall.
 #
@@ -18,7 +18,10 @@ BANCO=financeiro
 USUARIO_BANCO=financeiro_app
 ANDAMENTO=/var/lib/financeiro-instalando
 LOG=/var/log/financeiro-instalacao.log
-PACOTES=(apache2 mysql-server php libapache2-mod-php php-mysql php-mbstring php-curl php-xml git rsync openssl cron sudo iproute2 ca-certificates curl)
+MARIADB_MINIMO=11.4.5   # a primeira versão com a colação utf8mb4_0900_ai_ci
+SERVICO_BANCO=mysql
+PACOTES_BANCO=(mysql-server)
+PACOTES=(apache2 php libapache2-mod-php php-mysql php-mbstring php-curl php-xml git rsync openssl cron sudo iproute2 ca-certificates curl)
 export DEBIAN_FRONTEND=noninteractive
 
 TOTAL=5
@@ -40,7 +43,9 @@ rode() {
 servico() { # ação nome
     if [ -d /run/systemd/system ]; then rode systemctl "$1" "$2"; else rode service "$2" "$1"; fi
 }
-sql() { mysql --protocol=socket -uroot "$@"; }
+sql() { "$(command -v mysql || command -v mariadb)" --protocol=socket -uroot "$@"; }
+candidato() { apt-cache policy "$1" | sed -n 's/ *Candidato: *//p; s/ *Candidate: *//p' | head -1 | sed 's/^[0-9]*://; s/+.*//'; }
+tem_versao() { [ -n "$1" ] && [ "$1" != "(none)" ] && [ "$1" != "(nenhum)" ]; }
 endereco() {
     local ip
     ip=$(ip -4 route get 1.1.1.1 2>/dev/null | sed -n 's/.* src \([0-9.]*\).*/\1/p')
@@ -64,7 +69,7 @@ MSG
 
 # ---- antes de mexer em qualquer coisa
 [ "$(id -u)" = 0 ] || para "rode com sudo: sudo bash instalar.sh"
-command -v apt-get >/dev/null || para "este instalador funciona em Ubuntu 24.04 ou mais novo."
+command -v apt-get >/dev/null || para "este instalador funciona em Ubuntu 24.04 ou mais novo, Debian 13 e derivados."
 
 if [ -f "$DEST/config/.env" ] && [ ! -f "$ANDAMENTO" ]; then
     printf 'O Financeiro já está instalado aqui: %s\n' "$DEST"
@@ -80,21 +85,30 @@ apache_outro=$(ss -ltnpH 2>/dev/null | grep -E ':(80|443)\s' | grep -v apache2 |
 etapa 1 "Instalando Apache, PHP e MySQL (pode levar alguns minutos)"
 rode apt-get update -q
 # o pacote php do Ubuntu 24.04 é o 8.3: o Financeiro precisa do 8.4 ou mais novo
-versao_php=$(apt-cache policy php | sed -n 's/ *Candidato: *//p; s/ *Candidate: *//p' | head -1 | sed 's/^[0-9]*://; s/+.*//')
-[ -n "$versao_php" ] && [ "$versao_php" != "(none)" ] && [ "$versao_php" != "(nenhum)" ] || para "este sistema não tem o pacote do PHP. Use Ubuntu 24.04 ou mais novo."
+versao_php=$(candidato php)
+tem_versao "$versao_php" || para "este sistema não tem o pacote do PHP. Use Ubuntu 24.04 ou mais novo, ou Debian 13."
 if ! dpkg --compare-versions "$versao_php" ge 8.4; then
     . /etc/os-release
-    [ "${ID:-}" = ubuntu ] || para "este sistema só oferece PHP $versao_php, e o Financeiro precisa do 8.4 ou mais novo."
-    rode apt-get install -y -q software-properties-common
+    # derivados do Ubuntu, como o Mint, informam a base em UBUNTU_CODENAME e usam o mesmo repositório
+    [ "${ID:-}" = ubuntu ] || [ -n "${UBUNTU_CODENAME:-}" ] || para "este sistema só oferece PHP $versao_php, e o Financeiro precisa do 8.4 ou mais novo."
+    command -v add-apt-repository >/dev/null || rode apt-get install -y -q software-properties-common
     rode add-apt-repository -y ppa:ondrej/php
     rode apt-get update -q
 fi
-[[ "$(apt-cache policy mysql-server)" =~ Candi[a-z]*:\ *[0-9] ]] || para "este sistema não oferece o MySQL 8 (o MariaDB não serve). Use Ubuntu 24.04 ou mais novo."
-rode apt-get install -y -q "${PACOTES[@]}"
+if ! tem_versao "$(candidato mysql-server)"; then
+    versao_maria=$(candidato mariadb-server)
+    tem_versao "$versao_maria" && dpkg --compare-versions "$versao_maria" ge "$MARIADB_MINIMO" \
+        || para "este sistema não oferece MySQL 8 nem MariaDB $MARIADB_MINIMO ou mais novo. Use Ubuntu 24.04 ou mais novo, ou Debian 13."
+    SERVICO_BANCO=mariadb
+    PACOTES_BANCO=(mariadb-server mariadb-client)
+    # é este pacote que traz os comandos mysql e mysqldump, usados pelo backup e pelo atualizador
+    if tem_versao "$(candidato mariadb-client-compat)"; then PACOTES_BANCO+=(mariadb-client-compat); fi
+fi
+rode apt-get install -y -q "${PACOTES_BANCO[@]}" "${PACOTES[@]}"
 php -r 'exit(PHP_VERSION_ID >= 80400 ? 0 : 1);' || para "o PHP instalado é anterior ao 8.4."
-servico start mysql
+servico start "$SERVICO_BANCO"
 for _ in $(seq 1 30); do sql -e 'SELECT 1' >/dev/null 2>&1 && break; sleep 1; done
-sql -e 'SELECT 1' >/dev/null 2>&1 || para "não consegui entrar no MySQL como root sem senha. Se ele já estava instalado com senha, esse caso exige o manual: docs/INSTALACAO.md."
+sql -e 'SELECT 1' >/dev/null 2>&1 || para "não consegui entrar no banco como root sem senha. Se ele já estava instalado com senha, esse caso exige o manual: docs/INSTALACAO.md."
 mkdir -p "$(dirname "$ANDAMENTO")"; touch "$ANDAMENTO"
 
 etapa 2 "Baixando o Financeiro"
