@@ -25,7 +25,6 @@ PERMITIR_SEM_ROOT=0             # só para ensaiar este script fora de produçã
 
 CONF=${FIN_CONF:-/etc/financeiro-atualizar.conf}
 RE_VERSAO='^v[0-9]+\.[0-9]+\.[0-9]+$'
-BASE=.na-base                   # migrações que o schema.sql da 1ª versão já contém
 TMP=""
 ENSAIO=""
 USUARIO_ENSAIO=""
@@ -125,22 +124,12 @@ como_dono archive --format=tar "$ALVO" | tar -x -C "$TMP/novo"
 if [ "$(id -u)" = 0 ]; then chown -R "$SERVICO":"$SERVICO" "$TMP/novo"; fi
 
 # ---- migrações: a tabela `migracoes` diz o que já rodou
-#  $1 = banco; $2 = pasta da versão nova
+#  $1 = banco; $2 = pasta da versão nova. A pasta pode não ter nenhuma migração.
 preparar_registro() {
-    local tem
-    tem=$(sql -N "$1" -e "SHOW TABLES LIKE 'migracoes'") || return 1
     sql "$1" -e "CREATE TABLE IF NOT EXISTS migracoes (
         arquivo VARCHAR(190) NOT NULL PRIMARY KEY,
         aplicada_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4" || return 1
-    # site anterior ao registro: tudo o que a 1ª versão com registro já trazia está aplicado
-    if [ -z "$tem" ] && [ -f "$2/database/migrations/$BASE" ]; then
-        local a
-        while read -r a; do
-            [ -n "$a" ] || continue
-            sql "$1" -e "INSERT IGNORE INTO migracoes (arquivo) VALUES ('$a')" || return 1
-        done < "$2/database/migrations/$BASE"
-    fi
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
 }
 pendentes() {
     local a feitas
@@ -155,7 +144,7 @@ pendentes() {
 }
 aplicar_migracoes() {
     local a lista
-    preparar_registro "$1" "$2" || return 1
+    preparar_registro "$1" || return 1
     lista=$(pendentes "$1" "$2") || return 1
     for a in $lista; do
         echo "   migração $a"

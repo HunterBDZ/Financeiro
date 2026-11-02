@@ -33,5 +33,5 @@ Os sites só recebem o que tem tag: um commit sem tag no `main` não chega a nin
 
 - A tabela `migracoes` registra o que já rodou em cada site.
 - `database/instalar.php` marca como aplicadas as que já vieram no `schema.sql`.
-- `database/migrations/.na-base` lista as que existiam antes do registro. Não acrescente nada nele.
+- A pasta `database/migrations` começa vazia, só com `.gitkeep`: o `schema.sql` já contém tudo. Mantenha a pasta, porque o atualizador procura as migrações nela.
 - O `.sql` roda como root do MySQL, e o `.php` como o usuário do PHP, que só tem `SELECT`, `INSERT`, `UPDATE` e `DELETE`.
