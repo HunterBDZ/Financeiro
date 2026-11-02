@@ -7,11 +7,15 @@ use Financeiro\Models\MesModel;
 /**
  * As contas do cartão. "Fatura de M" = a que vence no mês M: é quando o dinheiro sai da conta, e
  * é nesse mês que ela entra no plano como a categoria Fatura do cartão (regime de caixa; a compra
- * não conta de novo na categoria dela). As funções de cima são puras; painel() monta a tela e
- * sincronizarPlano() escreve a previsão da fatura quando o cartão alimenta o plano.
+ * não conta de novo na categoria dela). As funções de cima são puras (atribuir() diz de que fatura
+ * é cada pagamento); painel() monta a tela; faturasPagas() lê os pagamentos para o plano, o Mês e a
+ * aba; sincronizarPlano() escreve a previsão da fatura quando o cartão alimenta o plano.
  */
 final class CartaoFatura
 {
+    /** Diferença que ainda conta como fatura toda paga: centavos de arredondamento, não um pedaço da fatura. */
+    public const TOLERANCIA = 0.05;
+
     /** Mês (Y-m-01) da fatura que recebe uma compra feita em $data. No dia do fechamento já vai para a seguinte. */
     public static function faturaDe(string $data, int $fecha, int $vence): string
     {
@@ -38,6 +42,72 @@ final class CartaoFatura
     {
         $t = strtotime($fatura);
         return date('Y-m-', $t) . sprintf('%02d', min($vence, (int) date('t', $t)));
+    }
+
+    /** A fatura (Y-m-01) mais recente que já tinha fechado em $data (fechamento ≤ data): a anterior à que recebe compras nesse dia. */
+    public static function ultimaFechada(string $data, int $fecha, int $vence): string
+    {
+        return self::somaMeses(self::faturaDe($data, $fecha, $vence), -1);
+    }
+
+    /** Toda paga: o pago cobre o valor da fatura, com tolerância de centavos. Sem valor conhecido (0), basta ter recebido um pagamento. */
+    public static function todaPaga(?float $pago, float $valor): bool
+    {
+        return $pago !== null && $pago > 0.004 && ($valor <= 0.004 || $pago >= $valor - self::TOLERANCIA);
+    }
+
+    /**
+     * De que fatura é cada pagamento. A regra mora só aqui: quando o vínculo do pagamento com a fatura
+     * for gravado, é esta função que preenche os pagamentos antigos. Em ordem de data, cada pagamento vai
+     * para a fatura mais recente que já tinha fechado na data dele; se essa já está toda paga, vai para a
+     * seguinte, a que estava aberta naquele dia (é pagar adiantado). Pagamentos parciais somam na mesma
+     * fatura até completar. Assim, pagar no dia 31 a fatura que vence no dia 2 conta para ela, e não para
+     * a fatura do mês da data.
+     * @param array<array-key, array{data:string, valor:float}> $pagamentos
+     * @param array<string, float> $valores fatura (Y-m-01) => quanto ela cobra; 0 ou ausente = não se sabe
+     * @return array<array-key, string> a fatura (Y-m-01) de cada pagamento, com as chaves e a ordem de $pagamentos
+     */
+    public static function atribuir(array $pagamentos, int $fecha, int $vence, array $valores): array
+    {
+        $porData = $pagamentos;
+        uasort($porData, static fn(array $a, array $b): int => strcmp($a['data'], $b['data']));   // estável: no mesmo dia, a ordem recebida
+        $pago = $daFatura = [];
+        foreach ($porData as $k => $p) {
+            $f = self::ultimaFechada($p['data'], $fecha, $vence);
+            if (self::todaPaga($pago[$f] ?? null, (float) ($valores[$f] ?? 0.0))) {
+                $f = self::somaMeses($f, 1);
+            }
+            $pago[$f] = ($pago[$f] ?? 0.0) + (float) $p['valor'];
+            $daFatura[$k] = $f;
+        }
+        $out = [];
+        foreach (array_keys($pagamentos) as $k) {
+            $out[$k] = $daFatura[$k];
+        }
+        return $out;
+    }
+
+    /**
+     * Os pagamentos somados por fatura, com atribuir(): só as faturas que receberam pagamento.
+     * @param list<array{data:string, valor:float}> $pagamentos
+     * @param array<string, float> $valores fatura => quanto ela cobra (ver atribuir())
+     * @return array<string, array{valor:float, pago:float, primeiro:string, ultimo:string, meses:array<string, float>}>
+     *   fatura => o valor dela, o pago, as datas do primeiro e do último pagamento e o pago em cada mês (Y-m-01)
+     */
+    public static function porFaturaPaga(array $pagamentos, int $fecha, int $vence, array $valores): array
+    {
+        $out = [];
+        foreach (self::atribuir($pagamentos, $fecha, $vence, $valores) as $k => $f) {
+            $p = $pagamentos[$k];
+            $mesPg = substr($p['data'], 0, 8) . '01';
+            $out[$f] ??= ['valor' => round((float) ($valores[$f] ?? 0.0), 2), 'pago' => 0.0, 'primeiro' => $p['data'], 'ultimo' => $p['data'], 'meses' => []];
+            $out[$f]['pago'] = round($out[$f]['pago'] + (float) $p['valor'], 2);
+            $out[$f]['primeiro'] = min($out[$f]['primeiro'], $p['data']);
+            $out[$f]['ultimo'] = max($out[$f]['ultimo'], $p['data']);
+            $out[$f]['meses'][$mesPg] = round(($out[$f]['meses'][$mesPg] ?? 0.0) + (float) $p['valor'], 2);
+        }
+        ksort($out);
+        return $out;
     }
 
     /**
@@ -98,11 +168,12 @@ final class CartaoFatura
     }
 
     /**
-     * O que a aba mostra. $pagas = mês => total pago na categoria da fatura; $previsto = mês =>
-     * previsão de hoje da Fatura do cartão (para conferir antes de ligar o cartão ao plano).
-     * Faturas: a anterior à aberta e as 14 seguintes (o resto continua nos parcelamentos).
+     * O que a aba mostra. $pagas = fatura => total pago dela (atribuir()), $pagasEm = fatura => data do
+     * último pagamento; $previsto = mês => previsão de hoje da Fatura do cartão (para conferir antes de
+     * ligar o cartão ao plano). Paga = já fechou e o pago cobre a soma das parcelas (sem parcela lançada,
+     * basta um pagamento). Faturas: a anterior à aberta e as 14 seguintes (o resto continua nos parcelamentos).
      */
-    public static function painel(array $cartao, array $compras, string $hoje, array $pagas, array $previsto = []): array
+    public static function painel(array $cartao, array $compras, string $hoje, array $pagas, array $previsto = [], array $pagasEm = []): array
     {
         [$fecha, $vence] = [(int) $cartao['fecha'], (int) $cartao['vence']];
         $aberta = self::faturaDe($hoje, $fecha, $vence);
@@ -115,15 +186,17 @@ final class CartaoFatura
             $total = round(array_sum(array_column($itens, 'valor')), 2);
             $fechaEm = self::fechamento($m, $fecha, $vence);
             $venceEm = self::vencimento($m, $vence);
-            $pago = $pagas[$m] ?? null;
+            $pago = isset($pagas[$m]) ? (float) $pagas[$m] : null;
             $status = match (true) {
-                $pago !== null && $pago > 0.004 => 'paga',
-                $hoje < $fechaEm                 => $m === $aberta ? 'aberta' : 'prevista',
-                $hoje <= $venceEm                => 'fechada',
-                default                          => 'vencida',
+                $hoje < $fechaEm                => $m === $aberta ? 'aberta' : 'prevista',
+                self::todaPaga($pago, $total)   => 'paga',
+                $hoje <= $venceEm               => 'fechada',
+                default                         => 'vencida',
             };
             $faturas[] = ['mes' => $m, 'itens' => $itens, 'total' => $total, 'pago' => $pago, 'status' => $status,
-                          'fecha' => $fechaEm, 'vence' => $venceEm, 'previsto' => $previsto[$m] ?? null];
+                          'fecha' => $fechaEm, 'vence' => $venceEm, 'previsto' => $previsto[$m] ?? null, 'pagaEm' => $pagasEm[$m] ?? null,
+                          // paga em parte: quanto ainda falta da soma das parcelas
+                          'falta' => $pago !== null && $pago > 0.004 && $total - $pago > self::TOLERANCIA ? round($total - $pago, 2) : null];
         }
         // parcelamentos que ainda têm parcela da aberta em diante, do que acaba antes para o que acaba depois
         $parc = [];
@@ -148,6 +221,32 @@ final class CartaoFatura
             'comprometido' => round($comprometido, 2),
             'livre' => $limite !== null ? round($limite - $comprometido, 2) : null,
         ];
+    }
+
+    /**
+     * Os pagamentos de fatura, cada um na sua fatura (atribuir()), para o plano, o Mês e esta aba. O valor
+     * de cada fatura é o maior entre a soma das parcelas lançadas e a previsão da Fatura do cartão no mês
+     * dela: o cartão pode não ter todas as compras, e a previsão pode ser só uma estimativa. Sem cartão (ou
+     * sem a aba Cartão), cat é null e a Fatura do cartão segue a regra das outras contas: o pagamento fica
+     * no mês da data.
+     * @param array<string, array<int, float>> $prev a previsão efetiva de cada mês (MotorFinanceiro::dados())
+     * @return array{cat:?int, vence:int, faturas:array<string, array>} faturas: ver porFaturaPaga()
+     */
+    public static function faturasPagas(array $prev, bool $usaCartao): array
+    {
+        $cartao = $usaCartao ? CartaoModel::ativo() : null;
+        $cat = $cartao !== null ? CartaoModel::categoriaFatura() : null;
+        if ($cartao === null || $cat === null) {
+            return ['cat' => null, 'vence' => 0, 'faturas' => []];
+        }
+        $pagamentos = CartaoModel::pagamentos($cat);
+        $valores = $pagamentos === [] ? [] : self::totais(CartaoModel::compras($cartao['id']));
+        foreach ($prev as $mes => $p) {
+            if (isset($p[$cat])) {
+                $valores[$mes] = max($valores[$mes] ?? 0.0, (float) $p[$cat]);
+            }
+        }
+        return ['cat' => $cat, 'vence' => $cartao['vence'], 'faturas' => self::porFaturaPaga($pagamentos, $cartao['fecha'], $cartao['vence'], $valores)];
     }
 
     /**

@@ -17,6 +17,8 @@ use Financeiro\Sql;
  * - "balanço" nas telas é sempre balancoTotal() (fluxo de caixa completo). `resultado_op`
  *   (entra − sai) é interno do motor e dos testes;
  * - mês aberto (PREVISAO e ≤ mês de hoje): gastos = Σ max(real, previsto) por categoria (D5);
+ * - a Fatura do cartão desconta da previsão o que já foi pago da fatura que vence no mês, mesmo num
+ *   mês anterior (CartaoFatura::atribuir; ver previsaoDoMes): a fatura não conta duas vezes;
  * - com MOTOR_V2=1, a sobra acima da reserva amortiza o empréstimo "olhando à frente": só o
  *   que mantém todos os meses seguintes ≥ reserva (D4); `objetivo` 3 (só a meta) não amortiza.
  *
@@ -59,12 +61,14 @@ final class MotorFinanceiro
      * Tudo o que o motor precisa, numa leitura só (cache por requisição; limparCache() zera).
      * prev = previsão efetiva (view previsao_efetiva: o valor do mês, senão a meta, senão nada);
      * excecao[mes][cat] = o mês tem linha própria em `previsao`; metas[cat] = a meta que vale como
-     * previsão padrão (só gasto ativo — a mesma condição da view).
+     * previsão padrão (só gasto ativo — a mesma condição da view); fatura = os pagamentos de fatura,
+     * cada um na sua fatura (CartaoFatura::faturasPagas; cat null sem cartão).
      * @return array{meses:list<array{mes:string,situacao:string}>, aj:array<string,float>, loanIni:float,
      *   cats:array<int,array{id:int,nome:string,apelido:?string,grupo:string,sinal:int,operacional:int,essencial:int,ativo:int,ordem:int}>,
      *   prev:array<string,array<int,float>>, excecao:array<string,array<int,true>>, metas:array<int,float>,
      *   real:array<string,array<int,float>>, n:array<string,array<int,int>>,
-     *   ult:array<string,array<int,string>>, esp:array{cred:?int,amort:?int,guard:?int,resg:?int}}
+     *   ult:array<string,array<int,string>>, esp:array{cred:?int,amort:?int,guard:?int,resg:?int},
+     *   fatura:array{cat:?int, vence:int, faturas:array<string, array>}}
      */
     public static function dados(): array
     {
@@ -140,7 +144,41 @@ final class MotorFinanceiro
             'meses' => $meses, 'aj' => $aj, 'loanIni' => $loanIni, 'cats' => $cats,
             'prev' => $prev, 'excecao' => $excecao, 'metas' => $metas,
             'real' => $real, 'n' => $n, 'ult' => $ult, 'esp' => $esp,
+            'fatura' => CartaoFatura::faturasPagas($prev, ($aj['usa_cartao'] ?? 1.0) >= 1.0),
         ];
+    }
+
+    /**
+     * A previsão de cada categoria num mês ainda não fechado, como o motor a usa: a do mês (ou a meta),
+     * com o override, e a Fatura do cartão sem o que já foi pago da fatura que vence nele (dados['fatura']),
+     * para a fatura paga num mês anterior não entrar de novo. Num mês aberto, a Fatura vira o lançado no mês
+     * mais o que ainda falta dessa fatura: o lançado pode ser de outra fatura (paga adiantada, no fim do
+     * mês anterior ao vencimento, ou atrasada), e o motor usa o maior entre lançado e previsto. Pagamento
+     * com data num mês futuro não desconta, porque o motor não soma o lançado de mês futuro.
+     * @param string $estado 'aberto' (vale o lançado do mês) ou 'previsto'
+     * @param string $mesHoje o mês de hoje, Y-m-01
+     * @return array<int, float>
+     */
+    public static function previsaoDoMes(array $dados, string $mes, string $estado, string $mesHoje, array $override = []): array
+    {
+        $p = $dados['prev'][$mes] ?? [];
+        if ($override !== []) {
+            $p = array_replace($p, $override);
+        }
+        $fat = $dados['fatura']['cat'] ?? null;
+        $pagos = $fat !== null ? ($dados['fatura']['faturas'][$mes]['meses'] ?? []) : [];
+        if ($fat === null || ($pagos === [] && $estado !== 'aberto')) {
+            return $p;
+        }
+        $pago = 0.0;
+        foreach ($pagos as $quando => $v) {
+            if ($quando <= $mesHoje && ($estado === 'aberto' || $quando < $mes)) {
+                $pago += $v;
+            }
+        }
+        $falta = max(0.0, (float) ($p[$fat] ?? 0.0) - $pago);
+        $p[$fat] = $estado === 'aberto' ? (float) ($dados['real'][$mes][$fat] ?? 0.0) + $falta : $falta;
+        return $p;
     }
 
     /**
@@ -205,10 +243,7 @@ final class MotorFinanceiro
                 $parcLanc  = self::em($real, $esp['parc'] ?? null);
                 $usaMov    = true;
             } else {
-                $p = $dados['prev'][$mes] ?? [];
-                if (isset($override[$mes])) {
-                    $p = array_replace($p, $override[$mes]);
-                }
+                $p = self::previsaoDoMes($dados, $mes, $estado === 'aberto' && $regraAberto ? 'aberto' : 'previsto', $mesHoje, $override[$mes] ?? []);
                 if ($estado === 'aberto' && $regraAberto) {
                     foreach ($p + $real as $c => $_) {
                         $cat = $cats[$c] ?? null;
