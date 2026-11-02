@@ -1689,7 +1689,7 @@ $check('valor final: conta e entrada que vieram menos dão o valor final; dia a 
     && PrevisaoEdicao::aMenos($dAm, 10, '2030-01-01') === null && PrevisaoEdicao::aMenos($dAm, 15, '2030-01-01') === null
     && PrevisaoEdicao::veioMenos(170.0, 180.0) && !PrevisaoEdicao::veioMenos(179.97, 180.0) && !PrevisaoEdicao::veioMenos(0.0, 180.0));
 
-$mesAtualT = date('Y-m-01');
+$mesAtualT = \Financeiro\Relogio::mes();
 $sitAtualT = array_column(MesModel::todos(), 'situacao', 'mes');
 $catFatDb = CartaoModel::categoriaFatura();
 if ($catFatDb !== null && ($sitAtualT[$mesAtualT] ?? '') === 'PREVISAO') {
