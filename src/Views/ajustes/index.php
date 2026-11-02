@@ -105,12 +105,6 @@ $campo = static function (string $chave, string $rotulo, string $un = '', int $d
             <label class="aj-marcar"><input type="checkbox" name="usa_cartao" value="1"<?= (float) ($aj['usa_cartao']['valor'] ?? 1) >= 1 ? ' checked' : '' ?>><span><?= e(t('Cartão de crédito')) ?></span></label>
             <label class="aj-marcar"><input type="checkbox" name="usa_emprestimo" value="1"<?= (float) ($aj['usa_emprestimo']['valor'] ?? 1) >= 1 ? ' checked' : '' ?>><span><?= e(t('Empréstimo ou financiamento')) ?></span></label>
             <label class="aj-marcar"><input type="checkbox" name="tem_carro" value="1"<?= (float) ($aj['usa_carro']['valor'] ?? 1) >= 1 ? ' checked' : '' ?>><span><?= e(t('Carro')) ?></span></label>
-            <?php $aParte = (int) round((float) ($aj['parcela_modo']['valor'] ?? 1)) === 2; ?>
-            <fieldset class="aj-grupo-modo aj-so-emp">
-                <legend><?= e(t('Parcela do empréstimo')) ?></legend>
-                <label class="aj-marcar"><input type="radio" name="parcela_modo" value="1"<?= $aParte ? '' : ' checked' ?>><span><?= e(t('A parcela já sai direto da renda, antes de cair na conta')) ?></span></label>
-                <label class="aj-marcar"><input type="radio" name="parcela_modo" value="2"<?= $aParte ? ' checked' : '' ?>><span><?= e(t('Pago à parte, com o dinheiro da conta')) ?></span></label>
-            </fieldset>
             <?php $naConta = (int) round((float) ($aj['objetivo']['valor'] ?? 1)) === 3; ?>
             <fieldset class="aj-grupo-modo aj-so-emp">
                 <legend><?= e(t('O que fazer com o que sobrar?')) ?></legend>

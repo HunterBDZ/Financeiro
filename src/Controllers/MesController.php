@@ -141,6 +141,17 @@ final class MesController
             }
         }
 
+        // com a parcela descontada do salário (consignado), o Salário aparece líquido: é o que cai na conta. A previsão
+        // guardada continua bruta, para o plano devolver o valor cheio quando o empréstimo acabar (ver salvarPrevisao)
+        if ($estado !== 'real' && $parcelaDescontada > 0.004) {
+            foreach ($entradas as &$e) {
+                if (($cats[$e['id']]['chave'] ?? null) === MotorFinanceiro::CAT_SALARIO) {
+                    $e['prev'] = round(max(0.0, (float) $e['prev'] - $parcelaDescontada), 2);
+                }
+            }
+            unset($e);
+        }
+
         // ordem das contas: atrasadas → a vencer (por data) → sem vencimento; pagas à parte
         $pagas = $abertas = [];
         foreach ($contasLinhas as $l) {
@@ -251,7 +262,12 @@ final class MesController
                 $celulas = $final['celulas'];
                 $propagar = false;                                      // valor final: só este mês
             } else {
-                $celulas = PrevisaoEdicao::celulas($d, $cat, $mes, $acao, $acao === 'salvar' ? parseMoedaBr($bruto) : null, $propagar);
+                $digitado = $acao === 'salvar' ? parseMoedaBr($bruto) : null;
+                // o Salário é visto e digitado líquido; a previsão guarda o bruto (o plano desconta a parcela enquanto ela existir)
+                if ($digitado !== null && ($d['cats'][$cat]['chave'] ?? null) === MotorFinanceiro::CAT_SALARIO) {
+                    $digitado += (float) (MotorFinanceiro::linhaDoMes($mes)['parcela_descontada'] ?? 0.0);
+                }
+                $celulas = PrevisaoEdicao::celulas($d, $cat, $mes, $acao, $digitado, $propagar);
             }
         } catch (\InvalidArgumentException $e) {
             if (!$incluindo && !PrevisaoEdicao::editavel($d['cats'][$cat] ?? null)) {
@@ -287,7 +303,7 @@ final class MesController
             $final !== null          => $final['aviso'],
             $novo === null           => t('{nome} segue a meta {valor}', ['valor' => self::valorCurto((float) $meta), 'nome' => nomeCurto($c)]),
             $acao === 'tirar'        => t('{nome} tirado', ['nome' => nomeCurto($c)]),
-            default                  => nomeCurto($c) . ' ' . self::valorCurto($novo),
+            default                  => nomeCurto($c) . ' ' . self::valorCurto($novo - (isset($digitado) && ($c['chave'] ?? null) === MotorFinanceiro::CAT_SALARIO ? (float) (MotorFinanceiro::linhaDoMes($mes)['parcela_descontada'] ?? 0.0) : 0.0)),
         };
         $ultimoCel = (string) end($celulas)[1];
         $segs = [$oQue, monthLabel($mes) . ($ultimoCel !== $mes ? ' → ' . monthLabel($ultimoCel) : '')];

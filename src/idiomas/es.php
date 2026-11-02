@@ -1891,4 +1891,7 @@ return [
     'meta {valor}' => 'meta {valor}',
     'Saídas previstas' => 'Salidas previstas',
     'Incluir categoria em {mes}' => 'Incluir categoría en {mes}',
+    'Como a parcela é paga?' => '¿Cómo se paga la cuota?',
+    'Descontada do salário (consignado em folha)' => 'Descontada del salario (préstamo por nómina)',
+    'Paga à parte, com o dinheiro da conta' => 'Pagada aparte, con el dinero de la cuenta',
 ];

@@ -2949,5 +2949,23 @@ foreach (MotorFinanceiro::calcularPlano() as $mP => $lP) {
 }
 $check('Mês: começou com + sobra − adiantamento automático = termina com, em todo mês do plano', $desvioPonte === [], implode(' | ', array_slice($desvioPonte, 0, 3)));
 
+// ---- empréstimo consignado: o Salário aparece líquido no Mês, sem aviso solto; a escolha fica na aba Empréstimo
+$mesC = \Financeiro\Relogio::mes();
+$linhaC = MotorFinanceiro::linhaDoMes($mesC);
+$catSal = (int) $pdo->query("SELECT id FROM categorias WHERE nome = 'Salário'")->fetchColumn();
+if ($linhaC !== null && $linhaC['situacao'] !== 'REAL' && (float) $linhaC['parcela_descontada'] > 0.004 && $catSal > 0) {
+    $htmlC = $render(MesController::class, 'index', ['mes' => $mesC]);
+    preg_match('#id="cat-' . $catSal . '".*?</details>#s', $htmlC, $mS);
+    $brutoC = (float) (MotorFinanceiro::dados()['prev'][$mesC][$catSal] ?? 0.0);
+    $liqC = num(max(0.0, $brutoC - (float) $linhaC['parcela_descontada']));
+    $check('consignado: o Salário aparece líquido no Mês', str_contains($mS[0] ?? '', $liqC) && !str_contains($mS[0] ?? '', num($brutoC)), $liqC . ' / ' . num($brutoC));
+    $check('consignado: sem "vão para a parcela", sem "Valor bruto" e sem a ponte do bruto', !str_contains($htmlC, 'vão para a parcela') && !str_contains($htmlC, 'Valor bruto') && !str_contains($htmlC, 'de parcela'));
+} else {
+    $check('consignado: o Salário aparece líquido no Mês', true, 'demonstração sem parcela descontada no mês');
+}
+$htmlAj = $render(AjustesController::class, 'index', []);
+$htmlEm = $render(EmprestimoController::class, 'index', []);
+$check('consignado: a escolha de como a parcela é paga saiu de Ajustes e está no Empréstimo', !str_contains($htmlAj, 'name="parcela_modo"') && str_contains($htmlEm, 'name="parcela_modo"'));
+
 echo "\n{$ok} ok, {$falhas} falha(s)\n";
 exit($falhas > 0 ? 1 : 0);

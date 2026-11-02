@@ -1891,4 +1891,7 @@ return [
     'meta {valor}' => 'goal {valor}',
     'Saídas previstas' => 'Expected outflows',
     'Incluir categoria em {mes}' => 'Include category in {mes}',
+    'Como a parcela é paga?' => 'How is the installment paid?',
+    'Descontada do salário (consignado em folha)' => 'Deducted from the salary (payroll loan)',
+    'Paga à parte, com o dinheiro da conta' => 'Paid separately, with money from the account',
 ];

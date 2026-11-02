@@ -2,6 +2,15 @@
 
 Cada versão publicada é uma tag `vX.Y.Z` deste repositório. Pacotes atualizam em Ajustes, em Backup e atualização; servidores, com `sudo financeiro-atualizar`.
 
+## 1.12.0
+
+- **Empréstimo:** a pergunta "Como a parcela é paga?" fica na aba Empréstimo, junto dos dados, e saiu de Ajustes. As opções são "Descontada do salário (consignado em folha)" e "Paga à parte, com o dinheiro da conta".
+- **Consignado:**
+  - O Salário aparece já líquido (o que cai na conta) no Mês, no Início, no Fechar e no Relatório.
+  - Ao editar o Salário no Mês, digite o valor líquido.
+  - O app continua guardando o bruto: quando o empréstimo acabar, a previsão volta sozinha ao valor cheio.
+- Saíram os avisos "vão para a parcela do empréstimo", "Valor bruto…" e a linha "Entradas: … − … de parcela".
+
 ## 1.11.7
 
 - **Mês:** só aparecem os gastos com meta ou com valor previsto no mês, mesmo sem nada lançado, e os que tiveram lançamento no mês. Uma categoria sem meta, sem previsão e sem gasto fica fora da lista. Para trazê-la para um mês, use "Incluir categoria".

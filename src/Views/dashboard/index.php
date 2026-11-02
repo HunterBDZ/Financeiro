@@ -32,7 +32,6 @@ if ($mesRef === $mesCal && $estadoRef !== 'real') {
 
 // a sobra do mês com o nome da base; a renda é a sem a parcela (a ponte mostra a conta)
 $balanco  = (float) $sobra['sobra'];
-$ponte    = Sobra::ponte($sobra);
 $topMax   = $p['top'] !== [] ? max(array_column($p['top'], 'valor')) : 0.0;
 
 // a frase do cartão do saldo: o mês da previsão, o dia em que ele termina e o valor em destaque
@@ -165,7 +164,7 @@ $quandoFoi   = static function (string $data) use ($hoje): string {
                 <?php if ($prog !== null): ?><span class="card-acao num"><?= e(t('dia {dia} de {dias}', ['dia' => $prog['dia'], 'dias' => $prog['dias']])) ?></span><?php else: ?><span class="estado estado-<?= e($estadoRef) ?>"><?= e(estadoLabel($estadoRef)) ?></span><?php endif; ?>
             </div>
             <ul class="resumo">
-                <li><span class="ri pos"><?= svgIcon('arrow-up', 16) ?></span><span class="resumo-n"><?= e(t('Entrou')) ?><?php if ($ponte !== null): ?><small class="resumo-ponte num"><?= e($ponte) ?></small><?php endif; ?></span><b class="num pos"><?= e(num((float) $sobra['entrou'])) ?></b></li>
+                <li><span class="ri pos"><?= svgIcon('arrow-up', 16) ?></span><span class="resumo-n"><?= e(t('Entrou')) ?></span><b class="num pos"><?= e(num((float) $sobra['entrou'])) ?></b></li>
                 <li><span class="ri neg"><?= svgIcon('arrow-down', 16) ?></span><span class="resumo-n"><?= e(t('Saiu')) ?></span><b class="num neg"><?= e(num((float) $sobra['saiu'])) ?></b></li>
                 <li class="resumo-total"><span class="resumo-n"><?= e(Sobra::rotulo((string) $sobra['base'])) ?> <?= dica('numeros', Sobra::rotulo((string) $sobra['base'])) ?></span><b class="num <?= $balanco < -0.004 ? 'neg' : 'pos' ?>" data-sobra="<?= e((string) $sobra['base']) ?>"><?= e(num($balanco)) ?></b></li>
             </ul>
