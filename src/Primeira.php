@@ -97,6 +97,7 @@ final class Primeira
         @unlink($novo);
         $pdo = new SqliteConexao($novo);
         $pdo->exec((string) file_get_contents(Paths::raiz() . '/database/schema.sqlite.sql'));
+        Migrador::marcarComoFeitas($pdo, Migrador::pasta());      // o schema já é o da versão de agora
         if (!defined('FIN_SEM_DADOS_INICIAIS')) {
             Preparo::preparar($pdo, false);
         }

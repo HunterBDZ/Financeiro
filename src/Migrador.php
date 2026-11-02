@@ -54,6 +54,15 @@ final class Migrador
         return array_values(array_diff($nossas, self::arquivos($pasta)));
     }
 
+    /** Banco novo, feito do schema: as mudanças da pasta já estão nele. Toda migração atualiza também o schema.sqlite.sql. */
+    public static function marcarComoFeitas(PDO $pdo, string $pasta): void
+    {
+        $st = $pdo->prepare(Sql::inserirIgnorando() . ' INTO migracoes (arquivo) VALUES (:a)');
+        foreach (self::arquivos($pasta) as $a) {
+            $st->execute(['a' => $a]);
+        }
+    }
+
     /**
      * Aplica o que falta. Parou em uma: as anteriores ficam, e ela não fica pela metade.
      * @return list<string> o que aplicou

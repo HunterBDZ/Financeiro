@@ -9,7 +9,7 @@
 #
 # Ordem: baixa a versão -> ensaia migrações e testes numa cópia do banco, com o site intacto ->
 # backup -> migrações -> código -> testes no site. Falhou no ensaio: nada mudou. Falhou depois do
-# backup: volta o código e o banco sozinho. config/.env nunca é tocado.
+# backup: volta o código e o banco sozinho. config/.env nunca é tocado. Vale para MySQL e para SQLite (DB_DRIVER=sqlite).
 set -euo pipefail
 
 REPO=""                         # clone do repositório (obrigatório)
@@ -59,7 +59,11 @@ done
 [ -n "$REPO" ] || morre "defina REPO em $CONF."
 [ -d "$REPO/.git" ] || morre "$REPO não é um clone do repositório."
 [ -f "$DEST/config/.env" ] || morre "$DEST/config/.env não existe: instale o site antes."
-for c in git mysql mysqldump php rsync gzip tar flock openssl; do
+SQLITE=0
+grep -q '^DB_DRIVER=sqlite' "$DEST/config/.env" && SQLITE=1
+PROGRAMAS="git php rsync gzip tar flock openssl"
+[ "$SQLITE" = 1 ] || PROGRAMAS="$PROGRAMAS mysql mysqldump"
+for c in $PROGRAMAS; do
     command -v "$c" >/dev/null || morre "falta o programa $c."
 done
 
@@ -144,6 +148,7 @@ pendentes() {
 }
 aplicar_migracoes() {
     local a lista
+    if [ "$SQLITE" = 1 ]; then ( cd "$2" && como_servico php tools/migrar.php ); return; fi
     preparar_registro "$1" || return 1
     lista=$(pendentes "$1" "$2") || return 1
     for a in $lista; do
@@ -158,6 +163,16 @@ aplicar_migracoes() {
 
 # ---- ensaio numa cópia do banco, com o código novo; o site continua igual
 passo "ensaiando a versão $NOVA numa cópia do banco"
+mkdir -p "$TMP/novo/config"
+if [ "$SQLITE" = 1 ]; then
+    # uma cópia em outro arquivo, com a pasta de dados dela; como_servico precisa conseguir gravar lá
+    mkdir "$TMP/dados-ensaio"
+    if [ "$(id -u)" = 0 ]; then chown "$SERVICO":"$SERVICO" "$TMP/dados-ensaio"; fi
+    como_servico php "$DEST/tools/backup.php" --copiar="$TMP/dados-ensaio/financeiro.sqlite" || morre "não consegui copiar o banco. O site não mudou."
+    { grep -vE '^(DB_FILE|PASTA_DADOS)=' "$DEST/config/.env"
+      echo "DB_FILE=$TMP/dados-ensaio/financeiro.sqlite"
+      echo "PASTA_DADOS=$TMP/dados-ensaio"; } > "$TMP/novo/config/.env"
+else
 SENHA_ENSAIO=$(openssl rand -hex 16)
 ENSAIO="${BANCO}_ensaio_$$"
 USUARIO_ENSAIO="fin_ensaio_$$"
@@ -171,9 +186,9 @@ mysqldump "${MYSQL_OPCOES[@]}" --single-transaction --routines --triggers --even
     || morre "não consegui copiar o banco. O site não mudou."
 sql "$ENSAIO" < "$TMP/copia.sql" || morre "não consegui montar a cópia do banco. O site não mudou."
 
-mkdir -p "$TMP/novo/config"
 sed -e "s/^DB_NAME=.*/DB_NAME=$ENSAIO/" -e "s/^DB_USER=.*/DB_USER=$USUARIO_ENSAIO/" -e "s/^DB_PASS=.*/DB_PASS=$SENHA_ENSAIO/" \
     "$DEST/config/.env" > "$TMP/novo/config/.env"
+fi
 chmod 640 "$TMP/novo/config/.env"
 if [ "$(id -u)" = 0 ]; then chown "$SERVICO":"$SERVICO" "$TMP/novo/config/.env"; fi
 
@@ -186,20 +201,25 @@ aplicar_migracoes "$ENSAIO" "$TMP/novo" || morre "uma migração falhou no ensai
     morre "os testes da versão $NOVA falharam no ensaio. O site não mudou."
 }
 tail -1 "$TMP/ensaio.log" | sed 's/^/   testes: /'
-rm -f "$TMP/novo/config/.env" "$TMP/copia.sql"
+rm -rf "$TMP/novo/config/.env" "$TMP/copia.sql" "$TMP/dados-ensaio"
 
 # ---- backup
 passo "fazendo backup"
 mkdir -p "$BACKUPS"
 chmod 700 "$BACKUPS"
 CARIMBO=$(date -u +%Y%m%d-%H%M%S)
-DUMP="$BACKUPS/antes-atualizacao-${ATUAL:-0}-para-$NOVA-$CARIMBO.sql.gz"
 CODIGO="$BACKUPS/codigo-antes-atualizacao-${ATUAL:-0}-para-$NOVA-$CARIMBO.tar.gz"
-mysqldump "${MYSQL_OPCOES[@]}" --single-transaction --routines --triggers --events "$BANCO" | gzip -9 > "$DUMP" \
-    || morre "o backup do banco falhou. O site não mudou."
-# grep -c lê o arquivo inteiro: com -q, zcat morreria de SIGPIPE e o pipefail acusaria backup ruim
-gzip -t "$DUMP" && zcat "$DUMP" | grep -c 'CREATE TABLE `lancamentos`' >/dev/null || morre "o backup do banco está ruim. O site não mudou."
-chmod 600 "$DUMP"
+if [ "$SQLITE" = 1 ]; then
+    # o próprio app confere a cópia antes de dar o caminho
+    DUMP=$(como_servico php "$DEST/tools/backup.php" --motivo=antes-atualizacao) || morre "o backup do banco falhou. O site não mudou."
+else
+    DUMP="$BACKUPS/antes-atualizacao-${ATUAL:-0}-para-$NOVA-$CARIMBO.sql.gz"
+    mysqldump "${MYSQL_OPCOES[@]}" --single-transaction --routines --triggers --events "$BANCO" | gzip -9 > "$DUMP" \
+        || morre "o backup do banco falhou. O site não mudou."
+    # grep -c lê o arquivo inteiro: com -q, zcat morreria de SIGPIPE e o pipefail acusaria backup ruim
+    gzip -t "$DUMP" && zcat "$DUMP" | grep -c 'CREATE TABLE `lancamentos`' >/dev/null || morre "o backup do banco está ruim. O site não mudou."
+    chmod 600 "$DUMP"
+fi
 tar -czf "$CODIGO" -C "$DEST" --exclude=config/.env . || morre "o backup do código falhou. O site não mudou."
 chmod 600 "$CODIGO"
 rsync -a --exclude config/.env "$DEST/" "$TMP/antes/"
@@ -208,7 +228,15 @@ find "$BACKUPS" \( -name 'antes-atualizacao-*' -o -name 'codigo-antes-atualizaca
 recarregar() {
     if [ "$(id -u)" = 0 ] && command -v systemctl >/dev/null; then systemctl reload apache2 2>/dev/null || true; fi
 }
+# em SQLite, as páginas esperam enquanto o banco e o código mudam: o que fosse gravado agora se perderia ao voltar
+MANUTENCAO=""
+if [ "$SQLITE" = 1 ] && [ -n "$(valor_env PASTA_DADOS)" ]; then MANUTENCAO="$(valor_env PASTA_DADOS)/manutencao"; fi
+manutencao() {
+    [ -n "$MANUTENCAO" ] || return 0
+    if [ "$1" = ligar ]; then como_servico touch "$MANUTENCAO"; else rm -f "$MANUTENCAO"; fi
+}
 aplicar() {
+    manutencao ligar
     passo "aplicando migrações"
     # as migrações .php rodam no código novo, agora apontando para o banco de verdade
     cp -p "$DEST/config/.env" "$TMP/novo/config/.env" || return 1
@@ -227,11 +255,18 @@ aplicar() {
         return 1
     }
     tail -1 "$TMP/site.log" | sed 's/^/   testes: /'
+    manutencao desligar
 }
 desfazer() {
     echo "A atualização falhou. Voltando para a versão anterior." >&2
     rsync -a --delete --exclude config/.env "$TMP/antes/" "$DEST/" || return 1
     if [ "$(id -u)" = 0 ]; then chown -R "$SERVICO":"$SERVICO" "$DEST"; chmod 640 "$DEST/config/.env"; fi
+    if [ "$SQLITE" = 1 ]; then
+        como_servico php "$DEST/tools/backup.php" --voltar="$DUMP" || return 1
+        recarregar
+        manutencao desligar
+        return 0
+    fi
     sql -e "DROP DATABASE \`$BANCO\`; CREATE DATABASE \`$BANCO\` CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;" || return 1
     zcat "$DUMP" | sql "$BANCO" || return 1
     recarregar

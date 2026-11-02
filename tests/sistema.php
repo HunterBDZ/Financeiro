@@ -52,6 +52,8 @@ $erroDe = static function (callable $f): string {
 $pdo = Database::connection();
 $dados = (string) Paths::dados();
 
+$check('banco novo: o schema já traz as migrações da pasta', Migrador::pendentes($pdo, Migrador::pasta()) === []);
+
 // ---- backup
 $pdo->exec("INSERT INTO usuarios (nome, login, senha_hash) VALUES ('Pessoa', 'pessoa', 'x')");
 $pdo->exec("INSERT INTO ajustes (chave, label, valor) VALUES ('teste_backup', 'teste', 111)");
@@ -109,29 +111,32 @@ $pdo = Database::connection();
 $pasta = $dados . '/mig';
 mkdir($pasta);
 $check('migrações: pasta vazia não faz nada', Migrador::aplicar($pdo, $pasta) === [] && Migrador::pendentes($pdo, $pasta) === []);
-file_put_contents($pasta . '/s0001_tabela.sql', 'CREATE TABLE teste_mig (a INTEGER);');
-file_put_contents($pasta . '/s0001_tabela.php', '<?php return static function (PDO $pdo): void { $pdo->exec("INSERT INTO teste_mig VALUES (1)"); };');
-file_put_contents($pasta . '/s0002_erro.sql', 'INSERT INTO teste_mig VALUES (2); INSERT INTO nao_existe VALUES (1);');
+file_put_contents($pasta . '/s9001_tabela.sql', 'CREATE TABLE teste_mig (a INTEGER);');
+file_put_contents($pasta . '/s9001_tabela.php', '<?php return static function (PDO $pdo): void { $pdo->exec("INSERT INTO teste_mig VALUES (1)"); };');
+file_put_contents($pasta . '/s9002_erro.sql', 'INSERT INTO teste_mig VALUES (2); INSERT INTO nao_existe VALUES (1);');
 file_put_contents($pasta . '/ignorado.sql', 'DROP TABLE usuarios;');
-$check('migrações: o .sql antes do .php e nome estranho fora', Migrador::arquivos($pasta) === ['s0001_tabela.sql', 's0001_tabela.php', 's0002_erro.sql']);
-$check('migrações: a que falha para tudo', str_contains($erroDe(static fn() => Migrador::aplicar($pdo, $pasta)), 's0002_erro.sql'));
+$check('migrações: o .sql antes do .php e nome estranho fora', Migrador::arquivos($pasta) === ['s9001_tabela.sql', 's9001_tabela.php', 's9002_erro.sql']);
+$check('migrações: a que falha para tudo', str_contains($erroDe(static fn() => Migrador::aplicar($pdo, $pasta)), 's9002_erro.sql'));
 $check('migrações: as anteriores ficam, a que falhou não fica pela metade', (int) $pdo->query('SELECT COUNT(*) FROM teste_mig')->fetchColumn() === 1);
-unlink($pasta . '/s0002_erro.sql');
+unlink($pasta . '/s9002_erro.sql');
 $check('migrações: rodar de novo não repete', Migrador::aplicar($pdo, $pasta) === []);
 $check('migrações: o que já rodou e não está na pasta é de versão mais nova', Migrador::desconhecidas($pdo, $dados . '/nao-existe') !== []);
-$pdo->exec("DELETE FROM migracoes WHERE arquivo LIKE 's0001%'");
+$pdo->exec("DELETE FROM migracoes WHERE arquivo LIKE 's9001%'");
 $pdo->exec('DROP TABLE teste_mig');
 // backup anterior a uma migração: chega ao banco na versão de agora, mesmo com o gatilho que usa função própria
 sleep(1);
 $velho = Backup::criar('manual');
 $pasta2 = $dados . '/mig2';
 mkdir($pasta2);
-file_put_contents($pasta2 . '/s0003_valor.sql', "UPDATE ajustes SET label = 'migrado' WHERE chave = 'teste_backup';");
+foreach (Migrador::arquivos(Migrador::pasta()) as $a) {
+    copy(Migrador::pasta() . '/' . $a, $pasta2 . '/' . $a);
+}
+file_put_contents($pasta2 . '/s9003_valor.sql', "UPDATE ajustes SET label = 'migrado' WHERE chave = 'teste_backup';");
 $check('restaurar: leva o backup antigo à versão de agora', $erroDe(static fn() => Backup::restaurar($velho, $pasta2)) === '');
 // a tabela de migrações veio do backup levado à versão de agora: tem de dizer o que já passou
 $pdo = Database::connection();
-$check('restaurar: a migração vale nos dados restaurados', $pdo->query("SELECT label FROM ajustes WHERE chave = 'teste_backup'")->fetchColumn() === 'migrado' && in_array('s0003_valor.sql', Migrador::feitas($pdo), true));
-$pdo->exec("DELETE FROM migracoes WHERE arquivo = 's0003_valor.sql'");
+$check('restaurar: a migração vale nos dados restaurados', $pdo->query("SELECT label FROM ajustes WHERE chave = 'teste_backup'")->fetchColumn() === 'migrado' && in_array('s9003_valor.sql', Migrador::feitas($pdo), true));
+$pdo->exec("DELETE FROM migracoes WHERE arquivo = 's9003_valor.sql'");
 
 // ---- pacote .tar
 $tar = static function (array $itens): string {

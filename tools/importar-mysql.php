@@ -314,4 +314,10 @@ foreach ($contagens as $tabela => $n) {
     }
 }
 $final = null;
+// o schema já é o da versão de agora: as mudanças da pasta não rodam em cima dele
+$stMigracao = $sq->prepare('INSERT OR IGNORE INTO migracoes (arquivo) VALUES (?)');
+foreach (Financeiro\Migrador::arquivos(Financeiro\Migrador::pasta()) as $a) {
+    $stMigracao->execute([$a]);
+}
+
 echo "\nOK: ", count($tabelasSq), " tabelas conferidas linha a linha e {$mesesConferidos} somas mensais iguais. Arquivo: {$destino}\n";
