@@ -107,6 +107,7 @@ require __DIR__ . '/conferencia.php';
 
 use Financeiro\Auth;
 use Financeiro\Config;
+use Financeiro\DuasEtapas;
 use Financeiro\Controllers\AjustesController;
 use Financeiro\Controllers\CartaoController;
 use Financeiro\Controllers\CategoriaController;
@@ -1399,6 +1400,153 @@ $loginT = (string) $pdo->query('SELECT login FROM usuarios ORDER BY id LIMIT 1')
 $check('conta nova: login repetido não passa', UsuarioModel::erroNovaConta('Alguém', $loginT, 'senha-longa') !== null);
 $check('conta nova: dados certos passam', UsuarioModel::erroNovaConta('Alguém', 'login-livre-' . bin2hex(random_bytes(3)), 'senha-longa') === null);
 $check('conta nova: com conta no banco, a tela de criar some', !UsuarioModel::nenhum());
+
+// ---- 18c. verificação em duas etapas: TOTP da RFC 6238, janela, reuso, recuperação, login, limite, desligar e o
+// comando que redefine a senha. Numa conta só do teste, com um instante fixo (o código não usa Relogio).
+$rfc = '12345678901234567890';      // a semente SHA1 dos vetores da RFC 6238, apêndice B
+$vetoresOk = true;
+foreach ([59 => '94287082', 1111111109 => '07081804', 1111111111 => '14050471', 1234567890 => '89005924', 2000000000 => '69279037', 20000000000 => '65353130'] as $instanteV => $esperado) {
+    $vetoresOk = $vetoresOk && DuasEtapas::codigo($rfc, DuasEtapas::passo($instanteV), 8) === $esperado;
+}
+$check('duas etapas: os vetores SHA1 da RFC 6238 batem', $vetoresOk);
+$check('duas etapas: Base32 da RFC 4648, ida e volta', DuasEtapas::base32('foobar') === 'MZXW6YTBOI' && DuasEtapas::deBase32('mzxw 6ytb oi======') === 'foobar'
+    && DuasEtapas::deBase32('M1') === null && DuasEtapas::deBase32(DuasEtapas::base32($rfc)) === $rfc);
+$pT = DuasEtapas::passo(1_800_000_000);
+$cod = static fn(int $p): string => DuasEtapas::codigo($rfc, $p);
+$check('duas etapas: o passo de agora e um de cada lado valem', DuasEtapas::conferirCodigo($rfc, $cod($pT), $pT, null) === $pT
+    && DuasEtapas::conferirCodigo($rfc, $cod($pT - 1), $pT, null) === $pT - 1 && DuasEtapas::conferirCodigo($rfc, $cod($pT + 1), $pT, null) === $pT + 1);
+$check('duas etapas: dois passos longe não vale', DuasEtapas::conferirCodigo($rfc, $cod($pT - 2), $pT, null) === null && DuasEtapas::conferirCodigo($rfc, $cod($pT + 2), $pT, null) === null);
+$check('duas etapas: código já usado, ou mais velho que o usado, não vale de novo', DuasEtapas::conferirCodigo($rfc, $cod($pT), $pT, $pT) === null
+    && DuasEtapas::conferirCodigo($rfc, $cod($pT - 1), $pT, $pT) === null && DuasEtapas::conferirCodigo($rfc, $cod($pT + 1), $pT, $pT) === $pT + 1);
+$check('duas etapas: só 6 dígitos', DuasEtapas::conferirCodigo($rfc, 'abcdef', $pT, null) === null && DuasEtapas::conferirCodigo($rfc, substr($cod($pT), 0, 5), $pT, null) === null);
+$recT = DuasEtapas::novosCodigosRecuperacao();
+$check('duas etapas: 10 códigos de recuperação diferentes, sem letra que confunde', count(array_unique($recT)) === 10
+    && array_filter($recT, static fn(string $c): bool => !preg_match('/^[A-HJ-NP-Z2-9]{5}-[A-HJ-NP-Z2-9]{5}$/D', $c)) === []);
+
+$sessaoAntes = $_SESSION;
+$loginDE = 'duas-etapas-' . bin2hex(random_bytes(3));
+$idDE = UsuarioModel::criar('Teste das duas etapas', $loginDE, 'senha-do-teste');
+$instDE = $pT * 30;                  // o instante dos códigos da conta: passo $pT
+$tentativasDE = static function () use ($pdo, $loginDE): int {
+    $st = $pdo->prepare('SELECT tentativas FROM login_tentativas WHERE login = ?');
+    $st->execute([$loginDE]);
+    return (int) $st->fetchColumn();
+};
+$sairDE = static function (): void {
+    $_SESSION = [];
+    unset($_COOKIE[Auth::COOKIE_LEMBRAR]);
+};
+$zerarDE = static fn() => $pdo->prepare('DELETE FROM login_tentativas WHERE login = ?')->execute([$loginDE]);
+try {
+    $sairDE();
+    $check('duas etapas: desligada, a senha basta', Auth::primeiroPasso($loginDE, 'senha-do-teste', false) === 'entrou' && Auth::id() === $idDE
+        && str_contains($pagina(AjustesController::class, 'index', '/ajustes'), 'id="duasetapas"'));
+    $_GET = [];
+    ob_start();
+    (new \Financeiro\Controllers\DuasEtapasController())->index();
+    $htmlLigar = (string) ob_get_clean();
+    $chaveTela = DuasEtapas::deBase32((string) ($_SESSION['duas_etapas_novo'] ?? ''));
+    $check('duas etapas: ligar mostra o QR e a chave para digitar', str_contains($htmlLigar, '<svg') && $chaveTela !== null
+        && str_contains($htmlLigar, e(DuasEtapas::chaveParaDigitar($chaveTela))) && str_contains($htmlLigar, 'autocomplete="one-time-code"'));
+
+    $recDE = DuasEtapas::ligar($idDE, $rfc, $pT - 5);
+    $guardado = (string) $pdo->query('SELECT duas_etapas_segredo FROM usuarios WHERE id = ' . $idDE)->fetchColumn();
+    $hashesDE = $pdo->query('SELECT codigo_hash FROM duas_etapas_recuperacao WHERE usuario_id = ' . $idDE)->fetchAll(PDO::FETCH_COLUMN);
+    $check('duas etapas: o segredo fica cifrado, com a chave no config.env', DuasEtapas::ligada($idDE) && str_starts_with($guardado, 'v1:')
+        && !str_contains($guardado, DuasEtapas::base32($rfc)) && DuasEtapas::decifrar($guardado) === $rfc
+        && str_contains((string) file_get_contents(\Financeiro\Paths::config()), 'CHAVE_DUAS_ETAPAS='));
+    $check('duas etapas: os códigos de recuperação ficam só como hash', count($hashesDE) === 10
+        && array_filter($hashesDE, static fn($h): bool => in_array(str_replace('-', '', (string) $h), array_map(static fn($c) => str_replace('-', '', $c), $recDE), true)) === []);
+
+    // login com a verificação: a senha sozinha não entra
+    $sairDE();
+    $passoDE = Auth::primeiroPasso($loginDE, 'senha-do-teste', true);
+    $pend = Auth::esperandoCodigo();
+    $check('duas etapas: com a verificação, a senha leva ao código', $passoDE === 'codigo' && !Auth::check() && ($pend['id'] ?? 0) === $idDE && ($pend['lembrar'] ?? false) === true);
+    $erradoDE = '000000';
+    foreach ([$pT - 1, $pT, $pT + 1] as $pp) {
+        if ($cod($pp) === $erradoDE) {
+            $erradoDE = '999999';
+        }
+    }
+    $check('duas etapas: código errado não entra', Auth::segundoPasso($erradoDE, $instDE) === 'errado' && !Auth::check() && Auth::esperandoCodigo() !== null);
+    $check('duas etapas: código certo entra e zera as tentativas', Auth::segundoPasso($cod($pT), $instDE) === 'entrou' && Auth::id() === $idDE
+        && Auth::esperandoCodigo() === null && $tentativasDE() === 0);
+    $sairDE();
+    Auth::primeiroPasso($loginDE, 'senha-do-teste', false);
+    $check('duas etapas: o mesmo código não vale de novo, nem um mais velho', Auth::segundoPasso($cod($pT), $instDE) === 'errado' && Auth::segundoPasso($cod($pT - 1), $instDE) === 'errado');
+    $check('duas etapas: o código seguinte vale', Auth::segundoPasso($cod($pT + 1), $instDE) === 'entrou' && Auth::id() === $idDE);
+    $zerarDE();
+
+    // recuperação: uso único, sem diferença de caixa e espaço
+    $sairDE();
+    Auth::primeiroPasso($loginDE, 'senha-do-teste', false);
+    $digitadoRec = strtolower(str_replace('-', ' ', $recDE[3]));
+    $check('duas etapas: código de recuperação entra', Auth::segundoPasso($digitadoRec, $instDE) === 'entrou' && DuasEtapas::codigosRestantes($idDE) === 9);
+    $sairDE();
+    Auth::primeiroPasso($loginDE, 'senha-do-teste', false);
+    $check('duas etapas: código de recuperação vale uma vez só', Auth::segundoPasso($recDE[3], $instDE) === 'errado' && DuasEtapas::codigosRestantes($idDE) === 9);
+    $zerarDE();
+
+    // sem a chave do config.env (perdida, ou de outro computador): o app não vale, a recuperação vale
+    $chaveCerta = (string) Config::get('CHAVE_DUAS_ETAPAS');
+    Config::definir('CHAVE_DUAS_ETAPAS', base64_encode(random_bytes(32)));
+    $semChaveApp = DuasEtapas::conferirDaConta($idDE, $cod($pT + 2), $instDE + 60);
+    $semChaveRec = DuasEtapas::conferirDaConta($idDE, $recDE[4], $instDE);
+    Config::definir('CHAVE_DUAS_ETAPAS', $chaveCerta);
+    $check('duas etapas: sem a chave, só a recuperação abre', !$semChaveApp && $semChaveRec);
+
+    // aparelho lembrado continua entrando direto
+    Auth::lembrar($idDE);
+    $_SESSION = [];
+    $check('duas etapas: aparelho lembrado entra sem o código', Auth::tentarLembrado() && Auth::id() === $idDE);
+
+    // limite: o código conta junto com a senha, e a senha certa não zera
+    $sairDE();
+    $zerarDE();
+    Auth::primeiroPasso($loginDE, 'senha-do-teste', false);
+    Auth::segundoPasso($erradoDE, $instDE);
+    Auth::segundoPasso($erradoDE, $instDE);
+    Auth::primeiroPasso($loginDE, 'senha-do-teste', false);
+    $check('duas etapas: acertar a senha de novo não zera as tentativas do código', $tentativasDE() === 2);
+    $res = [Auth::segundoPasso($erradoDE, $instDE), Auth::segundoPasso($erradoDE, $instDE), Auth::segundoPasso($erradoDE, $instDE)];
+    $check('duas etapas: na 5ª tentativa errada, bloqueia', $res === ['errado', 'errado', 'bloqueado'] && Auth::segundosBloqueado($loginDE) > 0 && Auth::esperandoCodigo() === null, implode(',', $res));
+    Auth::primeiroPasso($loginDE, 'senha-do-teste', false);
+    $check('duas etapas: bloqueado, nem o código certo entra', Auth::segundoPasso($cod($pT + 2), $instDE + 60) === 'bloqueado' && !Auth::check());
+    $zerarDE();
+
+    // desligar: senha e código, contados no mesmo limite
+    $sairDE();
+    $_SESSION['usuario_id'] = $idDE;
+    $check('duas etapas: desligar com a senha errada não passa nem gasta código', Auth::conferirSenhaECodigo($idDE, 'outra-senha', $recDE[5]) === 'errada' && DuasEtapas::codigosRestantes($idDE) === 8);
+    $check('duas etapas: desligar com o código errado não passa', Auth::conferirSenhaECodigo($idDE, 'senha-do-teste', $erradoDE, $instDE + 60) === 'errada' && $tentativasDE() === 2);
+    $check('duas etapas: senha e código certos conferem e zeram', Auth::conferirSenhaECodigo($idDE, 'senha-do-teste', $cod($pT + 2), $instDE + 60) === 'ok' && $tentativasDE() === 0);
+    DuasEtapas::desligar($idDE);
+    $sairDE();
+    $check('duas etapas: desligada, apaga o segredo e os códigos, e a senha volta a bastar', !DuasEtapas::ligada($idDE) && DuasEtapas::codigosRestantes($idDE) === 0
+        && Auth::primeiroPasso($loginDE, 'senha-do-teste', false) === 'entrou');
+
+    // o comando que redefine a senha também desliga, com aviso
+    DuasEtapas::ligar($idDE, $rfc, $pT);
+    $proc = proc_open([...\Financeiro\Atualizacao::comandoPhp(), __DIR__ . '/../tools/redefinir-senha.php', $loginDE],
+        [0 => ['file', PHP_OS_FAMILY === 'Windows' ? 'NUL' : '/dev/null', 'r'], 1 => ['pipe', 'w'], 2 => ['redirect', 1]], $tubos, \Financeiro\Atualizacao::pastaDoProcesso(dirname(__DIR__)), array_filter(getenv(), 'is_string'));
+    $saidaSenha = is_resource($proc) ? (string) stream_get_contents($tubos[1]) : '';
+    if (is_resource($proc)) {
+        fclose($tubos[1]);
+        proc_close($proc);
+    }
+    $check('duas etapas: redefinir a senha desliga a verificação e avisa', !DuasEtapas::ligada($idDE) && DuasEtapas::codigosRestantes($idDE) === 0
+        && str_contains($saidaSenha, 'Senha nova de') && str_contains($saidaSenha, 'verificação em duas etapas desta conta foi desligada'), trim($saidaSenha));
+} catch (\Throwable $e) {
+    $check('duas etapas', false, get_class($e) . ': ' . $e->getMessage() . ' em ' . basename($e->getFile()) . ':' . $e->getLine());
+} finally {
+    $zerarDE();
+    $pdo->prepare('DELETE FROM sessoes_lembradas WHERE usuario_id = ?')->execute([$idDE]);
+    $pdo->prepare('DELETE FROM duas_etapas_recuperacao WHERE usuario_id = ?')->execute([$idDE]);
+    $pdo->prepare('DELETE FROM usuarios WHERE id = ?')->execute([$idDE]);
+    unset($_COOKIE[Auth::COOKIE_LEMBRAR]);
+    $_SESSION = $sessaoAntes;
+}
 
 // ---- 19. nome de instituição financeira não entra no projeto. Só os SHA-256 ficam aqui, para este arquivo não
 // citar nenhum nome; para acrescentar um: printf %s 'palavra em minúsculas' | sha256sum

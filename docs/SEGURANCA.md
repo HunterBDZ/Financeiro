@@ -5,6 +5,7 @@ Como o Financeiro protege as contas e os dados.
 - Senhas com bcrypt, consultas preparadas e CSRF em todo POST.
 - Bloqueio de 10 minutos depois de 5 tentativas erradas de login.
 - Sessão com `HttpOnly` e `SameSite=Strict`. "Lembrar este aparelho" dura 60 dias, troca o token a cada uso e pode ser revogado em Ajustes.
+- Verificação em duas etapas, opcional, em Ajustes (veja abaixo).
 - CSP estrita, sem script inline nem CDN, com fontes auto-hospedadas. Ela também proíbe `<base>`, formulário que envie para outro site, moldura (`frame-ancestors`) e plugin.
 - Em MySQL, o usuário do banco só tem `SELECT`, `INSERT`, `UPDATE` e `DELETE`. Em SQLite, o arquivo do banco só pode ser lido pelo usuário do programa.
 - Só a primeira conta criada no site faz backup, restaura, atualiza e liga a rede. Baixar uma cópia ou restaurar pede a senha de novo.
@@ -13,6 +14,19 @@ Como o Financeiro protege as contas e os dados.
 - Ao ler um link colado, o servidor só conecta em endereços públicos, confere cada redirecionamento e valida a foto pelo conteúdo.
 
 Para relatar uma falha, veja o [`SECURITY.md`](../SECURITY.md).
+
+## Verificação em duas etapas
+
+Cada pessoa pode ligar, em **Ajustes → Verificação em duas etapas**, um segundo passo no login: depois da senha, o código de 6 dígitos de um app autenticador do celular. É o padrão TOTP (RFC 6238): HMAC-SHA1, passo de 30 segundos, feito no próprio app, sem biblioteca.
+
+- **Ligar:** o app mostra um QR e a chave para digitar, pede um código para confirmar e mostra 10 códigos de recuperação, uma vez só. Os outros aparelhos saem e, na volta, pedem o código.
+- **Entrar:** vale o código do passo de agora e o de um passo antes ou depois, para celulares com o relógio um pouco fora. O app guarda o último passo aceito, e o mesmo código não vale de novo. A comparação é em tempo constante.
+- **Limite:** o código conta nas mesmas 5 tentativas da senha. Acertar a senha não zera a conta enquanto o código não vier certo; senão, quem tem a senha ganharia chutes à vontade.
+- **Lembrar este aparelho** continua como antes: o aparelho lembrado entra sem o código, porque o cookie nasceu de um login completo.
+- **Desligar** pede a senha e um código, do app ou de recuperação, contados no mesmo limite.
+- **Guardado:** o segredo fica no banco, cifrado com `sodium_crypto_secretbox`. A chave, `CHAVE_DUAS_ETAPAS`, é criada no `config.env` (ou no `config/.env`) na primeira vez que alguém liga, e não entra nos backups, que levam só o banco. Os códigos de recuperação ficam só como hash bcrypt e somem ao serem usados.
+- **Perdeu o celular:** entre com um código de recuperação. Sem ele, quem tem acesso ao computador ou ao servidor roda o comando que define uma senha nova ([manual](INSTALACAO.md#esqueci-a-senha)): ele também desliga a verificação da conta, com aviso.
+- **Backup em outro computador:** sem a chave do `config.env` original, o código do app não confere mais. Os códigos de recuperação continuam valendo; depois de entrar, desligue e ligue de novo.
 
 ## Acesso pela rede
 

@@ -174,6 +174,8 @@ Outra pessoa com conta pode definir uma senha nova em **Ajustes → Pessoas**. S
 | Linux, pelo pacote | `financeiro senha LOGIN` |
 | Servidor | `sudo -u www-data php /var/www/financeiro/tools/redefinir-senha.php LOGIN` |
 
+O comando também desliga a verificação em duas etapas dessa conta, se estiver ligada. Depois de entrar, ligue de novo em **Ajustes**.
+
 ## Quando algo dá errado
 
 | O que aparece | Causa provável | O que fazer |
