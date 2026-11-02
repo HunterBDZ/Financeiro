@@ -2888,6 +2888,24 @@ if (Sql::sqlite()) {
             && $rm[1]['origem'] === 'csv' && $rm[2]['origem'] !== 'csv', json_encode(array_map(static fn($r) => [$r['sugestao'], $r['origem']], $rm)));
     });
 }
+// ---- Mês: com valor próprio no mês, a barra compara com ele, não com a meta de todo mês
+$emTransacao('barra com o valor do mês', static function () use ($pdo, $check, $render): void {
+    $mesB = \Financeiro\Relogio::mes();
+    $pdo->exec("INSERT INTO categorias (nome, grupo, sinal, ativo, ordem, essencial) VALUES ('Teste barra do mês', 'Dia a dia', -1, 1, 998, 1)");
+    $catB = (int) $pdo->lastInsertId();
+    $pdo->exec("INSERT INTO categorias (nome, grupo, sinal, ativo, ordem, essencial) VALUES ('Teste barra zerada', 'Dia a dia', -1, 1, 999, 0)");
+    $catZ = (int) $pdo->lastInsertId();
+    \Financeiro\Models\MetaModel::definir($catB, 1000.0);
+    \Financeiro\Models\MetaModel::definir($catZ, 100.0);
+    PrevisaoModel::setValor($catB, $mesB, 800.0);
+    PrevisaoModel::setValor($catZ, $mesB, 0.0);
+    MotorFinanceiro::limparCache();
+    $html = $render(MesController::class, 'index', ['mes' => $mesB]);
+    preg_match('#id="cat-' . $catB . '".*?</details>#s', $html, $mB);
+    preg_match('#id="cat-' . $catZ . '".*?</details>#s', $html, $mZ);
+    $check('Mês: com valor próprio, a barra diz "de 800,00", não a meta de todo mês', str_contains($mB[0] ?? '', '0,00 de 800,00') && !str_contains($mB[0] ?? '', 'de 1.000,00'), substr($mB[0] ?? '', 0, 400));
+    $check('Mês: valor próprio zero e nada gasto, sem barra', ($mZ[0] ?? '') !== '' && !str_contains($mZ[0], 'meta-barra'), substr($mZ[0] ?? '', 0, 300));
+});
 
 echo "\n{$ok} ok, {$falhas} falha(s)\n";
 exit($falhas > 0 ? 1 : 0);

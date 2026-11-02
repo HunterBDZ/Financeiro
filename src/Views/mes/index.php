@@ -18,11 +18,12 @@ $pct = static fn(float $x): string => round(max(0.0, min(1.0, $x)) * 100, 2) . '
 
 // Estado da meta de uma categoria: 'na-meta' (gasto dentro) ou 'fora-meta' (passou). null = sem meta.
 $metaEstado = static function (float $gasto, ?float $meta): ?array {
-    if ($meta === null || $meta <= 0.004) {
+    // previsão zero (o mês tem valor próprio de zero): sem barra até haver gasto; com gasto, passou
+    if ($meta === null || ($meta <= 0.004 && $gasto <= 0.004)) {
         return null;
     }
     $fora = $gasto > $meta + 0.004;
-    return ['cls' => $fora ? 'fora-meta' : 'na-meta', 'fora' => $fora, 'meta' => $meta, 'frac' => $gasto / $meta];
+    return ['cls' => $fora ? 'fora-meta' : 'na-meta', 'fora' => $fora, 'meta' => $meta, 'frac' => $meta > 0.004 ? $gasto / $meta : 1.0];
 };
 // Barrinha verde (dentro) / vermelha (fora) + referência da meta. '' quando não há meta.
 $metaBarra = static function (float $gasto, ?float $meta) use ($pct, $metaEstado): string {
@@ -184,7 +185,8 @@ $abreLinha = static function (array $l) use ($erroDe): void { ?>
 /* ---------------------------------------------------------------- linhas */
 $linhaDia = static function (array $l) use ($estado, $valorDia, $metaBarra, $metaValCls, $origem, $painel, $abreLinha): void {
     $v    = $valorDia($l);
-    $meta = $estado === 'previsto' ? null : ($l['meta'] ?? null);
+    // o mês com valor próprio compara com ele, não com a meta de todo mês ("0 de 800", não "0 de 1.000")
+    $meta = $estado === 'previsto' ? null : (!empty($l['ajuste']) ? (float) $l['prev'] : ($l['meta'] ?? null));
     // mês aberto sem meta, mas com previsão: a barra mostra quanto da previsão já foi gasto
     if ($meta === null && $estado === 'aberto' && $l['prev'] > 0.004) {
         $meta = $l['prev'];
@@ -218,7 +220,7 @@ $linhaConta = static function (array $l) use ($estado, $valorConta, $fmt, $metaB
     $selo = '';
     $seloCls = 'previsto';
     $gastoConta = (float) ($l['pago'] ?? $l['real']);
-    $metaConta  = $estado === 'previsto' ? null : ($l['meta'] ?? null);
+    $metaConta  = $estado === 'previsto' ? null : (!empty($l['ajuste']) ? (float) $l['prev'] : ($l['meta'] ?? null));
     if ($estado === 'aberto') {
         $pagoTotal = $l['pago'] > 0.004 && $l['pago'] >= $l['prev'] - 0.004;
         $am = $l['a_menos'] ?? null;
