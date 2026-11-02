@@ -2,6 +2,11 @@
 
 Cada versão publicada é uma tag `vX.Y.Z` deste repositório. Pacotes atualizam em Ajustes, em Backup e atualização; servidores, com `sudo financeiro-atualizar`.
 
+## 1.11.5
+
+- **Mês:** nos gastos que variam, o número da linha é o que já foi gasto no mês, e a meta aparece ao lado da situação: "Abaixo da meta · meta 800,00". O total do topo se chama "Saídas previstas", porque conta a meta do que ainda não foi gasto.
+- **Mês:** as categorias sem gasto não ficam mais escondidas em "Sem movimento". Elas aparecem no grupo delas, no fim.
+
 ## 1.11.4
 
 - **Mês:** o saldo do mês anterior aparece como uma linha das Entradas previstas e entra no total. O resumo fica "Entradas − Saídas = Fim do mês", o mesmo valor da previsão no topo. A frase "Começou o mês com…" da 1.11.3 saiu.

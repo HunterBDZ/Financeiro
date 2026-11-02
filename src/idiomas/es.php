@@ -1671,4 +1671,6 @@ return [
     'Ordenar' => 'Ordenar',
     'Fim do mês' => 'Fin del mes',
     'Saldo do mês anterior' => 'Saldo del mes anterior',
+    'meta {valor}' => 'meta {valor}',
+    'Saídas previstas' => 'Salidas previstas',
 ];

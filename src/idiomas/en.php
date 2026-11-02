@@ -1671,4 +1671,6 @@ return [
     'Ordenar' => 'Sort',
     'Fim do mês' => 'End of month',
     'Saldo do mês anterior' => 'Previous month balance',
+    'meta {valor}' => 'goal {valor}',
+    'Saídas previstas' => 'Expected outflows',
 ];
