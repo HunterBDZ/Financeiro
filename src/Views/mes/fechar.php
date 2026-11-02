@@ -44,7 +44,6 @@ if (abs($movimentos['inv']) >= 0.005) {
     $passos[] = [$movimentos['inv'] >= 0 ? t('Aplicou em investimentos') : t('Resgatou de investimentos'), -$movimentos['inv']];
 }
 $rotSobra = \Financeiro\Services\Sobra::rotulo((string) $sobra['base']);
-$ponteParcela = \Financeiro\Services\Sobra::ponte($sobra);
 ?>
     <?php if (!$real): ?><form class="fe-form" method="post" action="/mes/fechar" data-confirm="<?= e($faltam > 0 ? tn($faltam, 'Ainda falta 1 dia em {mes}. Fechar agora? Dá para reabrir depois.', 'Ainda faltam {n} dias em {mes}. Fechar agora? Dá para reabrir depois.', ['mes' => $mesLbl]) : t('Fechar {mes}? Dá para reabrir depois.', ['mes' => $mesLbl])) ?>"><?= $csrf ?><input type="hidden" name="mes" value="<?= e($mes) ?>"><?php endif; ?>
 
@@ -67,7 +66,6 @@ $ponteParcela = \Financeiro\Services\Sobra::ponte($sobra);
                 <?php endforeach; ?>
                 <?php if ($passos !== []): ?><div class="fe-ponte-fim"><dt><?= e(t('Balanço')) ?></dt><dd><?= e($sinal($saldoMes)) ?></dd></div><?php endif; ?>
             </dl>
-            <?php if ($ponteParcela !== null): ?><p class="fe-ponte-parcela num"><?= e(t('Entradas: {conta}', ['conta' => $ponteParcela])) ?></p><?php endif; ?>
             <?php if (!empty($avisoParcela)): ?><p class="aviso aviso-warn" role="status"><?= e($avisoParcela) ?></p><?php endif; ?>
         </section>
 

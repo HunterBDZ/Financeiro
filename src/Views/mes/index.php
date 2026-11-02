@@ -143,9 +143,6 @@ $painel = static function (array $l, string $tipo) use ($csrf, $mes, $mesLbl, $e
             $info[] = $tipo === 'entrada' ? t('Recebido até hoje: {valor}.', ['valor' => $fmt($ja)]) : t('Lançado até hoje: {valor}.', ['valor' => $fmt($ja)]);
         }
     }
-    if ($tipo === 'entrada' && $l['nome_completo'] === \Financeiro\Services\MotorFinanceiro::CAT_SALARIO && $parcelaDescontada > 0.004) {
-        $info[] = t('Valor bruto. A parcela do empréstimo ({valor}) sai deste valor.', ['valor' => MENOS . $fmt($parcelaDescontada)]);
-    }
     $info[] = $tipo === 'entrada' ? t('Muda só a previsão. O que você já recebeu continua igual.') : t('Muda só a previsão. O que você já gastou continua igual.');
     $temAcoes = ($meta !== null && $l['ajuste']) || $l['prev'] > 0.004; ?>
     <form class="mes-form" method="post" action="/mes/previsao">
@@ -367,7 +364,6 @@ $linhaLeitura = static function (array $l, float $v): void { ?>
         $virgula   = strrpos($txtConta, sepDecimal());
         $estadoTxt = $emConta < -0.004 ? t('No vermelho')
             : ($reserva <= 0.004 ? '' : ($emConta < $reserva - 0.004 ? t('{valor} abaixo da reserva', ['valor' => num($reserva - $emConta)]) : t('{valor} acima da reserva', ['valor' => num($emConta - $reserva)])));
-        $ponte = Sobra::ponte($sobra);
         $sobraV = (float) $sobra['sobra'];
         ?>
         <section class="saldo mes-resumo <?= $emConta < -0.004 ? 'is-vermelho' : $nivel ?>" aria-labelledby="mes-res-t">
@@ -384,9 +380,6 @@ $linhaLeitura = static function (array $l, float $v): void { ?>
         $inicioMes = isset($linha['sobrou_mes_anterior'], $linha['fica_na_conta']) ? (float) $linha['sobrou_mes_anterior'] : null;
         // o adiantamento que o plano sugere sozinho também sai da conta no fim do mês: vai junto com empréstimo e poupança
         $movMes = (float) ($sobra['mov'] ?? 0.0) - ($inicioMes !== null ? (float) ($linha['amortizacao_auto'] ?? 0.0) : 0.0);
-        if ($inicioMes !== null) {      // a ponte parte do total da lista de entradas, que já tem o saldo do mês anterior
-            $ponte = Sobra::ponte(['bruto' => (float) $sobra['bruto'] + $inicioMes, 'parcela' => (float) $sobra['parcela']]);
-        }
         ?>
         <div class="card mes-conta-rap-card">
             <dl class="mes-conta-rap num">
@@ -401,7 +394,6 @@ $linhaLeitura = static function (array $l, float $v): void { ?>
                     <div><dt><?= e(Sobra::rotulo((string) $sobra['base'])) ?> <?= dica('numeros', Sobra::rotulo((string) $sobra['base'])) ?></dt><dd class="<?= $sobraV < -0.004 ? 'neg' : 'pos' ?>" data-sobra="<?= e((string) $sobra['base']) ?>"><?= e(num($sobraV)) ?></dd></div>
                 <?php endif; ?>
             </dl>
-            <?php if ($ponte !== null): ?><p class="mes-ponte num"><?= e(t('Entradas: {conta}', ['conta' => $ponte])) ?></p><?php endif; ?>
         </div>
 
         <?php if ($menu['fechar'] && substr($mes, 0, 7) === substr((string) $hoje, 0, 7)): ?>
@@ -414,7 +406,6 @@ $linhaLeitura = static function (array $l, float $v): void { ?>
                 <h2 class="titulo"><?= $estado === 'real' ? e(t('Entradas')) : e(t('Entradas previstas')) ?></h2>
                 <span class="card-acao num pos"><?= e(num($totalEntrou + ($inicioMes ?? 0.0))) ?></span>
             </div>
-            <?php if ($estado !== 'real' && $parcelaDescontada > 0.004): ?><p class="mes-nota num"><?= e(t('{valor} vão para a parcela do empréstimo', ['valor' => num($parcelaDescontada)])) ?></p><?php endif; ?>
             <?php if ($editavel): ?>
                 <div class="mes-linhas"><?php foreach ($entradas as $l) { $linhaEntrada($l); } ?></div>
             <?php else: ?>

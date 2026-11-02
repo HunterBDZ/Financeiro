@@ -109,7 +109,6 @@ final class AjustesController
         csrfCheck();
         AjusteModel::setValor('usa_cartao', ($_POST['usa_cartao'] ?? '') === '1' ? 1.0 : 0.0);
         AjusteModel::setValor('usa_emprestimo', ($_POST['usa_emprestimo'] ?? '') === '1' ? 1.0 : 0.0);
-        AjusteModel::setValor('parcela_modo', ($_POST['parcela_modo'] ?? '') === '2' ? 2.0 : 1.0);
         $temCarro = ($_POST['tem_carro'] ?? '') === '1';
         if ($temCarro !== AjusteModel::usa('usa_carro')) {     // só na mudança: não traz de volta o que a pessoa removeu à mão
             AjusteModel::setValor('usa_carro', $temCarro ? 1.0 : 0.0);

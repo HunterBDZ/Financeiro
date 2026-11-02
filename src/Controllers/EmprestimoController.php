@@ -96,6 +96,10 @@ final class EmprestimoController
             redirecionar('/emprestimo?dados=1#emp-dados', 303);
         }
         $antes = EmprestimoSimulacao::situacao(MotorFinanceiro::dados(), $ref, $hoje);
+        if (in_array($_POST['parcela_modo'] ?? '', ['1', '2'], true)) {
+            // 1 = descontada do salário (consignado): o salário aparece líquido; 2 = paga à parte, com o dinheiro da conta
+            AjusteModel::setValor('parcela_modo', $_POST['parcela_modo'] === '2' ? 2.0 : 1.0);
+        }
         foreach ($valores as $chave => $v) {
             AjusteModel::setValor($chave, $v);                  // preserva `confirmado`
         }
