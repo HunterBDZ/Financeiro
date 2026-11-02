@@ -6,7 +6,8 @@
  * de alocação. Em cada categoria: meta editável e a barra de progresso gasto × meta.
  * Variáveis: $essenciais, $naoEssenciais (escolhidas, com 'meta' ?float e 'gasto' float),
  * $addEss, $addNao (disponíveis para adicionar), $renda, $totalMeta, $metaEss, $metaNaoEss,
- * $gastoEss, $gastoNaoEss, $mesAtual.
+ * $gastoEss, $gastoNaoEss, $mesAtual, $porCompra (o cartão conta pela data da compra) e $semCategoria
+ * (?array{valor, compras}: as compras no cartão sem categoria do mês, com o atalho para categorizar).
  */
 $pct = static fn(float $x): string => round(max(0.0, min(100.0, $x)), 2) . '%';
 
@@ -124,6 +125,12 @@ $temAdd = $addEss !== [] || $addNao !== [];
     </section>
 
     <p class="meta-dica meta-previsao"><?= t('A meta vale para todos os meses. Mês diferente, como férias? Mude só ele na tela {link}.', ['link' => '<a href="/mes">' . e(t('Mês')) . '</a>']) ?></p>
+    <?php if ($porCompra): ?>
+        <p class="meta-dica"><?= e(t('O cartão conta pela data da compra.')) ?></p>
+    <?php endif; ?>
+    <?php if ($semCategoria !== null): ?>
+        <p class="meta-dica meta-previsao num"><?= t('Compras no cartão sem categoria: {valor}. {link}', ['valor' => e(num($semCategoria['valor'])), 'link' => '<a href="/cartao/compras/' . (int) $semCategoria['compras'][0] . '/editar">' . e(t('Categorizar')) . '</a>']) ?></p>
+    <?php endif; ?>
 
     <!-- escolher quais categorias terão meta -->
     <form class="card meta-add" method="get" action="/meta" data-meta-add-form>

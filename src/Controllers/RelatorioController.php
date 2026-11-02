@@ -42,10 +42,10 @@ final class RelatorioController
         if ($tipo === 'anual') {
             $ano = (int) ($_GET['ano'] ?? 0);
             $ano = in_array($ano, $periodos['anos'], true) ? $ano : $periodos['anoPadrao'];
-            return [$tipo, $periodos, $ano !== null ? RelatorioDados::anual($ano) : null];
+            return [$tipo, $periodos, $ano !== null ? RelatorioDados::anual($ano, null, DashboardController::ondePorFatura()) : null];
         }
         $mes = (string) ($_GET['mes'] ?? '');
         $mes = in_array($mes, array_column($periodos['meses'], 'mes'), true) ? $mes : $periodos['mesPadrao'];
-        return [$tipo, $periodos, $mes !== null ? RelatorioDados::mensal($mes) : null];
+        return [$tipo, $periodos, $mes !== null ? RelatorioDados::mensal($mes, null, DashboardController::ondePorFatura()) : null];
     }
 }

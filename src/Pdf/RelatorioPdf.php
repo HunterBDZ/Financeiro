@@ -443,7 +443,7 @@ final class RelatorioPdf
         $this->d->texto($x + self::LARG, $cabY, t('Diferença'), self::MED, 8, self::GRAFITE, 'd');
         $this->d->texto($x + self::LARG - 76, $cabY, t('Real'), self::MED, 8, self::GRAFITE, 'd');
         $this->y += 14;
-        $linha = function (string $nome, float $real, float $plan, bool $tracoBarra = true) use ($x, $zonaX, $zonaL, $max): void {
+        $linha = function (string $nome, float $real, float $plan, bool $tracoBarra = true, bool $semPlano = false) use ($x, $zonaX, $zonaL, $max): void {
             $alt = 22.0;
             if ($this->y + $alt > self::FUNDO) {
                 $this->novaPagina();
@@ -466,13 +466,13 @@ final class RelatorioPdf
                 $tTx = ($dif > 0 ? '+' : '') . num($dif, 0);
                 $this->d->texto($x + self::LARG, $base, $tTx, self::MED, 10, self::TINTA, 'd');
                 $this->triangulo($x + self::LARG - $this->d->medir($tTx, self::MED, 10) - 7, $base - 3.5, 3.1, $dif > 0 ? self::SAI : self::POS, $dif > 0);
-            } elseif ($plan <= 0.004) {
+            } elseif ($plan <= 0.004 && !$semPlano) {
                 $this->d->texto($x + self::LARG, $base, t('sem plano'), self::MED, 8.5, self::GRAFITE, 'd');
             }
             $this->y += $alt;
         };
         foreach ($c['linhas'] as $l) {
-            $linha($l['nome'], $l['real'], $l['planejado']);
+            $linha($l['nome'], $l['real'], $l['planejado'], true, !empty($l['semPlano']));
         }
         if ($c['outros'] !== null) {
             $linha(tn($c['outros']['n'], 'Outra 1 categoria', 'Outras {n} categorias'), $c['outros']['real'], $c['outros']['planejado'], false);
@@ -483,6 +483,9 @@ final class RelatorioPdf
         $d = $c['totalReal'] - $c['totalPlanejado'];
         $this->d->texto($x + self::LARG, $this->y + 15, ($d > 0 ? '+' : '') . num($d, 0), self::BOLD, 10, self::TINTA, 'd');
         $this->y += 30;
+        if (!empty($this->r['porCompra'])) {
+            $this->nota(t('O cartão conta pela data da compra.'));
+        }
     }
 
     private function fatura(?array $f): void

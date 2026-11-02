@@ -7,8 +7,9 @@ use Financeiro\Sql;
 /**
  * Os cartões de crédito da casa (tabela `cartoes`, na ordem de `ordem`) e as compras feitas neles
  * (`cartao_compras`; o estorno é uma compra negativa de 1 parcela). As parcelas não têm tabela: saem de
- * valor_total, parcelas e primeira_fatura (ver CartaoFatura). As compras não contam nas categorias: no plano
- * só a fatura, que é uma categoria só (chave `fatura`) para todos os cartões, cada pagamento com o seu cartão.
+ * valor_total, parcelas e primeira_fatura (ver CartaoFatura). No plano, as compras não contam nas categorias: só a
+ * fatura, que é uma categoria só (chave `fatura`) para todos os cartões, cada pagamento com o seu cartão. Nas Metas e
+ * no "Para onde foi", cada compra conta na categoria dela, pela data da compra (Services\GastoPorCategoria).
  */
 final class CartaoModel
 {
@@ -101,6 +102,18 @@ final class CartaoModel
         );
         $st->execute(['c' => $cartaoId]);
         return array_map([self::class, 'compra'], $st->fetchAll());
+    }
+
+    /**
+     * As compras de todos os cartões, ativos ou não, só com o que a conta pede (Services\GastoPorCategoria).
+     * @return list<array{id:int, cartao_id:int, data:string, categoria_id:?int, valor_total:float, parcelas:int, primeira_fatura:string}>
+     */
+    public static function todasAsCompras(): array
+    {
+        $st = Database::connection()->query('SELECT id, cartao_id, data, categoria_id, valor_total, parcelas, primeira_fatura FROM cartao_compras ORDER BY data, id');
+        return array_map(static fn(array $r): array => ['id' => (int) $r['id'], 'cartao_id' => (int) $r['cartao_id'], 'data' => (string) $r['data'],
+            'categoria_id' => $r['categoria_id'] !== null ? (int) $r['categoria_id'] : null, 'valor_total' => (float) $r['valor_total'],
+            'parcelas' => (int) $r['parcelas'], 'primeira_fatura' => (string) $r['primeira_fatura']], $st->fetchAll());
     }
 
     public static function acharCompra(int $id): ?array
