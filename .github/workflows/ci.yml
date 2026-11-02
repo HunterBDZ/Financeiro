@@ -26,6 +26,43 @@ jobs:
       - name: Testes
         run: php tests/run.php
 
+  # Playwright no Chromium e no Firefox, com um banco de demonstração por processo de teste (tests/navegador)
+  testes-navegador:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: tests/navegador
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_sqlite, mbstring, curl, sodium
+          coverage: none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24    # LTS
+          cache: npm
+          cache-dependency-path: tests/navegador/package-lock.json
+      - name: Dependências
+        run: npm ci
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('tests/navegador/package-lock.json') }}
+      - name: Navegadores
+        run: npx playwright install --with-deps --only-shell chromium firefox
+      - name: Testes
+        run: npm test
+      - name: Relatório dos testes
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relatorio-navegador
+          path: tests/navegador/playwright-report/
+          retention-days: 14
+
   testes-mysql:
     runs-on: ubuntu-24.04
     services:
