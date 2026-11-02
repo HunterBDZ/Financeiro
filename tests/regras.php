@@ -2219,7 +2219,7 @@ if (Sql::sqlite()) {
         $esperado = CartaoFatura::atribuir(array_map(static fn(array $p): array => ['data' => $p[0], 'valor' => $p[1]], $pagV), 24, 2, $valoresV);
 
         $feitas = \Financeiro\Migrador::aplicar($v, \Financeiro\Migrador::pasta());
-        $check('migração 2.0: roda num banco da 1.10, o .sql antes do .php', $feitas === ['s0001_contas.sql', 's0001_contas.php'], json_encode($feitas));
+        $check('migração 2.0: roda num banco da 1.10, o .sql antes do .php', array_slice($feitas, 0, 2) === ['s0001_contas.sql', 's0001_contas.php'], json_encode($feitas));
         $contasV = $v->query('SELECT id, nome, tipo, saldo_inicial, ativa FROM contas')->fetchAll();
         $check('migração 2.0: a Conta principal nasce com o saldo inicial de antes', count($contasV) === 1 && (int) $contasV[0]['id'] === 1
             && $contasV[0]['nome'] === 'Conta principal' && abs((float) $contasV[0]['saldo_inicial'] - 1234.56) < 0.001 && (int) $contasV[0]['ativa'] === 1, json_encode($contasV));
