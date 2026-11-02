@@ -72,7 +72,12 @@ git config user.signingkey /caminho/da/chave-privada
 git config tag.gpgSign true
 ```
 
-Para trocar a chave, publique, assinada pela antiga, uma versão que já traga a nova em `ASSINANTES`. Ao terminar uma atualização, o `financeiro-atualizar` instala a versão nova dele mesmo e do backup diário, que vieram dentro da tag conferida. Para conferir uma tag à mão: `git -c gpg.ssh.allowedSignersFile=<(sed -n "s/^ASSINANTES='\(.*\)'$/\1/p" tools/financeiro-atualizar.sh) verify-tag v1.1.0`.
+Para trocar a chave, publique, assinada pela antiga, uma versão que já traga a nova em `ASSINANTES`. Ao terminar uma atualização, o `financeiro-atualizar` instala a versão nova dele mesmo e do backup diário, que vieram dentro da tag conferida. Para conferir uma tag à mão:
+
+```sh
+f=$(mktemp); sed -n "s/^ASSINANTES='\(.*\)'$/\1/p" tools/financeiro-atualizar.sh > "$f"
+git -c gpg.format=ssh -c gpg.ssh.allowedSignersFile="$f" verify-tag v1.1.0; rm -f "$f"
+```
 
 Os sites só recebem o que tem tag: um commit sem tag no `main` não chega a ninguém. Não mova nem apague uma tag publicada: se houver erro, lance outra versão.
 
