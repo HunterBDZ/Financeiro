@@ -65,6 +65,8 @@ $css = array_filter(['/assets/css/style.css', '/assets/css/lancar.css', '/assets
 
             <?php if ($erro !== null): ?>
                 <div class="aviso aviso-error" role="alert"><?= e($erro) ?></div>
+            <?php elseif (isset($_GET['restaurado'])): ?>
+                <div class="aviso" role="status"><?= e(t('Backup restaurado. Entre de novo. O que havia antes ficou guardado em uma cópia.')) ?></div>
             <?php elseif ($expirou): ?>
                 <div class="aviso aviso-warn" role="status"><?= e(t('A sessão expirou. Entre de novo.')) ?></div>
             <?php endif; ?>

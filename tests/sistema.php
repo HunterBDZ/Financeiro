@@ -121,6 +121,17 @@ $check('migrações: rodar de novo não repete', Migrador::aplicar($pdo, $pasta)
 $check('migrações: o que já rodou e não está na pasta é de versão mais nova', Migrador::desconhecidas($pdo, $dados . '/nao-existe') !== []);
 $pdo->exec("DELETE FROM migracoes WHERE arquivo LIKE 's0001%'");
 $pdo->exec('DROP TABLE teste_mig');
+// backup anterior a uma migração: chega ao banco na versão de agora, mesmo com o gatilho que usa função própria
+sleep(1);
+$velho = Backup::criar('manual');
+$pasta2 = $dados . '/mig2';
+mkdir($pasta2);
+file_put_contents($pasta2 . '/s0003_valor.sql', "UPDATE ajustes SET label = 'migrado' WHERE chave = 'teste_backup';");
+$check('restaurar: leva o backup antigo à versão de agora', $erroDe(static fn() => Backup::restaurar($velho, $pasta2)) === '');
+// a tabela de migrações veio do backup levado à versão de agora: tem de dizer o que já passou
+$pdo = Database::connection();
+$check('restaurar: a migração vale nos dados restaurados', $pdo->query("SELECT label FROM ajustes WHERE chave = 'teste_backup'")->fetchColumn() === 'migrado' && in_array('s0003_valor.sql', Migrador::feitas($pdo), true));
+$pdo->exec("DELETE FROM migracoes WHERE arquivo = 's0003_valor.sql'");
 
 // ---- pacote .tar
 $tar = static function (array $itens): string {

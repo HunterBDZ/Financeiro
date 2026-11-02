@@ -64,6 +64,7 @@ docker compose up -d</pre>
         <?php endif; ?>
     </section>
 
+    <?php if ($pode || !$backupDisponivel): ?>
     <section class="card sis-grupo" id="backup" aria-labelledby="sis-backup-t">
         <h2 class="titulo" id="sis-backup-t"><?= e(t('Backup')) ?></h2>
         <?php if (!$backupDisponivel): ?>
@@ -112,4 +113,5 @@ docker compose up -d</pre>
             </details>
         <?php endif; ?>
     </section>
+    <?php endif; ?>
 </div>

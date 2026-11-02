@@ -139,8 +139,7 @@ final class SistemaController
             redirecionar('/sistema#restaurar', 303);
         }
         session_regenerate_id(true);
-        flash('success', t('Backup restaurado. Entre de novo. O que havia antes ficou guardado em uma cópia.'));
-        redirecionar('/login', 303);
+        redirecionar('/login?restaurado=1', 303);
     }
 
     /* ---- atualização */

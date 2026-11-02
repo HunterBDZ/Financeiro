@@ -146,7 +146,7 @@ final class Backup
      * @return string o caminho da cópia do que havia antes
      * @throws \RuntimeException com o motivo, para a tela
      */
-    public static function restaurar(string $origem): string
+    public static function restaurar(string $origem, ?string $migracoes = null): string
     {
         self::prepararPasta();
         $tmp = self::pasta() . '/.restaurar-' . bin2hex(random_bytes(6));
@@ -156,7 +156,7 @@ final class Backup
         @chmod($tmp, 0600);
         try {
             self::conferir($tmp);
-            self::prepararCopia($tmp);
+            self::prepararCopia($tmp, $migracoes ?? Migrador::pasta());
             $antes = self::criar('antes-restaurar');
             self::trocarDados($tmp);
         } finally {
@@ -184,17 +184,16 @@ final class Backup
         }
     }
 
-    private static function prepararCopia(string $tmp): void
+    private static function prepararCopia(string $tmp, string $migracoes): void
     {
         $pdo = new SqliteConexao($tmp);
-        $pdo->exec('PRAGMA trusted_schema = OFF');
-        if (Migrador::desconhecidas($pdo, Migrador::pasta()) !== []) {
+        if (Migrador::desconhecidas($pdo, $migracoes) !== []) {
             throw new \RuntimeException('Esse backup veio de uma versão mais nova do Financeiro. Atualize o Financeiro antes de restaurar.');
         }
         if ($pdo->query('PRAGMA main.foreign_key_check')->fetch() !== false) {
             throw new \RuntimeException('Esse backup está danificado.');
         }
-        Migrador::aplicar($pdo, Migrador::pasta());
+        Migrador::aplicar($pdo, $migracoes);
         $pdo->exec('PRAGMA journal_mode = DELETE');     // tudo no arquivo principal, para o ATTACH
     }
 
