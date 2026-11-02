@@ -13,8 +13,8 @@ jobs:
   testes:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: shivammathur/setup-php@v2
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962  # v2
         with:
           php-version: '8.4'
           extensions: pdo_sqlite, mbstring, curl, sodium
@@ -26,9 +26,11 @@ jobs:
   pacotes:
     needs: testes
     runs-on: ubuntu-24.04
+    # o ambiente "versao" pode exigir a aprovação do dono antes de a chave assinar (docs/LANCAR-VERSAO.md)
+    environment: versao
     steps:
-      - uses: actions/checkout@v4
-      - uses: shivammathur/setup-php@v2
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962  # v2
         with:
           php-version: '8.4'
           extensions: sodium
@@ -44,7 +46,7 @@ jobs:
         run: |
           test -n "$FIN_CHAVE_ATUALIZACAO"
           packaging/empacotar.sh --saida "$RUNNER_TEMP/versao"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: pacotes
           path: ${{ runner.temp }}/versao/*
@@ -55,8 +57,8 @@ jobs:
     needs: pacotes
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
         with:
           name: pacotes
           path: pacotes
@@ -83,7 +85,7 @@ jobs:
           FIN_MAC_SENHA: ${{ secrets.FIN_MAC_SENHA }}
           FIN_MAC_TIME: ${{ secrets.FIN_MAC_TIME }}
         run: packaging/macos/montar.sh --app-tar pacotes/financeiro-app-*.tar.gz --saida saida
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: dmg
           path: saida/*.dmg
@@ -95,8 +97,8 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
         with:
           path: baixado
       - name: Juntar e somar
@@ -120,17 +122,17 @@ jobs:
       contents: read
       packages: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-qemu-action@v3
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+      - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130  # v3
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f  # v3
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9  # v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ github.token }}
       - id: nome
         run: echo "repo=${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8  # v6
         with:
           context: .
           platforms: linux/amd64,linux/arm64

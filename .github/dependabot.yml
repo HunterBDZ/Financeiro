@@ -1,0 +1,11 @@
+# Propõe, toda semana, a atualização das ações do GitHub (fixadas por SHA) e das dependências dos testes de navegador.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: npm
+    directory: /tests/navegador
+    schedule:
+      interval: weekly

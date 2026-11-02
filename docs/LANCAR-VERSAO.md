@@ -62,6 +62,10 @@ Num Windows, `makeappx pack /d PASTA\loja /p financeiro-X.Y.Z.msix /nv` gera o p
 
 Para gerar um par novo, `php tools/assinar-atualizacao.php --gerar=ARQUIVO`: o privado vai para o arquivo, que nunca entra no repositório, e o público sai na tela e vai para `Atualizacao::CHAVE_PUBLICA`. Quem trocar a chave precisa publicar a chave nova numa versão assinada pela antiga.
 
+### Aprovação antes de assinar (recomendado)
+
+O job que assina os pacotes usa o ambiente `versao`. Em **Settings → Environments → versao**, marque **Required reviewers** com o seu usuário e mova o segredo `FIN_CHAVE_ATUALIZACAO` para dentro do ambiente. Assim, mesmo quem conseguir mexer no repositório não assina nada sem a sua aprovação. As ações de terceiros dos workflows ficam fixadas por SHA, e o Dependabot propõe as atualizações toda semana.
+
 ### Chave das versões (servidores)
 
 O `financeiro-atualizar` só instala uma tag assinada com a chave SSH cuja parte pública está em `ASSINANTES`, no próprio script. A chave privada fica com quem publica, fora do repositório e fora do GitHub. Para assinar sempre, uma vez no clone:
