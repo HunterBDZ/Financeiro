@@ -63,11 +63,22 @@
         var sub = bloco.querySelector('[data-ct-previa-sub]');
         var barras = bloco.querySelectorAll('.ct-escada-mini .ct-degrau-barra');
         var botao = form.querySelector('[data-lf-enviar]');
-        var botaoConta = botao ? botao.textContent : '';
+        var botaoConta = botao ? (botao.getAttribute('data-lf-rot') || botao.textContent) : '';
         var dia = form.querySelector('[data-ct-dia]');
+        var base = cfg;
         var serie = cfg.serie || [];
+        var rotulos = bloco.querySelectorAll('.ct-escada-mini .ct-degrau > span:last-child');
 
-        function noCartao() { var r = form.querySelector('input[name="pagou"]:checked'); return !!r && r.value === 'cartao'; }
+        function pagouCom() { var r = form.querySelector('input[name="pagou"]:checked'); return r ? r.value : ''; }
+        function noCartao() { var v = pagouCom(); return v === 'cartao' || v.indexOf('cartao:') === 0; }
+        function transferindo() { var m = form.querySelector('input[name="modo"]:checked'); return !!m && m.value === 'transferir'; }
+        // vários cartões: o fechamento, o vencimento e as faturas são os do cartão escolhido
+        function escolherCartao() {
+            if (!base.cartoes || !base.cartoes[pagouCom()]) { return; }
+            cfg = base.cartoes[pagouCom()];
+            serie = cfg.serie || [];
+            serie.forEach(function (s, j) { if (rotulos[j]) { rotulos[j].textContent = MESES[partes(s[0])[1]]; } });
+        }
         function lerValor() {
             var v = FIN.ler((valor && valor.value || '').trim()); return v > 0 ? v : 0;
         }
@@ -78,6 +89,8 @@
             return r ? parseInt(r.value, 10) : 1;
         }
         function atualizar() {
+            if (transferindo()) { return; }          // o rótulo do botão é do lancar.js
+            escolherCartao();
             if (botao) { botao.textContent = noCartao() ? (botao.getAttribute('data-ct-rot') || botaoConta) : botaoConta; }
             if (dia) { dia.textContent = noCartao() ? T('Data da compra') : T('Dia'); }
             if (!noCartao()) { return; }

@@ -2,19 +2,21 @@
 /**
  * Editar uma compra no cartão: descrição, categoria, valor total, vezes, data e a fatura da 1ª
  * parcela (é ela que decide em que faturas as parcelas caem). Excluir fica aqui, em vermelho.
- * Variáveis: $compra, $cartao, $meses (faturas possíveis para a 1ª parcela), $categorias, $erro, $aberta.
+ * Um estorno (valor negativo) fica marcado e em 1 parcela.
+ * Variáveis: $compra, $cartao, $meses (faturas possíveis para a 1ª parcela), $categorias, $erro, $aberta, $volta.
  */
 $c = $compra;
 $erro = is_array($erro ?? null) ? (string) ($erro['msg'] ?? '') : '';
 $ps = \Financeiro\Services\CartaoFatura::parcelas((float) $c['valor_total'], (int) $c['parcelas'], (string) $c['primeira_fatura']);
 $ultima = $ps[count($ps) - 1][0];
+$estorno = (float) $c['valor_total'] < 0;
 ?>
 <div class="ct ct-editar">
     <header class="lf-topo ct-ed-topo">
-        <a class="lf-x lf-voltar" href="/cartao?fatura=<?= e($c['primeira_fatura']) ?>#fatura" aria-label="<?= e(t('voltar')) ?>"><?= svgIcon('chevron', 20, 'lf-seta') ?></a>
+        <a class="lf-x lf-voltar" href="<?= e($volta) ?>#fatura" aria-label="<?= e(t('voltar')) ?>"><?= svgIcon('chevron', 20, 'lf-seta') ?></a>
         <h1 class="lf-titulo"><?= e(t('Compra no cartão')) ?></h1>
     </header>
-    <p class="ct-escada-sub num"><?= (int) $c['parcelas'] === 1 ? e(t('À vista, na fatura de {mes}', ['mes' => monthLabel($c['primeira_fatura'])])) : e(t('{n} × {valor}, de {de} a {ate}', ['n' => (int) $c['parcelas'], 'valor' => num($ps[count($ps) - 1][2]), 'de' => monthLabel($c['primeira_fatura']), 'ate' => monthLabel($ultima)])) ?></p>
+    <p class="ct-escada-sub num"><?= $estorno ? e(t('Estorno na fatura de {mes}', ['mes' => monthLabel($c['primeira_fatura'])])) : ((int) $c['parcelas'] === 1 ? e(t('À vista, na fatura de {mes}', ['mes' => monthLabel($c['primeira_fatura'])])) : e(t('{n} × {valor}, de {de} a {ate}', ['n' => (int) $c['parcelas'], 'valor' => num($ps[count($ps) - 1][2]), 'de' => monthLabel($c['primeira_fatura']), 'ate' => monthLabel($ultima)]))) ?></p>
     <form class="card ct-form" method="post" action="/cartao/compras/<?= (int) $c['id'] ?>">
         <?= csrfField() ?>
         <?php if ($erro !== ''): ?><p class="aviso aviso-error" role="alert"><?= e($erro) ?></p><?php endif; ?>
@@ -26,7 +28,7 @@ $ultima = $ps[count($ps) - 1][0];
                 <?php endforeach; ?>
             </select></label>
         <div class="ct-2">
-            <label><span><?= e(t('Valor total')) ?></span><input type="text" name="valor" inputmode="decimal" required value="<?= e(numInput((float) $c['valor_total'])) ?>"></label>
+            <label><span><?= e(t('Valor total')) ?></span><input type="text" name="valor" inputmode="decimal" required value="<?= e(numInput(abs((float) $c['valor_total']))) ?>"></label>
             <label><span><?= e(t('Em quantas vezes')) ?></span><input type="text" name="parcelas" inputmode="numeric" maxlength="2" required value="<?= (int) $c['parcelas'] ?>"></label>
         </div>
         <div class="ct-2">
@@ -38,10 +40,11 @@ $ultima = $ps[count($ps) - 1][0];
                     <?php endforeach; ?>
                 </select></label>
         </div>
+        <label class="ct-estorno"><input type="checkbox" name="estorno" value="1"<?= $estorno ? ' checked' : '' ?>><span><?= e(t('É um estorno: o valor volta para o cartão')) ?></span></label>
         <button class="btn btn-primary" type="submit"><?= e(t('Salvar')) ?></button>
     </form>
     <form method="post" action="/cartao/compras/<?= (int) $c['id'] ?>/excluir" class="ct-excluir" data-confirm="<?= e(t('Excluir a compra {descricao}?', ['descricao' => nomeCategoria((string) $c['descricao'])])) ?>">
-        <?= csrfField() ?><input type="hidden" name="volta" value="/cartao?fatura=<?= e($c['primeira_fatura']) ?>#fatura">
+        <?= csrfField() ?><input type="hidden" name="volta" value="<?= e($volta) ?>#fatura">
         <button type="submit" class="btn-link-danger"><?= e(t('Excluir compra')) ?></button>
     </form>
 </div>
