@@ -118,7 +118,7 @@ $campo = static function (string $chave, string $rotulo, string $un = '', int $d
     $arquivadasD = array_values(array_filter($contasDinheiro, static fn(array $c): bool => !$c['ativa']));
     $erroConta = $erro !== null && ($erro['grupo'] ?? '') === 'carteira' ? $erro : null;
     $inicioD = \Financeiro\Models\AjusteModel::dataInicio();
-    $tiposD = ['corrente' => t('Banco'), 'digital' => t('Banco digital'), 'dinheiro' => t('Dinheiro'), 'outra' => t('Outra')];
+    $tiposD = ['corrente' => t('Banco'), 'digital' => t('Banco digital'), 'dinheiro' => t('Dinheiro vivo'), 'outra' => t('Outra')];
     $formConta = static function (?array $c) use ($csrf, $erroConta, $tiposD, $inicioD): void {
         $id = (int) ($c['id'] ?? 0);
         $volta = $erroConta !== null && (int) ($erroConta['conta'] ?? -1) === $id ? (array) ($erroConta['valores'] ?? []) : [];
