@@ -1,6 +1,7 @@
 <?php
 namespace Financeiro\Services;
 
+use Financeiro\Sql;
 use Financeiro\Database;
 use Financeiro\Models\AjusteModel;
 
@@ -38,7 +39,7 @@ final class FotoPlano
             }
         }
         $json = json_encode(['meses' => $meses, 'cats' => $dados['prev'][$mes] ?? []], JSON_UNESCAPED_UNICODE);
-        $pdo->prepare('INSERT IGNORE INTO plano_fotos (mes, criada_em, versao, dados) VALUES (?, ?, ?, ?)')
+        $pdo->prepare(Sql::inserirIgnorando() . ' INTO plano_fotos (mes, criada_em, versao, dados) VALUES (?, ?, ?, ?)')
             ->execute([$mes, $hoje, self::VERSAO, $json]);
     }
 
@@ -58,7 +59,7 @@ final class FotoPlano
     /** O primeiro mês com foto que vale; null se ainda não há. */
     public static function primeiroMes(): ?string
     {
-        $v = Database::connection()->query('SELECT MIN(mes) FROM plano_fotos WHERE DAY(criada_em) <= ' . self::DIA_LIMITE)->fetchColumn();
+        $v = Database::connection()->query('SELECT MIN(mes) FROM plano_fotos WHERE ' . Sql::diaDoMes('criada_em') . ' <= ' . self::DIA_LIMITE)->fetchColumn();
         return $v ? (string) $v : null;
     }
 }

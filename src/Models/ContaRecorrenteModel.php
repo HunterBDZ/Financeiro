@@ -1,6 +1,7 @@
 <?php
 namespace Financeiro\Models;
 
+use Financeiro\Sql;
 use Financeiro\Database;
 
 /** Contas recorrentes. ChecklistContas depende de ativas(): assinatura e colunas congeladas. */
@@ -48,7 +49,7 @@ final class ContaRecorrenteModel
             "SELECT id, nome, apelido, grupo
              FROM categorias
              WHERE ativo = 1 AND grupo IN ('Fixos', " . (AjusteModel::usa('usa_cartao') ? "'Cartao', " : '') . "'Ano')
-             ORDER BY FIELD(grupo, 'Fixos', 'Cartao', 'Ano'), ordem, nome"
+             ORDER BY " . Sql::posicao('grupo', ['Fixos', 'Cartao', 'Ano']) . ', ordem, nome'
         );
         return array_map(static fn(array $c): array => [
             'id' => (int) $c['id'], 'nome' => (string) $c['nome'],
@@ -62,7 +63,7 @@ final class ContaRecorrenteModel
         $stmt = $pdo->prepare(
             'INSERT INTO contas_recorrentes (categoria_id, dia_vencimento, ativo)
              VALUES (:categoria_id, :dia, 1)
-             ON DUPLICATE KEY UPDATE dia_vencimento = VALUES(dia_vencimento), ativo = 1'
+             ' . Sql::aoRepetir('categoria_id', ['dia_vencimento' => null, 'ativo' => '1'])
         );
         $stmt->execute(['categoria_id' => $categoriaId, 'dia' => $diaVencimento]);
     }

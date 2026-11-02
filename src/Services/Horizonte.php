@@ -1,6 +1,7 @@
 <?php
 namespace Financeiro\Services;
 
+use Financeiro\Sql;
 use Financeiro\Database;
 use Financeiro\Models\AjusteModel;
 use Financeiro\Models\MesModel;
@@ -72,13 +73,13 @@ final class Horizonte
     private static function criar(string $mes): void
     {
         $pdo = Database::connection();
-        $st = $pdo->prepare('INSERT IGNORE INTO meses (mes, situacao) VALUES (?, "PREVISAO")');
+        $st = $pdo->prepare(Sql::inserirIgnorando() . " INTO meses (mes, situacao) VALUES (?, 'PREVISAO')");
         $st->execute([$mes]);
         if ($st->rowCount() === 0) {
             return;                                             // outra requisição criou
         }
         $copia = $pdo->prepare(
-            "INSERT IGNORE INTO previsao (categoria_id, mes, valor)
+            Sql::inserirIgnorando() . " INTO previsao (categoria_id, mes, valor)
              SELECT p.categoria_id, ?, p.valor
              FROM previsao p JOIN categorias c ON c.id = p.categoria_id
              WHERE c.ativo = 1 AND p.valor > 0 AND (

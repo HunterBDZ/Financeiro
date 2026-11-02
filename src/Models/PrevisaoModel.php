@@ -1,6 +1,7 @@
 <?php
 namespace Financeiro\Models;
 
+use Financeiro\Sql;
 use Financeiro\Database;
 
 /**
@@ -20,7 +21,7 @@ final class PrevisaoModel
              FROM categorias c
              LEFT JOIN previsao_efetiva p ON p.categoria_id = c.id AND p.mes = :mes
              WHERE c.ativo = 1
-             ORDER BY FIELD(c.grupo, "Entradas","Fixos","Dia a dia","Cartao","Ano","Emprestimo","Poupanca","Investimento"), c.ordem, c.nome'
+             ORDER BY ' . Sql::posicao('c.grupo', ['Entradas', 'Fixos', 'Dia a dia', 'Cartao', 'Ano', 'Emprestimo', 'Poupanca', 'Investimento']) . ', c.ordem, c.nome'
         );
         $stmt->execute(['mes' => $mes]);
         return $stmt->fetchAll();
@@ -42,7 +43,7 @@ final class PrevisaoModel
         $pdo = Database::connection();
         $stmt = $pdo->prepare(
             'INSERT INTO previsao (categoria_id, mes, valor) VALUES (:categoria_id, :mes, :valor)
-             ON DUPLICATE KEY UPDATE valor = VALUES(valor)'
+             ' . Sql::aoRepetir('categoria_id, mes', ['valor' => null])
         );
         $stmt->execute(['categoria_id' => $categoriaId, 'mes' => $mes, 'valor' => $valor]);
     }
@@ -90,7 +91,7 @@ final class PrevisaoModel
              FROM previsao_efetiva p
              JOIN categorias c ON c.id = p.categoria_id
              WHERE c.operacional = 1 AND c.sinal = -1 AND p.mes = :mes AND p.valor > 0
-             ORDER BY p.valor DESC'
+             ORDER BY p.valor DESC, c.ordem, c.id'
         );
         $stmt->execute(['mes' => $mes]);
         return $stmt->fetchAll();

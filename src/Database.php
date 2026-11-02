@@ -11,6 +11,9 @@ final class Database
     public static function connection(): PDO
     {
         if (self::$instance === null) {
+            if (Sql::sqlite()) {
+                return self::conectarSqlite();
+            }
             $host = Config::get('DB_HOST', 'localhost');
             $name = Config::get('DB_NAME', 'financeiro');
             $user = Config::get('DB_USER', 'financeiro_app');
@@ -32,6 +35,19 @@ final class Database
             Site::carregar(self::$instance);   // moeda e fuso; ajusta o relógio do PHP e o desta conexão
         }
 
+        return self::$instance;
+    }
+
+    private static function conectarSqlite(): PDO
+    {
+        try {
+            self::$instance = new SqliteConexao(Paths::banco());
+        } catch (PDOException $e) {
+            error_log('Falha ao abrir o banco: ' . $e->getMessage());
+            http_response_code(500);
+            die('Erro interno. Tente novamente em instantes.');
+        }
+        Site::carregar(self::$instance);
         return self::$instance;
     }
 }

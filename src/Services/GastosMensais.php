@@ -1,6 +1,7 @@
 <?php
 namespace Financeiro\Services;
 
+use Financeiro\Sql;
 use Financeiro\Database;
 
 /**
@@ -44,7 +45,7 @@ final class GastosMensais
                 CROSS JOIN categorias c
                 LEFT JOIN previsao_efetiva p ON p.categoria_id = c.id AND p.mes = m.mes
                 LEFT JOIN lancamentos l ON l.categoria_id = c.id
-                      AND l.data >= m.mes AND l.data < DATE_ADD(m.mes, INTERVAL 1 MONTH)
+                      AND l.data >= m.mes AND l.data < " . Sql::mesSeguinte('m.mes') . "
                 WHERE c.operacional = 1 AND c.sinal = -1
                 GROUP BY m.mes, m.situacao, c.id, c.nome, c.apelido, c.grupo, c.essencial, c.ordem
                 ORDER BY m.mes, c.ordem, c.id";
@@ -87,11 +88,11 @@ final class GastosMensais
         }
 
         // renda real: lançamentos de entrada para meses reais/abertos
-        $sqlRenda = "SELECT DATE_FORMAT(l.data, '%Y-%m-01') AS mes, SUM(l.valor) AS total
+        $sqlRenda = 'SELECT ' . Sql::inicioMes('l.data') . " AS mes, SUM(l.valor) AS total
                      FROM lancamentos l
                      JOIN categorias c ON c.id = l.categoria_id
                      WHERE c.operacional = 1 AND c.sinal = 1
-                     GROUP BY DATE_FORMAT(l.data, '%Y-%m-01')";
+                     GROUP BY " . Sql::inicioMes('l.data');
         foreach (Database::connection()->query($sqlRenda) as $r) {
             $m = (string) $r['mes'];
             if (isset($out[$m]) && $out[$m]['estado'] !== 'previsto') {

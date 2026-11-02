@@ -1,6 +1,7 @@
 <?php
 namespace Financeiro\Models;
 
+use Financeiro\Sql;
 use Financeiro\Database;
 
 /**
@@ -23,7 +24,7 @@ final class SessaoLembradaModel
     {
         Database::connection()->prepare(
             'INSERT INTO sessoes_lembradas (seletor, validador_hash, usuario_id, expira_em, ultimo_uso)
-             VALUES (:s, :h, :u, NOW() + INTERVAL ' . self::DIAS . ' DAY, NOW())'
+             VALUES (:s, :h, :u, ' . Sql::agoraMais(self::DIAS, 'DAY') . ', ' . Sql::agora() . ')'
         )->execute(['s' => $seletor, 'h' => $validadorHash, 'u' => $usuarioId]);
     }
 
@@ -36,9 +37,9 @@ final class SessaoLembradaModel
         $stmt = Database::connection()->prepare(
             'SELECT s.seletor, s.validador_hash, s.validador_ant_hash, s.usuario_id,
                     CASE WHEN s.rotacionado_em IS NOT NULL
-                          AND s.rotacionado_em >= NOW() - INTERVAL ' . self::JANELA_SEG . ' SECOND
+                          AND s.rotacionado_em >= ' . Sql::agoraMais(-self::JANELA_SEG, 'SECOND') . '
                          THEN 1 ELSE 0 END AS na_janela,
-                    TIMESTAMPDIFF(SECOND, NOW(), s.expira_em) AS resta_seg,
+                    ' . Sql::segundosAte('s.expira_em') . ' AS resta_seg,
                     u.id, u.nome, u.sessao_versao
              FROM sessoes_lembradas s
              JOIN usuarios u ON u.id = s.usuario_id
@@ -58,7 +59,7 @@ final class SessaoLembradaModel
         $stmt = Database::connection()->prepare(
             'UPDATE sessoes_lembradas
                 SET validador_ant_hash = validador_hash, validador_hash = :novo,
-                    rotacionado_em = NOW(), ultimo_uso = NOW()
+                    rotacionado_em = ' . Sql::agora() . ', ultimo_uso = ' . Sql::agora() . '
               WHERE seletor = :s AND validador_hash = :atual'
         );
         $stmt->execute(['novo' => $hashNovo, 's' => $seletor, 'atual' => $hashAtual]);
@@ -67,7 +68,7 @@ final class SessaoLembradaModel
 
     public static function marcarUso(string $seletor): void
     {
-        Database::connection()->prepare('UPDATE sessoes_lembradas SET ultimo_uso = NOW() WHERE seletor = :s')
+        Database::connection()->prepare('UPDATE sessoes_lembradas SET ultimo_uso = ' . Sql::agora() . ' WHERE seletor = :s')
             ->execute(['s' => $seletor]);
     }
 
@@ -87,6 +88,6 @@ final class SessaoLembradaModel
 
     public static function limparExpiradas(): void
     {
-        Database::connection()->exec('DELETE FROM sessoes_lembradas WHERE expira_em <= NOW()');
+        Database::connection()->exec('DELETE FROM sessoes_lembradas WHERE expira_em <= ' . Sql::agora());
     }
 }

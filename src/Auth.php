@@ -50,7 +50,7 @@ final class Auth
     }
 
     /**
-     * Serializa conferências de senha (login e troca de senha) com GET_LOCK: conferir o
+     * Serializa conferências de senha (login e troca de senha) com uma trava nomeada: conferir o
      * bloqueio, testar a senha e registrar a falha viram uma coisa só, e rajadas em
      * paralelo não passam das 5 tentativas. Um nome só (app de 2 usuários; também cobre
      * variações de caixa/acento do mesmo login). false = não conseguiu a vez (tratar como
@@ -58,13 +58,12 @@ final class Auth
      */
     public static function travarSenha(): bool
     {
-        $stmt = Database::connection()->query("SELECT GET_LOCK('financeiro_senha', 10)");
-        return (int) $stmt->fetchColumn() === 1;
+        return Sql::travar(Database::connection(), 'financeiro_senha', 10);
     }
 
     public static function soltarSenha(): void
     {
-        Database::connection()->query("DO RELEASE_LOCK('financeiro_senha')");
+        Sql::soltar(Database::connection(), 'financeiro_senha');
     }
 
     /**
@@ -103,7 +102,7 @@ final class Auth
     {
         $pdo = Database::connection();
         $stmt = $pdo->prepare(
-            'SELECT GREATEST(0, TIMESTAMPDIFF(SECOND, NOW(), bloqueado_ate)) FROM login_tentativas
+            'SELECT ' . Sql::maior('0', Sql::segundosAte('bloqueado_ate')) . ' FROM login_tentativas
              WHERE login = :login AND bloqueado_ate IS NOT NULL'
         );
         $stmt->execute(['login' => $login]);
@@ -112,15 +111,16 @@ final class Auth
 
     private static function registrarFalha(string $login): void
     {
-        // bloqueado_ate vem ANTES de tentativas: assim a conta usa o valor antigo nos dois
-        // modos de atribuição (MySQL da esquerda pra direita; MariaDB SIMULTANEOUS_ASSIGNMENT)
-        // e o bloqueio cai exatamente na 5ª falha.
+        // bloqueado_ate vem ANTES de tentativas: assim a conta usa o valor antigo em todo modo de
+        // atribuição (MySQL da esquerda pra direita; MariaDB SIMULTANEOUS_ASSIGNMENT; SQLite, valores
+        // antigos) e o bloqueio cai exatamente na 5ª falha.
         $pdo = Database::connection();
         $pdo->prepare(
             'INSERT INTO login_tentativas (login, tentativas, bloqueado_ate) VALUES (:login, 1, NULL)
-             ON DUPLICATE KEY UPDATE
-                bloqueado_ate = IF(tentativas + 1 >= :max, NOW() + INTERVAL ' . self::BLOQUEIO_MINUTOS . ' MINUTE, bloqueado_ate),
-                tentativas = LEAST(tentativas + 1, 250)'
+             ' . Sql::aoRepetir('login', [
+                'bloqueado_ate' => Sql::se('tentativas + 1 >= :max', Sql::agoraMais(self::BLOQUEIO_MINUTOS, 'MINUTE'), 'bloqueado_ate'),
+                'tentativas'    => Sql::menor('tentativas + 1', '250'),
+            ])
         )->execute(['login' => $login, 'max' => self::MAX_TENTATIVAS]);
     }
 
@@ -133,7 +133,9 @@ final class Auth
     /** Login de verdade (senha ou cookie): id de sessão novo, usuário e versão na sessão. */
     private static function entrar(array $usuario): void
     {
-        session_regenerate_id(true);
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_regenerate_id(true);
+        }
         $_SESSION['usuario_id']    = (int) $usuario['id'];
         $_SESSION['usuario_nome']  = (string) $usuario['nome'];
         $_SESSION['sessao_versao'] = (int) $usuario['sessao_versao'];
@@ -293,7 +295,9 @@ final class Auth
                 'samesite' => $params['samesite'] ?: 'Strict',
             ]);
         }
-        session_destroy();
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_destroy();
+        }
     }
 
     public static function check(): bool
@@ -314,7 +318,9 @@ final class Auth
         if (!self::$versaoOk) {
             // "sair de todos os aparelhos" (ou usuário apagado): esta sessão morreu
             $_SESSION = [];
-            session_regenerate_id(true);
+            if (session_status() === PHP_SESSION_ACTIVE) {
+                session_regenerate_id(true);
+            }
             self::$versaoOk = null;
             return false;
         }

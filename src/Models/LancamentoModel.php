@@ -398,7 +398,7 @@ final class LancamentoModel
              JOIN categorias c ON c.id = l.categoria_id
              WHERE l.data >= :desde AND l.descricao <> c.nome
              GROUP BY l.descricao
-             ORDER BY COUNT(*) DESC, MAX(l.data) DESC
+             ORDER BY COUNT(*) DESC, MAX(l.data) DESC, l.descricao
              LIMIT ' . max(1, min(100, $limite))
         );
         $stmt->execute(['desde' => $desde]);

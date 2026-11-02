@@ -1,6 +1,7 @@
 <?php
 namespace Financeiro\Services;
 
+use Financeiro\Sql;
 use Financeiro\Config;
 use Financeiro\Database;
 use Financeiro\Models\AjusteModel;
@@ -124,8 +125,9 @@ final class MotorFinanceiro
         }
 
         $real = $n = $ult = [];
-        $sql = "SELECT DATE_FORMAT(data, '%Y-%m-01') AS mes, categoria_id, SUM(valor) AS total, COUNT(*) AS n, MAX(data) AS ult
-                FROM lancamentos GROUP BY DATE_FORMAT(data, '%Y-%m-01'), categoria_id";
+        $mesDaData = Sql::inicioMes('data');
+        $sql = "SELECT {$mesDaData} AS mes, categoria_id, SUM(valor) AS total, COUNT(*) AS n, MAX(data) AS ult
+                FROM lancamentos GROUP BY {$mesDaData}, categoria_id";
         foreach ($pdo->query($sql) as $r) {
             $m = (string) $r['mes'];
             $c = (int) $r['categoria_id'];

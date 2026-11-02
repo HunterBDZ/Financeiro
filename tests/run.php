@@ -10,6 +10,10 @@ declare(strict_types=1);
 
 error_reporting(E_ALL);
 set_error_handler(static function (int $no, string $str, string $file, int $line): bool {
+    // frankenphp php-cli começa com os cabeçalhos já enviados: header() e setcookie() só avisam
+    if (headers_sent() && str_contains($str, 'headers already sent')) {
+        return true;
+    }
     throw new \ErrorException($str, 0, $no, $file, $line);
 });
 
@@ -21,6 +25,7 @@ $_SERVER['HTTPS']          = 'on';
 require __DIR__ . '/../src/bootstrap.php';
 
 use Financeiro\Auth;
+use Financeiro\Config;
 use Financeiro\Controllers\AjustesController;
 use Financeiro\Controllers\CartaoController;
 use Financeiro\Controllers\CategoriaController;
@@ -39,6 +44,7 @@ use Financeiro\Controllers\RelatorioController;
 use Financeiro\Services\Horizonte;
 use Financeiro\Site;
 use Financeiro\SiteIcone;
+use Financeiro\Sql;
 use Financeiro\Idioma;
 use Financeiro\Controllers\FuturoController;
 use Financeiro\Controllers\LancamentosController;
@@ -187,7 +193,12 @@ if ($linhaPrevT !== null && $linhaPrevT['situacao'] !== 'REAL') {
 }
 
 // ---- 3c. idiomas: tudo traduzido, marcadores certos e telas sem sobra em português
-$rodaGerador = (string) shell_exec(escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg(__DIR__ . '/../tools/idiomas/gerar.php') . ' --json');
+$rodaGerador = (static function (): string {
+    $argv = ['gerar.php', '--json'];
+    ob_start();
+    require __DIR__ . '/../tools/idiomas/gerar.php';
+    return (string) ob_get_clean();
+})();
 $faltaIdioma = json_decode($rodaGerador, true);
 $check('idiomas: todo texto marcado tem tradução', is_array($faltaIdioma) && $faltaIdioma['en'] === [] && $faltaIdioma['es'] === [], substr($rodaGerador, 0, 300));
 foreach (['en', 'es'] as $idT) {
@@ -265,7 +276,10 @@ $tempoIni = microtime(true);
 Horizonte::garantir($longe);
 $tempoHorizonte = microtime(true) - $tempoIni;
 $alvoT = date('Y-m-01', strtotime(date('Y-m-01', strtotime($longe)) . ' +' . Horizonte::MESES_A_FRENTE . ' month'));
-$check('meses: o horizonte anda sozinho e não deixa buracos', MesModel::ultimo() === $alvoT && (int) $pdo->query('SELECT COUNT(*) FROM meses')->fetchColumn() === (int) $pdo->query("SELECT TIMESTAMPDIFF(MONTH, MIN(mes), MAX(mes)) + 1 FROM meses")->fetchColumn());
+$check('meses: o horizonte anda sozinho e não deixa buracos', MesModel::ultimo() === $alvoT && (int) $pdo->query('SELECT COUNT(*) FROM meses')->fetchColumn() === (static function () use ($pdo): int {
+    [$a, $b] = array_values($pdo->query('SELECT MIN(mes) AS a, MAX(mes) AS b FROM meses')->fetch());
+    return ((int) substr((string) $b, 0, 4) - (int) substr((string) $a, 0, 4)) * 12 + (int) substr((string) $b, 5, 2) - (int) substr((string) $a, 5, 2) + 1;
+})());
 $check('meses: conta fixa continua nos meses novos', abs(PrevisaoModel::valor($catFixo, date('Y-m-01', strtotime($ultAntes . ' +1 month'))) - 123.45) < 0.01 && abs(PrevisaoModel::valor($catFixo, $alvoT) - 123.45) < 0.01);
 $check('meses: conta pontual repete no mesmo mês do ano seguinte, e só nele', abs(PrevisaoModel::valor($catAno, date('Y-m-01', strtotime($mesAnoT . ' +1 year'))) - 777) < 0.01 && PrevisaoModel::valor($catAno, date('Y-m-01', strtotime($mesAnoT . ' +13 month'))) < 0.01);
 Horizonte::garantir($longe);
@@ -887,7 +901,7 @@ if ($catFat !== null && $catGasto > 0 && count($prevMeses) >= 3) {
         $check('cartão: a aba mostra o cartão, a escada, a fatura e o parcelamento', str_contains($htmlCt, 'class="ct-plastico"')
             && str_contains($htmlCt, 'class="ct-escada"') && str_contains($htmlCt, 'TV teste') && str_contains($htmlCt, 'class="ct-parc"')
             && !str_contains($htmlCt, 'ct-conf-tab'));
-        $antigas = (int) $pdo->query("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'cartao_compras_v1'")->fetchColumn() > 0
+        $antigas = Sql::tabelaExiste($pdo, 'cartao_compras_v1')
             ? (int) $pdo->query('SELECT COUNT(*) FROM cartao_compras_v1 v WHERE NOT EXISTS (SELECT 1 FROM cartao_compras n
                                  WHERE n.descricao = v.descricao AND n.criado_em = v.criado_em)')->fetchColumn() : 0;   // as que ainda não vieram
         $vieram = CartaoModel::importarAntigas($idC);
@@ -1109,7 +1123,7 @@ $pdo->beginTransaction();
 try {
     $uT = (int) $pdo->query('SELECT MIN(id) FROM usuarios')->fetchColumn();
     // cotação fresca e conhecida: os testes não vão à rede
-    $pdo->exec("REPLACE INTO cotacoes (moeda, valor, data, buscado_em) VALUES ('BRL', 1, CURDATE(), NOW()), ('USD', 5, '2030-01-02', NOW())");
+    $pdo->exec("REPLACE INTO cotacoes (moeda, valor, data, buscado_em) VALUES ('BRL', 1, " . Sql::hoje() . ', ' . Sql::agora() . "), ('USD', 5, '2030-01-02', " . Sql::agora() . ')');
     $pdo->exec("DELETE FROM cotacoes WHERE moeda NOT IN ('BRL', 'USD')");
     $ini = count(WishlistModel::ativos());
     $a = WishlistModel::criar('<b>Item A</b>', 'https://loja.exemplo/a', 1000.0, $uT);
@@ -1413,11 +1427,15 @@ $check('fuso: inválido não passa', !Site::fusoValido('Marte/Olympus') && !Site
 
 $moedaAntes = Site::moeda();
 $fusoAntes = Site::fuso();
+// o relógio do banco, em minutos em relação ao UTC
+$minutosDoFuso = static fn(): int => (int) round((float) $pdo->query(Sql::sqlite()
+    ? "SELECT (julianday(agora_local()) - julianday('now')) * 1440"
+    : 'SELECT TIMESTAMPDIFF(SECOND, UTC_TIMESTAMP(), NOW()) / 60')->fetchColumn());
 $pdo->beginTransaction();
 $pdo->exec("DELETE FROM ajustes WHERE chave IN ('moeda', 'fuso')");
 Site::carregar($pdo);
 $check('sem os ajustes novos: real e Brasília', Site::moeda() === 'BRL' && Site::fuso() === 'America/Sao_Paulo' && date_default_timezone_get() === 'America/Sao_Paulo');
-$check('sem os ajustes novos: a conexão fica em Brasília', $pdo->query('SELECT @@session.time_zone')->fetchColumn() === '-03:00');
+$check('sem os ajustes novos: a conexão fica em Brasília', $minutosDoFuso() === -180);
 $check('sem os ajustes novos: o dinheiro sai igual', money(1234.56) === 'R$' . NBSP . '1.234,56');
 foreach (['en', 'es'] as $idT) {
     Idioma::usar($idT);
@@ -1428,19 +1446,18 @@ Site::salvarMoeda('EUR');
 Site::salvarFuso('Asia/Kolkata');
 Site::carregar($pdo);
 $check('com os ajustes: moeda e fuso voltam do banco', Site::moeda() === 'EUR' && Site::fuso() === 'Asia/Kolkata' && date_default_timezone_get() === 'Asia/Kolkata');
-$check('com os ajustes: a conexão anda junto', $pdo->query('SELECT @@session.time_zone')->fetchColumn() === '+05:30');
-$check('com os ajustes: NOW() anda no fuso', (int) $pdo->query('SELECT TIMESTAMPDIFF(MINUTE, UTC_TIMESTAMP(), NOW() + INTERVAL 1 SECOND)')->fetchColumn() === 330);
+$check('com os ajustes: a conexão anda junto', $minutosDoFuso() === 330);
 Site::salvarFuso('America/New_York');
 Site::carregar($pdo);
-$check('com os ajustes: horário de verão na conexão', $pdo->query('SELECT @@session.time_zone')->fetchColumn() === Site::deslocamento('America/New_York'));
+$check('com os ajustes: horário de verão na conexão', $minutosDoFuso() === (int) ((new DateTimeZone('America/New_York'))->getOffset(new DateTimeImmutable()) / 60));
 $pdo->rollBack();
 Site::carregar($pdo);
 Site::usarMoeda('BRL');
 $check('a moeda e o fuso voltam ao que eram', Site::fuso() === $fusoAntes && $moedaAntes !== '');
 
-// as categorias de fábrica são as de database/instalar.php
-preg_match_all("/^    \['([^']+)', (?:'([^']+)'|null), '[A-Za-z ]+', -?1, [01]\],$/mu", (string) file_get_contents(__DIR__ . '/../database/instalar.php'), $mCat, PREG_SET_ORDER);
-$check('categorias: a lista de instalar.php foi lida', count($mCat) >= 26, (string) count($mCat));
+// as categorias de fábrica são as de src/Preparo.php
+preg_match_all("/^ +\['([^']+)', (?:'([^']+)'|null), '[A-Za-z ]+', -?1, [01]\],$/mu", (string) file_get_contents(__DIR__ . '/../src/Preparo.php'), $mCat, PREG_SET_ORDER);
+$check('categorias: a lista de Preparo.php foi lida', count($mCat) >= 26, (string) count($mCat));
 $foraDaLista = [];
 foreach ($mCat as $m) {
     foreach (array_filter([$m[1], $m[2] ?? '']) as $nome) {
@@ -1492,7 +1509,7 @@ Idioma::usar('pt');
 $pdo->beginTransaction();
 $ativoDe = static fn(string $n): int => (int) (CategoriaModel::porNome($n)['ativo'] ?? -1);
 $usoId = (int) $pdo->query("SELECT id FROM categorias WHERE nome = 'Combustível'")->fetchColumn();
-$pdo->prepare('INSERT INTO previsao (categoria_id, mes, valor) VALUES (?, ?, 1) ON DUPLICATE KEY UPDATE valor = 1')->execute([$usoId, date('Y-m-01')]);
+$pdo->prepare('INSERT INTO previsao (categoria_id, mes, valor) VALUES (?, ?, 1) ' . Sql::aoRepetir('categoria_id, mes', ['valor' => '1']))->execute([$usoId, date('Y-m-01')]);
 $idRev = (int) $pdo->query("SELECT id FROM categorias WHERE nome = 'Revisão do carro'")->fetchColumn();
 $pdo->prepare('DELETE FROM previsao WHERE categoria_id = ?')->execute([$idRev]);
 $pdo->prepare('DELETE FROM contas_recorrentes WHERE categoria_id = ?')->execute([$idRev]);
@@ -1510,6 +1527,115 @@ $check('sem cartão: a fatura sai das contas fixas', array_filter(ContaRecorrent
 AjusteModel::setValor('usa_cartao', 1.0);
 $check('com cartão: a fatura é oferecida', array_filter(ContaRecorrenteModel::categoriasElegiveis(), static fn(array $c): bool => $c['grupo'] === 'Cartao') !== []);
 $pdo->rollBack();
+
+// ---- os dois bancos se comportam igual: acento, data, dinheiro e chaves
+$pdo->beginTransaction();
+try {
+    $catB = (int) $pdo->query("SELECT id FROM categorias WHERE grupo = 'Dia a dia' AND ativo = 1 ORDER BY id LIMIT 1")->fetchColumn();
+    $hojeB = date('Y-m-d');
+    $mesB = date('Y-m-01');
+    $insB = $pdo->prepare('INSERT INTO lancamentos (data, descricao, categoria_id, valor, usuario_id) VALUES (?, ?, ?, ?, ?)');
+    $recusa = static function (array $linha) use ($insB): bool {
+        try {
+            $insB->execute($linha);
+            return false;
+        } catch (\PDOException) {
+            return true;
+        }
+    };
+    $insB->execute([$hojeB, 'Café da manhã 100%', $catB, 12.30, $uid]);
+    $idB = (int) $pdo->lastInsertId();
+    $achou = static fn(string $q): bool => in_array($idB, array_map(static fn(array $l): int => (int) $l['id'], LancamentoModel::listar($mesB, ['q' => $q])), true);
+    $check('busca: sem acento acha com acento', $achou('cafe'));
+    $check('busca: sem caixa', $achou('CAFÉ DA'));
+    $check('busca: com acento acha igual', $achou('manha'));
+    $check('busca: % é literal', $achou('100%') && !$achou('10%0'));
+    $check('busca: palavra que não existe', !$achou('cafeteria'));
+    $st = $pdo->prepare('SELECT COUNT(*) FROM lancamentos WHERE id = ? AND descricao = ?');
+    $st->execute([$idB, 'CAFE DA MANHA 100%']);
+    $check('coluna de texto: igual sem acento e sem caixa', (int) $st->fetchColumn() === 1);
+    $check('data inválida é recusada', $recusa(['2026-02-31', 'x', $catB, 1, $uid]) && $recusa(['nao-data', 'x', $catB, 1, $uid]));
+    $check('valor que não é número é recusado', $recusa([$hojeB, 'x', $catB, 'abc', $uid]));
+    $check('valor zero ou negativo é recusado', $recusa([$hojeB, 'x', $catB, 0, $uid]) && $recusa([$hojeB, 'x', $catB, -1, $uid]));
+    $check('texto maior que a coluna é recusado', $recusa([$hojeB, str_repeat('x', 256), $catB, 1, $uid]));
+    $check('chave estrangeira vale', $recusa([$hojeB, 'x', 99999999, 1, $uid]));
+    $lido = $pdo->prepare('SELECT valor FROM lancamentos WHERE id = ?');
+    $centavos = static function (float|string $v) use ($insB, $pdo, $hojeB, $catB, $uid, $lido): string {
+        $insB->execute([$hojeB, 'arredonda', $catB, $v, $uid]);
+        $lido->execute([(int) $pdo->lastInsertId()]);
+        return number_format((float) $lido->fetchColumn(), 2, '.', '');
+    };
+    $check('dinheiro: arredonda como DECIMAL', $centavos('1.005') === '1.01' && $centavos('2.675') === '2.68' && $centavos('0.125') === '0.13' && $centavos('10.994') === '10.99' && $centavos('999.995') === '1000.00', $centavos('1.005'));
+    $check('dinheiro: valor em float', $centavos(1.005) === '1.01' && $centavos(33.335) === '33.34');
+    $check('dinheiro: valor muito pequeno vira zero e é recusado', $recusa([$hojeB, 'x', $catB, '0.001', $uid]));
+    $pdo->prepare('DELETE FROM lancamentos WHERE data = ? AND categoria_id = ?')->execute(['2031-05-10', $catB]);
+    foreach (['0.10', '0.20', '0.70', '1000000.01', '0.02'] as $vB) {
+        $insB->execute(['2031-05-10', 'soma', $catB, $vB, $uid]);
+    }
+    $somaB = $pdo->prepare('SELECT SUM(valor) FROM lancamentos WHERE data = ? AND categoria_id = ?');
+    $somaB->execute(['2031-05-10', $catB]);
+    $check('dinheiro: soma exata no centavo', (float) $somaB->fetchColumn() === 1000001.03);
+    $mesFmt = $pdo->prepare('SELECT ' . Sql::inicioMes('data') . ' AS m, ' . Sql::diaDoMes('data') . ' AS d, ' . Sql::mesSeguinte('data') . ' AS s FROM lancamentos WHERE data = ? LIMIT 1');
+    $mesFmt->execute(['2031-05-10']);
+    $linhaFmt = $mesFmt->fetch();
+    $check('datas no SQL: início do mês, dia e mês seguinte', $linhaFmt['m'] === '2031-05-01' && (int) $linhaFmt['d'] === 10 && $linhaFmt['s'] === '2031-06-10');
+    $check('ORDER BY posição na lista', (int) $pdo->query('SELECT ' . Sql::posicao("'b'", ['a', 'b']) . ' AS p')->fetchColumn() === 2);
+    $check('agora e agora mais um intervalo', (int) $pdo->query('SELECT ' . Sql::agoraMais(1, 'DAY') . ' > ' . Sql::agora())->fetchColumn() === 1 && (int) $pdo->query('SELECT ' . Sql::agoraMais(-1, 'DAY') . ' < ' . Sql::agora())->fetchColumn() === 1);
+    $check('segundos até uma hora marcada', abs((int) $pdo->query('SELECT ' . Sql::segundosAte(Sql::agoraMais(90, 'SECOND')))->fetchColumn() - 90) <= 1);
+    $check('maior e menor de dois', (int) $pdo->query('SELECT ' . Sql::maior('2', '5'))->fetchColumn() === 5 && (int) $pdo->query('SELECT ' . Sql::menor('2', '5'))->fetchColumn() === 2);
+    $pdo->exec("UPDATE ajustes SET atualizado_em = '2000-01-01 00:00:00' WHERE chave = 'saldo_ini'");
+    $pdo->exec("UPDATE ajustes SET label = 'Outro rótulo' WHERE chave = 'saldo_ini'");
+    $check('atualizado_em anda quando a linha muda', (string) $pdo->query("SELECT atualizado_em FROM ajustes WHERE chave = 'saldo_ini'")->fetchColumn() !== '2000-01-01 00:00:00');
+    $pdo->exec("UPDATE ajustes SET atualizado_em = '2000-01-01 00:00:00' WHERE chave = 'saldo_ini'");
+    $pdo->exec("UPDATE ajustes SET label = 'Outro rótulo' WHERE chave = 'saldo_ini'");
+    $check('atualizado_em fica quando nada muda', (string) $pdo->query("SELECT atualizado_em FROM ajustes WHERE chave = 'saldo_ini'")->fetchColumn() === '2000-01-01 00:00:00');
+    $binario = "\xFF\xD8\x00\x01'\"\\ \xC3\x28" . random_bytes(32);
+    SiteIcone::salvar('image/png', $binario);
+    $check('imagem: os bytes voltam iguais, com NUL e tudo', SiteIcone::arquivo()['dados'] === $binario);
+    $check('trava nomeada: pega e solta', Sql::travar($pdo, 'financeiro_teste', 1));
+    Sql::soltar($pdo, 'financeiro_teste');
+    $check('tabela existe', Sql::tabelaExiste($pdo, 'lancamentos') && !Sql::tabelaExiste($pdo, 'nao_existe'));
+    foreach ($pdo->query('SELECT COUNT(*) AS n FROM categorias') as $linhaB) {
+        $pdo->exec("UPDATE ajustes SET confirmado = confirmado WHERE chave = 'nenhuma'");
+        $check('ler e gravar na mesma volta do laço', (int) $linhaB['n'] > 0);
+    }
+} finally {
+    $pdo->rollBack();
+}
+
+// ---- comparação de texto, sem banco
+$ordenados = ['-x', '1a', 'água', 'Bola', 'çã', 'Élan', 'zebra'];
+$embaralhados = ['zebra', 'Élan', '1a', 'çã', 'Bola', '-x', 'água'];
+usort($embaralhados, [\Financeiro\Colacao::class, 'comparar']);
+$check('colação: símbolos, dígitos, letras', $embaralhados === $ordenados, implode(' ', $embaralhados));
+$check('colação: acento e caixa são iguais', \Financeiro\Colacao::comparar('ÁGUA', 'agua') === 0 && \Financeiro\Colacao::comparar('Coração', 'coracao') === 0);
+$check('colação: espaço no fim conta', \Financeiro\Colacao::comparar('a ', 'a') !== 0);
+$check('like: curinga e escape', \Financeiro\Colacao::like('%CAFÉ%', 'um cafe bom') && \Financeiro\Colacao::like('a_c', 'açc') && !\Financeiro\Colacao::like('a!%', 'ab', '!') && \Financeiro\Colacao::like('a!%', 'a%', '!'));
+$check('DECIMAL: meio para longe do zero', \Financeiro\Colacao::decimal(1.005, 2) === 1.01 && \Financeiro\Colacao::decimal('-2.675', 2) === -2.68 && \Financeiro\Colacao::decimal(0.00004, 4) === 0.0 && \Financeiro\Colacao::decimal(0.00005, 4) === 0.0001 && \Financeiro\Colacao::decimal(5.123456785, 8) === 5.12345679 && \Financeiro\Colacao::decimal(null, 2) === null);
+
+// ---- primeira execução, Host e pasta de dados, sem rede
+$h = [\Financeiro\Rede::class, 'hostAceito'];
+$check('Host: no computador da pessoa, só o local', $h('localhost:8484', 'instalador', false, '', 'pc') && $h('127.0.0.1:8484', 'instalador', false, '', 'pc') && $h('[::1]:8484', 'instalador', false, '', 'pc'));
+$check('Host: página de fora é recusada', !$h('atacante.example', 'instalador', false, '', 'pc') && !$h('atacante.example', 'instalador', true, '', 'pc') && !$h('', 'instalador', false, '', 'pc'));
+$check('Host: IP da rede só com o acesso ligado', !$h('192.168.0.9:8484', 'instalador', false, '', 'pc') && $h('192.168.0.9:8484', 'instalador', true, '', 'pc') && $h('pc.local', 'instalador', true, '', 'pc'));
+$check('Host: IP público é recusado mesmo com a rede ligada', !$h('8.8.8.8', 'instalador', true, '', 'pc'));
+$check('Host: nome permitido', $h('financeiro.casa', 'instalador', false, 'financeiro.casa, outro', 'pc'));
+$check('Host: modo servidor não muda sem lista', $h('qualquer.example', 'servidor', false, '', 'pc') && !$h('qualquer.example', 'servidor', false, 'financeiro.casa', 'pc') && $h('financeiro.casa', 'servidor', false, 'financeiro.casa', 'pc'));
+$check('endereço local', \Financeiro\Rede::ehLocal('127.0.0.1') && \Financeiro\Rede::ehLocal('::1') && \Financeiro\Rede::ehLocal('::ffff:127.0.0.1') && !\Financeiro\Rede::ehLocal('192.168.0.9') && !\Financeiro\Rede::ehLocal(''));
+$httpsAntes = $_SERVER['HTTPS'] ?? null;
+unset($_SERVER['HTTPS']);
+$_SERVER['HTTP_X_FORWARDED_PROTO'] = 'https';
+$check('X-Forwarded-Proto só vale se permitido', Config::get('CONFIAR_PROXY', '0') === '1' || !\Financeiro\Rede::https());
+unset($_SERVER['HTTP_X_FORWARDED_PROTO']);
+$_SERVER['HTTPS'] = $httpsAntes;
+$tudo = ['mbstring' => true, 'session' => true, 'zlib' => true, 'json' => true, 'ctype' => true, 'pdo' => true, 'pdo_sqlite' => true, 'pdo_mysql' => false];
+$check('diagnóstico: com tudo, nada a dizer', \Financeiro\Preflight::faltando(80400, $tudo, 'sqlite') === []);
+$check('diagnóstico: PHP antigo, extensão e banco', count(\Financeiro\Preflight::faltando(80300, $tudo, 'sqlite')) === 1 && count(\Financeiro\Preflight::faltando(80400, ['mbstring' => false] + $tudo, 'sqlite')) === 1 && count(\Financeiro\Preflight::faltando(80400, $tudo, 'mysql')) === 1 && count(\Financeiro\Preflight::faltando(80400, $tudo, 'oracle')) === 1);
+$check('caminho absoluto', \Financeiro\Paths::absoluto('/a') && \Financeiro\Paths::absoluto('C:\\a') && \Financeiro\Paths::absoluto('C:/a') && !\Financeiro\Paths::absoluto('a/b'));
+$remoteAntes = $_SERVER['REMOTE_ADDR'] ?? null;
+$_SERVER['REMOTE_ADDR'] = '192.168.0.9';
+$check('primeira conta: endereço de fora, mas a linha de comando é local', \Financeiro\Rede::requisicaoLocal());
+$_SERVER['REMOTE_ADDR'] = $remoteAntes;
 
 echo "\n{$ok} ok, {$falhas} falha(s)\n";
 exit($falhas > 0 ? 1 : 0);

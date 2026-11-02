@@ -1,6 +1,7 @@
 <?php
 namespace Financeiro\Models;
 
+use Financeiro\Sql;
 use Financeiro\Database;
 
 /** Itens da Wishlist. `posicao` é a ordem da lista; excluir é reversível (some de vez depois de 30 dias). */
@@ -53,9 +54,16 @@ final class WishlistModel
     /** @param array{tipo:string, largura:int, altura:int, dados:string} $foto */
     public static function salvarFoto(int $id, array $foto): void
     {
-        Database::connection()->prepare(
+        $st = Database::connection()->prepare(
             'REPLACE INTO wishlist_fotos (item_id, tipo, largura, altura, hash, dados) VALUES (?, ?, ?, ?, ?, ?)'
-        )->execute([$id, $foto['tipo'], $foto['largura'], $foto['altura'], sha1($foto['dados']), $foto['dados']]);
+        );
+        $st->bindValue(1, $id, \PDO::PARAM_INT);
+        $st->bindValue(2, $foto['tipo']);
+        $st->bindValue(3, $foto['largura'], \PDO::PARAM_INT);
+        $st->bindValue(4, $foto['altura'], \PDO::PARAM_INT);
+        $st->bindValue(5, sha1($foto['dados']));
+        $st->bindValue(6, $foto['dados'], \PDO::PARAM_LOB);
+        $st->execute();
     }
 
     public static function removerFoto(int $id): void
@@ -116,8 +124,8 @@ final class WishlistModel
     public static function excluir(int $id): void
     {
         $pdo = Database::connection();
-        $pdo->prepare('UPDATE wishlist_itens SET excluido_em = NOW() WHERE id = ?')->execute([$id]);
-        $pdo->exec('DELETE FROM wishlist_itens WHERE excluido_em < NOW() - INTERVAL 30 DAY');
+        $pdo->prepare('UPDATE wishlist_itens SET excluido_em = ' . Sql::agora() . ' WHERE id = ?')->execute([$id]);
+        $pdo->exec('DELETE FROM wishlist_itens WHERE excluido_em < ' . Sql::agoraMais(-30, 'DAY'));
     }
 
     public static function restaurar(int $id): void

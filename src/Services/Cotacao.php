@@ -1,6 +1,7 @@
 <?php
 namespace Financeiro\Services;
 
+use Financeiro\Sql;
 use Financeiro\Database;
 use Financeiro\Site;
 
@@ -78,10 +79,10 @@ final class Cotacao
     public static function atuais(): array
     {
         $pdo = Database::connection();
-        $velha = (int) $pdo->query("SELECT COUNT(*) FROM cotacoes WHERE moeda = 'BRL' AND buscado_em > NOW() - INTERVAL " . self::HORAS . ' HOUR')->fetchColumn() === 0;
+        $velha = (int) $pdo->query("SELECT COUNT(*) FROM cotacoes WHERE moeda = 'BRL' AND buscado_em > " . Sql::agoraMais(-self::HORAS, 'HOUR'))->fetchColumn() === 0;
         if ($velha) {
-            $pdo->exec("REPLACE INTO cotacoes (moeda, valor, data, buscado_em) VALUES ('BRL', 1, CURDATE(), NOW())");
-            $st = $pdo->prepare('REPLACE INTO cotacoes (moeda, valor, data, buscado_em) VALUES (?, ?, ?, NOW())');
+            $pdo->exec("REPLACE INTO cotacoes (moeda, valor, data, buscado_em) VALUES ('BRL', 1, " . Sql::hoje() . ', ' . Sql::agora() . ')');
+            $st = $pdo->prepare('REPLACE INTO cotacoes (moeda, valor, data, buscado_em) VALUES (?, ?, ?, ' . Sql::agora() . ')');
             foreach (self::buscar() as $moeda => $t) {
                 $st->execute([$moeda, $t['valor'], $t['data']]);
             }

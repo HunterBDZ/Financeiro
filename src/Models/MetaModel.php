@@ -1,6 +1,7 @@
 <?php
 namespace Financeiro\Models;
 
+use Financeiro\Sql;
 use Financeiro\Database;
 
 /**
@@ -36,7 +37,7 @@ final class MetaModel
         $pdo = Database::connection();
         $stmt = $pdo->prepare(
             'INSERT INTO metas (categoria_id, valor) VALUES (:id, :v)
-             ON DUPLICATE KEY UPDATE valor = VALUES(valor)'
+             ' . Sql::aoRepetir('categoria_id', ['valor' => null])
         );
         $stmt->execute(['id' => $categoriaId, 'v' => round($valor, 2)]);
     }

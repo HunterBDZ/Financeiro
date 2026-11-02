@@ -39,7 +39,11 @@ final class SiteIcone
 
     public static function salvar(string $tipo, string $dados): void
     {
-        Database::connection()->prepare('REPLACE INTO site_icone (id, tipo, hash, dados) VALUES (1, ?, ?, ?)')->execute([$tipo, sha1($dados), $dados]);
+        $st = Database::connection()->prepare('REPLACE INTO site_icone (id, tipo, hash, dados) VALUES (1, ?, ?, ?)');
+        $st->bindValue(1, $tipo);
+        $st->bindValue(2, sha1($dados));
+        $st->bindValue(3, $dados, \PDO::PARAM_LOB);
+        $st->execute();
         self::$lido = false;
     }
 

@@ -1,6 +1,7 @@
 <?php
 namespace Financeiro\Models;
 
+use Financeiro\Sql;
 use Financeiro\Database;
 
 final class UsuarioModel
@@ -123,7 +124,7 @@ final class UsuarioModel
 
     public static function marcarLogin(int $id): void
     {
-        Database::connection()->prepare('UPDATE usuarios SET ultimo_login = NOW() WHERE id = :id')
+        Database::connection()->prepare('UPDATE usuarios SET ultimo_login = ' . Sql::agora() . ' WHERE id = :id')
             ->execute(['id' => $id]);
     }
 }

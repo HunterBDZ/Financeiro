@@ -1,6 +1,7 @@
 <?php
 namespace Financeiro\Models;
 
+use Financeiro\Sql;
 use Financeiro\Database;
 
 final class CategoriaModel
@@ -16,7 +17,7 @@ final class CategoriaModel
             'SELECT id, nome, apelido, icone, grupo, sinal, operacional, essencial
              FROM categorias
              WHERE ativo = 1
-             ORDER BY FIELD(grupo, "Entradas","Fixos","Dia a dia","Cartao","Ano","Emprestimo","Poupanca","Investimento"), ordem, nome'
+             ORDER BY ' . Sql::posicao('grupo', ['Entradas', 'Fixos', 'Dia a dia', 'Cartao', 'Ano', 'Emprestimo', 'Poupanca', 'Investimento']) . ', ordem, nome'
         );
         return $stmt->fetchAll();
     }
@@ -52,7 +53,7 @@ final class CategoriaModel
             'SELECT id, nome, apelido, grupo, sinal, operacional, essencial
              FROM categorias
              WHERE ativo = 1 AND operacional = 1 AND sinal = -1
-             ORDER BY FIELD(grupo, "Fixos","Dia a dia","Cartao","Ano"), ordem, nome'
+             ORDER BY ' . Sql::posicao('grupo', ['Fixos', 'Dia a dia', 'Cartao', 'Ano']) . ', ordem, nome'
         );
         return $stmt->fetchAll();
     }

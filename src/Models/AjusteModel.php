@@ -1,6 +1,7 @@
 <?php
 namespace Financeiro\Models;
 
+use Financeiro\Sql;
 use Financeiro\Database;
 
 final class AjusteModel
@@ -75,7 +76,7 @@ final class AjusteModel
     {
         $pdo = Database::connection();
         $stmt = $pdo->query('SELECT chave, label, valor, confirmado FROM ajustes ORDER BY
-            FIELD(chave, "saldo_ini","poupanca_ini","investimentos_ini","recebido_emprestimo","parcela_mensal","n_parcelas","juros_mes","consignado_inicio","reserva_minima","meta_final","objetivo")');
+            ' . Sql::posicao('chave', ['saldo_ini', 'poupanca_ini', 'investimentos_ini', 'recebido_emprestimo', 'parcela_mensal', 'n_parcelas', 'juros_mes', 'consignado_inicio', 'reserva_minima', 'meta_final', 'objetivo']));
         return $stmt->fetchAll();
     }
 
@@ -102,7 +103,7 @@ final class AjusteModel
         $pdo = Database::connection();
         $stmt = $pdo->prepare(
             'INSERT INTO ajustes (chave, label, valor, confirmado) VALUES (:chave, :label, :valor, 0)
-             ON DUPLICATE KEY UPDATE valor = VALUES(valor)'
+             ' . Sql::aoRepetir('chave', ['valor' => null])
         );
         $stmt->execute(['chave' => $chave, 'label' => $chave, 'valor' => $valor]);
     }

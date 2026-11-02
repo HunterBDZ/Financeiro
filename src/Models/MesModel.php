@@ -1,6 +1,7 @@
 <?php
 namespace Financeiro\Models;
 
+use Financeiro\Sql;
 use Financeiro\Database;
 
 final class MesModel
@@ -17,7 +18,7 @@ final class MesModel
     public static function ensureExists(string $mes): void
     {
         $pdo = Database::connection();
-        $stmt = $pdo->prepare('INSERT IGNORE INTO meses (mes, situacao) VALUES (:mes, "PREVISAO")');
+        $stmt = $pdo->prepare(Sql::inserirIgnorando() . " INTO meses (mes, situacao) VALUES (:mes, 'PREVISAO')");
         $stmt->execute(['mes' => $mes]);
     }
 
@@ -28,7 +29,7 @@ final class MesModel
         }
         self::ensureExists($mes);
         $pdo = Database::connection();
-        $stmt = $pdo->prepare('UPDATE meses SET situacao = :sit, fechado_em = IF(:real = 1, NOW(), NULL) WHERE mes = :mes');
+        $stmt = $pdo->prepare('UPDATE meses SET situacao = :sit, fechado_em = ' . Sql::se(':real = 1', Sql::agora(), 'NULL') . ' WHERE mes = :mes');
         $stmt->execute(['sit' => $situacao, 'real' => $situacao === 'REAL' ? 1 : 0, 'mes' => $mes]);
     }
 

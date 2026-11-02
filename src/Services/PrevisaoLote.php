@@ -1,6 +1,7 @@
 <?php
 namespace Financeiro\Services;
 
+use Financeiro\Sql;
 use Financeiro\Database;
 use Financeiro\Models\AjusteModel;
 use Financeiro\Models\PrevisaoModel;
@@ -42,8 +43,8 @@ final class PrevisaoLote
         try {
             // situação dos meses (trava as linhas: ninguém fecha o mês no meio da gravação)
             $sit = [];
-            $stSit = $pdo->prepare('SELECT situacao FROM meses WHERE mes = :mes FOR UPDATE');
-            $stAntes = $pdo->prepare('SELECT valor FROM previsao WHERE categoria_id = :c AND mes = :m FOR UPDATE');
+            $stSit = $pdo->prepare('SELECT situacao FROM meses WHERE mes = :mes' . Sql::travandoLinhas());
+            $stAntes = $pdo->prepare('SELECT valor FROM previsao WHERE categoria_id = :c AND mes = :m' . Sql::travandoLinhas());
             $mudar = [];
             foreach ($celulas as $cel) {
                 $valor = $cel[2] ?? null;
@@ -131,7 +132,7 @@ final class PrevisaoLote
             $pdo->beginTransaction();
         }
         try {
-            $st = $pdo->prepare('SELECT * FROM previsao_lotes WHERE lote = :l FOR UPDATE');
+            $st = $pdo->prepare('SELECT * FROM previsao_lotes WHERE lote = :l' . Sql::travandoLinhas());
             $st->execute(['l' => $lote]);
             $info = $st->fetch();
             if (!$info) {
@@ -151,7 +152,7 @@ final class PrevisaoLote
             $stAtual = $pdo->prepare(
                 "SELECT p.valor, m.situacao FROM meses m
                  LEFT JOIN previsao p ON p.mes = m.mes AND p.categoria_id = :c
-                 WHERE m.mes = :m FOR UPDATE"
+                 WHERE m.mes = :m" . Sql::travandoLinhas()
             );
             $restauradas = 0;
             foreach ($log as $l) {
@@ -176,7 +177,7 @@ final class PrevisaoLote
                 AjusteModel::setValor('objetivo', (float) $info['objetivo_antes']);
             }
 
-            $pdo->prepare('UPDATE previsao_lotes SET desfeito_em = CURRENT_TIMESTAMP WHERE lote = :l')->execute(['l' => $lote]);
+            $pdo->prepare('UPDATE previsao_lotes SET desfeito_em = ' . Sql::agora() . ' WHERE lote = :l')->execute(['l' => $lote]);
 
             if ($abriu) {
                 $pdo->commit();
@@ -204,7 +205,7 @@ final class PrevisaoLote
             'SELECT l.lote, l.origem, l.criado_em, l.mes_inicio, l.usuario_id,
                     (SELECT COUNT(*) FROM previsao_log g WHERE g.lote = l.lote) AS n
              FROM previsao_lotes l
-             WHERE l.desfeito_em IS NULL AND l.origem NOT IN (\'congelar\', \'cartao\') AND l.criado_em >= (NOW() - INTERVAL 7 DAY)
+             WHERE l.desfeito_em IS NULL AND l.origem NOT IN (\'congelar\', \'cartao\') AND l.criado_em >= (' . Sql::agoraMais(-7, 'DAY') . ')
              ORDER BY l.criado_em DESC,
                       (SELECT COALESCE(MAX(g2.id), 0) FROM previsao_log g2 WHERE g2.lote = l.lote) DESC
              LIMIT 1'

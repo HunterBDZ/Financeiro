@@ -1,6 +1,7 @@
 <?php
 namespace Financeiro\Models;
 
+use Financeiro\Sql;
 use Financeiro\Database;
 
 /**
@@ -40,8 +41,8 @@ final class CartaoModel
     public static function importarAntigas(int $cartaoId): int
     {
         $pdo = Database::connection();
-        $existe = $pdo->query("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'cartao_compras_v1'")->fetchColumn();
-        if ((int) $existe === 0) {
+        // esta tabela só existe em site antigo, em MySQL; o SQLite nunca chega ao INSERT abaixo
+        if (!Sql::tabelaExiste($pdo, 'cartao_compras_v1')) {
             return 0;
         }
         $st = $pdo->prepare(
@@ -137,7 +138,7 @@ final class CartaoModel
     public static function pagamentos(int $categoriaFatura): array
     {
         $st = Database::connection()->prepare(
-            "SELECT DATE_FORMAT(data, '%Y-%m-01') AS mes, SUM(valor) AS v FROM lancamentos WHERE categoria_id = :c GROUP BY mes"
+            'SELECT ' . Sql::inicioMes('data') . ' AS mes, SUM(valor) AS v FROM lancamentos WHERE categoria_id = :c GROUP BY mes'
         );
         $st->execute(['c' => $categoriaFatura]);
         $out = [];

@@ -156,7 +156,7 @@ final class Site
     {
         self::$fuso = $fuso;
         date_default_timezone_set($fuso);
-        // NOW() e CURRENT_TIMESTAMP acompanham o PHP; pelo deslocamento, porque as tabelas de fuso do MySQL podem estar vazias
-        $pdo->exec("SET time_zone = '" . self::deslocamento($fuso) . "'");
+        // o relógio do banco acompanha o do PHP; pelo deslocamento, porque as tabelas de fuso do MySQL podem estar vazias
+        Sql::fusoDaConexao($pdo, self::deslocamento($fuso));
     }
 }
