@@ -11,6 +11,7 @@ use Financeiro\Controllers\CategoriaController;
 use Financeiro\Controllers\FuturoController;
 use Financeiro\Controllers\AjudaController;
 use Financeiro\Controllers\AjustesController;
+use Financeiro\Controllers\DuasEtapasController;
 use Financeiro\Controllers\CartaoController;
 use Financeiro\Controllers\EmprestimoController;
 use Financeiro\Controllers\WishlistController;
@@ -26,6 +27,8 @@ $router = new Router();
 // ---- sessão
 $router->get('/login', [AuthController::class, 'form']);
 $router->post('/login', [AuthController::class, 'login']);
+$router->get('/login/codigo', [AuthController::class, 'codigoForm']);
+$router->post('/login/codigo', [AuthController::class, 'codigo']);
 $router->get('/criar-conta', [AuthController::class, 'criarContaForm']);
 $router->post('/criar-conta', [AuthController::class, 'criarConta']);
 $router->post('/logout', [AuthController::class, 'logout']);
@@ -125,6 +128,10 @@ $router->post('/ajustes/icone', [AjustesController::class, 'salvarIcone']);
 $router->post('/ajustes/icone/remover', [AjustesController::class, 'removerIcone']);
 $router->get('/icone', [AjustesController::class, 'icone']);
 $router->post('/ajustes/aparelhos/sair', [AjustesController::class, 'sairAparelhos']);
+$router->get('/ajustes/duas-etapas', [DuasEtapasController::class, 'index']);
+$router->post('/ajustes/duas-etapas/ligar', [DuasEtapasController::class, 'ligar']);
+$router->get('/ajustes/duas-etapas/codigos', [DuasEtapasController::class, 'codigos']);
+$router->post('/ajustes/duas-etapas/desligar', [DuasEtapasController::class, 'desligar']);
 
 // ---- backup, atualização e acesso pela rede
 $router->get('/sistema', [SistemaController::class, 'index']);

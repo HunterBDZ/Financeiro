@@ -16,6 +16,9 @@ use Financeiro\Models\UsuarioModel;
  *
  * Sessões vivas: todo login grava $_SESSION['sessao_versao']; requireLogin() compara com
  * usuarios.sessao_versao (1 SELECT por página). sairDeTodos() incrementa a versão.
+ *
+ * Verificação em duas etapas (DuasEtapas): depois da senha, primeiroPasso() deixa a pessoa esperando o código, e
+ * segundoPasso() entra. O aparelho lembrado entra sem o código, porque o cookie nasceu de um login completo.
  */
 final class Auth
 {
@@ -24,13 +27,29 @@ final class Auth
 
     public const COOKIE_LEMBRAR = 'financeiro_lembrar';
 
+    /** Na sessão: quem acertou a senha e ainda deve o código da verificação em duas etapas. */
+    private const PENDENTE = 'duas_etapas_pendente';
+    private const PENDENTE_SEGUNDOS = 300;
+
     /** Resultado da conferência de versão nesta requisição (null = ainda não conferiu). */
     private static ?bool $versaoOk = null;
 
     /** Esta requisição entrou pelo cookie `financeiro_lembrar` (sessão nova, token CSRF novo). */
     private static bool $restaurado = false;
 
+    /** Entra só com a senha. Com a verificação em duas etapas ligada, não entra: veja primeiroPasso(). */
     public static function attempt(string $login, string $senha): bool
+    {
+        return self::primeiroPasso($login, $senha, false) === 'entrou';
+    }
+
+    /**
+     * A senha, primeira parte do login. Chamar com a trava (travarSenha) e depois de conferir o bloqueio.
+     * 'errada' | 'entrou' | 'codigo': a senha confere, e a conta pede o código do app autenticador. Nesse caso, a
+     * sessão guarda quem está entrando por 5 minutos, e as tentativas erradas não zeram: elas só zeram com o código
+     * certo, senão quem tem a senha ganharia 5 chutes a cada vez que a digitasse de novo.
+     */
+    public static function primeiroPasso(string $login, string $senha, bool $lembrar): string
     {
         $pdo = Database::connection();
         $stmt = $pdo->prepare('SELECT id, nome, senha_hash, sessao_versao FROM usuarios WHERE login = :login LIMIT 1');
@@ -41,12 +60,111 @@ final class Auth
             // mesma mensagem/tempo pra login inexistente ou senha errada, evita enumeração de usuário
             usleep(random_int(150000, 300000));
             self::registrarFalha($login);
-            return false;
+            return 'errada';
+        }
+
+        if (DuasEtapas::ligada((int) $usuario['id'])) {
+            if (session_status() === PHP_SESSION_ACTIVE) {
+                session_regenerate_id(true);
+            }
+            $_SESSION[self::PENDENTE] = ['id' => (int) $usuario['id'], 'login' => $login, 'lembrar' => $lembrar, 'ate' => time() + self::PENDENTE_SEGUNDOS];
+            return 'codigo';
         }
 
         self::limparTentativas($login);
         self::entrar($usuario);
-        return true;
+        return 'entrou';
+    }
+
+    /** Quem passou da senha e falta o código; null se ninguém, ou se passou de 5 minutos. */
+    public static function esperandoCodigo(): ?array
+    {
+        $p = $_SESSION[self::PENDENTE] ?? null;
+        if (!is_array($p) || !isset($p['id'], $p['login'], $p['ate']) || (int) $p['ate'] < time()) {
+            unset($_SESSION[self::PENDENTE]);
+            return null;
+        }
+        return $p;
+    }
+
+    public static function esquecerCodigo(): void
+    {
+        unset($_SESSION[self::PENDENTE]);
+    }
+
+    /**
+     * O código do app autenticador, ou um de recuperação, segunda parte do login. Conta no mesmo limite da senha.
+     * 'entrou' | 'errado' | 'bloqueado' | 'expirou'.
+     */
+    public static function segundoPasso(string $codigo, ?int $instante = null): string
+    {
+        $p = self::esperandoCodigo();
+        if ($p === null) {
+            return 'expirou';
+        }
+        $login = (string) $p['login'];
+        if (!self::travarSenha()) {
+            return 'bloqueado';
+        }
+        try {
+            if (self::segundosBloqueado($login) > 0) {
+                self::esquecerCodigo();
+                return 'bloqueado';
+            }
+            if (!DuasEtapas::conferirDaConta((int) $p['id'], $codigo, $instante)) {
+                usleep(random_int(150000, 300000));
+                self::registrarFalha($login);
+                if (self::segundosBloqueado($login) > 0) {
+                    self::esquecerCodigo();
+                    return 'bloqueado';
+                }
+                return 'errado';
+            }
+            $stmt = Database::connection()->prepare('SELECT id, nome, sessao_versao FROM usuarios WHERE id = ?');
+            $stmt->execute([(int) $p['id']]);
+            $usuario = $stmt->fetch();
+            self::esquecerCodigo();
+            if (!$usuario) {
+                return 'expirou';
+            }
+            self::limparTentativas($login);
+            self::entrar($usuario);
+            return 'entrou';
+        } finally {
+            self::soltarSenha();
+        }
+    }
+
+    /**
+     * Senha e código de quem já está logado (desligar a verificação), contados juntos no limite do login: só zera
+     * se os dois conferem. O código só é testado com a senha certa, para não gastar um de recuperação à toa.
+     * 'ok' | 'errada' | 'bloqueado'.
+     */
+    public static function conferirSenhaECodigo(int $usuarioId, string $senha, string $codigo, ?int $instante = null): string
+    {
+        $usuario = UsuarioModel::find($usuarioId);
+        $hash = UsuarioModel::senhaHash($usuarioId);
+        if ($usuario === null || $hash === null) {
+            return 'errada';
+        }
+        $login = (string) $usuario['login'];
+        if (!self::travarSenha()) {
+            return 'bloqueado';
+        }
+        try {
+            if (self::segundosBloqueado($login) > 0) {
+                return 'bloqueado';
+            }
+            if (password_verify($senha, $hash) && DuasEtapas::conferirDaConta($usuarioId, $codigo, $instante)) {
+                self::limparTentativas($login);
+                return 'ok';
+            }
+            usleep(random_int(150000, 300000));
+            self::registrarFalha($login);
+            return self::segundosBloqueado($login) > 0 ? 'bloqueado' : 'errada';
+        } finally {
+            self::soltarSenha();
+        }
     }
 
     /**

@@ -99,6 +99,18 @@ CREATE TABLE `contas_recorrentes` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `duas_etapas_recuperacao` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `usuario_id` int unsigned NOT NULL,
+  `codigo_hash` varchar(255) NOT NULL,
+  `criado_em` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_recuperacao_usuario` (`usuario_id`),
+  CONSTRAINT `fk_recuperacao_usuario` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `lancamentos` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `data` date NOT NULL,
@@ -302,6 +314,8 @@ CREATE TABLE `usuarios` (
   `sessao_versao` int unsigned NOT NULL DEFAULT '0',
   `tema` varchar(24) DEFAULT NULL,
   `idioma` varchar(5) DEFAULT NULL,
+  `duas_etapas_segredo` varchar(255) DEFAULT NULL,
+  `duas_etapas_passo` int unsigned DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `login` (`login`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;

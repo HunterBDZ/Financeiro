@@ -14,6 +14,8 @@ CREATE TABLE usuarios (
   sessao_versao INTEGER NOT NULL DEFAULT 0 CHECK (sessao_versao >= 0),
   tema TEXT CHECK (length(tema) <= 24),
   idioma TEXT CHECK (length(idioma) <= 5),
+  duas_etapas_segredo TEXT CHECK (length(duas_etapas_segredo) <= 255),
+  duas_etapas_passo INTEGER CHECK (duas_etapas_passo >= 0),
   UNIQUE (login)
 ) STRICT;
 
@@ -203,6 +205,14 @@ CREATE TABLE sessoes_lembradas (
   ultimo_uso TEXT CHECK (ultimo_uso IS datetime(ultimo_uso))
 ) STRICT;
 CREATE INDEX idx_lembradas_usuario ON sessoes_lembradas (usuario_id);
+
+CREATE TABLE duas_etapas_recuperacao (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  usuario_id INTEGER NOT NULL REFERENCES usuarios (id) ON DELETE CASCADE,
+  codigo_hash TEXT NOT NULL CHECK (length(codigo_hash) <= 255),
+  criado_em TEXT NOT NULL DEFAULT (agora_local()) CHECK (criado_em IS datetime(criado_em))
+) STRICT;
+CREATE INDEX idx_recuperacao_usuario ON duas_etapas_recuperacao (usuario_id);
 
 CREATE TABLE wishlist_itens (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

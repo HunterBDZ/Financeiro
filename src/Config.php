@@ -29,4 +29,10 @@ final class Config
     {
         return self::$values[$key] ?? $default;
     }
+
+    /** Um valor que acabou de ser gravado no arquivo vale também nesta página. */
+    public static function definir(string $key, string $value): void
+    {
+        self::$values[$key] = $value;
+    }
 }
