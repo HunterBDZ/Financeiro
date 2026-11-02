@@ -1514,4 +1514,8 @@ return [
     'O ajuste feito em {prox} ao fechar foi desfeito, menos nos valores que você mudou depois.' => 'The adjustment made to {prox} when closing was undone, except for values you changed later.',
     'Não deu para atualizar o banco de dados. Os seus dados estão guardados: volte para a versão anterior e avise quem mantém o projeto.' => 'Could not update the database. Your data is safe: go back to the previous version and tell the project\'s maintainers.',
     'Os seus dados são de uma versão mais nova do Financeiro. Instale essa versão ou uma mais nova.' => 'Your data comes from a newer version of Financeiro. Install that version or a newer one.',
+    'Código-fonte' => 'Source code',
+    'Código de instalação' => 'Installation code',
+    'O código de instalação não confere. Ele aparece no fim da instalação ou no log do servidor.' => 'The installation code does not match. It is shown at the end of the installation or in the server log.',
+    'Para ninguém criar a conta antes de você, o Financeiro mostrou um código no fim da instalação. No Docker, ele está em docker compose logs.' => 'So that no one creates the account before you, Financeiro showed a code at the end of the installation. On Docker, it is in docker compose logs.',
 ];

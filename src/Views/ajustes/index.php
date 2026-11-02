@@ -259,5 +259,9 @@ $campo = static function (string $chave, string $rotulo, string $un = '', int $d
     </section>
 
     <?php $arqVersao = __DIR__ . '/../../../VERSION'; ?>
-    <?php if (is_file($arqVersao)): ?><p class="aj-versao num"><?= e(t('Versão {versao}', ['versao' => trim((string) file_get_contents($arqVersao))])) ?></p><?php endif; ?>
+    <p class="aj-versao">
+        <?php if (is_file($arqVersao)): ?><span class="num"><?= e(t('Versão {versao}', ['versao' => trim((string) file_get_contents($arqVersao))])) ?></span><?php endif; ?>
+        <?php // a AGPL pede que quem usa pela rede ache o código: quem modificar o app troca o arquivo REPOSITORIO ?>
+        <a href="<?= e('https://github.com/' . \Financeiro\Atualizacao::repositorio()) ?>" rel="noopener"><?= e(t('Código-fonte')) ?></a>
+    </p>
 </div>

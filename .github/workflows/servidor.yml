@@ -1,0 +1,62 @@
+name: Instalador de servidor
+
+# Roda o instalar.sh de verdade num Ubuntu limpo: instala, abre o site, cria a primeira conta com o código de
+# instalação, faz um backup e confere que rodar de novo não estraga nada.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ubuntu:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Instalar
+        run: |
+          sudo FIN_VERSAO=HEAD bash instalar.sh | tee "$RUNNER_TEMP/saida.txt"
+          grep -Eq 'código de instalação: +[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}' "$RUNNER_TEMP/saida.txt"
+      - name: O site abre e pede o código
+        run: |
+          curl -fsk https://127.0.0.1/criar-conta -o "$RUNNER_TEMP/criar.html"
+          grep -q 'name="codigo"' "$RUNNER_TEMP/criar.html"
+          sudo grep -q '^DB_DRIVER=sqlite' /var/www/financeiro/config/.env
+          sudo test -f /var/lib/financeiro/financeiro.sqlite
+      - name: Criar a primeira conta com o código
+        run: |
+          set -eu
+          J="$RUNNER_TEMP/cookies"
+          token=$(curl -fsk -c "$J" -b "$J" https://127.0.0.1/criar-conta | sed -n 's/.*name="csrf_token" value="\([^"]*\)".*/\1/p' | head -1)
+          [ -n "$token" ]
+          ruim=$(curl -sk -c "$J" -b "$J" -o /dev/null -w '%{http_code}' https://127.0.0.1/criar-conta \
+            --data-urlencode "csrf_token=$token" --data-urlencode nome=Teste --data-urlencode login=teste \
+            --data-urlencode senha=senha-de-teste-1 --data-urlencode codigo=AAAA-BBBB-CCCC)
+          [ "$ruim" = 422 ]
+          codigo=$(sudo cat /var/lib/financeiro/primeira-conta.txt)
+          token=$(curl -fsk -c "$J" -b "$J" https://127.0.0.1/criar-conta | sed -n 's/.*name="csrf_token" value="\([^"]*\)".*/\1/p' | head -1)
+          destino=$(curl -sk -c "$J" -b "$J" -o /dev/null -w '%{http_code} %{redirect_url}' https://127.0.0.1/criar-conta \
+            --data-urlencode "csrf_token=$token" --data-urlencode nome=Teste --data-urlencode login=teste \
+            --data-urlencode senha=senha-de-teste-1 --data-urlencode "codigo=$codigo")
+          echo "$destino"
+          case "$destino" in 303*/comecar) ;; *) exit 1 ;; esac
+          ! sudo test -f /var/lib/financeiro/primeira-conta.txt
+      - name: Backup diário
+        run: |
+          sudo /usr/local/bin/financeiro-backup.sh
+          sudo sh -c 'ls /var/lib/financeiro/backups/*.sqlite' | head -1
+      - name: Rodar de novo não estraga nada
+        run: |
+          sudo FIN_VERSAO=HEAD bash instalar.sh | tee "$RUNNER_TEMP/de-novo.txt"
+          grep -q 'já está instalado' "$RUNNER_TEMP/de-novo.txt"
+          curl -fsk -o /dev/null https://127.0.0.1/login
+      - name: Log da instalação, se falhar
+        if: failure()
+        run: |
+          sudo tail -n 60 /var/log/financeiro-instalacao.log || true
+          sudo tail -n 30 /var/log/apache2/financeiro-error.log || true

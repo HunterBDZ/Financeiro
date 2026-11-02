@@ -12,8 +12,8 @@ SESSION_LIFETIME=28800
 MOTOR_V2=1
 # 1 = atrás de um proxy seu com HTTPS: confia em X-Forwarded-Proto
 CONFIAR_PROXY=${CONFIAR_PROXY:-0}
-# nomes aceitos no endereço, separados por vírgula; vazio aceita qualquer um
-HOSTS_PERMITIDOS=${HOSTS_PERMITIDOS:-}
+# nomes aceitos no endereço, além de localhost, separados por vírgula; vazio aceita qualquer um (inseguro)
+HOSTS_PERMITIDOS=${HOSTS_PERMITIDOS-localhost}
 CONF
 fi
 exec "$@"

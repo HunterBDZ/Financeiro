@@ -99,15 +99,15 @@ Para quem já usa Docker, em servidor, NAS ou Raspberry Pi. Na pasta do reposit�
 docker compose up -d
 ```
 
-Abra `http://localhost:8484` e crie a sua conta. Os dados ficam no volume `financeiro-dados`.
+Abra `http://localhost:8484` e crie a sua conta. A tela pede um **código de instalação**: ele aparece em `docker compose logs financeiro` e também em `docker compose exec financeiro cat /data/primeira-conta.txt`. Os dados ficam no volume `financeiro-dados`.
 
 - **Atualizar:** `docker compose pull && docker compose up -d`. O banco acompanha ao abrir, depois de uma cópia.
-- **Outros aparelhos:** a porta fica só neste computador. Para abrir, ponha um proxy com HTTPS na frente e defina `CONFIAR_PROXY: "1"` e `HOSTS_PERMITIDOS` no `compose.yaml` antes da primeira execução. Depois, esses valores ficam em `/data/config.env`.
-- **Quem chega primeiro cria a conta:** não deixe a porta aberta antes de criar a sua.
+- **Outros aparelhos:** a porta fica só neste computador, e o app só aceita o endereço `localhost`. Para abrir, ponha um proxy com HTTPS na frente e defina, no `compose.yaml` e antes da primeira execução, `CONFIAR_PROXY: "1"` e em `HOSTS_PERMITIDOS` o nome ou o IP pelo qual os aparelhos vão chegar. Depois, esses valores ficam em `/data/config.env`.
+- **Ninguém cria a conta antes de você:** sem o código de instalação, a tela não aceita a primeira conta. Depois dela, o código deixa de valer.
 
 ## Num servidor com Ubuntu ou Debian
 
-Instala Apache, PHP e banco de dados, com HTTPS, para um computador que fica sempre ligado.
+Instala Apache e PHP, com HTTPS e o banco num arquivo SQLite, para um computador que fica sempre ligado.
 
 Você precisa de um computador com **Ubuntu 24.04 ou mais novo, Debian 13 ou um derivado deles** (Linux Mint, LMDE), que fique ligado e na sua rede. Nele, rode:
 
@@ -116,20 +116,20 @@ git clone https://github.com/HunterBDZ/Financeiro.git
 sudo bash Financeiro/instalar.sh
 ```
 
-Espere alguns minutos: nenhuma pergunta é feita. No fim, o instalador mostra o endereço do site.
+Espere alguns minutos: nenhuma pergunta é feita. No fim, o instalador mostra o endereço do site e um **código de instalação**.
 
 1. Abra esse endereço no navegador, em qualquer aparelho da sua rede.
 2. O navegador avisa que a conexão não é segura. Isso é esperado na primeira vez: clique em **Avançado** e depois em **Continuar**.
-3. Crie a sua conta.
+3. Crie a sua conta, digitando o código de instalação. Ele impede que outra pessoa da rede crie a conta antes de você. Se perder o código, ele está em `/var/lib/financeiro/primeira-conta.txt`.
 4. Informe a data de início e quanto você tem hoje. Depois, é só lançar.
 
 Para dar acesso a outra pessoa, use **Ajustes → Pessoas**.
 
 ### O que o instalador faz
 
-- Instala Apache, PHP e MySQL, se faltarem. Onde o sistema não oferece MySQL, como no Debian 13, usa MariaDB 11.4.5 ou mais novo. No Ubuntu 24.04 e no Mint, o PHP 8.4 ou mais novo vem do repositório `ppa:ondrej/php`.
-- Coloca o site em `/var/www/financeiro`, cria o banco com uma senha aleatória e publica o site em HTTPS.
-- Ativa o backup diário em `/var/backups/financeiro`, guardando 30 dias, e instala o comando `financeiro-atualizar`.
+- Instala Apache e PHP, se faltarem. No Ubuntu 24.04 e no Mint, o PHP 8.4 ou mais novo vem do repositório `ppa:ondrej/php`.
+- Coloca o site em `/var/www/financeiro` e cria o banco, um arquivo SQLite, em `/var/lib/financeiro`. Publica o site em HTTPS.
+- Ativa o backup diário em `/var/lib/financeiro/backups` e instala o comando `financeiro-atualizar`. Os backups também aparecem em **Ajustes → Backup e atualização**.
 
 Ele não mexe no firewall. Se parar no meio, corrija o que ele apontar e rode o mesmo comando de novo. Rodar de novo num site pronto não muda nada. O registro completo fica em `/var/log/financeiro-instalacao.log`.
 
@@ -179,11 +179,10 @@ Outra pessoa com conta pode definir uma senha nova em **Ajustes → Pessoas**. S
 | O que aparece | Causa provável | O que fazer |
 |---|---|---|
 | `as portas 80 ou 443 já estão em uso` | Outro programa usa as portas do site | Pare esse programa e rode o instalador de novo |
-| `não consegui entrar no banco` | O MySQL ou o MariaDB já tinha senha de root | [Abra uma issue](https://github.com/HunterBDZ/Financeiro/issues) |
 | `Erro interno. Tente novamente` | O app não conectou no banco | Confira `DB_*` em `config/.env` e veja `sudo tail /var/log/apache2/financeiro-error.log` |
 | `Class "Pdo\Mysql" not found` | PHP anterior a 8.4 | Atualize o PHP |
 | `Call to undefined function mb_…` | Falta a extensão `mbstring` | `sudo apt install php-mbstring` e recarregue o Apache |
-| `could not find driver` | Falta a extensão `pdo_mysql` | `sudo apt install php-mysql` e recarregue o Apache |
+| `could not find driver` | Falta a extensão do banco: `pdo_sqlite` (ou `pdo_mysql`, num site antigo em MySQL) | `sudo apt install php-sqlite3` (ou `php-mysql`) e recarregue o Apache |
 | Só a página inicial abre; as outras dão 404 | `mod_rewrite` ou `AllowOverride` | Rode o instalador de novo |
 | Página padrão do Apache | O site padrão continua ativo | `sudo a2dissite 000-default && sudo systemctl reload apache2` |
 | `Arquivo de configuração não encontrado` | Falta o `.env`, ou o dono está errado | Rode o instalador de novo |
@@ -195,6 +194,7 @@ Outra pessoa com conta pode definir uma senha nova em **Ajustes → Pessoas**. S
 | `outra atualização está rodando` | Dois comandos ao mesmo tempo | Espere o outro terminar |
 | `os testes da versão … falharam no ensaio` | A versão nova não funciona no seu ambiente | O site não mudou. Não insista e [abra uma issue](https://github.com/HunterBDZ/Financeiro/issues) |
 | Bloqueado no login | 5 tentativas erradas | Espere 10 minutos |
+| `O código de instalação não confere` | Num servidor ou no Docker, a primeira conta pede o código mostrado no fim da instalação | Veja em `/var/lib/financeiro/primeira-conta.txt` (servidor) ou em `docker compose logs financeiro` (Docker) |
 | No Windows ou no Mac, o navegador abre uma página dizendo que o Financeiro não abriu | O programa não conseguiu iniciar | Reinicie o computador. Se continuar, a página mostra onde está o registro: envie numa [issue](https://github.com/HunterBDZ/Financeiro/issues) |
 | `Já está instalada uma versão mais nova` | O instalador é mais velho que o programa | Nada mudou. Baixe a versão mais nova |
 | `Unknown collation: utf8mb4_0900_ai_ci` | O banco é anterior ao MySQL 8 ou ao MariaDB 11.4.5 | Use MySQL 8 ou MariaDB 11.4.5 ou mais novo |

@@ -7,9 +7,10 @@
 #   sudo financeiro-atualizar --sim           atualiza sem perguntar (para o cron não é recomendado)
 #   sudo financeiro-atualizar --versao v1.2.0 vai para uma versão específica, mais nova que a atual
 #
-# Ordem: baixa a versão -> ensaia migrações e testes numa cópia do banco, com o site intacto ->
+# Ordem: baixa a versão e confere a assinatura dela -> ensaia migrações e testes numa cópia do banco, com o site intacto ->
 # backup -> migrações -> código -> testes no site. Falhou no ensaio: nada mudou. Falhou depois do
 # backup: volta o código e o banco sozinho. config/.env nunca é tocado. Vale para MySQL e para SQLite (DB_DRIVER=sqlite).
+# Deu certo: instala também a versão nova deste comando e do backup diário, que vieram na versão já conferida.
 set -euo pipefail
 
 REPO=""                         # clone do repositório (obrigatório)
@@ -22,6 +23,9 @@ TRAVA=/run/lock/financeiro-atualizar.lock
 TEMP_BASE=/var/tmp
 MYSQL_OPCOES=()
 PERMITIR_SEM_ROOT=0             # só para ensaiar este script fora de produção
+# quem pode publicar: cada versão é uma tag assinada com esta chave SSH, que fica só com quem publica. Para trocar a
+# chave, publique com a antiga uma versão que já traga a nova aqui.
+ASSINANTES='financeiro namespaces="git" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAZAHJgu74iXFCwy5G5qv59jo1kcuQX2Ge+FrT6+C2Mh financeiro-versoes'
 
 CONF=${FIN_CONF:-/etc/financeiro-atualizar.conf}
 RE_VERSAO='^v[0-9]+\.[0-9]+\.[0-9]+$'
@@ -61,7 +65,7 @@ done
 [ -f "$DEST/config/.env" ] || morre "$DEST/config/.env não existe: instale o site antes."
 SQLITE=0
 grep -q '^DB_DRIVER=sqlite' "$DEST/config/.env" && SQLITE=1
-PROGRAMAS="git php rsync gzip tar flock openssl"
+PROGRAMAS="git ssh-keygen php rsync gzip tar flock openssl"
 [ "$SQLITE" = 1 ] || PROGRAMAS="$PROGRAMAS mysql mysqldump"
 for c in $PROGRAMAS; do
     command -v "$c" >/dev/null || morre "falta o programa $c."
@@ -97,8 +101,8 @@ ULTIMA=$(como_dono tag --list 'v[0-9]*' --sort=-v:refname | grep -E "$RE_VERSAO"
 ALVO=${PEDIDA:-$ULTIMA}
 [[ "$ALVO" =~ $RE_VERSAO ]] || morre "versão inválida: $ALVO (use vX.Y.Z)."
 como_dono rev-parse --quiet --verify "refs/tags/$ALVO" >/dev/null || morre "a versão $ALVO não existe."
+
 NOVA=${ALVO#v}
-[ "$(como_dono show "$ALVO:VERSION" 2>/dev/null | tr -d '[:space:]')" = "$NOVA" ] || morre "o arquivo VERSION da tag $ALVO não diz $NOVA."
 
 echo "Instalada: ${ATUAL:-anterior à 1.0.0}"
 echo "Disponível: $NOVA"
@@ -110,7 +114,20 @@ if [ -n "$ATUAL" ] && [ "$(printf '%s\n%s\n' "$ATUAL" "$NOVA" | sort -V | tail -
     if [ "$SO_VER" = 1 ]; then exit 0; fi
     morre "a instalada ($ATUAL) é mais nova que $NOVA. Para voltar, restaure um backup (docs/INSTALACAO.md)."
 fi
-NOTAS=$(como_dono show "$ALVO:CHANGELOG.md" 2>/dev/null | awk -v v="## $NOVA" 'index($0, v) == 1 { d = 1; next } /^## / { d = 0 } d' || true)
+# a assinatura da tag vale para o commit que ela aponta: daqui em diante, só esse commit é usado
+assinada() {
+    local lista ok=1
+    lista=$(mktemp)
+    printf '%s\n' "$ASSINANTES" > "$lista"
+    chmod 644 "$lista"
+    if como_dono -c gpg.format=ssh -c gpg.ssh.allowedSignersFile="$lista" verify-tag "$1" >/dev/null 2>&1; then ok=0; fi
+    rm -f "$lista"
+    return $ok
+}
+assinada "$ALVO" || morre "a versão $ALVO não tem a assinatura de quem publica o Financeiro. Nada foi alterado."
+COMMIT=$(como_dono rev-parse --verify "refs/tags/$ALVO^{commit}") || morre "não achei o commit da versão $ALVO."
+[ "$(como_dono show "$COMMIT:VERSION" 2>/dev/null | tr -d '[:space:]')" = "$NOVA" ] || morre "o arquivo VERSION da tag $ALVO não diz $NOVA."
+NOTAS=$(como_dono show "$COMMIT:CHANGELOG.md" 2>/dev/null | awk -v v="## $NOVA" 'index($0, v) == 1 { d = 1; next } /^## / { d = 0 } d' || true)
 if [ -n "$NOTAS" ]; then printf 'O que muda:\n%s\n' "$NOTAS"; fi
 if [ "$SO_VER" = 1 ]; then exit 0; fi
 
@@ -124,7 +141,7 @@ fi
 TMP=$(mktemp -d "$TEMP_BASE/financeiro-atualizar.XXXXXX")
 chmod 755 "$TMP"
 mkdir "$TMP/novo" "$TMP/antes"
-como_dono archive --format=tar "$ALVO" | tar -x -C "$TMP/novo"
+como_dono archive --format=tar "$COMMIT" | tar -x -C "$TMP/novo"
 if [ "$(id -u)" = 0 ]; then chown -R "$SERVICO":"$SERVICO" "$TMP/novo"; fi
 
 # ---- migrações: a tabela `migracoes` diz o que já rodou
@@ -281,3 +298,14 @@ fi
 
 echo "Pronto: site na versão $NOVA."
 echo "Backup desta atualização: $DUMP"
+
+# este comando e o do backup diário, da versão nova; o arquivo é trocado de uma vez, sem mexer no que está rodando
+if [ "$(id -u)" = 0 ] && [ "$(readlink -f "$0")" = /usr/local/bin/financeiro-atualizar ]; then
+    for par in "financeiro-atualizar.sh:financeiro-atualizar" "financeiro-backup.sh:financeiro-backup.sh"; do
+        de="$DEST/tools/${par%%:*}"; para="/usr/local/bin/${par#*:}"
+        if [ -f "$de" ] && ! cmp -s "$de" "$para"; then
+            install -m 755 -o root -g root "$de" "$para.novo" && mv -f "$para.novo" "$para" \
+                || echo "Aviso: não consegui atualizar $para." >&2
+        fi
+    done
+fi

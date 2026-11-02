@@ -198,6 +198,27 @@ $conf = (string) file_get_contents(Paths::config());
 $check('configuração: troca uma linha e acrescenta outra', str_contains($conf, "ACESSO_REDE=1\n") && !str_contains($conf, 'ACESSO_REDE=0') && str_contains($conf, "CHAVE_NOVA=x\n") && str_contains($conf, 'DB_DRIVER=sqlite'));
 $check('configuração: continua privada', $privado(Paths::config()));
 
+// ---- código da primeira conta: só o modo servidor pede
+$mudarConfig = \Closure::bind(static function (string $chave, string $valor): void {
+    self::$values[$chave] = $valor;
+}, null, \Financeiro\Config::class);
+$check('código da conta: o computador pessoal não pede', !Primeira::codigoExigido());
+$mudarConfig('FIN_MODO', 'servidor');
+$check('código da conta: o servidor pede', Primeira::codigoExigido());
+$mudarConfig('FIN_MODO', 'instalador');
+@unlink(Primeira::arquivoCodigo());
+$logAntes = ini_set('error_log', $dados . '/teste-codigo.log');     // o código vai para o log: aqui, para um arquivo
+$codigoConta = Primeira::codigo();
+$check('código da conta: escrito no log, para quem instalou achar', str_contains((string) @file_get_contents($dados . '/teste-codigo.log'), $codigoConta));
+ini_set('error_log', (string) $logAntes);
+$check('código da conta: 12 letras sem as que se confundem, em 3 grupos', (bool) preg_match('/^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/', $codigoConta), $codigoConta);
+$check('código da conta: o mesmo enquanto não há conta', Primeira::codigo() === $codigoConta);
+$check('código da conta: guardado em arquivo privado', $privado(Primeira::arquivoCodigo()));
+$check('código da conta: confere sem traço e em minúsculas', Primeira::codigoConfere(strtolower(str_replace('-', ' ', $codigoConta))));
+$check('código da conta: errado ou vazio não passa', !Primeira::codigoConfere('AAAA-AAAA-AAAA') && !Primeira::codigoConfere(''));
+Primeira::esquecerCodigo();
+$check('código da conta: some depois da primeira conta', !is_file(Primeira::arquivoCodigo()));
+
 // ---- rede
 $ip = Rede::ipLocal();
 $check('IP local: privado ou nenhum', $ip === null || filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE) === false);

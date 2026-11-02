@@ -24,9 +24,10 @@ Para quem desenvolve. Quem só usa o site segue a [atualização do manual](INST
 4. Publique:
    ```sh
    git add -A && git commit -m "Versão 1.1.0: aba Exemplo"
-   git tag -a v1.1.0 -m "Versão 1.1.0"
+   git tag -s v1.1.0 -m "Versão 1.1.0"
    git push origin main --follow-tags
    ```
+   A tag é **assinada** com a chave SSH de quem publica (veja abaixo): os servidores recusam versão sem essa assinatura.
 
 Numa tag, `.github/workflows/release.yml` testa, monta os pacotes com `packaging/empacotar.sh`, assina o `atualizacao.json` com o segredo `FIN_CHAVE_ATUALIZACAO`, publica a versão e a imagem Docker. Sem o segredo, a publicação para: os sites só aceitam o que essa chave assinou.
 
@@ -60,6 +61,18 @@ Num Windows, `makeappx pack /d PASTA\loja /p financeiro-X.Y.Z.msix /nv` gera o p
 ### Chave da atualização
 
 Para gerar um par novo, `php tools/assinar-atualizacao.php --gerar=ARQUIVO`: o privado vai para o arquivo, que nunca entra no repositório, e o público sai na tela e vai para `Atualizacao::CHAVE_PUBLICA`. Quem trocar a chave precisa publicar a chave nova numa versão assinada pela antiga.
+
+### Chave das versões (servidores)
+
+O `financeiro-atualizar` só instala uma tag assinada com a chave SSH cuja parte pública está em `ASSINANTES`, no próprio script. A chave privada fica com quem publica, fora do repositório e fora do GitHub. Para assinar sempre, uma vez no clone:
+
+```sh
+git config gpg.format ssh
+git config user.signingkey /caminho/da/chave-privada
+git config tag.gpgSign true
+```
+
+Para trocar a chave, publique, assinada pela antiga, uma versão que já traga a nova em `ASSINANTES`. Ao terminar uma atualização, o `financeiro-atualizar` instala a versão nova dele mesmo e do backup diário, que vieram dentro da tag conferida. Para conferir uma tag à mão: `git -c gpg.ssh.allowedSignersFile=<(sed -n "s/^ASSINANTES='\(.*\)'$/\1/p" tools/financeiro-atualizar.sh) verify-tag v1.1.0`.
 
 Os sites só recebem o que tem tag: um commit sem tag no `main` não chega a ninguém. Não mova nem apague uma tag publicada: se houver erro, lance outra versão.
 

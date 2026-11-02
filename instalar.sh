@@ -3,9 +3,9 @@
 #
 #   sudo bash instalar.sh
 #
-# Instala o que falta (Apache, PHP e MySQL, ou MariaDB 11.4.5+ onde não há MySQL), cria o banco com uma senha aleatória, publica o site em
-# HTTPS e ativa o backup diário. A conta da pessoa é criada depois, no navegador. Se parar no meio,
-# é só rodar de novo. Não mexe num Financeiro que já esteja instalado, nem no firewall.
+# Instala o que falta (Apache e PHP), cria o banco (um arquivo SQLite em /var/lib/financeiro), publica o site em
+# HTTPS e ativa o backup diário. A conta da pessoa é criada depois, no navegador, com o código que aparece no fim.
+# Se parar no meio, é só rodar de novo. Não mexe num Financeiro que já esteja instalado, nem no firewall.
 #
 # Variáveis opcionais: FIN_REPO (de onde baixar), FIN_DIR (onde guardar a cópia do repositório) e
 # FIN_VERSAO (o que instalar; o padrão é a última versão publicada).
@@ -14,14 +14,10 @@ set -uo pipefail
 REPO_URL=${FIN_REPO:-https://github.com/HunterBDZ/Financeiro.git}
 CLONE=${FIN_DIR:-/opt/financeiro}
 DEST=/var/www/financeiro
-BANCO=financeiro
-USUARIO_BANCO=financeiro_app
+DADOS=/var/lib/financeiro
 ANDAMENTO=/var/lib/financeiro-instalando
 LOG=/var/log/financeiro-instalacao.log
-MARIADB_MINIMO=11.4.5   # a primeira versão com a colação utf8mb4_0900_ai_ci
-SERVICO_BANCO=mysql
-PACOTES_BANCO=(mysql-server)
-PACOTES=(apache2 php libapache2-mod-php php-mysql php-mbstring php-curl php-xml php-sqlite3 git rsync openssl cron sudo iproute2 ca-certificates curl)
+PACOTES=(apache2 php libapache2-mod-php php-mbstring php-curl php-xml php-sqlite3 git rsync openssl cron sudo iproute2 ca-certificates curl)
 export DEBIAN_FRONTEND=noninteractive
 
 TOTAL=5
@@ -40,10 +36,6 @@ rode() {
         falhou
     fi
 }
-servico() { # ação nome
-    if [ -d /run/systemd/system ]; then rode systemctl "$1" "$2"; else rode service "$2" "$1"; fi
-}
-sql() { "$(command -v mysql || command -v mariadb)" --protocol=socket -uroot "$@"; }
 candidato() { apt-cache policy "$1" | sed -n 's/ *Candidato: *//p; s/ *Candidate: *//p' | head -1 | sed 's/^[0-9]*://; s/+.*//'; }
 tem_versao() { [ -n "$1" ] && [ "$1" != "(none)" ] && [ "$1" != "(nenhum)" ]; }
 endereco() {
@@ -52,7 +44,8 @@ endereco() {
     echo "${ip:-$(hostname -I 2>/dev/null | awk '{print $1}')}"
 }
 fim() {
-    local ip; ip=$(endereco)
+    local ip cod; ip=$(endereco)
+    cod=$(cat "$DADOS/primeira-conta.txt" 2>/dev/null)
     cat <<MSG
 
 Pronto! O Financeiro está no ar.
@@ -60,7 +53,7 @@ Pronto! O Financeiro está no ar.
   1. Abra no navegador:  https://${ip:-IP_DESTE_SERVIDOR}
   2. O navegador vai avisar que a conexão não é segura. Isso é esperado na primeira vez:
      clique em Avançado e depois em Continuar.
-  3. Crie a sua conta na tela que aparecer.
+  3. Crie a sua conta na tela que aparecer${cod:+, com este código de instalação:  $cod}.
 
 Dica: reserve o IP ${ip:-deste servidor} para esta máquina no roteador, para o endereço não mudar.
 MSG
@@ -82,7 +75,7 @@ echo "==== $(date '+%F %T')" >> "$LOG"
 apache_outro=$(ss -ltnpH 2>/dev/null | grep -E ':(80|443)\s' | grep -v apache2 | head -1)
 [ -z "$apache_outro" ] || para "as portas 80 ou 443 já estão em uso por outro programa. Libere essas portas e rode de novo."
 
-etapa 1 "Instalando Apache, PHP e MySQL (pode levar alguns minutos)"
+etapa 1 "Instalando Apache e PHP (pode levar alguns minutos)"
 rode apt-get update -q
 # o pacote php do Ubuntu 24.04 é o 8.3: o Financeiro precisa do 8.4 ou mais novo
 versao_php=$(candidato php)
@@ -95,29 +88,18 @@ if ! dpkg --compare-versions "$versao_php" ge 8.4; then
     rode add-apt-repository -y ppa:ondrej/php
     rode apt-get update -q
 fi
-if ! tem_versao "$(candidato mysql-server)"; then
-    versao_maria=$(candidato mariadb-server)
-    tem_versao "$versao_maria" && dpkg --compare-versions "$versao_maria" ge "$MARIADB_MINIMO" \
-        || para "este sistema não oferece MySQL 8 nem MariaDB $MARIADB_MINIMO ou mais novo. Use Ubuntu 24.04 ou mais novo, ou Debian 13."
-    SERVICO_BANCO=mariadb
-    PACOTES_BANCO=(mariadb-server mariadb-client)
-    # é este pacote que traz os comandos mysql e mysqldump, usados pelo backup e pelo atualizador
-    if tem_versao "$(candidato mariadb-client-compat)"; then PACOTES_BANCO+=(mariadb-client-compat); fi
-fi
-rode apt-get install -y -q "${PACOTES_BANCO[@]}" "${PACOTES[@]}"
+rode apt-get install -y -q "${PACOTES[@]}"
 php -r 'exit(PHP_VERSION_ID >= 80400 ? 0 : 1);' || para "o PHP instalado é anterior ao 8.4."
-servico start "$SERVICO_BANCO"
-for _ in $(seq 1 30); do sql -e 'SELECT 1' >/dev/null 2>&1 && break; sleep 1; done
-sql -e 'SELECT 1' >/dev/null 2>&1 || para "não consegui entrar no banco como root sem senha. Se ele já estava instalado com senha, esse caso exige o manual: docs/INSTALACAO.md."
+php -r 'exit(class_exists("PDO") && in_array("sqlite", PDO::getAvailableDrivers(), true) ? 0 : 1);' || para "o PHP instalado não tem o SQLite (pacote php-sqlite3)."
 mkdir -p "$(dirname "$ANDAMENTO")"; touch "$ANDAMENTO"
 
 etapa 2 "Baixando o Financeiro"
 # rodando de dentro de um clone, usa ele mesmo; se veio por curl, baixa
 AQUI=$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd)
 PACOTE=0
-if [ -n "$AQUI" ] && [ -d "$AQUI/.git" ] && [ -f "$AQUI/database/schema.sql" ]; then
+if [ -n "$AQUI" ] && [ -d "$AQUI/.git" ] && [ -f "$AQUI/database/schema.sqlite.sql" ]; then
     CLONE=$AQUI
-elif [ -n "$AQUI" ] && [ -f "$AQUI/database/schema.sql" ]; then
+elif [ -n "$AQUI" ] && [ -f "$AQUI/database/schema.sqlite.sql" ]; then
     PACOTE=1 # veio de um pacote, sem o repositório: copia direto, e as atualizações vêm em outro pacote
 elif [ ! -d "$CLONE/.git" ]; then
     rode git clone -q "$REPO_URL" "$CLONE"
@@ -139,23 +121,26 @@ fi
 
 etapa 3 "Criando o banco de dados"
 ENV_ARQ="$DEST/config/.env"
+install -d -m 700 -o www-data -g www-data "$DADOS"
 if [ ! -f "$ENV_ARQ" ]; then
-    SENHA=$(openssl rand -hex 24)
-    sed "s/^DB_PASS=.*/DB_PASS=$SENHA/" "$DEST/config/.env.example" > "$ENV_ARQ"
+    cat > "$ENV_ARQ" <<ENV
+# Criado pelo instalar.sh. O banco é o arquivo $DADOS/financeiro.sqlite, com as cópias em $DADOS/backups.
+APP_ENV=production
+DB_DRIVER=sqlite
+DB_FILE=financeiro.sqlite
+PASTA_DADOS=$DADOS
+FIN_MODO=servidor
+SESSION_LIFETIME=28800
+MOTOR_V2=1
+# 1 = atrás de um proxy seu com HTTPS: confia em X-Forwarded-Proto
+CONFIAR_PROXY=0
+# nomes aceitos no endereço, separados por vírgula; vazio aceita qualquer um
+HOSTS_PERMITIDOS=
+ENV
 fi
-SENHA=$(sed -n 's/^DB_PASS=//p' "$ENV_ARQ")
 chown -R www-data:www-data "$DEST"
 chmod 640 "$ENV_ARQ"
-rode sql -e "CREATE DATABASE IF NOT EXISTS $BANCO CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
-  CREATE USER IF NOT EXISTS '$USUARIO_BANCO'@'localhost' IDENTIFIED BY '$SENHA';
-  ALTER USER '$USUARIO_BANCO'@'localhost' IDENTIFIED BY '$SENHA';
-  GRANT SELECT, INSERT, UPDATE, DELETE ON $BANCO.* TO '$USUARIO_BANCO'@'localhost';"
-if [ -z "$(sql -N "$BANCO" -e "SHOW TABLES LIKE 'usuarios'")" ]; then
-    sql "$BANCO" < "$DEST/database/schema.sql" >> "$LOG" 2>&1 || falhou
-fi
-if [ "$(sql -N "$BANCO" -e 'SELECT COUNT(*) FROM categorias')" = 0 ]; then
-    rode sudo -u www-data php "$DEST/database/instalar.php"
-fi
+rode sudo -u www-data php "$DEST/database/instalar.php"
 
 etapa 4 "Publicando o site em HTTPS"
 IP=$(endereco); NOME=$(hostname)

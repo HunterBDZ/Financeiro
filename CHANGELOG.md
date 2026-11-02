@@ -2,6 +2,14 @@
 
 Cada versão publicada é uma tag `vX.Y.Z` deste repositório. Pacotes atualizam em Ajustes, em Backup e atualização; servidores, com `sudo financeiro-atualizar`.
 
+## A publicar
+
+- **Servidor e Docker:** a primeira conta pede o código de instalação que aparece no fim da instalação, ou no log do Docker. Assim, ninguém da rede cria a conta antes de você.
+- **Servidor:** o `instalar.sh` usa SQLite e não instala mais MySQL. O `financeiro-atualizar` só instala versões assinadas por quem publica e, ao terminar, atualiza a si mesmo e o backup diário.
+- **Docker:** aceita só o endereço `localhost` até você mudar o `compose.yaml`.
+- **Ajustes:** link para o código-fonte, ao lado da versão.
+- Regras de segurança do navegador mais restritas.
+
 ## 1.9.0
 
 - **Windows:** instalador que não pede administrador nem usa terminal. O app inicia com a sessão, e o ícone abre o navegador. Ao desinstalar, os dados só saem se você escolher.

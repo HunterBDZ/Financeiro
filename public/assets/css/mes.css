@@ -504,7 +504,8 @@ details.mes-ed:target > summary { animation: mes-realce 1.6s ease-out 1; }   /* 
 .aj-extra { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 12px; padding-bottom: 8px; }
 .aj-check { display: inline-flex; flex-direction: row-reverse; align-items: center; gap: 12px; min-height: 44px; font-weight: 600; cursor: pointer; }
 .aj-taxa { color: var(--text-2); font-size: 13px; }
-.aj-versao { margin-top: 4px; color: var(--text-2); font-size: 13px; text-align: center; }
+.aj-versao { margin-top: 4px; color: var(--text-2); font-size: 13px; text-align: center; display: flex; flex-wrap: wrap; gap: 4px 14px; justify-content: center; }
+.aj-versao a { color: inherit; }
 .aj-link { color: var(--text); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
 .aj-form > .aviso { margin-top: 12px; }
 .aj-salvar { align-self: flex-start; min-width: 150px; margin-top: 14px; }

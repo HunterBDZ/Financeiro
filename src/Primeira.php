@@ -38,6 +38,68 @@ final class Primeira
         return self::modo() !== 'instalador' || Rede::requisicaoLocal();
     }
 
+    /**
+     * No modo servidor (instalar.sh, Docker), a primeira conta pede um código que só quem instalou vê: no fim da
+     * instalação ou no log. Sem ele, quem chegasse primeiro à página, ou uma página maliciosa com DNS rebinding,
+     * ficaria com a conta de administrador.
+     */
+    public static function codigoExigido(): bool
+    {
+        return self::modo() === 'servidor';
+    }
+
+    /** O código da primeira conta: criado na primeira vez que alguém o pede, e escrito também no log. */
+    public static function codigo(): string
+    {
+        $arquivo = self::arquivoCodigo();
+        $f = @fopen($arquivo, 'x');     // só um pedido cria; os outros leem o que ele gravou
+        if ($f !== false) {
+            $letras = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';      // sem 0/O e 1/I, que se confundem
+            $codigo = '';
+            for ($i = 0; $i < 12; $i++) {
+                $codigo .= $letras[random_int(0, strlen($letras) - 1)];
+            }
+            $codigo = implode('-', str_split($codigo, 4));
+            @chmod($arquivo, 0600);
+            fwrite($f, $codigo . "\n");
+            fclose($f);
+            $linha = 'Financeiro: código para criar a primeira conta: ' . $codigo;
+            error_log($linha);
+            if (PHP_SAPI !== 'cli') {
+                // o log do app fica na pasta de dados; a saída de erro é o que o Docker e o Apache mostram
+                @file_put_contents('php://stderr', $linha . "\n");
+            }
+            return $codigo;
+        }
+        for ($i = 0; $i < 20; $i++) {
+            $codigo = trim((string) @file_get_contents($arquivo));
+            if ($codigo !== '') {
+                return $codigo;
+            }
+            usleep(50000);
+        }
+        throw new \RuntimeException('Não deu para ler o código da primeira conta em ' . $arquivo);
+    }
+
+    /** Sem diferença entre maiúscula e minúscula, e ignorando espaços e traços. */
+    public static function codigoConfere(string $digitado): bool
+    {
+        $limpar = static fn(string $s): string => strtoupper((string) preg_replace('/[^A-Za-z0-9]/', '', $s));
+        $digitado = $limpar($digitado);
+        return $digitado !== '' && hash_equals($limpar(self::codigo()), $digitado);
+    }
+
+    /** Depois da primeira conta, o código não vale mais nada. */
+    public static function esquecerCodigo(): void
+    {
+        @unlink(self::arquivoCodigo());
+    }
+
+    public static function arquivoCodigo(): string
+    {
+        return (Paths::dados() ?? dirname(Paths::config())) . '/primeira-conta.txt';
+    }
+
     public static function garantir(): void
     {
         if (!Paths::portatil()) {
@@ -88,6 +150,17 @@ final class Primeira
         }
         Config::load(Paths::config());
         return !Sql::sqlite() || is_file(Paths::banco());
+    }
+
+    /** No modo servidor (instalar.sh), quem cria o banco SQLite é database/instalar.php; no computador, a primeira execução. */
+    public static function criarBancoSeFaltar(): bool
+    {
+        if (!Sql::sqlite() || is_file(Paths::banco())) {
+            return false;
+        }
+        self::criarPastas();
+        self::criarBanco(Paths::banco());
+        return true;
     }
 
     /** Monta o banco num arquivo à parte e só então o põe no lugar: uma falha no meio não deixa banco pela metade. */

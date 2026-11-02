@@ -31,7 +31,10 @@ final class AuthController
             redirecionar('/login', 302);
         }
         self::exigirContaPermitida();
-        View::renderAuth('auth/criar', ['erro' => null, 'nome' => '', 'login' => '']);
+        if (Primeira::codigoExigido()) {
+            Primeira::codigo();     // cria e escreve no log, se ainda não existe
+        }
+        View::renderAuth('auth/criar', ['erro' => null, 'nome' => '', 'login' => '', 'pedeCodigo' => Primeira::codigoExigido()]);
     }
 
     public function criarConta(): void
@@ -42,6 +45,8 @@ final class AuthController
         $nome = is_string($_POST['nome'] ?? null) ? mb_substr(trim($_POST['nome']), 0, 100) : '';
         $login = is_string($_POST['login'] ?? null) ? mb_substr(trim($_POST['login']), 0, 100) : '';
         $senha = is_string($_POST['senha'] ?? null) ? $_POST['senha'] : '';
+        $codigo = is_string($_POST['codigo'] ?? null) ? mb_substr($_POST['codigo'], 0, 40) : '';
+        $pedeCodigo = Primeira::codigoExigido();
 
         // a trava impede duas primeiras contas ao mesmo tempo
         if (!Auth::travarSenha()) {
@@ -51,16 +56,21 @@ final class AuthController
             if (!UsuarioModel::nenhum()) {
                 redirecionar('/login', 303);
             }
-            $erro = UsuarioModel::erroNovaConta($nome, $login, $senha);
+            $erro = $pedeCodigo && !Primeira::codigoConfere($codigo)
+                ? t('O código de instalação não confere. Ele aparece no fim da instalação ou no log do servidor.')
+                : UsuarioModel::erroNovaConta($nome, $login, $senha);
             if ($erro === null) {
                 UsuarioModel::criar($nome, $login, $senha);
+                if ($pedeCodigo) {
+                    Primeira::esquecerCodigo();
+                }
             }
         } finally {
             Auth::soltarSenha();
         }
         if ($erro !== null) {
             http_response_code(422);
-            View::renderAuth('auth/criar', ['erro' => $erro, 'nome' => $nome, 'login' => $login]);
+            View::renderAuth('auth/criar', ['erro' => $erro, 'nome' => $nome, 'login' => $login, 'pedeCodigo' => $pedeCodigo]);
             return;
         }
         Auth::attempt($login, $senha);

@@ -1,9 +1,10 @@
 <?php
 /**
  * A primeira conta do site, sem terminal: aparece só enquanto o banco não tem nenhuma.
- * Variáveis: $erro (?string), $nome e $login (o que foi digitado).
+ * Variáveis: $erro (?string), $nome e $login (o que foi digitado), $pedeCodigo (servidor: o código de instalação).
  */
 $erro  = $erro ?? null;
+$pedeCodigo = (bool) ($pedeCodigo ?? false);
 $nome  = (string) ($nome ?? '');
 $login = (string) ($login ?? '');
 $css = array_filter(['/assets/css/style.css', '/assets/css/lancar.css', '/assets/css/temas.css'], static fn(string $p): bool => is_file(__DIR__ . '/../../../public' . $p));
@@ -54,8 +55,16 @@ $css = array_filter(['/assets/css/style.css', '/assets/css/lancar.css', '/assets
             <label class="lg-campo">
                 <?= svgIcon('lock', 19) ?>
                 <span class="sr-only"><?= e(t('Senha (mínimo de 8 caracteres)')) ?></span>
-                <input type="password" name="senha" required minlength="8" placeholder="<?= e(t('Senha (mínimo de 8 caracteres)')) ?>" autocomplete="new-password" enterkeyhint="go">
+                <input type="password" name="senha" required minlength="8" placeholder="<?= e(t('Senha (mínimo de 8 caracteres)')) ?>" autocomplete="new-password" enterkeyhint="<?= $pedeCodigo ? 'next' : 'go' ?>">
             </label>
+            <?php if ($pedeCodigo): ?>
+            <label class="lg-campo">
+                <?= svgIcon('lock', 19) ?>
+                <span class="sr-only"><?= e(t('Código de instalação')) ?></span>
+                <input type="text" name="codigo" required maxlength="40" placeholder="<?= e(t('Código de instalação')) ?>" autocomplete="one-time-code" autocapitalize="characters" autocorrect="off" spellcheck="false" aria-describedby="codigo-ajuda" enterkeyhint="go">
+            </label>
+            <p class="lg-nota" id="codigo-ajuda"><?= e(t('Para ninguém criar a conta antes de você, o Financeiro mostrou um código no fim da instalação. No Docker, ele está em docker compose logs.')) ?></p>
+            <?php endif; ?>
             <?php if ($erro !== null): ?>
                 <div class="aviso aviso-error" role="alert"><?= e($erro) ?></div>
             <?php endif; ?>

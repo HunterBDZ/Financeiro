@@ -13,7 +13,9 @@ services:
     environment:
       # 1 = atrás de um proxy seu com HTTPS. Valem só na primeira vez; depois, ficam em /data/config.env
       CONFIAR_PROXY: "0"
-      HOSTS_PERMITIDOS: ""
+      # nomes aceitos no endereço, além de localhost. Se abrir a porta para a rede, ponha aqui o nome ou o IP
+      # deste computador (ex.: "192.168.0.10,casa.lan"). Vazio aceita qualquer nome, o que é inseguro
+      HOSTS_PERMITIDOS: "localhost"
 
 volumes:
   financeiro-dados:

@@ -1514,4 +1514,8 @@ return [
     'O ajuste feito em {prox} ao fechar foi desfeito, menos nos valores que você mudou depois.' => 'El ajuste hecho en {prox} al cerrar se deshizo, salvo en los valores que usted cambió después.',
     'Não deu para atualizar o banco de dados. Os seus dados estão guardados: volte para a versão anterior e avise quem mantém o projeto.' => 'No se pudo actualizar la base de datos. Sus datos están guardados: vuelva a la versión anterior y avise a quienes mantienen el proyecto.',
     'Os seus dados são de uma versão mais nova do Financeiro. Instale essa versão ou uma mais nova.' => 'Sus datos son de una versión más nueva de Financeiro. Instale esa versión o una más nueva.',
+    'Código-fonte' => 'Código fuente',
+    'Código de instalação' => 'Código de instalación',
+    'O código de instalação não confere. Ele aparece no fim da instalação ou no log do servidor.' => 'El código de instalación no coincide. Aparece al final de la instalación o en el registro del servidor.',
+    'Para ninguém criar a conta antes de você, o Financeiro mostrou um código no fim da instalação. No Docker, ele está em docker compose logs.' => 'Para que nadie cree la cuenta antes que usted, Financeiro mostró un código al final de la instalación. En Docker, está en docker compose logs.',
 ];
