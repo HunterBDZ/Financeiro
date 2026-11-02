@@ -1898,7 +1898,10 @@ $cartR1 = ['fecha' => 24, 'vence' => 2, 'limite' => null];
 $pnR1 = CartaoFatura::painel($cartR1, $compR1, '2026-11-03', array_map(static fn($f) => $f['pago'], $pagasT), [], array_map(static fn($f) => $f['ultimo'], $pagasT));
 $check('fatura: no Cartão, a paga no dia 31 aparece paga, com a data, e não vencida', $pnR1['aberta'] === '2026-12-01'
     && $pnR1['faturas'][0]['mes'] === '2026-11-01' && $pnR1['faturas'][0]['status'] === 'paga' && $pnR1['faturas'][0]['pagaEm'] === '2026-10-31', json_encode($pnR1['faturas'][0]['status']));
-$pnParc = CartaoFatura::painel($cartR1, $compR1, '2026-11-03', ['2026-11-01' => 700.0]);
+// vence 02/11/2026, Finados: só fica vencida depois de 03/11, o próximo dia útil
+$pnParc = CartaoFatura::painel($cartR1, $compR1, '2026-11-04', ['2026-11-01' => 700.0]);
+$check('fatura: vencimento no feriado só vence no dia útil seguinte', CartaoFatura::painel($cartR1, $compR1, '2026-11-03', ['2026-11-01' => 700.0])['faturas'][0]['status'] === 'fechada'
+    && $pnParc['faturas'][0]['pagaAte'] === '2026-11-03');
 $check('fatura: paga em parte, diz quanto falta', $pnParc['faturas'][0]['status'] === 'vencida' && abs((float) $pnParc['faturas'][0]['falta'] - 550.0) < 0.001
     && CartaoFatura::painel($cartR1, $compR1, '2026-11-01', ['2026-11-01' => 700.0])['faturas'][0]['status'] === 'fechada');
 
@@ -2015,6 +2018,154 @@ if ($catFatDb !== null && ($sitAtualT[$mesAtualT] ?? '') === 'PREVISAO') {
             MotorFinanceiro::limparCache();
             $check("valor final ({$campo}): desfazer volta à previsão anterior", abs(PrevisaoModel::valor($cat, $mesAtualT) - $prevT) < 0.001);
         }
+    });
+}
+
+// ---- dia útil: Páscoa, feriados e vencimento no sábado, no domingo e no feriado (dados de mentira)
+$pascoasT = ['2024-03-31', '2025-04-20', '2026-04-05', '2027-03-28', '2028-04-16', '2029-04-01', '2030-04-21', '2031-04-13',
+             '2032-03-28', '2033-04-17', '2034-04-09', '2035-03-25'];
+$check('dia útil: a Páscoa de 2024 a 2035 bate com o calendário', array_map([\Financeiro\DiaUtil::class, 'pascoa'], range(2024, 2035)) === $pascoasT,
+    json_encode(array_map([\Financeiro\DiaUtil::class, 'pascoa'], range(2024, 2035))));
+$check('dia útil: os feriados de 2026, fixos e móveis (Carnaval, Sexta-feira Santa, Corpus Christi)', \Financeiro\DiaUtil::feriados(2026) === [
+    '2026-01-01', '2026-02-16', '2026-02-17', '2026-04-03', '2026-04-21', '2026-05-01', '2026-06-04', '2026-09-07', '2026-10-12',
+    '2026-11-02', '2026-11-15', '2026-11-20', '2026-12-25'], json_encode(\Financeiro\DiaUtil::feriados(2026)));
+$check('dia útil: os móveis de outros anos saem da Páscoa', \Financeiro\DiaUtil::feriado('2025-03-03') && \Financeiro\DiaUtil::feriado('2025-03-04')
+    && \Financeiro\DiaUtil::feriado('2025-04-18') && \Financeiro\DiaUtil::feriado('2025-06-19') && \Financeiro\DiaUtil::feriado('2035-02-05')
+    && \Financeiro\DiaUtil::feriado('2035-03-23') && \Financeiro\DiaUtil::feriado('2035-05-24') && !\Financeiro\DiaUtil::feriado('2026-02-18'));
+$check('dia útil: sábado, domingo e feriado vão para o próximo dia útil; dia útil fica', \Financeiro\DiaUtil::proximoUtil('2026-12-05') === '2026-12-07'
+    && \Financeiro\DiaUtil::proximoUtil('2027-02-07') === '2027-02-10'          // domingo antes do Carnaval
+    && \Financeiro\DiaUtil::proximoUtil('2026-11-20') === '2026-11-23'          // feriado numa sexta
+    && \Financeiro\DiaUtil::proximoUtil('2026-11-15') === '2026-11-16'          // feriado num domingo
+    && \Financeiro\DiaUtil::proximoUtil('2026-12-25') === '2026-12-28'
+    && \Financeiro\DiaUtil::proximoUtil('2026-11-03') === '2026-11-03' && \Financeiro\DiaUtil::util('2026-11-03') && !\Financeiro\DiaUtil::util('2026-11-02'));
+
+// "Precisa de atenção": cada aviso aparece e some; a conta do teste vence 05/12/2026, um sábado
+$sitT = array_column(MesModel::todos(), 'situacao', 'mes');
+$catAtT = (int) $pdo->query("SELECT id FROM categorias WHERE grupo = 'Fixos' AND ativo = 1 AND chave IS NULL ORDER BY id LIMIT 1")->fetchColumn();
+$catDiaT = (int) $pdo->query("SELECT id FROM categorias WHERE grupo = 'Dia a dia' AND ativo = 1 AND chave IS NULL ORDER BY id LIMIT 1")->fetchColumn();
+if (($sitT['2026-11-01'] ?? '') !== 'PREVISAO' || ($sitT['2026-12-01'] ?? '') !== 'PREVISAO' || $catAtT === 0 || $catDiaT === 0) {
+    $check('atenção', false, 'a demonstração ficou sem novembro e dezembro de 2026 abertos ou sem as categorias');
+} else {
+    $emTransacao('atenção', static function () use ($pdo, $check, $catAtT, $catDiaT, $uid, $render): void {
+        $tipos = static function (string $hoje, ?array $conf = null): array {
+            \Financeiro\Services\GastosMensais::limparCache();
+            return array_column(\Financeiro\Services\Atencao::avisos($hoje, $conf), 'tipo');
+        };
+        // só o que o teste cria: sem as contas, metas, conferências e cartões da demonstração
+        $pdo->exec('UPDATE contas_recorrentes SET ativo = 0');
+        $pdo->exec('DELETE FROM metas');
+        $pdo->exec('DELETE FROM saldo_conferencias');
+        $pdo->exec('UPDATE cartoes SET ativo = 0');
+        $pdo->prepare("DELETE FROM lancamentos WHERE categoria_id IN (?, ?) AND data >= '2026-12-01'")->execute([$catAtT, $catDiaT]);
+        ContaRecorrenteModel::upsert($catAtT, 5);
+        PrevisaoModel::setValor($catAtT, '2026-12-01', 100.0);
+        MotorFinanceiro::limparCache();
+        $st = static fn(string $hoje): array => array_values(array_filter(\Financeiro\Services\ChecklistContas::statusPorMes('2026-12-01', $hoje),
+            static fn(array $s): bool => $s['categoria_id'] === $catAtT))[0] ?? [];
+
+        $check('atenção: tudo em dia, nada aparece', $tipos('2026-12-01') === [], json_encode($tipos('2026-12-01')));
+        $av = \Financeiro\Services\Atencao::avisos('2026-12-04');
+        $check('atenção: conta que vence em até 3 dias, com a data efetiva e a ação de lançar', array_column($av, 'tipo') === ['conta_vence']
+            && str_contains($av[0]['titulo'], 'vence 05/12 · paga até 07/12') && str_contains($av[0]['href'], '/lancar?categoria=' . $catAtT . '&'), json_encode($av));
+        $check('vencimento no sábado: na segunda ainda não está atrasada; na terça, sim', $st('2026-12-07')['status'] === 'pendente'
+            && $st('2026-12-07')['paga_ate'] === '2026-12-07' && $st('2026-12-08')['status'] === 'atrasado' && in_array('conta_vence', $tipos('2026-12-07'), true) && !in_array('conta_atrasada', $tipos('2026-12-07'), true));
+        $check('atenção: conta atrasada aparece primeiro', ($tipos('2026-12-08')[0] ?? '') === 'conta_atrasada', json_encode($tipos('2026-12-08')));
+        PrevisaoModel::setValor($catAtT, '2027-02-01', 100.0);
+        ContaRecorrenteModel::upsert($catAtT, 7);                           // 07/02/2027, domingo antes do Carnaval
+        $stF = static fn(string $hoje): string => (string) (array_values(array_filter(\Financeiro\Services\ChecklistContas::statusPorMes('2027-02-01', $hoje),
+            static fn(array $s): bool => $s['categoria_id'] === $catAtT))[0]['status'] ?? '');
+        $check('vencimento no domingo antes do Carnaval: atrasa só depois da quarta-feira', $stF('2027-02-10') === 'pendente' && $stF('2027-02-11') === 'atrasado');
+        ContaRecorrenteModel::upsert($catAtT, 25);                          // 25/12/2026, Natal, numa sexta
+        PrevisaoModel::setValor($catAtT, '2026-12-01', 100.0);
+        $check('vencimento no feriado: paga até a segunda seguinte', $st('2026-12-28')['status'] === 'pendente' && $st('2026-12-29')['status'] === 'atrasado');
+        ContaRecorrenteModel::upsert($catAtT, 5);
+        LancamentoModel::criar('2026-12-07', 'teste', $catAtT, 100.0, $uid);
+        MotorFinanceiro::limparCache();
+        $check('atenção: paga no dia útil depois do sábado, a conta some e não conta como paga com atraso', !in_array('conta_atrasada', $tipos('2026-12-08'), true)
+            && $st('2026-12-08')['status'] === 'pago');
+
+        // mês anterior aberto: só depois do dia 5; fechado, some
+        $check('atenção: mês anterior aberto só depois do dia 5', !in_array('mes_aberto', $tipos('2026-12-05'), true) && in_array('mes_aberto', $tipos('2026-12-06'), true));
+        $pdo->exec("UPDATE meses SET situacao = 'REAL' WHERE mes < '2026-12-01'");
+        MotorFinanceiro::limparCache();
+        $check('atenção: mês fechado, o aviso some', !in_array('mes_aberto', $tipos('2026-12-06'), true));
+
+        // conferência que não bateu
+        $confRuim = ['data' => '2026-12-01', 'saldo' => 10.0, 'dif' => -12.5, 'agendado' => 0.0, 'bate' => false, 'idade' => 2];
+        $check('atenção: conferência que não bateu aparece; a que bate, não', in_array('conferencia', $tipos('2026-12-03', $confRuim), true)
+            && !in_array('conferencia', $tipos('2026-12-03', ['bate' => true] + $confRuim), true));
+        if (!ContaModel::varias()) {
+            \Financeiro\Models\SaldoConferenciaModel::registrar('2026-11-22', 1.0, $uid);
+            $check('atenção: a conferência do Início que não bateu vira aviso', in_array('conferencia', $tipos('2026-12-03', DashboardController::conferenciaAtual('2026-12-03')), true));
+        }
+
+        // meta estourada no mês
+        LancamentoModel::criar('2026-12-02', 'teste', $catDiaT, 50.0, $uid);
+        MetaModel::definir($catDiaT, 40.0);
+        MotorFinanceiro::limparCache();
+        $check('atenção: categoria acima da meta aparece', in_array('meta', $tipos('2026-12-03'), true));
+        MetaModel::definir($catDiaT, 60.0);
+        MotorFinanceiro::limparCache();
+        $check('atenção: dentro da meta, some', !in_array('meta', $tipos('2026-12-03'), true));
+
+        // fatura: fechada, vencendo no sábado, vencida na terça; paga, some. A conta "Fatura do cartão" não repete o aviso
+        AjusteModel::setValor('usa_cartao', 1.0);
+        $catFatT = CartaoModel::categoriaFatura();
+        $ct = CartaoModel::salvar(null, 'Cartão atenção', 25, 5, null);
+        CartaoModel::criarCompra($ct, '2026-11-10', 'teste', $catDiaT, 300.0, 1, '2026-12-01', $uid);
+        if ($catFatT !== null) {
+            $pdo->prepare('DELETE FROM lancamentos WHERE categoria_id = ?')->execute([$catFatT]);
+            ContaRecorrenteModel::upsert($catFatT, 5);
+            PrevisaoModel::setValor($catFatT, '2026-12-01', 300.0);
+        }
+        MotorFinanceiro::limparCache();
+        $fat = static fn(string $hoje): array => array_values(array_filter($tipos($hoje), static fn(string $t): bool => str_starts_with($t, 'fatura') || $t === 'conta_atrasada'));
+        $check('atenção: fatura fechada, vencendo e vencida, sem repetir a conta da fatura', $fat('2026-11-28') === ['fatura_fechada'] && $fat('2026-12-04') === ['fatura_vence']
+            && $fat('2026-12-07') === ['fatura_vence'] && $fat('2026-12-08') === ['fatura_vencida'], json_encode([$fat('2026-11-28'), $fat('2026-12-04'), $fat('2026-12-07'), $fat('2026-12-08')]));
+        $avF = array_values(array_filter(\Financeiro\Services\Atencao::avisos('2026-12-08'), static fn(array $a): bool => $a['tipo'] === 'fatura_vencida'))[0] ?? [];
+        $check('atenção: a ação da fatura leva à fatura no Cartão', str_starts_with((string) ($avF['href'] ?? ''), '/cartao?') && str_contains((string) $avF['href'], 'fatura=2026-12-01'), json_encode($avF));
+        if ($catFatT !== null) {
+            LancamentoModel::criar('2026-12-07', 'teste', $catFatT, 300.0, $uid, null, ['cartao_id' => $ct, 'fatura' => '2026-12-01']);
+            MotorFinanceiro::limparCache();
+            $check('atenção: fatura paga, o aviso some', $fat('2026-12-08') === [], json_encode($fat('2026-12-08')));
+        }
+
+        // no máximo 3, e "e mais N" leva à lista
+        $cinco = array_map(static fn(int $i): array => ['tipo' => 'meta', 'nivel' => 5, 'data' => (string) $i, 'titulo' => 'Aviso ' . $i, 'detalhe' => 'x',
+            'acao' => 'Ver', 'href' => '/meta'], range(1, 5));
+        $faixa = static function (array $avisos, ?int $max): string {
+            ob_start();
+            \Financeiro\View::partial('partials/atencao', ['avisos' => $avisos, 'max' => $max]);
+            return (string) ob_get_clean();
+        };
+        $h5 = $faixa($cinco, \Financeiro\Services\Atencao::MAX);
+        $h3 = $faixa(array_slice($cinco, 0, 3), \Financeiro\Services\Atencao::MAX);
+        $check('atenção: no máximo 3 na faixa; o resto em "e mais N", que leva à lista', substr_count($h5, 'data-aviso=') === 3 && str_contains($h5, 'e mais 2') && str_contains($h5, 'href="/atencao"')
+            && substr_count($h3, 'data-aviso=') === 3 && !str_contains($h3, 'e mais') && substr_count($faixa($cinco, null), 'data-aviso=') === 5);
+
+        // no Início, de hoje: a conta atrasada aparece na faixa, logo abaixo do saldo, com a ação de lançar
+        $mesH = Relogio::mes();
+        $pdo->prepare("UPDATE meses SET situacao = 'PREVISAO' WHERE mes = ?")->execute([$mesH]);
+        ContaRecorrenteModel::upsert($catAtT, 2);
+        PrevisaoModel::setValor($catAtT, $mesH, 100.0);
+        $pdo->prepare('DELETE FROM lancamentos WHERE categoria_id = ? AND data >= ?')->execute([$catAtT, $mesH]);
+        MotorFinanceiro::limparCache();
+        $ini = $render(DashboardController::class, 'index', []);
+        $pSaldo = strpos($ini, 'id="saldo-t"');
+        $pFaixa = strpos($ini, 'data-atencao');
+        $pResumo = strpos($ini, 'id="dash-rec-t"');
+        $check('atenção: no Início, a conta atrasada aparece na faixa, logo abaixo do saldo', $pFaixa !== false && $pSaldo !== false && $pResumo !== false && $pSaldo < $pFaixa && $pFaixa < $pResumo
+            && str_contains($ini, 'data-aviso="conta_atrasada"') && str_contains($ini, 'href="/lancar?categoria=' . $catAtT . '&amp;') && !str_contains($ini, 'dash-alerta'));
+        $lista = $render(DashboardController::class, 'atencao', []);
+        $check('atenção: a lista mostra todos os avisos', str_contains($lista, 'data-aviso="conta_atrasada"') && substr_count($lista, 'data-aviso=') === count(\Financeiro\Services\Atencao::avisos(Relogio::hoje(), DashboardController::conferenciaAtual(Relogio::hoje()))));
+    });
+    // site sem dados: sem meses, nem faixa nem aviso
+    $emTransacao('atenção sem dados', static function () use ($pdo, $check, $render): void {
+        $pdo->exec('DELETE FROM previsao');
+        $pdo->exec('DELETE FROM previsao_log');
+        $pdo->exec('DELETE FROM meses');
+        MotorFinanceiro::limparCache();
+        $check('atenção: site sem dados não mostra nada', \Financeiro\Services\Atencao::avisos(Relogio::hoje()) === [] && !str_contains($render(DashboardController::class, 'index', []), 'data-atencao'));
     });
 }
 

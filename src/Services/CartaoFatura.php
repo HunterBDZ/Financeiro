@@ -2,6 +2,7 @@
 namespace Financeiro\Services;
 
 use Financeiro\Database;
+use Financeiro\DiaUtil;
 use Financeiro\Models\AjusteModel;
 use Financeiro\Models\CartaoModel;
 use Financeiro\Models\MesModel;
@@ -190,6 +191,7 @@ final class CartaoFatura
      * último pagamento; $previsto = mês => previsão de hoje da Fatura do cartão (para conferir antes de
      * ligar o cartão ao plano). Paga = já fechou e o pago cobre a soma das parcelas (sem parcela lançada,
      * basta um pagamento). Faturas: a anterior à aberta e as 14 seguintes (o resto continua nos parcelamentos).
+     * Vencida só depois de 'pagaAte', o próximo dia útil quando o vencimento cai num dia que não é útil (DiaUtil).
      */
     public static function painel(array $cartao, array $compras, string $hoje, array $pagas, array $previsto = [], array $pagasEm = []): array
     {
@@ -204,15 +206,16 @@ final class CartaoFatura
             $total = round(array_sum(array_column($itens, 'valor')), 2);
             $fechaEm = self::fechamento($m, $fecha, $vence);
             $venceEm = self::vencimento($m, $vence);
+            $pagaAte = DiaUtil::proximoUtil($venceEm);
             $pago = isset($pagas[$m]) ? (float) $pagas[$m] : null;
             $status = match (true) {
                 $hoje < $fechaEm                => $m === $aberta ? 'aberta' : 'prevista',
                 self::todaPaga($pago, $total)   => 'paga',
-                $hoje <= $venceEm               => 'fechada',
+                $hoje <= $pagaAte               => 'fechada',
                 default                         => 'vencida',
             };
             $faturas[] = ['mes' => $m, 'itens' => $itens, 'total' => $total, 'pago' => $pago, 'status' => $status,
-                          'fecha' => $fechaEm, 'vence' => $venceEm, 'previsto' => $previsto[$m] ?? null, 'pagaEm' => $pagasEm[$m] ?? null,
+                          'fecha' => $fechaEm, 'vence' => $venceEm, 'pagaAte' => $pagaAte, 'previsto' => $previsto[$m] ?? null, 'pagaEm' => $pagasEm[$m] ?? null,
                           // paga em parte: quanto ainda falta da soma das parcelas
                           'falta' => $pago !== null && $pago > 0.004 && $total - $pago > self::TOLERANCIA ? round($total - $pago, 2) : null];
         }

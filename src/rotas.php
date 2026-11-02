@@ -37,6 +37,7 @@ $router->post('/logout', [AuthController::class, 'logout']);
 
 // ---- início
 $router->get('/', [DashboardController::class, 'index']);
+$router->get('/atencao', [DashboardController::class, 'atencao']);
 $router->post('/conferir', [DashboardController::class, 'conferir']);
 $router->post('/roteiro/dispensar', [DashboardController::class, 'dispensarRoteiro']);
 $router->get('/ajuda', [AjudaController::class, 'index']);

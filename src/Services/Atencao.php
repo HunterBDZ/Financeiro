@@ -1,0 +1,185 @@
+<?php
+namespace Financeiro\Services;
+
+use Financeiro\Controllers\CartaoController;
+use Financeiro\Models\AjusteModel;
+use Financeiro\Models\CartaoModel;
+use Financeiro\Models\CategoriaModel;
+use Financeiro\Models\MesModel;
+use Financeiro\Models\MetaModel;
+use Financeiro\Relogio;
+
+/**
+ * "Precisa de atenção", no Início: o que pede uma ação agora, do mais urgente para o menos. Nenhum número novo: cada
+ * aviso vem do que o app já calcula (ChecklistContas, CartaoFatura::painel, as metas contra o gasto do mês, a
+ * situação dos meses e a última conferência com o banco). Vencimento em dia que não é útil só atrasa depois do
+ * próximo dia útil (DiaUtil), aqui como no Mês e no Cartão.
+ *
+ * Ordem: contas e faturas atrasadas; as que vencem em até DIAS dias; mês anterior aberto depois do dia DIA_FECHAR;
+ * fatura fechada que vence depois; conferência que não bateu; meta estourada. No mesmo nível, a data mais próxima.
+ */
+final class Atencao
+{
+    /** Quantos avisos a faixa mostra; o resto fica em "e mais N", na lista. */
+    public const MAX = 3;
+
+    /** "Vence logo": o último dia para pagar sem atraso está a até tantos dias. */
+    public const DIAS = 3;
+
+    /** Depois deste dia do mês, o mês anterior ainda aberto vira aviso. */
+    public const DIA_FECHAR = 5;
+
+    /**
+     * @param ?array $conf a última conferência, como o Início a mostra (DashboardController::conferenciaAtual)
+     * @return list<array{tipo:string, nivel:int, data:string, titulo:string, detalhe:string, acao:string, href:string}>
+     *   tipo: conta_atrasada | conta_vence | fatura_vencida | fatura_vence | fatura_fechada | mes_aberto | conferencia | meta
+     */
+    public static function avisos(string $hoje, ?array $conf = null): array
+    {
+        $meses = array_column(MesModel::todos(), 'situacao', 'mes');
+        if ($meses === []) {
+            return [];                                   // site sem plano: nada a avisar
+        }
+        $mesCal = substr($hoje, 0, 7) . '-01';
+        $out = [];
+
+        // faturas do cartão: a fechada que ainda não foi paga, vencendo ou vencida
+        [$faturas, $pularCat] = self::faturas($hoje);
+        array_push($out, ...$faturas);
+
+        // contas recorrentes do mês (e, perto da virada, as do mês seguinte que vencem logo)
+        foreach ([$mesCal, CartaoFatura::somaMeses($mesCal, 1)] as $i => $mes) {
+            if (($meses[$mes] ?? '') !== 'PREVISAO') {
+                continue;
+            }
+            foreach (ChecklistContas::aPagar($mes, $hoje) as $c) {
+                if ($c['categoria_id'] === $pularCat || $c['falta'] < 0.005) {
+                    continue;
+                }
+                $nome = nomeCategoria((string) $c['categoria_nome']);
+                $q = ['categoria' => $c['categoria_id'], 'valor' => numInput((float) $c['falta'])];
+                if ($mes > $mesCal) {
+                    $q['data'] = $c['vencimento'];   // conta do mês seguinte: o pagamento cai no mês dela
+                }
+                $href = '/lancar?' . http_build_query($q + ['volta' => '/']);
+                if ($c['status'] === 'atrasado') {
+                    $out[] = self::aviso('conta_atrasada', 0, $c['vencimento'],
+                        t('{conta} venceu {data}', ['conta' => $nome, 'data' => diaMes($c['vencimento'])]),
+                        t('{valor} sem pagamento lançado.', ['valor' => money((float) $c['falta'])]), t('Lançar'), $href);
+                } elseif ($c['status'] === 'pendente' && self::dias($hoje, $c['paga_ate']) <= self::DIAS) {
+                    $out[] = self::aviso('conta_vence', 1, $c['paga_ate'],
+                        self::vence($nome, $c['vencimento'], $c['paga_ate'], $hoje),
+                        t('Previsto: {valor}.', ['valor' => money((float) $c['falta'])]), t('Lançar'), $href);
+                }
+            }
+        }
+
+        // mês que já terminou e continua aberto, passado o começo do mês seguinte
+        if ((int) substr($hoje, 8, 2) > self::DIA_FECHAR) {
+            foreach ($meses as $mes => $situacao) {
+                if ($mes < $mesCal && $situacao === 'PREVISAO') {
+                    $out[] = self::aviso('mes_aberto', 2, $mes, t('{mes} ainda está aberto', ['mes' => mesAno($mes)]),
+                        t('Feche o mês para conferir com o banco.'), t('Fechar'), '/mes/fechar?mes=' . rawurlencode($mes));
+                    break;
+                }
+            }
+        }
+
+        // a última conferência com o banco não bateu
+        if ($conf !== null && empty($conf['bate'])) {
+            $out[] = self::aviso('conferencia', 4, (string) $conf['data'], t('A conferência com o banco não bateu'),
+                t('Diferença de {dif}, em {data}', ['dif' => moneySigned((float) $conf['dif']), 'data' => diaMes((string) $conf['data'])]),
+                t('Conferir'), '/?conferir=1#conferir');
+        }
+
+        // categoria que passou da meta no mês, a que passou mais primeiro
+        if (($meses[$mesCal] ?? '') === 'PREVISAO') {
+            $metas = MetaModel::todas();
+            $cats = GastosMensais::matriz($hoje === Relogio::hoje() ? null : $hoje)[$mesCal]['cats'] ?? [];
+            $passou = [];
+            foreach (CategoriaModel::gastos() as $c) {
+                $id = (int) $c['id'];
+                $meta = $metas[$id] ?? 0.0;
+                $gasto = (float) ($cats[$id]['real'] ?? 0.0);
+                if ($meta > 0.004 && $gasto - $meta >= 0.005) {
+                    $passou[] = [$gasto - $meta, $c, $meta, $gasto];
+                }
+            }
+            usort($passou, static fn(array $a, array $b): int => $b[0] <=> $a[0]);
+            foreach ($passou as $k => [$excesso, $c, $meta, $gasto]) {
+                $out[] = self::aviso('meta', 5, sprintf('%04d', $k), t('{categoria} passou da meta', ['categoria' => nomeCurto($c)]),
+                    t('{gasto} de {meta}, passou {resto}', ['gasto' => num($gasto), 'meta' => num($meta), 'resto' => num($excesso)]),
+                    t('Ver metas'), '/meta#c' . (int) $c['id']);
+            }
+        }
+
+        usort($out, static fn(array $a, array $b): int => [$a['nivel'], $a['data'], $a['titulo']] <=> [$b['nivel'], $b['data'], $b['titulo']]);
+        return $out;
+    }
+
+    /**
+     * As faturas fechadas e não pagas de cada cartão ativo (com a aba Cartão), pelo status do próprio Cartão. Só as que
+     * têm compra lançada: sem compra, o app não sabe o valor, e a Fatura do cartão segue como uma conta do Mês.
+     * @return array{0:list<array>, 1:?int} os avisos e a categoria da Fatura a tirar das contas (quando o Cartão avisa por ela)
+     */
+    private static function faturas(string $hoje): array
+    {
+        $cartoes = AjusteModel::usa('usa_cartao') ? CartaoModel::ativos() : [];
+        if ($cartoes === []) {
+            return [[], null];
+        }
+        $pagas = CartaoFatura::faturasPagas(MotorFinanceiro::dados()['prev'], true)['porCartao'];
+        $out = [];
+        $comCompras = false;
+        foreach ($cartoes as $cartao) {
+            $compras = CartaoModel::compras($cartao['id']);
+            $comCompras = $comCompras || $compras !== [];
+            $doCartao = $pagas[$cartao['id']] ?? [];
+            $painel = CartaoFatura::painel($cartao, $compras, $hoje, array_map(static fn(array $f): float => $f['pago'], $doCartao));
+            foreach ($painel['faturas'] as $f) {
+                if (!in_array($f['status'], ['fechada', 'vencida'], true) || $f['total'] < 0.005) {
+                    continue;
+                }
+                $falta = (float) ($f['falta'] ?? $f['total']);
+                $detalhe = t('{cartao} · faltam {valor}', ['cartao' => $cartao['nome'], 'valor' => money($falta)]);
+                $href = CartaoController::url($cartao['id'], 'fatura=' . $f['mes']) . '#fatura';
+                if ($f['status'] === 'vencida') {
+                    $out[] = self::aviso('fatura_vencida', 0, $f['vence'], t('Fatura venceu {data}', ['data' => diaMes($f['vence'])]),
+                        $detalhe, t('Pagar'), $href);
+                } elseif (self::dias($hoje, $f['pagaAte']) <= self::DIAS) {
+                    $out[] = self::aviso('fatura_vence', 1, $f['pagaAte'], self::vence(t('Fatura'), $f['vence'], $f['pagaAte'], $hoje),
+                        $detalhe, t('Pagar'), $href);
+                } else {
+                    $out[] = self::aviso('fatura_fechada', 3, $f['pagaAte'], t('Fatura fechada, vence {data}', ['data' => diaMes($f['vence'])]),
+                        $detalhe, t('Ver'), $href);
+                }
+            }
+        }
+        return [$out, $comCompras ? CartaoModel::categoriaFatura() : null];
+    }
+
+    /** "Luz vence hoje", "amanhã", "25/11", ou "15/11 · paga até 16/11" quando o vencimento não cai em dia útil. */
+    private static function vence(string $nome, string $vencimento, string $pagaAte, string $hoje): string
+    {
+        if ($pagaAte !== $vencimento) {
+            return t('{conta} vence {data} · paga até {util}', ['conta' => $nome, 'data' => diaMes($vencimento), 'util' => diaMes($pagaAte)]);
+        }
+        return match (self::dias($hoje, $vencimento)) {
+            0 => t('{conta} vence hoje', ['conta' => $nome]),
+            1 => t('{conta} vence amanhã', ['conta' => $nome]),
+            default => t('{conta} vence {data}', ['conta' => $nome, 'data' => diaMes($vencimento)]),
+        };
+    }
+
+    private static function dias(string $de, string $ate): int
+    {
+        return (int) (new \DateTimeImmutable($de))->diff(new \DateTimeImmutable($ate))->format('%r%a');
+    }
+
+    private static function aviso(string $tipo, int $nivel, string $data, string $titulo, string $detalhe, string $acao, string $href): array
+    {
+        // a frase começa com maiúscula, mesmo quando começa pelo mês ("novembro de 2026") ou por um nome digitado
+        $titulo = mb_strtoupper(mb_substr($titulo, 0, 1)) . mb_substr($titulo, 1);
+        return ['tipo' => $tipo, 'nivel' => $nivel, 'data' => $data, 'titulo' => $titulo, 'detalhe' => $detalhe, 'acao' => $acao, 'href' => $href];
+    }
+}

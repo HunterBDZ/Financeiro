@@ -10,6 +10,7 @@ use Financeiro\Models\LancamentoModel;
 use Financeiro\Models\MesModel;
 use Financeiro\Models\SaldoConferenciaModel;
 use Financeiro\Relogio;
+use Financeiro\Services\Atencao;
 use Financeiro\Services\GastosMensais;
 use Financeiro\Services\MotorFinanceiro;
 use Financeiro\Services\Sobra;
@@ -35,7 +36,6 @@ final class DashboardController
             return;
         }
 
-        $meses    = MesModel::todos();
         $mesCal   = substr($hoje, 0, 7) . '-01';
         // a previsão olha o próximo mês aberto; o resumo fica no mês do calendário enquanto ele dura,
         // mesmo fechado antes do fim: o mês seguinte ainda não começou
@@ -67,14 +67,8 @@ final class DashboardController
         $sobra = $estadoRef === 'previsto' ? Sobra::prevista($linhaRef) : (Sobra::ateHoje($mesRef, $ehHoje ? null : $hoje) ?? Sobra::prevista($linhaRef));
         $ultimos = LancamentoModel::listar($mesRef, ['limite' => 3]);
 
-        // meses anteriores ao calendário ainda abertos: lembrete de fechar
-        $alertas = [];
-        foreach ($meses as $m) {
-            if ((string) $m['mes'] < $mesCal && $m['situacao'] === 'PREVISAO') {
-                $alertas[] = ['tipo' => 'fechar', 'mes' => (string) $m['mes']];
-                break;
-            }
-        }
+        // "Precisa de atenção": contas e faturas vencendo ou atrasadas, mês anterior aberto, conferência, metas
+        $avisos = Atencao::avisos($hoje, $conf);
 
         // erro da conferência volta pelo ?conferir=erro#conferir (a mensagem fica na sessão)
         $conferirErro = null;
@@ -107,9 +101,28 @@ final class DashboardController
             'painel'         => $painel,
             'sobra'          => $sobra,
             'ultimos'        => $ultimos,
-            'alertas'        => $alertas,
+            'avisos'         => $avisos,
             'v2'             => MotorFinanceiro::v2(),
         ], 'inicio');
+    }
+
+    /** GET /atencao — todos os avisos de "Precisa de atenção", quando são mais do que a faixa do Início mostra. */
+    public function atencao(): void
+    {
+        Auth::requireLogin();
+        $hoje = self::hoje();
+        View::render('dashboard/atencao', [
+            'pageTitle' => t('precisa de atenção · financeiro'),
+            'avisos'    => Atencao::avisos($hoje, self::conferenciaAtual($hoje)),
+        ], 'inicio');
+    }
+
+    /** A última conferência com o banco, como o Início mostra: a do total ou, com várias contas, a de cada uma. */
+    public static function conferenciaAtual(string $hoje): ?array
+    {
+        return ContaModel::varias()
+            ? self::conferenciaContas(self::contasHoje($hoje), $hoje)
+            : self::conferencia(AjusteModel::valor('saldo_ini'), $hoje);
     }
 
     /** POST /conferir — saldo do banco numa data (hoje ou outro dia), com volta. */

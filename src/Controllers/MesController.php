@@ -118,6 +118,7 @@ final class MesController
                     $l['recorrente'] = $s !== null;
                     $l['status'] = $s['status'] ?? null;
                     $l['vencimento'] = $s['vencimento'] ?? null;
+                    $l['paga_ate'] = $s['paga_ate'] ?? null;
                     $l['data_pagamento'] = $s['data_pagamento'] ?? null;
                     $l['pago'] = $s !== null ? round((float) $s['pago'], 2) : $r;
                     if ($l['do_cartao']) {

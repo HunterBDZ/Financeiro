@@ -1,8 +1,8 @@
 /* ==========================================================================
    inicio.css — Início: saudação, cartão do saldo (style.css), o mês em três linhas,
    para onde foi, conferir com o banco e últimos lançamentos. Prefixo .dash-*.
-   Celular: uma coluna na ordem do código. Computador: duas colunas; à esquerda o saldo e os
-   últimos lançamentos, à direita o mês, para onde foi e conferir.
+   Celular: uma coluna na ordem do código. Computador: duas colunas; à esquerda o saldo, "precisa de atenção"
+   e os últimos lançamentos, à direita o mês, para onde foi e conferir.
    ========================================================================== */
 
 .dash { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
@@ -12,20 +12,23 @@
 .dash-ola { color: var(--text-2); font-size: 14px; font-weight: 650; }
 .dash-data { margin-top: 2px; color: var(--text-2); font-size: 14px; }
 
-/* mês terminado ainda aberto: um aviso âmbar que leva a fechar */
-.dash-alertas { display: grid; gap: 8px; }
-.dash-alerta {
-    display: flex; align-items: center; gap: 12px;
-    padding: 12px 14px; border-radius: 16px;
-    background: var(--warn-bg); color: var(--text);
-    transition: transform .08s ease-out;
+/* precisa de atenção: logo abaixo do saldo, só quando há algo; um ponto âmbar, o texto e a ação à direita */
+.aten { padding-block: 14px 6px; }
+.aten-t { margin-bottom: 2px; }
+.aten-lista > li + li { border-top: 1px solid var(--line); }
+.aten-i { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 8px 0; }
+.aten-ponto { flex: none; width: 8px; height: 8px; border-radius: 50%; box-shadow: inset 0 0 0 1.6px var(--warn); }
+.aten-i.is-atrasado .aten-ponto { background: var(--warn); }
+.aten-txt { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.aten-txt b { font-weight: 650; line-height: 1.3; overflow-wrap: anywhere; }
+.aten-txt small { color: var(--text-2); font-size: 13px; overflow-wrap: anywhere; }
+.aten-acao, .aten-mais {
+    flex: none; display: inline-flex; align-items: center; gap: 2px; min-height: var(--tap);
+    color: var(--text-2); font-size: 14px; font-weight: 700; white-space: nowrap;
 }
-.dash-alerta:active { transform: scale(.99); }
-.dash-alerta-ic { display: grid; place-items: center; flex: none; width: 34px; height: 34px; border-radius: 11px; background: var(--card); color: var(--warn); }
-.dash-alerta-txt { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
-.dash-alerta-txt b { font-weight: 750; }
-.dash-alerta-txt small { color: var(--text-2); }
-.dash-alerta-acao { flex: none; display: inline-flex; align-items: center; gap: 2px; font-weight: 800; font-size: 14px; }
+.aten-acao:hover, .aten-mais:hover { color: var(--text); }
+.aten-mais { border-top: 1px solid var(--line); width: 100%; }
+.lf-topo.aten-topo { justify-content: flex-start; }
 
 .dash-grade { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
 
@@ -117,6 +120,8 @@
         grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 16px; align-items: start;
         grid-template-areas: "saldo resumo" "ult gastos" "ult conf" "ult .";
     }
+    .dash-grade.tem-aten { grid-template-areas: "saldo resumo" "aten gastos" "ult conf" "ult ."; }
+    .dash-grade > .aten { grid-area: aten; }
     .dash-grade > .saldo { grid-area: saldo; align-self: stretch; display: flex; flex-direction: column; justify-content: space-between; }
     .dash-resumo { grid-area: resumo; }
     .dash-gastos { grid-area: gastos; }
@@ -130,6 +135,7 @@
         grid-template-columns: minmax(0, 5fr) minmax(0, 4fr) minmax(0, 4fr);
         grid-template-areas: "saldo resumo gastos" "ult conf gastos" "ult . .";
     }
+    .dash-grade.tem-aten { grid-template-areas: "saldo resumo gastos" "aten conf gastos" "ult conf gastos" "ult . ."; }
 }
 
 /* várias contas: o saldo de cada uma em "Ver detalhes"; conferir pede o de cada uma */

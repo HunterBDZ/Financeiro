@@ -5,10 +5,11 @@ use Financeiro\Auth;
  * Início — o mês de referência pelo que aconteceu de verdade (lançamentos).
  * Saudação; o cartão do saldo (em conta hoje, uma frase que responde quanto dá para gastar e o resto
  * dobrado em "Ver detalhes", com o olho que esconde os valores); o mês em três linhas (entrou, saiu e a
- * sobra com o nome da base; o detalhe fica dobrado); para onde foi; conferir com o banco; últimos lançamentos.
+ * sobra com o nome da base; o detalhe fica dobrado); "Precisa de atenção", logo abaixo do saldo e só quando há algo;
+ * para onde foi; conferir com o banco; últimos lançamentos.
  * Com mais de uma conta, "Ver detalhes" mostra o saldo de cada uma, e conferir pede o saldo de cada uma.
  * Variáveis: $hoje, $mesRef, $mesCal, $estadoRef, $reserva, $conta, $contas (só com várias), $conf, $conferirAberto,
- * $conferirErro, $painel, $sobra (Sobra), $resposta (DashboardController::resposta), $ultimos, $alertas.
+ * $conferirErro, $painel, $sobra (Sobra), $resposta (DashboardController::resposta), $ultimos, $avisos (Services\Atencao).
  */
 use Financeiro\Services\Sobra;
 
@@ -97,18 +98,6 @@ $quandoFoi   = static function (string $data) use ($hoje): string {
         <p class="dash-data"><?= e($dataLonga) ?></p>
     </header>
 
-    <?php if ($alertas !== []): ?>
-        <div class="dash-alertas">
-            <?php foreach ($alertas as $a): ?>
-                <a class="dash-alerta" href="/mes/fechar?mes=<?= e(rawurlencode($a['mes'])) ?>">
-                    <span class="dash-alerta-ic"><?= svgIcon('alert', 18) ?></span>
-                    <span class="dash-alerta-txt"><b><?= e(t('{mes} terminou e ainda está aberto.', ['mes' => mesAno($a['mes'])])) ?></b><small><?= e(t('Feche o mês para conferir com o banco.')) ?></small></span>
-                    <span class="dash-alerta-acao"><?= e(t('Fechar')) ?> <?= svgIcon('chevron', 16) ?></span>
-                </a>
-            <?php endforeach; ?>
-        </div>
-    <?php endif; ?>
-
     <?php if (!empty($roteiro)): ?>
     <section class="card roteiro" aria-labelledby="roteiro-t">
         <h2 class="titulo" id="roteiro-t"><?= e(t('Primeiros passos')) ?></h2>
@@ -124,7 +113,7 @@ $quandoFoi   = static function (string $data) use ($hoje): string {
     </section>
     <?php endif; ?>
 
-    <div class="dash-grade">
+    <div class="dash-grade<?= $avisos !== [] ? ' tem-aten' : '' ?>">
 
         <!-- o saldo de hoje contra a reserva -->
         <section class="saldo <?= $clsSaldo ?>" aria-labelledby="saldo-t">
@@ -163,6 +152,11 @@ $quandoFoi   = static function (string $data) use ($hoje): string {
             </details>
             <?php endif; ?>
         </section>
+
+        <!-- precisa de atenção: só quando há algo, no máximo três, do mais urgente para o menos -->
+        <?php if ($avisos !== []): ?>
+            <?php \Financeiro\View::partial('partials/atencao', ['avisos' => $avisos, 'max' => \Financeiro\Services\Atencao::MAX]); ?>
+        <?php endif; ?>
 
         <!-- o mês em três linhas; o detalhe fica dobrado -->
         <section class="card dash-resumo" aria-labelledby="dash-rec-t">

@@ -99,20 +99,27 @@ foreach ($faturas as $f) {
 $selValido = in_array($sel, array_column($faturas, 'mes'), true) ? $sel : $aberta;
 $statusTxt = static function (array $f) use ($hoje): string {
     $dias = (int) round((strtotime($f['fecha']) - strtotime($hoje)) / 86400);
+    $util = ($f['pagaAte'] ?? $f['vence']) !== $f['vence'];
     return match ($f['status']) {
         'aberta'   => $dias <= 1
             ? ($dias === 1 ? t('Aberta · fecha amanhã, dia {dia}', ['dia' => (int) substr($f['fecha'], 8, 2)]) : t('Aberta · fecha hoje, dia {dia}', ['dia' => (int) substr($f['fecha'], 8, 2)]))
             : t('Aberta · fecha em {n} dias, dia {dia}', ['n' => $dias, 'dia' => (int) substr($f['fecha'], 8, 2)]),
-        // paga em parte: o que ainda falta da soma das parcelas
-        'fechada'  => $f['falta'] !== null
-            ? t('Fechada · vence dia {dia} · faltam {valor}', ['dia' => (int) substr($f['vence'], 8, 2), 'valor' => num((float) $f['falta'])])
-            : t('Fechada · vence dia {dia}', ['dia' => (int) substr($f['vence'], 8, 2)]),
+        // paga em parte: o que ainda falta da soma das parcelas; vence num dia que não é útil: até quando dá para pagar
+        'fechada'  => $util
+            ? ($f['falta'] !== null
+                ? t('Fechada · vence {data} · paga até {util} · faltam {valor}', ['data' => diaMes($f['vence']), 'util' => diaMes($f['pagaAte']), 'valor' => num((float) $f['falta'])])
+                : t('Fechada · vence {data} · paga até {util}', ['data' => diaMes($f['vence']), 'util' => diaMes($f['pagaAte'])]))
+            : ($f['falta'] !== null
+                ? t('Fechada · vence dia {dia} · faltam {valor}', ['dia' => (int) substr($f['vence'], 8, 2), 'valor' => num((float) $f['falta'])])
+                : t('Fechada · vence dia {dia}', ['dia' => (int) substr($f['vence'], 8, 2)])),
         // a data diz que o pagamento feito antes do mês do vencimento foi para esta fatura
         'paga'     => $f['pagaEm'] !== null ? t('Paga em {data}', ['data' => diaMes((string) $f['pagaEm'])]) : t('Paga'),
         'vencida'  => $f['falta'] !== null
             ? t('Venceu dia {dia} · faltam {valor}', ['dia' => (int) substr($f['vence'], 8, 2), 'valor' => num((float) $f['falta'])])
             : t('Venceu dia {dia} · lance o pagamento no Extrato', ['dia' => (int) substr($f['vence'], 8, 2)]),
-        default    => t('Prevista · vence {data}', ['data' => diaMes($f['vence'])]),
+        default    => $util
+            ? t('Prevista · vence {data} · paga até {util}', ['data' => diaMes($f['vence']), 'util' => diaMes($f['pagaAte'])])
+            : t('Prevista · vence {data}', ['data' => diaMes($f['vence'])]),
     };
 };
 $ancora = static fn(string $m): string => 'f-' . substr($m, 0, 7);

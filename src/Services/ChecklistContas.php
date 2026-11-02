@@ -3,6 +3,7 @@ namespace Financeiro\Services;
 
 use Financeiro\Models\ContaRecorrenteModel;
 use Financeiro\Models\LancamentoModel;
+use Financeiro\DiaUtil;
 use Financeiro\Models\PrevisaoModel;
 use Financeiro\Relogio;
 
@@ -10,14 +11,15 @@ use Financeiro\Relogio;
  * Checklist de contas recorrentes — 100% derivado (nunca marcado à mão):
  * "existe" vem da Previsão, "pago" vem da soma de Lançamentos daquela categoria no mês. A Fatura do
  * cartão é a exceção: "pago" é o que foi pago da fatura que vence no mês, mesmo antes dele
- * (CartaoFatura::atribuir), e o vencimento é o do cartão.
+ * (CartaoFatura::atribuir), e o vencimento é o do cartão. Vencimento em dia que não é útil só atrasa depois do
+ * próximo dia útil (DiaUtil): 'paga_ate' é esse dia, e é ele que decide atrasado e pago com atraso.
  */
 final class ChecklistContas
 {
     /**
      * @param ?string $hoje 'Y-m-d' (padrão: hoje) — define o que está atrasado.
      * @return list<array{categoria_id:int,categoria_nome:string,grupo:string,dia_vencimento:int,vencimento:string,
-     *   previsto:float,pago:float,data_pagamento:?string,status:string}>
+     *   paga_ate:string,previsto:float,pago:float,data_pagamento:?string,status:string}>
      *   status: inexistente | pago_parcial | pago_atrasado | pago | atrasado | pendente
      */
     public static function statusPorMes(string $mes, ?string $hoje = null): array
@@ -41,9 +43,10 @@ final class ChecklistContas
             $existe   = $previsto > 0;
 
             $vencimento = self::dataVencimento($mes, (int) $conta['dia_vencimento']);
-            $atrasado   = $existe && $pago <= 0 && $vencimento < $hoje;
+            $pagaAte    = new \DateTimeImmutable(DiaUtil::proximoUtil($vencimento->format('Y-m-d')));
+            $atrasado   = $existe && $pago <= 0 && $pagaAte < $hoje;
 
-            $pagoAtrasado  = $pago > 0 && $dataPagamento !== null && new \DateTimeImmutable($dataPagamento) > $vencimento;
+            $pagoAtrasado  = $pago > 0 && $dataPagamento !== null && new \DateTimeImmutable($dataPagamento) > $pagaAte;
             // veio menos que o previsto: parcial até a pessoa dizer, no Mês, que esse foi o valor final
             // (a previsão do mês passa a ser o pago) ou que ainda falta pagar
             $pagoParcial   = $existe && PrevisaoEdicao::veioMenos($pago, $previsto);
@@ -63,6 +66,7 @@ final class ChecklistContas
                 'grupo'          => $conta['grupo'],
                 'dia_vencimento' => (int) $conta['dia_vencimento'],
                 'vencimento'     => $vencimento->format('Y-m-d'),
+                'paga_ate'       => $pagaAte->format('Y-m-d'),
                 'previsto'       => $previsto,
                 'pago'           => $pago,
                 'data_pagamento' => $dataPagamento,

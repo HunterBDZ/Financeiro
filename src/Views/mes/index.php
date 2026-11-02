@@ -235,7 +235,10 @@ $linhaConta = static function (array $l) use ($estado, $valorConta, $fmt, $metaB
             $selo = t('Venceu {data}', ['data' => diaMes((string) $l['vencimento'])]);
             $seloCls = 'venceu';
         } elseif ($st === 'pendente') {
-            $selo = t('Vence {data}', ['data' => diaMes((string) $l['vencimento'])]);
+            // vence num dia que não é útil: diz também até quando dá para pagar sem atraso
+            $selo = ($l['paga_ate'] ?? $l['vencimento']) !== $l['vencimento']
+                ? t('Vence {data} · paga até {util}', ['data' => diaMes((string) $l['vencimento']), 'util' => diaMes((string) $l['paga_ate'])])
+                : t('Vence {data}', ['data' => diaMes((string) $l['vencimento'])]);
             $seloCls = 'vence';
         } else {
             $selo = t('Previsto');
