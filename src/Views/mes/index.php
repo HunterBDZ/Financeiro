@@ -32,7 +32,8 @@ $metaBarra = static function (float $gasto, ?float $meta) use ($metaEstado): str
         return '';
     }
     [$txt, $cls] = $m['fora'] ? [t('Acima da meta'), 'venceu'] : ($m['frac'] >= 0.9 ? [t('Na meta'), 'vence'] : [t('Abaixo da meta'), 'pago']);
-    return '<span class="mes-l2"><span class="mes-status mes-status-' . $cls . '">' . e($txt) . '</span></span>';
+    return '<span class="mes-l2"><span class="mes-status mes-status-' . $cls . '">' . e($txt) . '</span>'
+        . '<span class="mes-status-data"> · ' . e(t('meta {valor}', ['valor' => num((float) $m['meta'])])) . '</span></span>';
 };
 // Sufixo de classe para pintar o valor de verde/vermelho quando há meta.
 $metaValCls = static function (float $gasto, ?float $meta) use ($metaEstado): string {
@@ -77,11 +78,11 @@ $sortDesc($diaEss, $valorDia);
 $sortDesc($diaNaoEss, $valorDia);
 $diaZerEss    = array_values(array_filter($diaZeradas, static fn($l) => $l['essencial']));
 $diaZerNaoEss = array_values(array_filter($diaZeradas, static fn($l) => !$l['essencial']));
-// zeradas com meta continuam no grupo (mostram a meta); as sem meta ficam recolhidas em "Sem movimento"
+// zeradas continuam no grupo, no fim: primeiro as que têm meta
 $temMeta       = static fn(array $l): bool => (float) ($l['meta'] ?? 0.0) > 0.004;
-$comMetaEss    = array_values(array_filter($diaZerEss, $temMeta));
-$comMetaNaoEss = array_values(array_filter($diaZerNaoEss, $temMeta));
-$semMov        = array_values(array_filter($diaZeradas, static fn($l) => !$temMeta($l)));
+$comMetaEss    = array_merge(array_values(array_filter($diaZerEss, $temMeta)), array_values(array_filter($diaZerEss, static fn($l) => !$temMeta($l))));
+$comMetaNaoEss = array_merge(array_values(array_filter($diaZerNaoEss, $temMeta)), array_values(array_filter($diaZerNaoEss, static fn($l) => !$temMeta($l))));
+$semMov        = [];       // antes ficavam recolhidas em "Sem movimento"; agora aparecem nos grupos, no fim
 
 $totalEss    = array_sum(array_map($valorConta, $essContas)) + array_sum(array_map($valorDia, $diaEss));
 $totalNaoEss = array_sum(array_map($valorConta, $naoEssContas)) + array_sum(array_map($valorDia, $diaNaoEss));
@@ -182,7 +183,7 @@ $abreLinha = static function (array $l) use ($erroDe): void { ?>
 
 /* ---------------------------------------------------------------- linhas */
 $linhaDia = static function (array $l) use ($estado, $valorDia, $metaBarra, $metaValCls, $origem, $painel, $abreLinha): void {
-    $v    = $valorDia($l);
+    $v    = $estado === 'aberto' ? (float) $l['real'] : $valorDia($l);   // aberto: o que já foi gasto (o plano conta a meta)
     // o mês com valor próprio compara com ele, não com a meta de todo mês ("0 de 800", não "0 de 1.000")
     $meta = $estado === 'previsto' ? null : (!empty($l['ajuste']) ? (float) $l['prev'] : ($l['meta'] ?? null));
     // mês aberto sem meta, mas com previsão: a barra mostra quanto da previsão já foi gasto
@@ -439,7 +440,7 @@ $linhaLeitura = static function (array $l, float $v): void { ?>
         <!-- saídas -->
         <section class="card mes-sec" id="saidas">
             <div class="card-head">
-                <h2 class="titulo"><?= e(t('Saídas')) ?></h2>
+                <h2 class="titulo"><?= $estado === 'real' ? e(t('Saídas')) : e(t('Saídas previstas')) ?></h2>
                 <span class="card-acao num neg"><?= e(num($totalSaidas)) ?></span>
             </div>
 

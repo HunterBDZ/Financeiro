@@ -1888,4 +1888,6 @@ return [
     'Começou o mês com {inicio}. Com a sobra, menos {auto} que o plano adianta do empréstimo, termina com {fim}.' => 'Started the month with {inicio}. With the surplus, minus {auto} the plan prepays on the loan, it ends with {fim}.',
     'Fim do mês' => 'End of month',
     'Saldo do mês anterior' => 'Previous month balance',
+    'meta {valor}' => 'goal {valor}',
+    'Saídas previstas' => 'Expected outflows',
 ];
