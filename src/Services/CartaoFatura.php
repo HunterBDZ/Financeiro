@@ -300,28 +300,37 @@ final class CartaoFatura
 
     /**
      * O cartão e a fatura de um pagamento lançado sem dizer qual: a regra de atribuir(), um pagamento por vez, sobre o
-     * que já está pago de cada fatura do cartão. Sem cartão escolhido, vale o padrão (o primeiro ativo).
+     * que já está pago de cada fatura do cartão. Sem cartão escolhido, vale o primeiro com uma fatura fechada ainda
+     * por pagar nessa data; sem nenhum assim, o primeiro.
      * @return ?array{cartao_id:int, fatura:string} null sem cartão
      */
     public static function vinculoAutomatico(string $data, ?int $cartaoId = null, ?int $ignorar = null): ?array
     {
         $cartoes = CartaoModel::ativos();
-        $cartao = $cartaoId !== null ? CartaoModel::achar($cartaoId) : ($cartoes[0] ?? null);
         $cat = CartaoModel::categoriaFatura();
-        if ($cartao === null || $cat === null) {
+        $escolhido = $cartaoId !== null ? CartaoModel::achar($cartaoId) : null;
+        if ($cat === null || ($escolhido === null && $cartoes === [])) {
             return null;
         }
-        $st = Database::connection()->prepare(
-            'SELECT fatura, SUM(valor) FROM lancamentos WHERE categoria_id = :cat AND cartao_id = :c AND id <> :id GROUP BY fatura'
-        );
-        $st->execute(['cat' => $cat, 'c' => $cartao['id'], 'id' => $ignorar ?? 0]);
-        $pago = array_map('floatval', $st->fetchAll(\PDO::FETCH_KEY_PAIR));
-        $valores = self::valores($cartao['id'], MotorFinanceiro::dados()['prev'], $cat, count($cartoes) <= 1);
-        $f = self::ultimaFechada($data, $cartao['fecha'], $cartao['vence']);
-        if (self::todaPaga($pago[$f] ?? null, (float) ($valores[$f] ?? 0.0))) {
-            $f = self::somaMeses($f, 1);
+        // sem cartão escolhido e com vários: o primeiro que tem uma fatura fechada ainda por pagar nessa data
+        $opcoes = [];
+        foreach ($escolhido !== null ? [$escolhido] : $cartoes as $cartao) {
+            $st = Database::connection()->prepare(
+                'SELECT fatura, SUM(valor) FROM lancamentos WHERE categoria_id = :cat AND cartao_id = :c AND id <> :id GROUP BY fatura'
+            );
+            $st->execute(['cat' => $cat, 'c' => $cartao['id'], 'id' => $ignorar ?? 0]);
+            $pago = array_map('floatval', $st->fetchAll(\PDO::FETCH_KEY_PAIR));
+            $valores = self::valores($cartao['id'], MotorFinanceiro::dados()['prev'], $cat, count($cartoes) <= 1);
+            $f = self::ultimaFechada($data, $cartao['fecha'], $cartao['vence']);
+            $paga = self::todaPaga($pago[$f] ?? null, (float) ($valores[$f] ?? 0.0));
+            $opcoes[] = ['cartao_id' => $cartao['id'], 'fatura' => $paga ? self::somaMeses($f, 1) : $f, 'aberta' => !$paga];
         }
-        return ['cartao_id' => $cartao['id'], 'fatura' => $f];
+        foreach ($opcoes as $o) {
+            if ($o['aberta']) {
+                return ['cartao_id' => $o['cartao_id'], 'fatura' => $o['fatura']];
+            }
+        }
+        return ['cartao_id' => $opcoes[0]['cartao_id'], 'fatura' => $opcoes[0]['fatura']];
     }
 
     /**
