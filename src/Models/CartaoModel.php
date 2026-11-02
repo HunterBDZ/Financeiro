@@ -132,20 +132,16 @@ final class CartaoModel
     }
 
     /**
-     * Quanto foi pago de fatura em cada mês (lançamentos da categoria da fatura).
-     * @return array<string, float> mês (Y-m-01) => total pago
+     * Os pagamentos de fatura (lançamentos da categoria da fatura), do mais antigo para o mais novo. A
+     * fatura de cada um sai de CartaoFatura::atribuir(), não do mês da data.
+     * @return list<array{id:int, data:string, valor:float}>
      */
     public static function pagamentos(int $categoriaFatura): array
     {
-        $st = Database::connection()->prepare(
-            'SELECT ' . Sql::inicioMes('data') . ' AS mes, SUM(valor) AS v FROM lancamentos WHERE categoria_id = :c GROUP BY mes'
-        );
+        $st = Database::connection()->prepare('SELECT id, data, valor FROM lancamentos WHERE categoria_id = :c ORDER BY data, id');
         $st->execute(['c' => $categoriaFatura]);
-        $out = [];
-        foreach ($st->fetchAll() as $r) {
-            $out[(string) $r['mes']] = (float) $r['v'];
-        }
-        return $out;
+        return array_map(static fn(array $r): array => ['id' => (int) $r['id'], 'data' => (string) $r['data'], 'valor' => (float) $r['valor']],
+            $st->fetchAll());
     }
 
     private static function cartao(array $r): array

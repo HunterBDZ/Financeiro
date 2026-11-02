@@ -1709,5 +1709,156 @@ if (extension_loaded('pdo_sqlite') && function_exists('proc_open')) {
     \Financeiro\Atualizacao::removerPasta($tmpSis);
 }
 
+// ---- pagamento de fatura na fatura certa e conta que veio mais barata (dados de mentira; o que grava é desfeito)
+// cada pagamento vai para a fatura mais recente que já tinha fechado na data dele; se ela está toda paga, para a seguinte
+$pgT = static fn(string $data, float $valor): array => ['data' => $data, 'valor' => $valor];
+$check('fatura: paga no dia 31, a que vence no dia 2 fica com o pagamento (não a do mês da data)',
+    CartaoFatura::atribuir([$pgT('2026-10-31', 1250.0)], 24, 2, ['2026-11-01' => 1250.0]) === ['2026-11-01']);
+$check('fatura: paga atrasada continua na mesma fatura; depois do fechamento seguinte, vai para a que acabou de fechar',
+    CartaoFatura::atribuir([$pgT('2026-11-05', 1250.0)], 24, 2, []) === ['2026-11-01']
+    && CartaoFatura::atribuir([$pgT('2026-11-24', 900.0)], 24, 2, []) === ['2026-12-01']);
+$check('fatura: com a fechada toda paga, o pagamento seguinte adianta a aberta',
+    CartaoFatura::atribuir([$pgT('2026-10-31', 1250.0), $pgT('2026-11-10', 300.0)], 24, 2, ['2026-11-01' => 1250.0, '2026-12-01' => 900.0])
+    === ['2026-11-01', '2026-12-01']);
+$check('fatura: dois pagamentos parciais somam na mesma fatura, em ordem de data; completa, o seguinte adianta a aberta',
+    CartaoFatura::atribuir(['b' => $pgT('2026-11-01', 550.0), 'a' => $pgT('2026-10-31', 700.0), 'c' => $pgT('2026-11-03', 100.0)], 24, 2, ['2026-11-01' => 1250.0])
+    === ['b' => '2026-11-01', 'a' => '2026-11-01', 'c' => '2026-12-01']
+    && CartaoFatura::atribuir(['x' => $pgT('2026-10-31', 1000.0), 'y' => $pgT('2026-10-30', 200.0)], 24, 2, ['2026-11-01' => 1000.0])
+    === ['x' => '2026-11-01', 'y' => '2026-11-01']);
+$check('fatura: centavos de diferença contam como toda paga; dez centavos não',
+    CartaoFatura::atribuir([$pgT('2026-10-31', 1249.97), $pgT('2026-11-05', 100.0)], 24, 2, ['2026-11-01' => 1250.0]) === ['2026-11-01', '2026-12-01']
+    && CartaoFatura::atribuir([$pgT('2026-10-31', 1249.90), $pgT('2026-11-05', 100.0)], 24, 2, ['2026-11-01' => 1250.0]) === ['2026-11-01', '2026-11-01']);
+$check('fatura: fechamento no dia 31 em fevereiro fecha no último dia do mês (28 ou 29)',
+    CartaoFatura::atribuir([$pgT('2027-02-27', 1.0), $pgT('2027-02-28', 1.0), $pgT('2028-02-28', 1.0), $pgT('2028-02-29', 1.0)], 31, 8, [])
+    === ['2027-02-01', '2027-03-01', '2028-02-01', '2028-03-01']);
+$check('fatura: paga no próprio dia do fechamento, vai para a fatura que fechou nesse dia',
+    CartaoFatura::atribuir([$pgT('2026-10-24', 500.0)], 24, 2, []) === ['2026-11-01']
+    && CartaoFatura::atribuir([$pgT('2026-10-23', 500.0)], 24, 2, []) === ['2026-10-01']);
+$pagasT = CartaoFatura::porFaturaPaga([$pgT('2026-10-31', 1250.0)], 24, 2, ['2026-11-01' => 1250.0]);
+$compR1 = [['id' => 9, 'valor_total' => 1250.0, 'parcelas' => 1, 'primeira_fatura' => '2026-11-01', 'descricao' => 'TV', 'data' => '2026-10-10']];
+$cartR1 = ['fecha' => 24, 'vence' => 2, 'limite' => null];
+$pnR1 = CartaoFatura::painel($cartR1, $compR1, '2026-11-03', array_map(static fn($f) => $f['pago'], $pagasT), [], array_map(static fn($f) => $f['ultimo'], $pagasT));
+$check('fatura: no Cartão, a paga no dia 31 aparece paga, com a data, e não vencida', $pnR1['aberta'] === '2026-12-01'
+    && $pnR1['faturas'][0]['mes'] === '2026-11-01' && $pnR1['faturas'][0]['status'] === 'paga' && $pnR1['faturas'][0]['pagaEm'] === '2026-10-31', json_encode($pnR1['faturas'][0]['status']));
+$pnParc = CartaoFatura::painel($cartR1, $compR1, '2026-11-03', ['2026-11-01' => 700.0]);
+$check('fatura: paga em parte, diz quanto falta', $pnParc['faturas'][0]['status'] === 'vencida' && abs((float) $pnParc['faturas'][0]['falta'] - 550.0) < 0.001
+    && CartaoFatura::painel($cartR1, $compR1, '2026-11-01', ['2026-11-01' => 700.0])['faturas'][0]['status'] === 'fechada');
+
+// o plano: a fatura de fevereiro foi paga em 31/01 e a de março em 28/02; nenhuma conta duas vezes
+$catR = ['apelido' => null, 'essencial' => 1, 'ativo' => 1, 'ordem' => 0];
+$dadosFat = [
+    'meses' => [['mes' => '2030-01-01', 'situacao' => 'REAL'], ['mes' => '2030-02-01', 'situacao' => 'PREVISAO'],
+                ['mes' => '2030-03-01', 'situacao' => 'PREVISAO'], ['mes' => '2030-04-01', 'situacao' => 'PREVISAO']],
+    'aj' => ['saldo_ini' => 5000.0, 'poupanca_ini' => 0.0, 'reserva_minima' => 0.0, 'objetivo' => 3.0, 'meta_final' => 0.0],
+    'loanIni' => 0.0, 'excecao' => [], 'metas' => [], 'n' => [], 'ult' => [],
+    'cats' => [70 => ['id' => 70, 'nome' => 'Fatura do cartão', 'grupo' => 'Cartao', 'sinal' => -1, 'operacional' => 1] + $catR],
+    'prev' => ['2030-02-01' => [70 => 1000.0], '2030-03-01' => [70 => 1200.0], '2030-04-01' => [70 => 900.0]],
+    'real' => ['2030-01-01' => [70 => 1000.0], '2030-02-01' => [70 => 1200.0]],
+    'esp' => ['cred' => null, 'amort' => null, 'guard' => null, 'resg' => null],
+    'fatura' => ['cat' => 70, 'vence' => 2, 'faturas' => CartaoFatura::porFaturaPaga([$pgT('2030-01-31', 1000.0), $pgT('2030-02-28', 1200.0)], 24, 2,
+                 ['2030-02-01' => 1000.0, '2030-03-01' => 1200.0])],
+];
+$pF = MotorFinanceiro::calcular($dadosFat, ['hoje' => '2030-02-28']);
+$pSem = MotorFinanceiro::calcular(array_replace($dadosFat, ['fatura' => ['cat' => null, 'vence' => 0, 'faturas' => []]]), ['hoje' => '2030-02-28']);
+$check('fatura: no plano, a paga num mês anterior não entra de novo no mês do vencimento (sem cartão, segue como antes)',
+    abs($pF['2030-02-01']['sai'] - 1200.0) < 0.005 && abs($pF['2030-03-01']['sai']) < 0.005 && abs($pF['2030-04-01']['sai'] - 900.0) < 0.005
+    && abs($pSem['2030-03-01']['sai'] - 1200.0) < 0.005, json_encode([array_column($pF, 'sai'), array_column($pSem, 'sai')]));
+$dadosAtraso = array_replace($dadosFat, ['fatura' => ['cat' => 70, 'vence' => 2, 'faturas' => CartaoFatura::porFaturaPaga(
+    [$pgT('2030-01-31', 1000.0), $pgT('2030-02-05', 300.0), $pgT('2030-03-28', 900.0)], 24, 2, ['2030-02-01' => 1000.0, '2030-03-01' => 1200.0])]]);
+$pA = MotorFinanceiro::calcular(array_replace_recursive($dadosAtraso, ['real' => ['2030-02-01' => [70 => 300.0]]]), ['hoje' => '2030-02-10']);
+$check('fatura: no plano, o adiantamento sai no mês em que foi pago e desconta da fatura seguinte; pagamento com data futura não desconta',
+    abs($pA['2030-02-01']['sai'] - 300.0) < 0.005 && abs($pA['2030-03-01']['sai'] - 900.0) < 0.005 && abs($pA['2030-04-01']['sai'] - 900.0) < 0.005,
+    json_encode(array_column($pA, 'sai')));
+
+// "veio menos": o valor final de uma conta e de uma entrada (o salário chega sem a parcela); dia a dia e fatura paga não perguntam
+$dAm = [
+    'cats' => [1 => ['id' => 1, 'nome' => MotorFinanceiro::CAT_SALARIO, 'grupo' => 'Entradas', 'sinal' => 1, 'operacional' => 1] + $catR,
+               5 => ['id' => 5, 'nome' => 'Luz', 'grupo' => 'Fixos', 'sinal' => -1, 'operacional' => 1] + $catR,
+               10 => ['id' => 10, 'nome' => 'Mercado', 'grupo' => 'Dia a dia', 'sinal' => -1, 'operacional' => 1] + $catR,
+               15 => ['id' => 15, 'nome' => 'Fatura do cartão', 'grupo' => 'Cartao', 'sinal' => -1, 'operacional' => 1] + $catR],
+    'prev' => ['2030-01-01' => [1 => 8000.0, 5 => 180.0, 10 => 1500.0, 15 => 1250.0]],
+    'real' => ['2030-01-01' => [1 => 7310.10, 5 => 150.0, 10 => 600.0, 15 => 2000.0]],
+    'fatura' => ['cat' => 15, 'vence' => 2, 'faturas' => ['2030-01-01' => ['valor' => 1250.0, 'pago' => 1250.0, 'primeiro' => '2029-12-31', 'ultimo' => '2029-12-31', 'meses' => []]]],
+];
+$check('valor final: conta e entrada que vieram menos dão o valor final; dia a dia e fatura paga não perguntam',
+    PrevisaoEdicao::aMenos($dAm, 5, '2030-01-01') === ['veio' => 150.0, 'previsto' => 180.0, 'final' => 150.0, 'parcela' => false]
+    && PrevisaoEdicao::aMenos($dAm, 1, '2030-01-01', 289.90) === ['veio' => 7310.1, 'previsto' => 7710.1, 'final' => 7600.0, 'parcela' => true]
+    && PrevisaoEdicao::aMenos($dAm, 10, '2030-01-01') === null && PrevisaoEdicao::aMenos($dAm, 15, '2030-01-01') === null
+    && PrevisaoEdicao::veioMenos(170.0, 180.0) && !PrevisaoEdicao::veioMenos(179.97, 180.0) && !PrevisaoEdicao::veioMenos(0.0, 180.0));
+
+$mesAtualT = date('Y-m-01');
+$sitAtualT = array_column(MesModel::todos(), 'situacao', 'mes');
+$catFatDb = CartaoModel::categoriaFatura();
+if ($catFatDb !== null && ($sitAtualT[$mesAtualT] ?? '') === 'PREVISAO') {
+    $emTransacao('fatura paga no fim do mês anterior', static function () use ($pdo, $check, $catFatDb, $mesAtualT, $uid, $render): void {
+        $pdo->exec('UPDATE cartoes SET ativo = 0');                  // o cartão de verdade sai de cena até o rollback
+        $pdo->prepare('DELETE FROM lancamentos WHERE categoria_id = ?')->execute([$catFatDb]);   // só o pagamento de teste conta
+        AjusteModel::setValor('usa_cartao', 1.0);
+        CartaoModel::salvar(null, 'Cartão teste', 28, 1, null);       // a fatura de M fecha no dia 28 do mês anterior e vence dia 1
+        ContaRecorrenteModel::upsert($catFatDb, 1);
+        PrevisaoModel::setValor($catFatDb, $mesAtualT, 800.0);
+        $fimAnterior = date('Y-m-d', strtotime($mesAtualT . ' -1 day'));
+        LancamentoModel::criar($fimAnterior, 'Fatura teste', $catFatDb, 800.0, $uid);
+        MotorFinanceiro::limparCache();
+        $st = array_values(array_filter(\Financeiro\Services\ChecklistContas::statusPorMes($mesAtualT), static fn($s) => (int) $s['categoria_id'] === $catFatDb))[0] ?? null;
+        $check('fatura: no Mês, a paga no fim do mês anterior está paga, e não atrasada nem pendente', $st !== null
+            && in_array($st['status'], ['pago', 'pago_atrasado'], true) && abs($st['pago'] - 800.0) < 0.01 && $st['data_pagamento'] === $fimAnterior, json_encode($st));
+        $d = MotorFinanceiro::dados();
+        $com = MotorFinanceiro::calcular($d)[$mesAtualT];
+        $sem = MotorFinanceiro::calcular(array_replace($d, ['fatura' => ['cat' => null, 'vence' => 0, 'faturas' => []]]))[$mesAtualT];
+        $check('fatura: no plano, a paga no mês anterior não entra de novo no mês do vencimento', abs($sem['sai'] - $com['sai'] - 800.0) < 0.01, json_encode([$sem['sai'], $com['sai']]));
+        $html = $render(MesController::class, 'index', ['mes' => $mesAtualT]);
+        preg_match('#id="cat-' . $catFatDb . '".*?</summary>#s', $html, $mL);
+        $check('fatura: a linha do Mês diz quando foi paga e não pesa no mês', str_contains($mL[0] ?? '', 'mes-status-pago')
+            && str_contains($mL[0] ?? '', 'Pago em ' . diaMes($fimAnterior)) && !str_contains($mL[0] ?? '', 'Venc'), substr($mL[0] ?? '', -300));
+    });
+
+    $emTransacao('valor final', static function () use ($pdo, $check, $mesAtualT, $uid, $render): void {
+        $pdo->exec("INSERT INTO categorias (nome, grupo, sinal, ativo, ordem, essencial) VALUES ('Conta teste do valor final', 'Fixos', -1, 1, 999, 1)");
+        $catC = (int) $pdo->lastInsertId();
+        $catE = (int) CategoriaModel::criar('Entrada teste do valor final', 'entrada', false);
+        ContaRecorrenteModel::upsert($catC, 28);
+        $seg = null;
+        foreach (MesModel::todos() as $m) {
+            if ($seg === null && $m['mes'] > $mesAtualT && $m['situacao'] === 'PREVISAO') {
+                $seg = (string) $m['mes'];
+            }
+        }
+        foreach (array_filter([$mesAtualT, $seg]) as $m) {
+            PrevisaoModel::setValor($catC, $m, 180.0);
+            PrevisaoModel::setValor($catE, $m, 1000.0);
+        }
+        LancamentoModel::criar(date('Y-m-d'), 'Conta teste', $catC, 150.0, $uid);
+        LancamentoModel::criar(date('Y-m-d'), 'Entrada teste', $catE, 900.0, $uid);
+        MotorFinanceiro::limparCache();
+        $html = $render(MesController::class, 'index', ['mes' => $mesAtualT]);
+        preg_match('#<details class="mes-linha mes-ed" id="cat-' . $catC . '".*?</details>#s', $html, $mC);
+        preg_match('#<details class="mes-linha mes-ed" id="cat-' . $catE . '".*?</details>#s', $html, $mE);
+        $check('valor final: conta e entrada que vieram menos dizem quanto veio e perguntam se foi o valor final',
+            str_contains($mC[0] ?? '', 'Veio 150 de 180 previstos') && str_contains($mC[0] ?? '', 'value="final"') && str_contains($mC[0] ?? '', 'Ainda falta pagar')
+            && str_contains($mE[0] ?? '', 'Veio 900 de 1.000 previstos') && str_contains($mE[0] ?? '', 'Ainda falta receber'));
+        $d = MotorFinanceiro::dados();
+        $falta = MesController::valorFinal($d, $catC, $mesAtualT, 'falta', date('Y-m-d'));
+        $check('valor final: "ainda falta pagar" não grava nada e diz o que o plano conta', $falta !== null && $falta['celulas'] === [] && str_contains($falta['aviso'], '30'));
+        $antes = MotorFinanceiro::calcularPlano()[$mesAtualT];
+        foreach ([[$catC, 150.0, 180.0, 'sai', 30.0], [$catE, 900.0, 1000.0, 'entra_bruto', 100.0]] as [$cat, $veio, $prevT, $campo, $dif]) {
+            $fin = MesController::valorFinal(MotorFinanceiro::dados(), $cat, $mesAtualT, 'final', date('Y-m-d'));
+            $lote = $fin !== null ? PrevisaoLote::gravar('manual', $fin['celulas'], $uid) : null;
+            MotorFinanceiro::limparCache();
+            $depois = MotorFinanceiro::calcularPlano()[$mesAtualT];
+            $check("valor final ({$campo}): a previsão do mês vira o que veio, o plano fica exato e o mês seguinte não muda", $lote !== null
+                && abs(PrevisaoModel::valor($cat, $mesAtualT) - $veio) < 0.001 && abs((float) $antes[$campo] - (float) $depois[$campo] - $dif) < 0.01
+                && ($seg === null || abs(PrevisaoModel::valor($cat, $seg) - $prevT) < 0.001), json_encode([$antes[$campo], $depois[$campo]]));
+            if ($cat === $catC) {
+                $st = array_values(array_filter(\Financeiro\Services\ChecklistContas::statusPorMes($mesAtualT), static fn($s) => (int) $s['categoria_id'] === $catC))[0] ?? null;
+                $check('valor final: a conta deixa de ser parcial', ($st['status'] ?? '') === 'pago' || ($st['status'] ?? '') === 'pago_atrasado', json_encode($st));
+            }
+            PrevisaoLote::desfazer((string) $lote, $uid);
+            MotorFinanceiro::limparCache();
+            $check("valor final ({$campo}): desfazer volta à previsão anterior", abs(PrevisaoModel::valor($cat, $mesAtualT) - $prevT) < 0.001);
+        }
+    });
+}
+
 echo "\n{$ok} ok, {$falhas} falha(s)\n";
 exit($falhas > 0 ? 1 : 0);

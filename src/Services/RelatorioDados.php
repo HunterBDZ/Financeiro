@@ -448,7 +448,10 @@ final class RelatorioDados
         return AjusteModel::usa('usa_cartao') ? CartaoModel::ativo() : null;
     }
 
-    /** O que tinha na fatura paga no mês. O plano continua contando só a fatura; isto é para ler, não para julgar. */
+    /**
+     * O que tinha na fatura do mês. O plano continua contando só a fatura; isto é para ler, não para julgar.
+     * O pago é o desta fatura, mesmo que antes do mês (CartaoFatura::atribuir), para bater com as compras dela.
+     */
     private static function fatura(array $dados, string $mes, string $hoje): ?array
     {
         $cartao = self::cartao();
@@ -456,7 +459,8 @@ final class RelatorioDados
         if ($cartao === null || $cat === null) {
             return null;
         }
-        $pago = round((float) ($dados['real'][$mes][$cat] ?? 0.0), 2);
+        $pago = round((float) (($dados['fatura']['cat'] ?? null) === $cat
+            ? ($dados['fatura']['faturas'][$mes]['pago'] ?? 0.0) : ($dados['real'][$mes][$cat] ?? 0.0)), 2);
         $itens = CartaoFatura::porFatura(CartaoModel::compras((int) $cartao['id']))[$mes] ?? [];
         if ($pago <= 0.004 && $itens === []) {
             return null;

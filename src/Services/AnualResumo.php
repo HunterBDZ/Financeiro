@@ -191,15 +191,17 @@ final class AnualResumo
 
     /**
      * Valor de cada categoria operacional no mês, pela mesma regra do motor: fechado = lançado;
-     * aberto = o maior entre lançado e previsto; seguinte = previsto.
+     * aberto = o maior entre lançado e previsto; seguinte = previsto (a previsão é a do motor, com a
+     * Fatura do cartão sem o que já foi pago dela em outro mês).
+     * @param ?string $hoje 'Y-m-d' do plano (padrão: hoje)
      * @return array<int, float>
      */
-    public static function valoresDoMes(array $dados, array $linha): array
+    public static function valoresDoMes(array $dados, array $linha, ?string $hoje = null): array
     {
         $mes = (string) $linha['mes'];
         $real = $dados['real'][$mes] ?? [];
-        $prev = $dados['prev'][$mes] ?? [];
         $estado = (string) ($linha['estado'] ?? 'previsto');
+        $prev = $estado === 'real' ? [] : MotorFinanceiro::previsaoDoMes($dados, $mes, $estado, substr($hoje ?? date('Y-m-d'), 0, 7) . '-01');
         $base = $estado === 'real' ? $real : ($estado === 'aberto' ? $prev + $real : $prev);
         $out = [];
         foreach ($base as $c => $_) {

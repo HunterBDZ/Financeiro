@@ -6,6 +6,7 @@ use Financeiro\Models\CartaoModel;
 use Financeiro\Models\CategoriaModel;
 use Financeiro\Models\MesModel;
 use Financeiro\Services\CartaoFatura;
+use Financeiro\Services\MotorFinanceiro;
 use Financeiro\View;
 
 /**
@@ -31,7 +32,10 @@ final class CartaoController
         $compras = CartaoModel::compras($cartao['id']);
         $aberta  = CartaoFatura::faturaDe($hoje, $cartao['fecha'], $cartao['vence']);
         $previsto = $cat !== null ? CartaoFatura::previsaoAtual($cat, CartaoFatura::somaMeses($aberta, -1)) : [];
-        $painel  = CartaoFatura::painel($cartao, $compras, $hoje, $cat !== null ? CartaoModel::pagamentos($cat) : [], $previsto);
+        // cada pagamento na sua fatura (CartaoFatura::atribuir); a aba mostra isso mesmo com o cartão desligado em Ajustes
+        $pagas   = CartaoFatura::faturasPagas(MotorFinanceiro::dados()['prev'], true)['faturas'];
+        $painel  = CartaoFatura::painel($cartao, $compras, $hoje, array_map(static fn(array $f): float => $f['pago'], $pagas), $previsto,
+                                        array_map(static fn(array $f): string => $f['ultimo'], $pagas));
         $sel     = is_string($_GET['fatura'] ?? null) && preg_match('/^\d{4}-\d{2}-01$/D', $_GET['fatura']) ? $_GET['fatura'] : $aberta;
         View::render('cartao/index', [
             'pageTitle' => t('cartão · financeiro'), 'cartao' => $cartao, 'painel' => $painel, 'hoje' => $hoje,
