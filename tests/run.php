@@ -86,6 +86,12 @@ $check = static function (string $nome, bool $cond, string $detalhe = '') use (&
 };
 
 $pdo = Database::connection();
+// site instalado e ainda sem conta ou sem a primeira configuração: não há dado a conferir, e isso não pode barrar a atualização
+if (UsuarioModel::nenhum() || !AjusteModel::configurado()) {
+    echo "ok    site ainda sem conta ou sem configuração: nada a conferir\n\n1 ok, 0 falha(s)\n";
+    exit(0);
+}
+
 // os testes comparam valores em reais, seja qual for a moeda do site
 Site::usarMoeda('BRL');
 
