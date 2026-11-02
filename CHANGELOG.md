@@ -2,7 +2,7 @@
 
 Cada versão publicada é uma tag `vX.Y.Z` deste repositório. Pacotes atualizam em Ajustes, em Backup e atualização; servidores, com `sudo financeiro-atualizar`.
 
-## A publicar
+## 1.8.0
 
 - **SQLite:** o app funciona sem servidor de banco. Sites em MySQL continuam como estão até migrar.
 - **Pacote para Linux:** instala sem `sudo` e sem banco de dados, em qualquer distribuição. Há também imagem Docker.
@@ -12,6 +12,11 @@ Cada versão publicada é uma tag `vX.Y.Z` deste repositório. Pacotes atualizam
 - **Administração:** só a primeira conta criada faz backup, restaura, atualiza e liga a rede. No computador da pessoa, só nele, e não pelo celular.
 - **Mês:** sem escolher o mês, a tela abre no mês do calendário, mesmo que ele tenha sido fechado antes do fim.
 - **Reabrir um mês** agora desfaz também o ajuste que o fechamento aplicou no mês seguinte, menos nos valores mudados depois.
+- **Ícones novos:** os ícones de categoria agora são do Noto Emoji, de licença livre, e têm outra aparência.
+- **Moeda e fuso:** cada site escolhe os seus em Ajustes, e as categorias de fábrica aparecem no idioma da conta.
+- **Navegação:** botão Menu, Simular no menu, categorias em Ajustes e Fechar mais fácil de achar. As mensagens de erro agora são frases completas.
+- **Licença:** o projeto agora é distribuído sob a AGPL-3.0-or-later, com avisos de terceiros, política de segurança e guia de contribuição.
+- **Antes de atualizar:** sites abaixo da 1.5.0 precisam passar antes pela 1.7.0, porque as migrações antigas saíram do repositório.
 - O importador do MySQL explica o erro quando o banco não tem as tabelas do Financeiro.
 
 ## 1.7.0
