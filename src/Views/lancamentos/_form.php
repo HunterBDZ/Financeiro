@@ -1,7 +1,7 @@
 <?php
 /**
- * Formulário de lançar/editar. Simplificado: dropdown de categoria,
- * calendário para data, descrição, botão lançar no final.
+ * Formulário de lançar/editar: valor, categoria em um toque (as mais usadas em botões e "Mais…" com a
+ * lista completa, rádios que funcionam sem JS), calendário para data, descrição, botão lançar no final.
  * Com o cartão cadastrado: "Pagou com: Conta | Cartão". Cartão mostra as vezes, a prévia das faturas
  * que sobem (cartao.js) e "mais opções" (outra quantidade de vezes, compra antiga); o bloco some só
  * pelo CSS quando é Conta, então funciona sem JS. Quem grava é LancamentosController::store.
@@ -34,8 +34,20 @@ if (!isset($a['descricao']) && $l !== null && $desc === (string) ($l['categoria_
     $desc = '';
 }
 
-// grupos do select por classe (entradas, essenciais, não essenciais, ⇄), já ordenados no LancarForm
-$gruposSel = $outras;
+// a lista completa por classe (gastos antes de entradas) e os botões das mais usadas, já ordenados no LancarForm.
+// A categoria escolhida que não está nos botões fica marcada na lista, e o "Mais…" mostra o nome dela.
+$gruposSel  = $outras;
+$rapidasSel = is_array($rapidas ?? null) ? $rapidas : [];
+$selNaLista = null;
+if ($catSel > 0 && !in_array($catSel, array_map(static fn(array $c): int => (int) $c['id'], $rapidasSel), true)) {
+    foreach ($gruposSel as $itens) {
+        foreach ($itens as $c) {
+            if ((int) $c['id'] === $catSel) {
+                $selNaLista = $c;
+            }
+        }
+    }
+}
 
 $acao   = $editar && $l !== null ? '/lancamentos/' . (int) $l['id'] : '/lancamentos';
 $titulo = $editar ? t('Editar lançamento') : t('Novo lançamento');
@@ -110,20 +122,42 @@ $vezes  = (int) ($a['parcelas'] ?? 1) ?: 1;
     <?php endif; ?>
 
     <div class="lf-rot-linha">
-        <label class="lf-rot" for="<?= e($pref) ?>-cat"><?= e(t('Categoria')) ?></label>
+        <span class="lf-rot" id="<?= e($pref) ?>-cat-rot"><?= e(t('Categoria')) ?></span>
         <?php if (!$editar): ?><a class="lf-criar-cat" href="/ajustes?aberto=categorias#categorias"><?= e(t('Criar categoria')) ?></a><?php endif; ?>
     </div>
-    <select name="categoria_id" class="lf-select" id="<?= e($pref) ?>-cat">
-        <option value=""><?= e(t('Escolha a categoria')) ?></option>
-        <?php // i18n: t('entradas') t('essenciais') t('não essenciais') t('⇄ movimentações')
-        foreach ($gruposSel as $grupo => $itens): if ($itens === []) { continue; } ?>
-            <optgroup label="<?= e(t((string) $grupo)) ?>">
-                <?php foreach ($itens as $c): ?>
-                    <option value="<?= (int) $c['id'] ?>"<?= (int) $c['id'] === $catSel ? ' selected' : '' ?>><?= e($c['curto']) ?></option>
+    <?php // as mais usadas em botões de um toque; "Mais…" abre a lista completa (com busca, se houver JS). Um grupo de rádios só: funciona sem JS ?>
+    <fieldset class="lf-cats" aria-labelledby="<?= e($pref) ?>-cat-rot" data-lf-cats>
+        <div class="lf-chips">
+            <?php foreach ($rapidasSel as $c): ?>
+                <label class="lf-chip">
+                    <input type="radio" name="categoria_id" value="<?= (int) $c['id'] ?>"<?= (int) $c['id'] === $catSel ? ' checked' : '' ?> data-lf-rapida>
+                    <span class="lf-chip-c"><?= iconeCategoria((int) $c['id'], (string) $c['nome'], (string) $c['grupo'], 36) ?><span class="lf-chip-n"><?= e($c['curto']) ?></span></span>
+                </label>
+            <?php endforeach; ?>
+        </div>
+        <details class="lf-mais<?= $selNaLista !== null ? ' is-sel' : '' ?>" data-lf-mais>
+            <summary>
+                <span class="lf-mais-rot" data-lf-mais-rot><?php if ($selNaLista !== null): ?><?= iconeCategoria((int) $selNaLista['id'], (string) $selNaLista['nome'], (string) $selNaLista['grupo'], 28) ?><span><?= e($selNaLista['curto']) ?></span><?php else: ?><span><?= e(t('Mais…')) ?></span><?php endif; ?></span>
+                <span class="lf-mais-dica"><?= e(t('todas as categorias')) ?></span>
+            </summary>
+            <div class="lf-mais-painel">
+                <input type="search" class="lf-busca" placeholder="<?= e(t('Buscar categoria')) ?>" aria-label="<?= e(t('Buscar categoria')) ?>" autocomplete="off" enterkeyhint="search" data-lf-busca hidden>
+                <p class="lf-mais-vazio" data-lf-vazio hidden><?= e(t('Nenhuma categoria com esse nome.')) ?></p>
+                <?php // i18n: t('entradas') t('essenciais') t('não essenciais') t('⇄ movimentações')
+                foreach ($gruposSel as $grupo => $itens): if ($itens === []) { continue; } $gid = $pref . '-g-' . substr(md5((string) $grupo), 0, 6); ?>
+                    <div class="lf-mais-g" role="group" aria-labelledby="<?= e($gid) ?>" data-lf-grupo>
+                        <p class="lf-mais-gt" id="<?= e($gid) ?>"><?= e(t((string) $grupo)) ?></p>
+                        <?php foreach ($itens as $c): ?>
+                            <label class="lf-op" data-lf-op="<?= e(mb_strtolower($c['curto'] . ' ' . nomeCategoria($c['nome']))) ?>">
+                                <input type="radio" name="categoria_id" value="<?= (int) $c['id'] ?>"<?= $selNaLista !== null && (int) $c['id'] === $catSel ? ' checked' : '' ?>>
+                                <?= iconeCategoria((int) $c['id'], (string) $c['nome'], (string) $c['grupo'], 32) ?><span><?= e($c['curto']) ?></span>
+                            </label>
+                        <?php endforeach; ?>
+                    </div>
                 <?php endforeach; ?>
-            </optgroup>
-        <?php endforeach; ?>
-    </select>
+            </div>
+        </details>
+    </fieldset>
 
     <label class="lf-dia">
         <span class="lf-dia-lbl" data-ct-dia><?= e(t('Dia')) ?></span>

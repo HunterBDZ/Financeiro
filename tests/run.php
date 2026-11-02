@@ -1707,5 +1707,142 @@ if (extension_loaded('pdo_sqlite') && function_exists('proc_open')) {
     \Financeiro\Atualizacao::removerPasta($tmpSis);
 }
 
+// ---- sobra com o nome da base, frase do saldo, categoria em um toque, busca em período e planilha (dados de mentira)
+$sbA = \Financeiro\Services\Sobra::de(['entra' => 7710.10, 'parcela_descontada' => 289.90, 'parcela_parte' => 0.0, 'sai' => 7688.20]);
+$sbB = \Financeiro\Services\Sobra::de(['entra' => 8000.0, 'parcela_descontada' => 0.0, 'parcela_parte' => 289.90, 'sai' => 7688.20]);
+$check('sobra: descontada do salário, a renda usada é a líquida e a ponte mostra o bruto',
+    $sbA['bruto'] === 8000.0 && $sbA['parcela'] === 289.9 && $sbA['renda'] === 7710.1 && abs($sbA['sobra'] - 21.9) < 0.001
+    && \Financeiro\Services\Sobra::ponte($sbA) === "8.000,00 \u{2212} 289,90 de parcela", json_encode($sbA));
+$check('sobra: paga à parte dá a mesma sobra', $sbB['renda'] === 7710.1 && abs($sbB['sobra'] - $sbA['sobra']) < 0.001 && \Financeiro\Services\Sobra::ponte($sbB) !== null);
+$check('sobra: sem parcela, sem ponte', \Financeiro\Services\Sobra::ponte(\Financeiro\Services\Sobra::de(['entra' => 100.0, 'sai' => 40.0])) === null);
+$check('sobra: um nome para cada base', \Financeiro\Services\Sobra::rotulo('hoje') === 'Sobra até hoje' && \Financeiro\Services\Sobra::rotulo('prevista') === 'Sobra prevista' && \Financeiro\Services\Sobra::rotulo('mes') === 'Sobra do mês');
+
+$mesSb = date('Y-m-01');
+$catSb = (int) $pdo->query("SELECT id FROM categorias WHERE operacional = 1 AND sinal = -1 AND ativo = 1 AND grupo = 'Dia a dia' ORDER BY id LIMIT 1")->fetchColumn();
+$resgSb = (int) $pdo->query("SELECT id FROM categorias WHERE operacional = 0 AND sinal = 1 ORDER BY id LIMIT 1")->fetchColumn();
+if (MotorFinanceiro::linhaDoMes($mesSb) === null || $catSb === 0) {
+    $check('sobra: o mesmo nome e o mesmo número nas telas', true, 'mês de hoje fora do plano ou sem categoria do dia a dia');
+} else {
+    $emTransacao('sobra nas telas', static function () use ($pdo, $check, $render, $catSb, $resgSb, $mesSb, $uid): void {
+        $ins = $pdo->prepare('INSERT INTO lancamentos (data, descricao, categoria_id, valor, usuario_id) VALUES (?, ?, ?, ?, ?)');
+        $ins->execute([date('Y-m-d'), 'teste da sobra', $catSb, 123.45, $uid]);
+        if ($resgSb > 0) {
+            $ins->execute([date('Y-m-d'), 'teste do resgate', $resgSb, 5000, $uid]);   // movimentação: não é renda
+        }
+        MotorFinanceiro::limparCache();
+        \Financeiro\Services\GastosMensais::limparCache();
+        $hojeSb = \Financeiro\Services\Sobra::ateHoje($mesSb);
+        $prevSb = \Financeiro\Services\Sobra::prevista(MotorFinanceiro::linhaDoMes($mesSb));
+        $acha = static function (string $html): array {
+            preg_match_all('/data-sobra="(\w+)">([^<]+)</u', $html, $m, PREG_SET_ORDER);
+            return array_map(static fn(array $x): array => [$x[1], trim(html_entity_decode($x[2]))], $m);
+        };
+        $ini = $acha($render(DashboardController::class, 'index', []));
+        $mesH = $render(MesController::class, 'index', ['mes' => $mesSb]);
+        $mesV = $acha($mesH);
+        $fe = $acha($render(MesController::class, 'fecharForm', ['mes' => $mesSb]));
+        $rl = RelatorioDados::mensal($mesSb);
+        $check('sobra: Início mostra a sobra até hoje (sem o resgate) com o nome dela',
+            in_array([$hojeSb['base'], num($hojeSb['sobra'])], $ini, true), json_encode([$ini, $hojeSb]));
+        $check('sobra: Fechar mostra a mesma sobra até hoje', in_array([$hojeSb['base'], num($hojeSb['sobra'])], $fe, true), json_encode($fe));
+        $check('sobra: Mês mostra a sobra prevista, a mesma do plano', in_array([$prevSb['base'], num($prevSb['sobra'])], $mesV, true), json_encode($mesV));
+        $check('sobra: as listas do Mês somam as saídas do resumo', str_contains($mesH, '<span class="card-acao num neg">' . num($prevSb['saidas']) . '</span>'));
+        $check('sobra: o Relatório usa as mesmas', $rl !== null && ($rl['encerrado']
+            ? abs($rl['sobrou'] - $prevSb['sobra']) < 0.005
+            : abs($rl['sobras'][0]['sobra'] - $hojeSb['sobra']) < 0.005 && abs($rl['sobras'][1]['sobra'] - $prevSb['sobra']) < 0.005));
+        $check('sobra: o nome antigo "Diferença" saiu do Mês', !str_contains($mesH, '>Diferença<'));
+    });
+}
+$check('ajuda: a resposta dos números diz as bases', str_contains(implode(' ', array_column(array_merge(...array_column(\Financeiro\Ajuda::grupos(), 'itens')), 'resposta')), 'A sobra até hoje é o que entrou menos o que saiu até agora'));
+$check('centavos: dinheiro com centavos no Mês e no Início', !preg_match('/class="mes-val num[^"]*">\d{1,3}(\.\d{3})*</', $render(MesController::class, 'index', [])));
+
+// a frase do saldo: (previsão com o plano, sem adiantar, reserva)
+$fr = static fn(?float $p, ?float $s, float $r): ?array => DashboardController::resposta($p, $s, $r);
+$check('frase: acima da reserva, dá para gastar a folga', $fr(3000.0, 3000.0, 1500.0) === ['tipo' => 'gastar', 'valor' => 1500.0, 'adianta' => 0.0]);
+$check('frase: abaixo da reserva, quanto falta', $fr(1200.0, 1200.0, 1500.0) === ['tipo' => 'abaixo', 'valor' => 300.0, 'adianta' => 0.0]);
+$check('frase: no vermelho, quanto falta para zerar', $fr(-200.0, -200.0, 1500.0) === ['tipo' => 'vermelho', 'valor' => 200.0, 'adianta' => 0.0]);
+$check('frase: o fim do mês igual à reserva porque a sobra adianta o empréstimo', $fr(1500.0, 4398.66, 1500.0) === ['tipo' => 'gastar', 'valor' => 2898.66, 'adianta' => 2898.66]);
+$check('frase: o empréstimo leva só parte da folga', $fr(2000.0, 4000.0, 1500.0) === ['tipo' => 'gastar', 'valor' => 2500.0, 'adianta' => 2000.0]);
+$check('frase: sem previsão, sem frase', $fr(null, null, 1500.0) === null);
+$htmlFr = $render(DashboardController::class, 'index', []);
+$check('frase: o cartão do saldo tem uma frase e o resto em "Ver detalhes"', !str_contains($htmlFr, 'data-previsao-fim') || (str_contains($htmlFr, 'data-saldo-frase=') && preg_match('/<details class="saldo-det">\s*<summary>Ver detalhes<\/summary>.*data-previsao-fim/s', $htmlFr) === 1));
+
+// categoria em um toque
+LancarForm::limparCache();
+$lf = LancarForm::dados();
+$tipo = static function (int $id) use ($pdo): int {
+    $c = $pdo->query('SELECT sinal, operacional FROM categorias WHERE id = ' . $id)->fetch();
+    return (int) $c['operacional'] === 0 ? 2 : ((int) $c['sinal'] === 1 ? 1 : 0);
+};
+$tiposRap = array_map(static fn(array $c): int => $tipo((int) $c['id']), $lf['rapidas']);
+$check('categorias: de 1 a 8 botões, gastos antes de entradas', $lf['rapidas'] !== [] && count($lf['rapidas']) <= LancarForm::RAPIDAS && $tiposRap === (static function (array $a): array { sort($a); return $a; })($tiposRap), json_encode($tiposRap));
+$chavesLf = array_keys($lf['outras']);
+$check('categorias: a lista completa começa pelos gastos', array_search('entradas', $chavesLf, true) === false || array_search('entradas', $chavesLf, true) > 0);
+$htmlLf = $render(LancamentosController::class, 'lancarForm', []);
+$check('categorias: botões de rádio com ícone, "Mais…" com a lista e a busca, sem o select',
+    substr_count($htmlLf, 'data-lf-rapida') === count($lf['rapidas']) && str_contains($htmlLf, 'data-lf-mais') && str_contains($htmlLf, 'data-lf-busca hidden')
+    && str_contains($htmlLf, '<fieldset class="lf-cats" aria-labelledby=') && str_contains($htmlLf, 'class="lf-chip-c"><span class="ci') && !str_contains($htmlLf, '<select name="categoria_id"'));
+$poucoUsada = (int) $pdo->query("SELECT id FROM categorias WHERE ativo = 1 AND operacional = 1 AND sinal = -1 ORDER BY ordem DESC, id DESC LIMIT 1")->fetchColumn();
+if ($poucoUsada > 0) {
+    $emTransacao('categorias: as mais usadas', static function () use ($pdo, $check, $poucoUsada, $uid): void {
+        $ins = $pdo->prepare('INSERT INTO lancamentos (data, descricao, categoria_id, valor, usuario_id) VALUES (?, ?, ?, 1, ?)');
+        for ($i = 0; $i < 40; $i++) {
+            $ins->execute([date('Y-m-d'), 'teste freq', $poucoUsada, $uid]);
+        }
+        LancarForm::limparCache();
+        $ids = array_map(static fn(array $c): int => (int) $c['id'], LancarForm::dados()['rapidas']);
+        $check('categorias: a mais usada vira botão, primeiro entre os gastos', ($ids[0] ?? 0) === $poucoUsada, json_encode($ids));
+    });
+    LancarForm::limparCache();
+}
+
+// busca em período, com total, e a planilha
+$catBusca = (int) $pdo->query('SELECT id FROM categorias WHERE operacional = 1 AND sinal = -1 ORDER BY id LIMIT 1')->fetchColumn();
+$emTransacao('busca em período', static function () use ($pdo, $check, $render, $catBusca, $uid): void {
+    $ins = $pdo->prepare('INSERT INTO lancamentos (data, descricao, categoria_id, valor, usuario_id) VALUES (?, ?, ?, ?, ?)');
+    $ins->execute(['2001-03-05', 'zzbusca; "aspas"', $catBusca, 10.50, $uid]);
+    $ins->execute(['2001-07-09', 'zzbusca =SOMA(1)', $catBusca, 20.25, $uid]);
+    $ins->execute(['2002-01-01', 'zzbusca outra', $catBusca, 30.00, $uid]);
+    $ins->execute(['2001-07-09', '=zzbusca fórmula', $catBusca, 1.00, $uid]);
+    $mesB = date('Y-m-01');
+    $t2001 = LancamentoModel::totais($mesB, ['q' => 'zzbusca', 'periodo' => ['de' => '2001-01-01', 'ate' => '2001-12-31']]);
+    $check('busca: num período, com o total', $t2001['n'] === 3 && abs($t2001['gasto'] - 31.75) < 0.001, json_encode($t2001));
+    $check('busca: em todos os meses', LancamentoModel::totais($mesB, ['q' => 'zzbusca', 'periodo' => ['de' => null, 'ate' => null]])['n'] === 4);
+    $check('busca: o mês continua o padrão', LancamentoModel::totais($mesB, ['q' => 'zzbusca'])['n'] === 0);
+    $check('busca: valor mínimo e máximo', LancamentoModel::totais($mesB, ['q' => 'zzbusca', 'periodo' => ['de' => null, 'ate' => null], 'min' => 15.0])['n'] === 2
+        && LancamentoModel::totais($mesB, ['q' => 'zzbusca', 'periodo' => ['de' => null, 'ate' => null], 'min' => 10.5, 'max' => 20.25])['n'] === 2);
+    $check('busca: os filtros de antes continuam (categoria, quem, ordem)', count(LancamentoModel::listar($mesB, ['q' => 'zzbusca', 'categoria_id' => $catBusca, 'usuario_id' => $uid, 'ordem' => 'valor-desc', 'periodo' => ['de' => null, 'ate' => null], 'limite' => 2])) === 2
+        && (float) LancamentoModel::listar($mesB, ['q' => 'zzbusca', 'ordem' => 'valor-desc', 'periodo' => ['de' => null, 'ate' => null], 'limite' => 1])[0]['valor'] === 30.0);
+    $lotes = array_map(static fn(array $r): string => $r['data'] . '#' . number_format((float) $r['valor'], 2, '.', ''), iterator_to_array(LancamentoModel::emLotes($mesB, ['q' => 'zzbusca', 'periodo' => ['de' => null, 'ate' => null]], 1), false));
+    $check('busca: a planilha lê em lotes, do mais antigo ao mais novo, sem repetir', count($lotes) === 4 && count(array_unique($lotes)) === 4 && $lotes[0] === '2001-03-05#10.50' && $lotes[3] === '2002-01-01#30.00', json_encode($lotes));
+    $htmlB = $render(LancamentosController::class, 'index', ['periodo' => 'ano', 'mes' => '2001-01-01', 'q' => 'zzbusca']);
+    $htmlT = $render(LancamentosController::class, 'index', ['periodo' => 'tudo', 'q' => 'zzbusca']);
+    $check('busca: a tela responde com o total no topo', str_contains($htmlT, 'data-ex-total="gasto">' . e(money(61.75)) . '<') && str_contains($htmlT, 'href="/lancamentos/planilha?'));
+    $check('busca: o período pedido vale (datas)', str_contains($render(LancamentosController::class, 'index', ['periodo' => 'datas', 'de' => '2001-07-01', 'ate' => '2001-07-31', 'q' => 'zzbusca']), 'data-ex-total="gasto">' . e(money(21.25)) . '<'));
+    $check('busca: valor que não dá para ler é avisado', str_contains($render(LancamentosController::class, 'index', ['periodo' => 'tudo', 'min' => 'abc']), 'id="ex-erro-valor"'));
+    unset($htmlB);
+
+    // a planilha: BOM, ";" e vírgula decimal, aspas em descrição com ";", fórmula desarmada
+    $h = fopen('php://memory', 'w+b');
+    $n = \Financeiro\Services\Planilha::escrever(LancamentoModel::emLotes($mesB, ['q' => 'zzbusca', 'periodo' => ['de' => null, 'ate' => null]]), $h);
+    rewind($h);
+    $csv = (string) stream_get_contents($h);
+    fclose($h);
+    $check('planilha: UTF-8 com BOM e cabeçalho com ";"', str_starts_with($csv, "\u{FEFF}Data;Descrição;Categoria;Valor;\"Quem lançou\"\r\n") || str_starts_with($csv, "\u{FEFF}Data;Descrição;Categoria;Valor;Quem lançou\r\n"), substr($csv, 0, 80));
+    $check('planilha: valor com sinal e vírgula decimal', $n === 4 && str_contains($csv, '2001-03-05;') && str_contains($csv, ';-10,50;') && str_contains($csv, ';-20,25;'));
+    $check('planilha: descrição com ";" vai entre aspas', str_contains($csv, ';"zzbusca; ""aspas""";'));
+    $check('planilha: texto que começa com "=" não vira fórmula', str_contains($csv, ";\"'=zzbusca fórmula\";"));
+    $check('planilha: o nome do arquivo diz o período', \Financeiro\Services\Planilha::nomeArquivo('ano', '2026-11-01', null, null) === 'lancamentos-2026.csv'
+        && \Financeiro\Services\Planilha::nomeArquivo('', '2026-11-01', null, null) === 'lancamentos-2026-11.csv'
+        && \Financeiro\Services\Planilha::nomeArquivo('datas', '2026-11-01', '2026-01-01', '2026-03-31') === 'lancamentos-2026-01-01-a-2026-03-31.csv'
+        && \Financeiro\Services\Planilha::nomeArquivo('tudo', '2026-11-01', null, null) === 'lancamentos-todos-os-meses.csv');
+    $_GET = ['periodo' => 'tudo', 'q' => 'zzbusca'];
+    ob_start();
+    (new LancamentosController())->planilha();
+    $csvRota = (string) ob_get_clean();
+    $_GET = [];
+    $check('planilha: a rota entrega o resultado filtrado', str_starts_with($csvRota, "\u{FEFF}") && substr_count($csvRota, "\r\n") === 5);
+});
+
 echo "\n{$ok} ok, {$falhas} falha(s)\n";
 exit($falhas > 0 ? 1 : 0);

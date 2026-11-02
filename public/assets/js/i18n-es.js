@@ -22,6 +22,7 @@ window.FIN_DIC = {
     "Gasto {valor}": "Gasto {valor}",
     "Lendo o link…": "Leyendo el enlace…",
     "Li o que deu. Falta {itens}.": "Leí lo que pude. Falta {itens}.",
+    "Mais…": "Más…",
     "No vermelho": "En rojo",
     "Não consegui abrir essa foto: tente outra em JPG ou PNG.": "No pude abrir esa foto: intente con otra en JPG o PNG.",
     "Não consegui ler o link agora. Preencha à mão ou salve que eu tento de novo.": "No pude leer el enlace ahora. Complételo a mano o guarde y lo intento de nuevo.",

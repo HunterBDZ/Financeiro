@@ -10,6 +10,7 @@ use Financeiro\Models\PrevisaoModel;
 use Financeiro\Models\UsuarioModel;
 use Financeiro\Services\LancarForm;
 use Financeiro\Services\MotorFinanceiro;
+use Financeiro\Services\Planilha;
 use Financeiro\View;
 
 /**
@@ -30,6 +31,100 @@ final class LancamentosController
     {
         Auth::requireLogin();
 
+        $b = self::busca();
+        $mes = $b['mes'];
+        $meses = $b['meses'];
+        $filtro = $b['filtro'];
+        $limite = min(5000, max(self::POR_PAGINA, (int) (self::get('limite') ?? self::POR_PAGINA)));
+
+        $linhas = LancamentoModel::listar($mes, $filtro + ['limite' => $limite]);
+        $totais = LancamentoModel::totais($mes, $filtro);
+        $filtrado = $b['filtrado'];
+
+        // renda = a mesma palavra e o mesmo número do gráfico (entra do motor), nunca "entrou" (D2)
+        $renda = null;
+        if (!$filtrado) {
+            $linhaPlano = MotorFinanceiro::linhaDoMes($mes);
+            $renda = $linhaPlano !== null ? (float) $linhaPlano['entra'] : LancamentoModel::somaOperacional($mes, 1);
+        }
+
+        $situacao = 'PREVISAO';
+        foreach ($meses as $m) {
+            if ($m['mes'] === $mes) {
+                $situacao = (string) $m['situacao'];
+            }
+        }
+
+        $params = $b['params'];
+        $urlAtual = '/lancamentos?' . http_build_query($params, '', '&', PHP_QUERY_RFC3986)
+            . ($limite > self::POR_PAGINA ? '&limite=' . $limite : '');
+
+        $categorias = CategoriaModel::ativas();
+
+        View::render('lancamentos/index', [
+            'pageTitle'  => $b['modo'] === '' ? t('extrato · {mes} · financeiro', ['mes' => monthLabel($mes)]) : t('extrato · {periodo} · financeiro', ['periodo' => $b['rotulo']]),
+            'mes'        => $mes,
+            'meses'      => $meses,
+            'situacao'   => $situacao,
+            'estado'     => estadoMes($mes, $situacao),
+            'hoje'       => date('Y-m-d'),
+            'usuarios'   => $b['usuarios'],
+            'f'          => $b['f'],
+            'quem'       => $b['quem'],
+            'categoria'  => $b['categoria'],
+            'categorias' => $categorias,
+            'q'          => $b['q'],
+            'ordem'      => $b['ordem'],
+            'modo'       => $b['modo'],
+            'periodo'    => $b['periodo'],
+            'rotuloPeriodo' => $b['rotulo'],
+            'valores'    => $b['valores'],
+            'erroValor'  => $b['erroValor'],
+            'params'     => $params,
+            'limite'     => $limite,
+            'linhas'     => $linhas,
+            'totais'     => $totais,
+            'filtrado'   => $filtrado,
+            'renda'      => $renda,
+            'urlAtual'   => $urlAtual,
+            'urlPlanilha' => '/lancamentos/planilha?' . http_build_query($params, '', '&', PHP_QUERY_RFC3986),
+            'form'       => LancarForm::dados() + ['modo' => 'pagina', 'pref' => 'pg', 'volta' => $urlAtual, 'topo' => false],
+        ], 'extrato');
+    }
+
+    /**
+     * GET /lancamentos/planilha — o resultado filtrado do extrato em CSV (Services\Planilha), com os mesmos
+     * parâmetros da tela. Passou de Planilha::LIMITE linhas, volta com um aviso para escolher um período menor.
+     */
+    public function planilha(): void
+    {
+        Auth::requireLogin();
+
+        $b = self::busca();
+        $n = LancamentoModel::totais($b['mes'], $b['filtro'])['n'];
+        $volta = '/lancamentos?' . http_build_query($b['params'], '', '&', PHP_QUERY_RFC3986);
+        if ($n > Planilha::LIMITE) {
+            flash('warn', t('São {n} lançamentos, e a planilha leva até {limite}. Escolha um período menor.', ['n' => num($n, 0), 'limite' => num(Planilha::LIMITE, 0)]));
+            redirecionar($volta, 303);
+        }
+        $p = $b['periodo'];
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="' . Planilha::nomeArquivo($b['modo'], $b['mes'], $p['de'] ?? null, $p['ate'] ?? null) . '"');
+        header('Cache-Control: private, no-store');
+        $saida = fopen('php://output', 'wb');
+        Planilha::escrever(LancamentoModel::emLotes($b['mes'], $b['filtro']), $saida);
+        fclose($saida);
+    }
+
+    /**
+     * Os filtros do extrato, lidos da URL, os mesmos para a tela e para a planilha:
+     * mes; periodo ('' o mês, ano, tudo, datas com de/ate); categoria (cat ou f); quem; q; min e max (valor); ordem.
+     * @return array{mes:string, meses:array, modo:string, periodo:?array{de:?string,ate:?string}, rotulo:string,
+     *   usuarios:array, f:string, quem:int, categoria:?array, q:string, ordem:string,
+     *   valores:array{min:string,max:string}, erroValor:?string, filtro:array, filtrado:bool, params:array}
+     */
+    public static function busca(): array
+    {
         $meses  = MesModel::todos();
         $mesCal = date('Y-m-01');
         $padrao = mesValido($mesCal, $meses, MesModel::ultimo() ?? $mesCal);
@@ -48,7 +143,50 @@ final class LancamentosController
         $q    = mb_substr(trim(self::get('q') ?? self::get('busca') ?? ''), 0, 80);
         $ordem = self::get('ordem') ?? '';
         $ordem = in_array($ordem, ['dia-desc', 'dia-asc', 'valor-desc', 'valor-asc', 'alfa'], true) ? $ordem : '';
-        $limite = min(5000, max(self::POR_PAGINA, (int) (self::get('limite') ?? self::POR_PAGINA)));
+
+        // período: o mês da tela (padrão), o ano dele, todos os meses ou entre duas datas
+        $modo = self::get('periodo') ?? '';
+        $modo = in_array($modo, ['ano', 'tudo', 'datas'], true) ? $modo : '';
+        $dataOk = static fn(?string $d): ?string => $d !== null && preg_match('/^(\d{4})-(\d{2})-(\d{2})$/D', $d, $m) && checkdate((int) $m[2], (int) $m[3], (int) $m[1]) ? $d : null;
+        $de = $dataOk(self::get('de'));
+        $ate = $dataOk(self::get('ate'));
+        if ($de !== null && $ate !== null && $de > $ate) {
+            [$de, $ate] = [$ate, $de];
+        }
+        $periodo = match ($modo) {
+            'ano'   => ['de' => substr($mes, 0, 4) . '-01-01', 'ate' => substr($mes, 0, 4) . '-12-31'],
+            'tudo'  => ['de' => null, 'ate' => null],
+            'datas' => ['de' => $de, 'ate' => $ate],
+            default => null,
+        };
+        $rotulo = match ($modo) {
+            'ano'   => substr($mes, 0, 4),
+            'tudo'  => t('Todos os meses'),
+            'datas' => $de !== null && $ate !== null ? t('De {de} a {ate}', ['de' => diaMesAno($de), 'ate' => diaMesAno($ate)])
+                : ($de !== null ? t('Desde {de}', ['de' => diaMesAno($de)]) : ($ate !== null ? t('Até {ate}', ['ate' => diaMesAno($ate)]) : t('Todos os meses'))),
+            default => mb_convert_case(mesAno($mes), MB_CASE_TITLE),
+        };
+
+        // valor mínimo e máximo, sem sinal; o que não dá para ler é avisado e fica de fora
+        $valores = ['min' => mb_substr(trim(self::get('min') ?? ''), 0, 20), 'max' => mb_substr(trim(self::get('max') ?? ''), 0, 20)];
+        $limites = [];
+        $erroValor = null;
+        foreach ($valores as $k => $txt) {
+            if ($txt === '') {
+                continue;
+            }
+            $v = parseMoedaBr($txt);
+            if ($v === null) {
+                $erroValor = t('Digite o valor como 45 ou 45,90.');
+                $valores[$k] = '';
+                continue;
+            }
+            $limites[$k] = round(abs($v), 2);
+        }
+        if (isset($limites['min'], $limites['max']) && $limites['min'] > $limites['max']) {
+            [$limites['min'], $limites['max']] = [$limites['max'], $limites['min']];
+            [$valores['min'], $valores['max']] = [$valores['max'], $valores['min']];
+        }
 
         $filtro = [
             'classe'       => $f ?: null,
@@ -56,54 +194,21 @@ final class LancamentosController
             'categoria_id' => $cat ?: null,
             'q'            => $q,
             'ordem'        => $ordem,
+        ] + ($periodo !== null ? ['periodo' => $periodo] : []) + $limites;
+
+        $params = array_filter([
+            'mes' => $mes, 'periodo' => $modo, 'de' => $modo === 'datas' ? (string) $de : '', 'ate' => $modo === 'datas' ? (string) $ate : '',
+            'f' => $f, 'quem' => $quem ?: '', 'cat' => $cat ?: '', 'q' => $q,
+            'min' => isset($limites['min']) ? $valores['min'] : '', 'max' => isset($limites['max']) ? $valores['max'] : '', 'ordem' => $ordem,
+        ], static fn($v) => $v !== '');
+
+        return [
+            'mes' => $mes, 'meses' => $meses, 'modo' => $modo, 'periodo' => $periodo, 'rotulo' => $rotulo,
+            'usuarios' => $usuarios, 'f' => $f, 'quem' => $quem, 'categoria' => $categoria, 'q' => $q, 'ordem' => $ordem,
+            'valores' => $valores, 'erroValor' => $erroValor, 'filtro' => $filtro,
+            'filtrado' => $f !== '' || $quem > 0 || $cat > 0 || $q !== '' || $modo !== '' || $limites !== [],
+            'params' => $params,
         ];
-        $linhas = LancamentoModel::listar($mes, $filtro + ['limite' => $limite]);
-        $totais = LancamentoModel::totais($mes, $filtro);
-        $filtrado = $f !== '' || $quem > 0 || $cat > 0 || $q !== '';
-
-        // renda = a mesma palavra e o mesmo número do gráfico (entra do motor), nunca "entrou" (D2)
-        $renda = null;
-        if (!$filtrado) {
-            $linhaPlano = MotorFinanceiro::linhaDoMes($mes);
-            $renda = $linhaPlano !== null ? (float) $linhaPlano['entra'] : LancamentoModel::somaOperacional($mes, 1);
-        }
-
-        $situacao = 'PREVISAO';
-        foreach ($meses as $m) {
-            if ($m['mes'] === $mes) {
-                $situacao = (string) $m['situacao'];
-            }
-        }
-
-        $params = array_filter(['mes' => $mes, 'f' => $f, 'quem' => $quem ?: '', 'cat' => $cat ?: '', 'q' => $q, 'ordem' => $ordem], static fn($v) => $v !== '');
-        $urlAtual = '/lancamentos?' . http_build_query($params, '', '&', PHP_QUERY_RFC3986)
-            . ($limite > self::POR_PAGINA ? '&limite=' . $limite : '');
-
-        $categorias = CategoriaModel::ativas();
-
-        View::render('lancamentos/index', [
-            'pageTitle'  => t('extrato · {mes} · financeiro', ['mes' => monthLabel($mes)]),
-            'mes'        => $mes,
-            'meses'      => $meses,
-            'situacao'   => $situacao,
-            'estado'     => estadoMes($mes, $situacao),
-            'hoje'       => date('Y-m-d'),
-            'usuarios'   => $usuarios,
-            'f'          => $f,
-            'quem'       => $quem,
-            'categoria'  => $categoria,
-            'categorias' => $categorias,
-            'q'          => $q,
-            'ordem'      => $ordem,
-            'params'     => $params,
-            'limite'     => $limite,
-            'linhas'     => $linhas,
-            'totais'     => $totais,
-            'filtrado'   => $filtrado,
-            'renda'      => $renda,
-            'urlAtual'   => $urlAtual,
-            'form'       => LancarForm::dados() + ['modo' => 'pagina', 'pref' => 'pg', 'volta' => $urlAtual, 'topo' => false],
-        ], 'extrato');
     }
 
     /* ================================================================== lançar (página) */
