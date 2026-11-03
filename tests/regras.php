@@ -2123,6 +2123,20 @@ $htmlAj = $pagina(AjustesController::class, 'index', '/ajustes');
 $check('ajustes: cada formulário manda o valor que mostrou ao abrir', str_contains($htmlAj, 'name="orig[reserva_minima]" value="' . numInput(AjusteModel::valor('reserva_minima')) . '"')
     && str_contains($htmlAj, 'name="orig[meta_mes]"') && str_contains($htmlAj, 'name="orig[usa_carro]"') && str_contains($htmlAj, 'name="orig[moeda]"'));
 
+// ---- 18b3. a vitrine da tela de entrar no formato do idioma (A-11)
+$vitrine = static function (string $idioma): string {
+    Idioma::usar($idioma);
+    ob_start();
+    \Financeiro\View::renderAuth('auth/login', ['erro' => null, 'expirou' => false, 'login' => '', 'lembrar' => false]);
+    $html = (string) ob_get_clean();
+    Idioma::usar('pt');
+    return $html;
+};
+$vitEn = $vitrine('en');
+$vitPt = $vitrine('pt');
+$check('tela de entrar: a vitrine usa o formato de número do idioma', str_contains($vitEn, '2,398<span class="cent">.66</span>') && str_contains($vitEn, '1,646<span class="cent">.70</span>')
+    && str_contains($vitEn, "\u{2212}2,350<span class=\"cent\">.00</span>") && !str_contains($vitEn, '2.398') && str_contains($vitPt, '2.398<span class="cent">,66</span>'));
+
 // ---- 18c. verificação em duas etapas: TOTP da RFC 6238, janela, reuso, recuperação, login, limite, desligar e o
 // comando que redefine a senha. Numa conta só do teste, com um instante fixo (o código não usa Relogio).
 $rfc = '12345678901234567890';      // a semente SHA1 dos vetores da RFC 6238, apêndice B
