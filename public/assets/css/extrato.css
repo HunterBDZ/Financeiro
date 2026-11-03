@@ -1,0 +1,125 @@
+/* Hallmark · checked: 2026-11-03 · genre: modern-minimal · shape: app screen · scope: app · built: Extrato do redesenho (design.md, § 6.3) · v1 */
+/* ==========================================================================
+   extrato.css — o Extrato (prefixo .ext-*): o livro-razão de largura total.
+   O topo e a faixa de números vêm de style.css (partials/topo, .numeros). Aqui: os filtros numa linha, a tabela
+   agrupada por dia (descrição, categoria, conta e valor, com a soma do dia) e o vazio que orienta.
+   No celular a tabela vira lista: o nome e o valor em cima, só a categoria embaixo.
+   Só tokens de style.css. As regras antigas .ex-* (em lancar.css) não valem mais aqui.
+   ========================================================================== */
+
+.ext { min-width: 0; }
+
+/* ---- a faixa do período */
+.ext-resumo .numeros { --colunas: 3; }
+.ext-v-mov { color: var(--tinta-2); }
+.ext-v-mov .cent { color: inherit; }
+.ext-saldo-conta, .ext-vencida { margin-top: var(--e-4); font-size: var(--t-rotulo); line-height: var(--lh-rotulo); color: var(--tinta-2); }
+.ext-vencida { display: flex; flex-wrap: wrap; align-items: center; gap: var(--e-2); color: var(--atencao); }
+.ext-vencida .link { margin-left: var(--e-1); }
+.ext-resumo .numeros + .ext-vencida, .ext-resumo .ext-saldo-conta + .ext-vencida { margin-top: var(--e-3); }
+.ext-resumo > .ext-vencida:first-child { margin-top: 0; }
+
+/* ---- os filtros: uma linha, a busca na frente */
+.ext-filtros { display: flex; flex-wrap: wrap; align-items: center; gap: var(--e-2); }
+.ext-busca { position: relative; flex: 1 1 200px; min-width: 0; }
+.ext-busca input { padding-left: 40px; padding-right: 40px; }
+.ext-busca-ic { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--tinta-3); pointer-events: none; display: grid; }
+.ext-busca-kbd { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--tinta-3); pointer-events: none; }
+.ext-busca input:focus + .ext-busca-kbd, .ext-busca input:not(:placeholder-shown) + .ext-busca-kbd { display: none; }
+.ext-sel { flex: 0 0 auto; width: 200px; min-width: 0; }
+.ext-sel-ordem { width: 168px; }
+.ext-sel-periodo { width: 204px; }                        /* "Novembro de 2026" inteiro, sem cortar */
+.ext-buscar { min-height: var(--tap); }
+.ext-datas { display: none; flex: 1 1 100%; gap: var(--e-3); }
+.ext-datas.is-on { display: flex; flex-wrap: wrap; }
+.ext-campo { display: flex; flex-direction: column; gap: var(--e-1); flex: 1 1 160px; min-width: 0; }
+.ext-campo > span { font-size: var(--t-rotulo); line-height: var(--lh-rotulo); color: var(--tinta-2); }
+.ext-mais { flex: 1 1 100%; }
+.ext-mais > summary {
+    display: inline-flex; align-items: center; gap: var(--e-2); min-height: var(--tap);
+    color: var(--tinta-2); font-size: var(--t-rotulo); font-weight: 600; list-style: none;
+}
+.ext-mais > summary::after {
+    content: ""; width: 7px; height: 7px; margin-left: var(--e-1);
+    border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor;
+    transform: rotate(45deg) translateY(-2px); transition: transform var(--entra) var(--curva);
+}
+.ext-mais[open] > summary::after { transform: rotate(-135deg) translateY(-1px); }
+.ext-mais > summary:hover { color: var(--tinta); }
+.ext-mais-c { display: flex; flex-wrap: wrap; gap: var(--e-3); padding: var(--e-2) 0 var(--e-3); }
+.ext-erro { flex: 1 1 100%; color: var(--alerta); font-size: var(--t-rotulo); }
+.ext-ativos { display: flex; flex-wrap: wrap; align-items: center; gap: var(--e-2); margin-top: var(--e-3); }
+
+/* ---- o livro-razão */
+.ext-tabela { width: 100%; margin-top: var(--e-5); border-collapse: collapse; }
+.ext-tabela th, .ext-tabela td { height: var(--linha); padding: 0 var(--e-4); text-align: left; font-weight: 400; vertical-align: middle; }
+.ext-tabela th:first-child, .ext-tabela td:first-child { padding-left: 0; }
+.ext-tabela th:last-child, .ext-tabela td:last-child { padding-right: 0; }
+.ext-tabela thead th { height: 40px; padding-bottom: var(--e-2); vertical-align: bottom; font-size: var(--t-rotulo); line-height: var(--lh-rotulo); color: var(--tinta-3); border-bottom: 1px solid var(--fio-forte); }
+.ext-tabela .ext-c-valor { text-align: right; white-space: nowrap; }
+.ext-tabela .ext-c-cat, .ext-tabela .ext-c-conta { color: var(--tinta-2); font-size: var(--t-rotulo); width: 22%; }
+.ext-tabela .ext-c-valor { width: 160px; }
+/* o dia: o rótulo à esquerda e a soma do dia à direita */
+.ext-dia th, .ext-dia td { height: 56px; padding-top: var(--e-5); padding-bottom: var(--e-2); vertical-align: bottom; font-size: var(--t-rotulo); line-height: var(--lh-rotulo); color: var(--tinta-2); border-bottom: 1px solid var(--fio); }
+.ext-dia th { font-weight: 600; }
+.ext-tabela thead + tbody .ext-dia th, .ext-tabela thead + tbody .ext-dia td { height: 48px; padding-top: var(--e-4); }
+.ext-soma { font-weight: 600; }
+/* a linha: a descrição leva ao editar; a linha inteira é o alvo */
+.ext-linha { position: relative; transition: background-color var(--rapido) var(--curva); }
+.ext-linha td { border-bottom: 1px solid var(--fio); }
+.ext-linha:hover { background: var(--realce); }
+.ext-c-desc { min-width: 0; }
+.ext-c-desc > a { color: var(--tinta); }
+.ext-c-desc > a::after { content: ""; position: absolute; inset: 0; }
+.ext-c-desc > a:focus-visible { outline: none; }
+.ext-linha:has(.ext-c-desc > a:focus-visible) { outline: 2px solid var(--azul); outline-offset: -2px; }
+.ext-ic { display: inline-block; vertical-align: -4px; margin-right: var(--e-3); color: var(--tinta-3); }
+.ext-transf-ic { width: 20px; text-align: center; font-size: var(--t-corpo); line-height: 1; vertical-align: 0; }
+.ext-sub { display: none; }
+.ext-quando { margin-right: var(--e-3); color: var(--tinta-3); font-size: var(--t-meta); }
+.ext-agendado { display: block; color: var(--tinta-3); font-size: var(--t-meta); line-height: var(--lh-meta); }
+.ext-mais-linhas { margin-top: var(--e-5); }
+
+/* ---- o vazio: o que a tela mostra e a ação que a preenche */
+.ext-vazio { padding: var(--e-7) 0 var(--e-6); max-width: 560px; }
+.ext-vazio .titulo { color: var(--tinta); }
+.ext-vazio p:not(.titulo) { color: var(--tinta-2); }
+.ext-vazio-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: var(--e-3); margin-top: var(--e-2); }
+
+/* ---- celular: a tabela vira lista (o nome e o valor; embaixo, só a categoria) */
+@media (max-width: 1023px) {
+    /* busca; categoria e ordem; período e Buscar */
+    .ext-busca { flex-basis: 100%; }
+    .ext-sel { flex: 1 1 calc(50% - var(--e-1)); width: auto; }
+    .ext-sel-periodo { order: 1; flex: 1 1 200px; width: auto; }
+    .ext-buscar { order: 1; flex: none; }
+    .ext-datas, .ext-mais { order: 2; }
+    .ext-busca-kbd { display: none; }
+    .ext-tabela thead { display: none; }
+    .ext-tabela, .ext-tabela tbody, .ext-tabela tr { display: block; width: 100%; }
+    .ext-tabela tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: var(--e-3); }
+    .ext-tabela th, .ext-tabela td { display: block; height: auto; padding: 0; }
+    .ext-tabela .ext-c-cat, .ext-tabela .ext-c-conta { display: none; }
+    .ext-tabela .ext-c-valor { width: auto; }
+    .ext-dia { padding: var(--e-5) 0 var(--e-2); border-bottom: 1px solid var(--fio); }
+    .ext-dia th, .ext-dia td, .ext-tabela thead + tbody .ext-dia th, .ext-tabela thead + tbody .ext-dia td { height: auto; padding: 0; border: 0; }
+    .ext-linha { min-height: var(--linha); padding: var(--e-2) 0; border-bottom: 1px solid var(--fio); }
+    .ext-linha td { border: 0; }
+    .ext-c-desc { display: grid !important; grid-template-columns: 20px minmax(0, 1fr); column-gap: var(--e-3); align-items: center; }
+    .ext-c-desc > .ext-ic { grid-row: 1 / 3; margin: 0; }
+    .ext-c-desc > a { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ext-sub { display: block; grid-column: 2; font-size: var(--t-meta); line-height: var(--lh-meta); color: var(--tinta-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ext-quando { display: block; margin: 0; }
+}
+@media (min-width: 1024px) {
+    .ext-tabela .ext-c-desc { width: auto; }
+}
+
+.ext-linha:active { background: var(--fio); }
+
+@media (prefers-reduced-motion: reduce) {
+    .ext-linha, .ext-mais > summary::after { transition: none; }
+}
+
+/* os centavos da faixa na cor cheia: a opacidade de style.css (.v-entrada .cent) baixa o contraste do texto pequeno */
+.ext-resumo .v-entrada .cent, .ext-resumo .v-saida .cent { opacity: 1; }

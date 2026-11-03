@@ -354,6 +354,16 @@ $jsonR = json_encode(RelatorioDados::mensal($mesHoje), JSON_UNESCAPED_UNICODE);
 $vazou = array_filter($nomesR, static fn($u) => str_contains((string) $jsonR, ' ' . $u['nome'] . ' '));
 $check('relatório: não traz nome de quem usa', $vazou === []);
 $htmlR = $pagina(RelatorioController::class, 'index', '/relatorio');
+// § 7.3 do redesenho: a frase do topo não chama de falta um mês em que a casa guardou dinheiro
+$frGuardou = RelatorioDados::manchete(-195.94, true, 0.0, 500.0);
+$frSobra = RelatorioDados::manchete(104.06, true, 0.0, 500.0);
+$frFalta = RelatorioDados::manchete(-80.0, true, 0.0, 0.0);
+$frFaltaGuardando = RelatorioDados::manchete(-700.0, true, 0.0, 500.0);
+$check('relatório: guardar não vira "Faltaram" na frase do topo', !str_contains($frGuardou, 'Faltaram') && str_contains($frGuardou, 'Guardou ' . money(500.0))
+    && str_contains($frGuardou, money(195.94)) && $frSobra === 'Guardou ' . money(500.0) . ' e ainda sobraram ' . money(104.06) . '.'
+    && $frFalta === 'Faltaram ' . money(80.0) . '.' && str_contains($frFaltaGuardando, 'Faltaram ' . money(200.0)), json_encode([$frGuardou, $frSobra, $frFalta, $frFaltaGuardando], JSON_UNESCAPED_UNICODE));
+$check('relatório: na cascata, o guardado é neutro e o gasto tem nome próprio ("Gastou")', str_contains($htmlR, 'is-guardado') === str_contains($htmlR, 'Guardou na poupança')
+    && !str_contains($htmlR, '>Saiu<') && (str_contains($htmlR, '>Gastou<') || str_contains($htmlR, '>Gastou até agora<') || !str_contains($htmlR, 'rl-cascata')));
 $check('relatório: a tela mostra a capa e o botão do PDF', str_contains($htmlR, 'rl-capa') && str_contains($htmlR, '/relatorio/pdf?') && str_contains($htmlR, 'Baixar PDF'));
 $_GET = ['tipo' => 'anual'];
 ob_start();
@@ -551,7 +561,11 @@ $check('Mês aberto: editável com "também nos meses seguintes"', str_contains(
 $html = $render(MesController::class, 'index', ['mes' => $realMes]);
 $check('Mês fechado: só leitura, com o planejado e a diferença', str_contains($html, 'class="livro mes-livro is-fechado"') && str_contains($html, '>Diferença<')
     && !str_contains($html, 'action="/mes/previsao"'));
-$check('anual: cada mês leva à aba Mês', str_contains($render(FuturoController::class, 'index', []), 'class="btn-link fu-abrir" href="/mes?mes='));
+$htmlFuM = $render(FuturoController::class, 'index', []);
+$check('anual: cada mês leva à aba Mês, por um ícone com nome ("Ver e ajustar" não quebra em duas linhas)', str_contains($htmlFuM, 'class="sim-abrir" href="/mes?mes=')
+    && preg_match('#class="sim-abrir" href="/mes\?mes=[\d-]+" aria-label="Ver e ajustar [^"]+" title=#', $htmlFuM) === 1);
+// "Outras entradas sobe": o texto do leitor de tela não depende de o nome concordar com o verbo
+$check('anual: o que mudou, sem "sobe"/"cai" colado no nome', !preg_match('#<span class="sr-only">[^<]* (sobe|cai) [^<]*</span>#u', $htmlFuM));
 $check('meta: cada categoria abre o editor com o mês e até quando', str_contains($render(MetaController::class, 'index', []), 'name="ate"'));
 
 // ---- 10. fechar congela as metas do mês; mês fechado não segue a meta; reabrir descongela
@@ -703,9 +717,15 @@ if (count($prevMeses) < 5 || $realUlt === null || $catDia === 0) {
     $emTransacao('metas: a tela', static function () use ($check, $pdo, $catDia, $mA, $mB, $render, $preparar): void {
         $preparar();
         $html = $render(MetaController::class, 'index', ['mes' => $mB]);
-        $c = (string) (preg_match('#<details class="mes-linha mes-ed meta-cat[^"]*" id="c' . $catDia . '".*?</details>#s', $html, $mm) ? $mm[0] : '');
+        $c = (string) (preg_match('#<details class="mt-linha[^"]*" id="c' . $catDia . '".*?</details>#s', $html, $mm) ? $mm[0] : '');
         $check('metas: o seletor de meses e o valor que vale no mês escolhido', str_contains($html, 'data-mes-picker') && str_contains($html, 'href="/meta?mes=' . $mA . '"')
-            && str_contains($c, num(1200.0)) && str_contains($c, 'só em dezembro · meta ' . num(1500.0)));
+            && str_contains($c, num(1200.0)) && str_contains($c, 'só em dezembro, a meta é ' . num(1500.0)));
+        // § 7.4 do redesenho: "Para usar" desconta as contas fixas que ainda faltam pagar (as mesmas do Mês e do Início)
+        $porPagarM = round(array_sum(array_column(\Financeiro\Services\ChecklistContas::aPagar($mB, \Financeiro\Relogio::hoje()), 'falta')), 2);
+        preg_match('#data-renda="([\d.-]+)" data-gasto-total="([\d.-]+)" data-por-pagar="([\d.-]+)"#', $html, $mP);
+        $check('metas: "Para usar" desconta as contas fixas que faltam pagar', $porPagarM > 0.004 && isset($mP[3]) && (float) $mP[3] === $porPagarM
+            && str_contains($html, 'data-para-usar>' . valor(round((float) $mP[1] - (float) $mP[2] - $porPagarM, 2), 'neutro', ['moeda' => true]) . '<')
+            && !str_contains($html, 'data-meta-aloc'), json_encode([$porPagarM, $mP]));
         $check('metas: o editor tem valor, a partir de e até', str_contains($c, 'action="/meta/editar"') && str_contains($c, 'name="desde"')
             && str_contains($c, '<option value="' . $mB . '" selected') && str_contains($c, 'Sem fim') && str_contains($c, 'Só este mês'));
         $check('metas: sem texto solto de aviso', !str_contains($html, 'meta-previsao') && !str_contains($html, 'Mude só ele na tela'));
@@ -771,9 +791,12 @@ $emTransacao('o que mudou acompanha a previsão', static function () use ($check
 });
 MotorFinanceiro::limparCache();
 $htmlFu = $render(FuturoController::class, 'index', []);
-$check('anual: resumo, conclusão no título do gráfico, previsão tracejada e total por ano', str_contains($htmlFu, 'class="card fu-res"')
-    && str_contains($htmlFu, 'id="fu-graf-t">A conta ') && str_contains($htmlFu, 'class="fu-linha is-prev"')
-    && str_contains($htmlFu, 'class="fu-cols fu-total num"') && !str_contains($htmlFu, 'fu-area'));
+$check('anual: o gráfico como peça principal, com a conclusão no título, a previsão tracejada e o total por ano', str_contains($htmlFu, 'class="sim-fim"')
+    && str_contains($htmlFu, 'id="sim-graf-t">A conta ') && str_contains($htmlFu, 'class="sim-linha is-prev"')
+    && str_contains($htmlFu, 'class="sim-cols sim-total num"') && strpos($htmlFu, 'sim-graf') < strpos($htmlFu, 'sim-caminho'));
+// os rótulos do eixo não se tocam: com muitos meses, um a cada k (passo-k), contados do janeiro
+$check('anual: o eixo mostra um rótulo a cada k meses quando são muitos', preg_match('#class="sim-eixo passo-(\d+) cel-(\d+)"#', $htmlFu, $mEixo) === 1
+    && (substr_count($htmlFu, 'class="sim-mx ') <= 22 || (int) $mEixo[1] >= 2) && (int) $mEixo[2] >= (int) $mEixo[1]);
 
 // ---- 14. "e se" do Anual: o motor soma o extra fora de mês fechado; a URL vira simulação; nada é gravado
 MotorFinanceiro::limparCache();
@@ -797,9 +820,9 @@ $_GET = ['se' => '1', 'mensal' => 'abc', 'adiantar' => '1'];
 $simT2 = FuturoController::simulacao(MotorFinanceiro::calcularPlano(), $refE, true);
 $check('e se: valor inválido é avisado e ignorado', !$simT2['ativo'] && count($simT2['erros']) === 1);
 $htmlSe = $render(FuturoController::class, 'index', ['se' => '1', 'mensal' => '500', 'mensal_de' => $e1, 'adiantar' => '1']);
-$check('e se: a página mostra o aviso, a comparação com o plano e a linha do plano', str_contains($htmlSe, 'class="fu-sim"')
-    && str_contains($htmlSe, 'class="fu-cmp num"') && str_contains($htmlSe, 'class="fu-base-l"') && str_contains($htmlSe, 'E se: +500'));
-$check('e se: sem simulação, nada disso aparece', !str_contains($htmlFu, 'class="fu-sim"') && !str_contains($htmlFu, 'class="fu-cmp num"')
+$check('e se: a página mostra o aviso, a comparação com o plano e a linha do plano', str_contains($htmlSe, 'class="faixa-grade sim-aviso"')
+    && str_contains($htmlSe, 'class="sim-cmp num"') && str_contains($htmlSe, 'class="sim-base-l"') && str_contains($htmlSe, 'E se: +500'));
+$check('e se: sem simulação, nada disso aparece', !str_contains($htmlFu, 'sim-aviso') && !str_contains($htmlFu, 'class="sim-cmp num"')
     && str_contains($htmlFu, 'id="e-se"'));
 $_GET = [];
 
@@ -834,9 +857,12 @@ $emTransacao('cartão alimentando o plano', static function () use ($pdo, $check
     $htmlMesC = $sit($mesSeg) === 'PREVISAO' ? $render(MesController::class, 'index', ['mes' => $mesSeg]) : 'mes-do-cartao';
     $check('cartão: no Mês, a Fatura do cartão vem do cartão (só leitura, leva à fatura)', str_contains($htmlMesC, 'mes-do-cartao'));
     $htmlCt = $render(CartaoController::class, 'index', []);
-    $check('cartão: a aba mostra o cartão, a escada, a fatura e o parcelamento', str_contains($htmlCt, 'class="ct-plastico"')
-        && str_contains($htmlCt, 'class="ct-escada"') && str_contains($htmlCt, 'TV teste') && str_contains($htmlCt, 'class="ct-parc"')
-        && !str_contains($htmlCt, 'ct-conf-tab'));
+    $check('cartão: a aba mostra o cartão, as próximas faturas, a fatura e o parcelamento', str_contains($htmlCt, 'class="ct-plastico"')
+        && str_contains($htmlCt, 'class="ct-barras"') && str_contains($htmlCt, 'TV teste') && str_contains($htmlCt, 'aria-labelledby="ct-parc-t"')
+        && substr_count($htmlCt, 'class="ct-tab"') >= 2 && !str_contains($htmlCt, 'ct-conf-tab'));
+    // o redesenho: o cartão liso (sem chip, sem pílula de situação) e a situação em frase, sem "A · B · C"
+    $check('cartão: o desenho é liso e a situação vem em frase, sem "·"', !str_contains($htmlCt, 'ct-chip') && !str_contains($htmlCt, 'ct-status')
+        && preg_match('#class="ct-aberta-sit">[^<]*·#u', $htmlCt) === 0 && preg_match('#class="ct-fat-sit">[^<]*·#u', $htmlCt) === 0);
     $antigas = Sql::tabelaExiste($pdo, 'cartao_compras_v1')
         ? (int) $pdo->query('SELECT COUNT(*) FROM cartao_compras_v1 v WHERE NOT EXISTS (SELECT 1 FROM cartao_compras n
                              WHERE n.descricao = v.descricao AND n.criado_em = v.criado_em)')->fetchColumn() : 0;   // as que ainda não vieram
@@ -925,8 +951,8 @@ $emTransacao('gasto por categoria', static function () use ($pdo, $check, $catFa
         $gastoTotal += max(0.0, $g[(int) $c['id']] ?? 0.0);
     }
     $gastoTotal += $g[GastoPorCategoria::SEM_CATEGORIA];
-    $check('metas: a meta estoura só por causa do cartão', str_contains($hMeta, 'meta-cat is-over" id="c' . $catL . '"')
-        && str_contains($hMeta, 'data-gasto="190.00"') && str_contains($hMeta, 'meta-cat is-ok" id="c' . $catD . '"'));
+    $check('metas: a meta estoura só por causa do cartão', str_contains($hMeta, 'mt-linha is-over" id="c' . $catL . '"')
+        && str_contains($hMeta, 'data-gasto="190.00"') && str_contains($hMeta, 'mt-linha is-ok" id="c' . $catD . '"'));
     $check('metas: "Resta para usar" conta o cartão pela data da compra, com o sem categoria', str_contains($hMeta, 'data-gasto-total="' . number_format($gastoTotal, 2, '.', '') . '"'), number_format($gastoTotal, 2, '.', ''));
     $check('metas: diz que o cartão conta pela data da compra e leva a categorizar', str_contains($hMeta, 'O cartão conta pela data da compra.')
         && str_contains($hMeta, 'href="/cartao/compras/' . $semCat . '/editar"'));
@@ -954,7 +980,7 @@ $emTransacao('gasto por categoria', static function () use ($pdo, $check, $catFa
         && str_contains($hIniFat, 'Ver pela data da compra') && !str_contains($hIniFat, 'Compras no cartão sem categoria') && str_contains($hIniVolta, 'Ver por fatura'));
     $check('"Para onde foi": por fatura, o Relatório soma o que saiu da conta, com a Fatura do cartão', !$relFat['porCompra']
         && abs($relFat['categorias']['totalReal'] - $somaCaixa) < 0.01 && in_array('Fatura', array_column($relFat['categorias']['linhas'], 'nome'), true));
-    $check('"Para onde foi": o Relatório mostra a lista na tela, com a escolha, e o PDF sai', str_contains($hRel, 'class="card rl-onde"') && str_contains($hRel, 'Ver por fatura')
+    $check('"Para onde foi": o Relatório mostra a lista na tela, com a escolha, e o PDF sai', str_contains($hRel, 'class="faixa-grade rl-onde"') && str_contains($hRel, 'Ver por fatura')
         && str_starts_with((new \Financeiro\Pdf\RelatorioPdf($rel))->gerar(), '%PDF') && str_starts_with((new \Financeiro\Pdf\RelatorioPdf($relFat))->gerar(), '%PDF'));
 });
 // sem cartão (sem cartão ativo ou sem a aba), nada muda: a visão é o extrato, e as telas não mostram a escolha
@@ -1409,8 +1435,10 @@ $emTransacao('contas do mês: Pago', static function () use ($pdo, $check, $rend
     MotorFinanceiro::limparCache();
     $htmlExt = $render(LancamentosController::class, 'index', ['mes' => $mesHoje]);
     $botao = 'name="categoria_id" value="' . $catPago . '"';
-    $check('contas do mês: no Início e no Extrato, com o botão Pago e o outro valor', str_contains($htmlIni, 'id="contas-mes"') && str_contains($htmlExt, 'id="contas-mes"')
-        && str_contains($htmlIni, $botao) && str_contains($htmlExt, $botao) && str_contains($htmlIni, 'action="/lancamentos/pago"')
+    // o Extrato não repete a lista: só a linha discreta da conta vencida, que leva ao Mês
+    $check('contas do mês: no Início, com o botão Pago e o outro valor; no Extrato, só a vencida', str_contains($htmlIni, 'id="contas-mes"') && !str_contains($htmlExt, 'id="contas-mes"')
+        && str_contains($htmlExt, 'class="ext-vencida') && !str_contains($htmlExt, $botao)
+        && str_contains($htmlIni, $botao) && str_contains($htmlIni, 'action="/lancamentos/pago"')
         && str_contains($htmlIni, 'data-categoria="' . $catPago . '"') && str_contains($htmlIni, 'venceu dia 5'));
     MotorFinanceiro::limparCache();
     $check('contas do mês: o Extrato com filtro não mostra o bloco', !str_contains($render(LancamentosController::class, 'index', ['mes' => $mesHoje, 'q' => 'x']), 'id="contas-mes"'));
@@ -2988,8 +3016,13 @@ $emTransacao('busca em período', static function () use ($pdo, $check, $render,
     $check('busca: a planilha lê em lotes, do mais antigo ao mais novo, sem repetir', count($lotes) === 4 && count(array_unique($lotes)) === 4 && $lotes[0] === '2001-03-05#10.50' && $lotes[3] === '2002-01-01#30.00', json_encode($lotes));
     $htmlB = $render(LancamentosController::class, 'index', ['periodo' => 'ano', 'mes' => '2001-01-01', 'q' => 'zzbusca']);
     $htmlT = $render(LancamentosController::class, 'index', ['periodo' => 'tudo', 'q' => 'zzbusca']);
-    $check('busca: a tela responde com o total no topo', str_contains($htmlT, 'data-ex-total="gasto">' . e(money(61.75)) . '<') && str_contains($htmlT, 'href="/lancamentos/planilha?'));
-    $check('busca: o período pedido vale (datas)', str_contains($render(LancamentosController::class, 'index', ['periodo' => 'datas', 'de' => '2001-07-01', 'ate' => '2001-07-31', 'q' => 'zzbusca']), 'data-ex-total="gasto">' . e(money(21.25)) . '<'));
+    $check('busca: a tela responde com o total no topo', str_contains($htmlT, 'data-ex-total="gasto">' . valor(-61.75, 'saida') . '<') && str_contains($htmlT, 'href="/lancamentos/planilha?'));
+    $check('busca: o período pedido vale (datas)', str_contains($render(LancamentosController::class, 'index', ['periodo' => 'datas', 'de' => '2001-07-01', 'ate' => '2001-07-31', 'q' => 'zzbusca']), 'data-ex-total="gasto">' . valor(-21.25, 'saida') . '<'));
+    // o período do filtro por extenso, com a maiúscula só no mês ("Novembro de 2026", nunca "Novembro De 2026")
+    $check('extrato: o período do filtro vem inteiro e com a maiúscula só no mês', str_contains($htmlT, '>' . mb_convert_case(mesExtenso($mesB), MB_CASE_TITLE) . ' de ' . substr($mesB, 0, 4) . '</option>')
+        && preg_match('/>\p{Lu}\p{Ll}+ De \d{4}</u', $htmlT) === 0);
+    // o Extrato não tem mais o formulário de lançar na tela: o Lançar é o diálogo do layout
+    $check('extrato: sem o formulário de lançar na tela, a busca com a tecla /', !str_contains($htmlT, 'data-lf-modo="pagina"') && str_contains($htmlT, 'aria-keyshortcuts="/"'));
     $check('busca: valor que não dá para ler é avisado', str_contains($render(LancamentosController::class, 'index', ['periodo' => 'tudo', 'min' => 'abc']), 'id="ex-erro-valor"'));
     unset($htmlB);
 
@@ -3192,7 +3225,7 @@ if (Sql::sqlite()) {
         && str_contains($h1Ini, 'name="saldo_informado"') && !str_contains($h1Ext, 'name="conta"') && !str_contains($h1Ext, 'ex-transf')
         && str_contains($h1Ext, 'Mais filtros: valor e quem lançou') && str_contains($h1Fe, 'name="saldo"') && !str_contains($h1Fe, 'saldo_conta['));
     $check('uma conta: Ajustes tem Contas e o saldo do início continua no ponto de partida', str_contains($h1Aj, 'id="carteira"') && str_contains($h1Aj, 'valores[saldo_ini]'));
-    $check('um cartão: sem seletor de cartões; "Novo cartão" fica no menu', !str_contains($h1Ct, 'class="ct-cartoes"') && str_contains($h1Ct, 'class="menu-item" href="/cartao?novo=1"'));
+    $check('um cartão: sem seletor de cartões; "Novo cartão" fica no menu', !str_contains($h1Ct, 'ct-cartoes"') && str_contains($h1Ct, 'class="menu-item" href="/cartao?novo=1"'));
 
     // ---- várias contas: o saldo inicial do plano, transferências que não mudam o plano, o saldo de cada conta e as telas
     $emTransacao('contas e transferências', static function () use ($pdo, $check, $render, $hoje, $mesHoje, $uid, $catGasto): void {
@@ -3228,9 +3261,9 @@ if (Sql::sqlite()) {
         $check('várias contas: o Início mostra o total e, nos detalhes, cada conta; conferir pede cada uma', str_contains($hIni, 'class="saldo-contas num"')
             && str_contains($hIni, 'Carteira teste') && str_contains($hIni, 'name="saldo_conta[' . $id2 . ']"') && !str_contains($hIni, 'name="saldo_informado"'));
         $hExt = $render(LancamentosController::class, 'index', ['conta' => (string) $id2]);
-        $check('várias contas: o Extrato filtra pela conta, com o saldo dela e a transferência, fora dos totais', str_contains($hExt, 'class="ex-saldo-conta num"')
-            && str_contains($hExt, e(money(195.0))) && str_contains($hExt, 'saque teste') && str_contains($hExt, 'ex-transf') && str_contains($hExt, '↔ +80,00')
-            && str_contains($hExt, 'data-ex-total="gasto">' . e(money(35.0)) . '<'));
+        $check('várias contas: o Extrato filtra pela conta, com o saldo dela e a transferência, fora dos totais', str_contains($hExt, 'class="ext-saldo-conta"')
+            && str_contains($hExt, valor(195.0)) && str_contains($hExt, 'saque teste') && str_contains($hExt, 'ext-transf') && str_contains($hExt, '↔ +80,00')
+            && str_contains($hExt, 'data-ex-total="gasto">' . valor(-35.0, 'saida') . '<'));
         $hFe = $render(MesController::class, 'fecharForm', []);
         $check('várias contas: fechar o mês pede o saldo do banco de cada conta', str_contains($hFe, 'name="saldo_conta[' . ContaModel::PRINCIPAL . ']"')
             && str_contains($hFe, 'name="saldo_conta[' . $id2 . ']"') && str_contains($hFe, 'data-conf-app="195.00"'));
@@ -3296,9 +3329,9 @@ if (Sql::sqlite()) {
         $check('estorno: abate da fatura', abs((CartaoFatura::totais(CartaoModel::compras($c2))[$f2] ?? 0.0) - (($tot2[$f2] ?? 0.0) - 50.0)) < 0.001);
         LancarForm::limparCache();
         $hCt = $render(CartaoController::class, 'index', ['cartao' => (string) $c2]);
-        $check('vários cartões: a aba tem o seletor, mostra o cartão escolhido e "Novo cartão"', str_contains($hCt, 'class="ct-cartoes"')
-            && str_contains($hCt, 'href="/cartao?cartao=' . $c2 . '" aria-current="page"') && str_contains($hCt, 'Cartão dois · fecha dia 10 · vence dia 20')
-            && str_contains($hCt, 'class="chip ct-novo" href="/cartao?novo=1"'));
+        $check('vários cartões: a aba tem o seletor, mostra o cartão escolhido e "Novo cartão"', str_contains($hCt, 'class="faixa-grade ct-cartoes"')
+            && str_contains($hCt, 'href="/cartao?cartao=' . $c2 . '" aria-current="page"') && str_contains($hCt, 'Cartão dois: fecha dia 10, vence dia 20')
+            && substr_count($hCt, 'fecha dia 10') === 1 && str_contains($hCt, 'class="btn-link ct-novo" href="/cartao?novo=1"'));
         $hLc = $render(LancamentosController::class, 'lancarForm', ['pagou' => 'cartao:' . $c2]);
         $check('vários cartões: no lançar, um botão para cada cartão, já no escolhido', str_contains($hLc, 'value="cartao:' . $c2 . '" checked')
             && str_contains($hLc, 'value="cartao:' . $c1['id'] . '"') && str_contains($hLc, '&quot;cartoes&quot;'));
@@ -3551,7 +3584,7 @@ $emTransacao('categoria fixa e ordem do cartão', static function () use ($pdo, 
     $check('categoria: fixa vira conta (Fixos), a que varia fica no dia a dia', $grupoDe($idF) === 'Fixos' && $grupoDe($idV) === 'Dia a dia');
     $html = $render(CartaoController::class, 'index', ['ordem' => 'alfa']);
     if (preg_match('#<div class="ct-fat" id="[^"]*">(.*?)</div>\s*(?:<div class="ct-fat"|</section>)#s', $html, $mF) === 1) {
-        preg_match_all('#<span class="ct-linha-n"><b>([^<]+)</b>#', $mF[1], $nm);
+        preg_match_all('#<span class="ct-nome-txt"><a [^>]*>([^<]+)</a>#', $mF[1], $nm);
         $nomes = array_map(static fn(string $n): string => mb_strtolower(html_entity_decode($n)), $nm[1]);
         $ord = $nomes;
         sort($ord, SORT_LOCALE_STRING);

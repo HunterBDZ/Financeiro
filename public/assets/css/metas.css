@@ -1,0 +1,101 @@
+/* Hallmark · checked: 2026-11-03 · genre: modern-minimal · shape: app screen · scope: app · built: Metas do redesenho (design.md, § 6.6) · v1 */
+/* ==========================================================================
+   metas.css — Metas (prefixo .mt-*). A resposta "Para usar neste mês", com a conta ao lado, e uma tabela por grupo:
+   a meta, o gasto, a barra fina (.meta-barra de style.css) e o que falta. A linha abre o editor de recorrência nela
+   mesma. No celular, cada linha vira nome e gasto em cima, a barra e o que falta embaixo.
+   Só tokens de style.css. As regras antigas .meta-* (em mes.css) não valem mais aqui.
+   ========================================================================== */
+
+.mt { min-width: 0; }
+.mt .topo-dir .dica { width: 24px; height: 24px; }
+
+/* ---- a resposta e a conta dela */
+.mt-resposta { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--e-5); }
+.mt-resposta-num { min-width: 0; }
+.mt-resposta-sub { margin-top: var(--e-2); color: var(--tinta-2); font-size: var(--t-rotulo); line-height: var(--lh-rotulo); }
+.mt-conta-dl { display: grid; align-content: start; max-width: 420px; }
+.mt-conta-dl > div { display: flex; align-items: baseline; justify-content: space-between; gap: var(--e-4); min-height: 40px; padding: var(--e-2) 0; border-bottom: 1px solid var(--fio); }
+.mt-conta-dl dt { color: var(--tinta-2); font-size: var(--t-rotulo); line-height: var(--lh-rotulo); }
+.mt-conta-dl dd { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mt-conta-dl .mt-conta-fim { border-top: 1px solid var(--tinta); border-bottom: 0; }
+.mt-conta-dl .mt-conta-fim dt { color: var(--tinta); font-weight: 600; }
+.mt-conta-dl .mt-conta-fim dd { font-weight: 600; }
+.mt-notas { grid-column: 1 / -1; display: grid; gap: var(--e-1); color: var(--tinta-2); font-size: var(--t-rotulo); line-height: var(--lh-rotulo); }
+.mt-vazio { grid-column: 1 / -1; padding: var(--e-4) 0; }
+
+/* ---- as tabelas */
+.mt-tabelas { display: grid; gap: var(--e-7); }
+.mt-add { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--e-3); }
+.mt-add label { color: var(--tinta-2); font-size: var(--t-rotulo); }
+.mt-add select { width: auto; min-width: 240px; max-width: 100%; }
+.mt-grupo { min-width: 0; }
+.mt-grupo .secao-cab p { font-size: var(--t-rotulo); color: var(--tinta-2); }
+
+/* as colunas: nome, meta, gasto, a barra e o que falta */
+.mt-cab, .mt-linha > summary, a.mt-linha {
+    display: grid; grid-template-columns: minmax(0, 1fr) 112px 112px 96px 140px; align-items: center; column-gap: var(--e-4);
+}
+.mt-cab { min-height: 40px; padding-top: var(--e-2); color: var(--tinta-3); font-size: var(--t-rotulo); line-height: var(--lh-rotulo); border-bottom: 1px solid var(--fio-forte); }
+.mt-c { min-width: 0; }
+.mt-c-meta, .mt-c-gasto, .mt-c-falta { text-align: right; white-space: nowrap; }
+.mt-c-falta { color: var(--tinta-2); font-size: var(--t-rotulo); }
+.mt-c-falta.alerta { color: var(--alerta); font-weight: 600; }
+.mt-c-meta { color: var(--tinta-2); }
+.mt-sem { color: var(--tinta-3); font-size: var(--t-rotulo); }
+.mt-paga { color: var(--tinta-2); }
+
+.mt-linha { border-bottom: 1px solid var(--fio); }
+.mt-linha > summary, a.mt-linha { min-height: var(--linha); padding: var(--e-2) 0; list-style: none; cursor: pointer; transition: background-color var(--rapido) var(--curva); }
+.mt-linha > summary:hover, a.mt-linha:hover { background: var(--realce); }
+.mt-linha > summary:active, a.mt-linha:active { background: var(--fio); }
+.mt-linha[open] > summary { background: var(--realce); }
+.mt-linha[open] .mt-nome { font-weight: 600; }
+.mt-linha:target > summary { background: var(--azul-fundo); }
+.mt-linha > summary:focus-visible, a.mt-linha:focus-visible { outline: 2px solid var(--azul); outline-offset: -2px; border-radius: 0; }
+.mt-c-nome { display: flex; align-items: center; gap: var(--e-3); }
+.mt-ic { flex: none; color: var(--tinta-3); }
+.mt-nome-txt { display: flex; flex-direction: column; min-width: 0; }
+.mt-nome { overflow-wrap: anywhere; }
+.mt-nome-txt small { color: var(--tinta-3); font-size: var(--t-meta); line-height: var(--lh-meta); }
+.mt-nome-txt small.mt-proprio { color: var(--tinta-2); }
+.mt-c-barra .meta-barra { display: block; width: 100%; height: 2px; }
+.mt-linha.is-near .meta-barra i { background: var(--atencao); }
+
+/* ---- o editor de recorrência, aberto na linha */
+.mt-ed { display: grid; gap: var(--e-3); padding: var(--e-4) 0 var(--e-5) 32px; }
+.mt-ed-campos { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--e-3); max-width: 720px; }
+.mt-campo { display: flex; flex-direction: column; gap: var(--e-1); min-width: 0; }
+.mt-campo > span { color: var(--tinta-2); font-size: var(--t-rotulo); line-height: var(--lh-rotulo); }
+.mt-campo-dia { max-width: 140px; }
+.mt-ed-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: var(--e-3); }
+.mt-erro { display: flex; align-items: center; gap: var(--e-2); color: var(--alerta); font-size: var(--t-rotulo); }
+.mt-ed-fora { display: flex; padding: 0 0 var(--e-4) 32px; }
+.mt-ed-fora .btn-link { white-space: nowrap; }
+.mt-incluir { margin-top: var(--e-3); }
+.mt-incluir > summary { display: inline-flex; align-items: center; gap: var(--e-2); min-height: var(--tap); color: var(--azul); font-size: var(--t-rotulo); font-weight: 600; list-style: none; cursor: pointer; }
+.mt-incluir > summary:hover { text-decoration: underline; text-underline-offset: 3px; }
+.mt-incluir > .mt-ed { padding-left: 0; }
+
+/* ---- celular: o nome e o gasto em cima; a barra e o que falta embaixo */
+@media (max-width: 1023px) {
+    .mt-cab { display: none; }
+    .mt-linha > summary, a.mt-linha {
+        grid-template-columns: minmax(0, 1fr) 128px; grid-template-areas: "nome gasto" "barra falta"; row-gap: var(--e-1);
+        min-height: 56px;
+    }
+    .mt-c-nome { grid-area: nome; }
+    .mt-c-meta { display: none; }
+    .mt-c-gasto { grid-area: gasto; }
+    .mt-c-barra { grid-area: barra; padding-left: 32px; }
+    .mt-c-falta { grid-area: falta; font-size: var(--t-meta); }
+    .mt-ed, .mt-ed-fora { padding-left: 0; }
+    .mt-add { justify-content: flex-start; }
+    .mt-add select { min-width: 0; flex: 1 1 200px; }
+}
+@media (min-width: 1024px) {
+    .mt-resposta { grid-template-columns: minmax(0, 1fr) minmax(320px, 420px); column-gap: var(--e-7); align-items: start; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .mt-linha > summary, a.mt-linha { transition: none; }
+}

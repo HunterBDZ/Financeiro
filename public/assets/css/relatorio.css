@@ -1,65 +1,109 @@
-/* Aba Relatório */
-.rl { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
-.rl-achado li, .rl-nota, .rl-manchete { font-variant-numeric: tabular-nums; }
-.rl-topo { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
-.rl-tipo { display: inline-flex; gap: 4px; padding: 4px; border-radius: 14px; background: var(--card-2); }
-.rl-tipo-b { display: inline-flex; align-items: center; min-height: var(--tap); padding: 0 18px; border-radius: 10px; color: var(--text-2); font-weight: 700; }
-.rl-tipo-b.is-on { background: var(--card); color: var(--text); box-shadow: 0 0 0 1px var(--line-2); }
-.rl-tipo-b:focus-visible { outline: 2px solid var(--foco); outline-offset: 2px; }
-.rl-periodo { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; }
-.rl-periodo label { grid-column: 1 / -1; margin-bottom: -6px; color: var(--text-2); font-size: 13px; font-weight: 650; }
-.rl-periodo select { width: 100%; min-width: 0; min-height: 46px; padding: 0 12px; border: 1px solid var(--line-2); border-radius: 12px; background: var(--card); color: var(--text); font: inherit; font-weight: 650; }
-.rl-periodo select:focus-visible { outline: 2px solid var(--foco); outline-offset: 1px; }
-.rl-baixar { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px; }
+/* Hallmark · checked: 2026-11-03 · genre: modern-minimal · shape: app screen · scope: app · built: Relatório do redesenho (design.md, § 6.7) · v1 */
+/* ==========================================================================
+   relatorio.css — aba Relatório (prefixo .rl-*). A direção do relatório impresso: a frase-resultado no topo, a
+   cascata "Como a conta chegou até aqui" no centro e as seções em fios (as faixas da grade).
+   Fato em tinta cheia; o planejado tracejado; o guardado e o empréstimo neutros, nunca vermelho de gasto.
+   ========================================================================== */
+
+.rl { min-width: 0; }
+.rl-manchete, .rl-achado li, .rl-nota { font-variant-numeric: tabular-nums; }
+
+/* ---- o topo: Mensal ou Anual, o ano e o PDF */
+.rl-tipo { display: inline-flex; gap: 2px; padding: 2px; border-radius: var(--raio-controle); box-shadow: inset 0 0 0 1px var(--fio-forte); }
+.rl-tipo-b { display: inline-flex; align-items: center; min-height: 36px; padding: 0 var(--e-3); border-radius: 4px; color: var(--tinta-2); font-size: var(--t-rotulo); }
+.rl-tipo-b:hover { background: var(--realce); color: var(--tinta); }
+.rl-tipo-b.is-on { background: var(--realce); color: var(--azul); font-weight: 600; }
+.rl-periodo { display: flex; align-items: center; gap: var(--e-2); }
+.rl-periodo select { width: auto; min-height: 40px; }
 .rl-periodo.com-js .rl-ver { display: none; }
-.rl-capa { padding: 8px 2px 2px; }
-.rl-periodo-nome { color: var(--text-2); font-size: 14px; font-weight: 650; }
-.rl-manchete { margin: 4px 0 6px; font-family: var(--fn); font-size: clamp(27px, 8vw, 44px); font-weight: 650; letter-spacing: -0.03em; line-height: 1.08; overflow-wrap: anywhere; }
-.rl-situacao { color: var(--text-2); font-size: 14px; line-height: 1.4; }
-/* mês em andamento: as duas sobras, cada uma com o nome da base */
-.rl-sobras { display: flex; flex-wrap: wrap; gap: 6px 28px; margin-top: 12px; }
-.rl-sobras dt { color: var(--text-2); font-size: 13px; font-weight: 650; white-space: normal; }
-.rl-sobras dd { font-family: var(--fn); font-size: 20px; font-weight: 600; letter-spacing: -0.02em; }
-.rl-ponte { margin-top: 6px; color: var(--text-2); font-size: 12.5px; font-weight: 600; white-space: normal; }
-.rl-conf { display: flex; align-items: center; gap: 7px; margin-top: 8px; font-size: 13.5px; font-weight: 700; }
-.rl-conf.is-ok svg { color: var(--pos); }
-.rl-conf.is-dif svg { color: var(--neg); }
-.rl-conf.is-sem { color: var(--text-2); font-weight: 600; }
-.rl-escada { display: flex; flex-direction: column; gap: 8px; }
-.rl-degraus { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
-.rl-degrau { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: 2px 12px; padding: 9px 0; border-top: 1px solid var(--line); }
-.rl-degrau:first-child { border-top: 0; }
-.rl-d-nome { min-width: 0; font-weight: 600; font-size: 14.5px; }
-.rl-d-valor { font-weight: 750; font-size: 14.5px; white-space: nowrap; }
-.rl-d-trilho { position: relative; grid-column: 1 / -1; grid-row: 2; height: 8px; margin-top: 4px; }
-.rl-d-trilho i { position: absolute; top: 0; bottom: 0; border-radius: 3px; background: var(--text); }
-.rl-d-trilho i.is-entra { background: var(--pos); }
-.rl-d-trilho i.is-sai { background: var(--neg); }
-.rl-d-trilho i.is-plan { background: repeating-linear-gradient(135deg, currentColor 0 2px, transparent 2px 5px); color: var(--text-2); box-shadow: inset 0 0 0 1px var(--text-2); }
-.rl-degrau.is-inicio .rl-d-nome, .rl-degrau.is-fim .rl-d-nome { font-weight: 750; }
-.rl-degrau.is-fim { margin: 4px -10px 0; padding: 11px 10px; border: 0; border-radius: 12px; background: var(--acc); color: var(--on-acc); }
-.rl-degrau.is-fim .rl-d-trilho i { background: var(--on-acc); }
-.rl-degrau.is-fim .rl-d-valor { font-size: 17px; }
-.rl-nota { color: var(--text-2); font-size: 13.5px; line-height: 1.45; }
-.rl-onde { display: flex; flex-direction: column; gap: 6px; }
-.rl-numeros { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; }
-.rl-numeros small { display: block; color: var(--text-2); font-size: 13px; font-weight: 650; }
-.rl-numeros b { font-size: 19px; font-weight: 750; }
-.rl-achados { display: grid; gap: 18px; padding: 4px 2px; }
-.rl-achado { padding-top: 10px; border-top: 2px solid var(--text); }
-.rl-achado h2 { display: flex; align-items: center; gap: 7px; margin-bottom: 8px; font-size: 15px; font-weight: 750; }
-.rl-achado.is-bom h2 svg { color: var(--pos); }
-.rl-achado.is-ruim h2 svg { color: var(--neg); }
-.rl-achado ul { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
-.rl-achado li { font-size: 14.5px; line-height: 1.42; }
-.rl-vazio { color: var(--text-2); font-size: 14px; }
-.rl-sem-veredito { color: var(--text-2); font-size: 14px; line-height: 1.45; }
-.rl-fim { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; padding: 12px 2px 4px; border-top: 1px solid var(--line); color: var(--text-2); font-size: 13.5px; }
-@media (min-width: 760px) {
-    .rl-periodo { grid-template-columns: minmax(0, 320px) auto 1fr; }
-    .rl-baixar { justify-self: end; grid-column: 3; }
-    .rl-achados { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    .rl-degrau { grid-template-columns: minmax(150px, 1fr) minmax(0, 2fr) minmax(112px, auto); gap: 14px; align-items: center; }
-    .rl-d-trilho { grid-column: 2; grid-row: 1; margin-top: 0; }
-    .rl-d-valor { text-align: right; }
+
+/* ---- a frase-resultado */
+.rl-manchete { margin-top: var(--e-2); max-width: 22ch; font: 300 var(--t-frase)/var(--lh-frase) var(--f-num); letter-spacing: -.025em; text-wrap: balance; overflow-wrap: anywhere; }
+.rl-sobras { margin-top: var(--e-5); max-width: 560px; }
+.rl-conf { display: flex; align-items: center; gap: var(--e-2); margin-top: var(--e-4); color: var(--tinta-2); font-size: var(--t-rotulo); line-height: var(--lh-rotulo); }
+.rl-conf.is-ok svg { color: var(--entrada); }
+.rl-conf.is-dif { color: var(--atencao); }
+
+/* ---- a cascata: cada degrau começa onde o anterior parou */
+.rl-leg { display: inline-flex; align-items: center; gap: var(--e-2); }
+.rl-leg-fato, .rl-leg-plan { display: inline-block; width: 16px; height: 8px; border-radius: 2px; background: var(--tinta); }
+.rl-leg-plan { margin-left: var(--e-2); background: none; border: 1.5px dashed var(--tinta-2); }
+.rl-cascata { width: 100%; margin-top: var(--e-2); border-collapse: collapse; }
+.rl-cascata th, .rl-cascata td { height: var(--linha); padding: 0; border-bottom: 1px solid var(--fio); font-weight: 400; text-align: left; vertical-align: middle; }
+.rl-cascata th { width: 34%; padding-right: var(--e-4); }
+.rl-d-trilho > span { position: relative; display: block; height: 12px; }
+.rl-d-trilho i { position: absolute; top: 0; bottom: 0; border-radius: 2px; background: var(--tinta-3); }
+.rl-d-valor { width: 152px; padding-left: var(--e-4) !important; text-align: right !important; white-space: nowrap; }
+.rl-degrau.is-total i { background: var(--tinta); }
+.rl-degrau.is-entrada i { background: var(--entrada); }
+.rl-degrau.is-gasto i { background: var(--saida); }
+.rl-degrau.is-guardado i, .rl-degrau.is-divida i { background: var(--seg-contas); }
+.rl-degrau.is-plan th { color: var(--tinta-2); }
+.rl-degrau.is-plan i { background: none; border: 1.5px dashed var(--tinta-2); }
+.rl-degrau.is-inicio th, .rl-degrau.is-fim th { color: var(--tinta); }
+.rl-degrau.is-fim th, .rl-degrau.is-fim td { height: 72px; border-top: 3px double var(--tinta); border-bottom: 0; }
+.rl-degrau.is-fim th { font: 400 var(--t-corpo)/var(--lh-corpo) var(--f-num); }
+.rl-degrau.is-fim .rl-d-valor { font: 300 var(--t-numero)/var(--lh-numero) var(--f-num); letter-spacing: -.02em; }
+.rl-nota { margin-top: var(--e-3); max-width: 720px; color: var(--tinta-2); font-size: var(--t-rotulo); line-height: var(--lh-rotulo); }
+
+/* ---- o que foi bom, ruim e o que pode melhorar: três colunas separadas por fio */
+.rl-achados { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--e-5); }
+.rl-achado h2 { display: flex; align-items: center; gap: var(--e-2); margin-bottom: var(--e-3); font: 400 var(--t-titulo)/var(--lh-titulo) var(--f-num); letter-spacing: -.01em; text-wrap: balance; }
+.rl-achado h2 svg { color: var(--tinta-3); }
+.rl-achado.is-bom h2 svg { color: var(--entrada); }
+.rl-achado.is-ruim h2 svg { color: var(--saida); }
+.rl-achado ul { display: grid; gap: var(--e-2); }
+.rl-achado li { color: var(--tinta-2); line-height: var(--lh-corpo); }
+.rl-vazio { color: var(--tinta-3); }
+.rl-conferir { grid-column: 1 / -1; }
+
+/* ---- para onde foi: a lista com barras finas */
+.rl-barras { margin-top: var(--e-2); }
+.rl-barra-i {
+    display: grid; grid-template-columns: 20px minmax(0, 1fr) auto 48px; grid-template-areas: "ic nome valor pct" ". barra barra barra";
+    align-items: center; column-gap: var(--e-3); row-gap: var(--e-1); min-height: var(--linha); padding: var(--e-2) 0; border-bottom: 1px solid var(--fio);
+    color: var(--tinta);
 }
+a.rl-barra-i { transition: background-color var(--rapido) var(--curva); }
+a.rl-barra-i:hover { background: var(--realce); }
+a.rl-barra-i:active, .rl-tipo-b:active { background: var(--fio); }
+a.rl-barra-i:focus-visible, .rl-tipo-b:focus-visible { outline: 2px solid var(--azul); outline-offset: -2px; }
+.rl-ic { grid-area: ic; color: var(--tinta-3); }
+.rl-barra-n { grid-area: nome; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rl-barra-v { grid-area: valor; text-align: right; }
+.rl-barra-p { grid-area: pct; text-align: right; color: var(--tinta-3); font-size: var(--t-rotulo); }
+.rl-barra-i .meta-barra { grid-area: barra; display: block; width: 100%; height: 2px; }
+
+.rl-fim { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--e-2) var(--e-4); color: var(--tinta-2); font-size: var(--t-rotulo); }
+
+@media (max-width: 1023px) {
+    .rl .topo { flex-wrap: wrap; }
+    .rl-cascata th { width: auto; }
+    .rl-cascata tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "nome valor" "barra barra"; column-gap: var(--e-3); padding: var(--e-2) 0; border-bottom: 1px solid var(--fio); }
+    .rl-cascata th, .rl-cascata td { display: block; height: auto; border: 0; }
+    .rl-cascata th { grid-area: nome; }
+    .rl-d-trilho { grid-area: barra; padding-top: var(--e-2) !important; }
+    .rl-d-valor { grid-area: valor; width: auto; }
+    .rl-degrau.is-fim { border-top: 3px double var(--tinta); border-bottom: 0; }
+    .rl-degrau.is-fim th, .rl-degrau.is-fim td { height: auto; border: 0; }
+    .rl-degrau.is-fim .rl-d-valor { font-size: 24px; line-height: 30px; }
+    .rl-manchete { font-size: 30px; line-height: 36px; }
+}
+@media (min-width: 1024px) {
+    .rl-achados { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; }
+    .rl-achado { padding: 0 var(--e-5); }
+    .rl-achado:first-child { padding-left: 0; }
+    .rl-achado + .rl-achado { border-left: 1px solid var(--fio); }
+    .rl-conferir { margin-top: var(--e-5); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    a.rl-barra-i { transition: none; }
+}
+
+/* o link da nota: azul, como os outros (inicio.css ainda tem uma regra antiga para .rl-onde .rl-nota a) */
+.rl .rl-onde .rl-nota a.link { color: var(--azul); font-weight: 600; text-decoration: none; }
+.rl .rl-onde .rl-nota a.link:hover { text-decoration: underline; }
+
+/* os centavos dos números na cor cheia: a opacidade de style.css (.v-entrada .cent) baixa o contraste */
+.rl .numeros .v-entrada .cent, .rl .numeros .v-saida .cent { opacity: 1; }

@@ -16,6 +16,7 @@ FONTES = [
     ('manrope-500', 'manrope-var-latin.woff2', 500, 'Manrope-Medium'),
     ('manrope-700', 'manrope-var-latin.woff2', 700, 'Manrope-Bold'),
     ('sora-600', 'sora-var-latin.woff2', 600, 'Sora-SemiBold'),
+    ('sora-300', 'sora-var-latin.woff2', 300, 'Sora-Light'),
 ]
 
 def php_str(s):

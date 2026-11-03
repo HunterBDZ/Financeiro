@@ -56,8 +56,8 @@ test('transfere para uma conta nova e paga a fatura escolhendo o cartão', async
 
     // o Extrato da carteira: a transferência e o saldo dela
     await ir('/lancamentos?conta=2');
-    await expect(page.locator('.ex-saldo-conta')).toContainText('120,00');
-    await expect(page.getByRole('link', { name: /Transferência/ })).toContainText('+120,00');
+    await expect(page.locator('.ext-saldo-conta')).toContainText('120,00');
+    await expect(page.getByRole('row').filter({ has: page.getByRole('link', { name: /Transferência/ }) })).toContainText('+120,00');
 
     // um segundo cartão, que fecha no dia 10 e vence no 20: no dia 22/11 do relógio dos testes, a fatura de novembro venceu
     await ir('/cartao?novo=1');
@@ -80,7 +80,7 @@ test('transfere para uma conta nova e paga a fatura escolhendo o cartão', async
     await page.getByRole('navigation', { name: 'cartões' }).getByRole('link', { name: 'Cartão dois' }).click();
     await expect(page.locator('[data-ct-plastico]')).toHaveAttribute('data-visual', 'verde');
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Cartão');
-    await expect(page.getByText('Cartão dois · fecha dia 10 · vence dia 20')).toBeVisible();
+    await expect(page.getByText('Cartão dois: fecha dia 10, vence dia 20')).toBeVisible();
     await page.getByRole('link', { name: /Fatura de nov\/26/ }).click();
     const fatura = page.locator('#f-2026-11');
     await expect(fatura).toBeVisible();
@@ -93,6 +93,6 @@ test('transfere para uma conta nova e paga a fatura escolhendo o cartão', async
 
     // o pagamento saiu da carteira
     await ir('/lancamentos?conta=2');
-    await expect(page.locator('.ex-saldo-conta')).toContainText('45,00');
+    await expect(page.locator('.ext-saldo-conta')).toContainText('45,00');
     expect(srv.logDoApp(), 'avisos ou erros do PHP').toBe('');
 });

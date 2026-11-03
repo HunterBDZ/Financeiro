@@ -45,8 +45,8 @@ $organizar = static function (array $chaves) use ($abas, $csrfMenu): string {
 
 $publico = __DIR__ . '/../../../public';
 $existe  = static fn(string $p): bool => is_file($publico . $p);
-$estilos = array_filter(['/assets/css/style.css', '/assets/css/inicio.css', '/assets/css/lancar.css', '/assets/css/mes.css', '/assets/css/investimentos.css', '/assets/css/relatorio.css', '/assets/css/cartao.css', '/assets/css/emprestimo.css', '/assets/css/wishlist.css', '/assets/css/importar.css', '/assets/css/temas-tela.css', '/assets/css/menu.css', '/assets/css/icones.css', '/assets/css/temas.css'], $existe);
-$scripts = array_filter(['/assets/js/app.js', '/assets/js/lancar.js', '/assets/js/mes.js', '/assets/js/cartao.js', '/assets/js/emprestimo.js', '/assets/js/wishlist.js', '/assets/js/importar.js', '/assets/js/temas.js', '/assets/js/relatorio.js', '/assets/js/fuso.js', '/assets/js/menu.js'], $existe);
+$estilos = array_filter(['/assets/css/style.css', '/assets/css/inicio.css', '/assets/css/lancar.css', '/assets/css/extrato.css', '/assets/css/mes.css', '/assets/css/metas.css', '/assets/css/simular.css', '/assets/css/investimentos.css', '/assets/css/relatorio.css', '/assets/css/cartao.css', '/assets/css/emprestimo.css', '/assets/css/wishlist.css', '/assets/css/importar.css', '/assets/css/temas-tela.css', '/assets/css/menu.css', '/assets/css/icones.css', '/assets/css/temas.css'], $existe);
+$scripts = array_filter(['/assets/js/app.js', '/assets/js/lancar.js', '/assets/js/extrato.js', '/assets/js/mes.js', '/assets/js/metas.js', '/assets/js/cartao.js', '/assets/js/emprestimo.js', '/assets/js/wishlist.js', '/assets/js/importar.js', '/assets/js/temas.js', '/assets/js/relatorio.js', '/assets/js/fuso.js', '/assets/js/menu.js'], $existe);
 
 $uri     = (string) ($_SERVER['REQUEST_URI'] ?? '/');
 $volta   = voltaSegura($uri, '/');

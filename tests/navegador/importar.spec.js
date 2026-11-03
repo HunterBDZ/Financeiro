@@ -24,6 +24,8 @@ const CSV = 'Data;Histórico;Valor;Saldo\n03/11/2026;PADARIA DA ESQUINA;-12,50;1
 test('importa um CSV, revisa, lança todos e desfaz', async ({ page, context }) => {
     await entrar(context.request, srv.url);
     await page.goto(srv.url + '/lancamentos?mes=2026-11-01');
+    // Importar e a planilha ficam no ⋯ do topo do Extrato
+    await page.getByRole('main').locator('.ext-menu > summary').click();
     await page.getByRole('link', { name: 'Importar extrato' }).first().click();
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Importar extrato');
     expect(await graves(page)).toEqual([]);
@@ -49,8 +51,8 @@ test('importa um CSV, revisa, lança todos e desfaz', async ({ page, context }) 
     }
     await page.getByRole('button', { name: 'Lançar todos' }).click();
     await expect(page.getByRole('status').filter({ hasText: '2 lançamentos importados' })).toBeVisible();
-    await expect(page.locator('.ex-lista')).toContainText('PADARIA DA ESQUINA');
-    await expect(page.locator('.ex-lista')).toContainText('1.234,56');
+    await expect(page.locator('.ext-tabela')).toContainText('PADARIA DA ESQUINA');
+    await expect(page.locator('.ext-tabela')).toContainText('1.234,56');
 
     // desfazer, com confirmação, pela lista das últimas importações
     await page.goto(srv.url + '/importar');
