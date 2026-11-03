@@ -81,7 +81,7 @@ final class RelatorioDados
             'tipo' => 'mensal', 'mes' => $mes, 'estado' => (string) $l['estado'], 'encerrado' => $encerrado, 'gerado' => Relogio::agora()->format('Y-m-d H:i'), 'hoje' => $hoje,
             'titulo' => t('{mes} de {ano}', ['mes' => $nomeMes, 'ano' => $ano]),
             'situacao' => $encerrado ? t('Mês encerrado') : t('Mês em andamento: lançado até {data}, o resto é planejado', ['data' => diaMes(min($hoje, date('Y-m-t', (int) strtotime($mes))))]),
-            'manchete' => self::manchete($sobrou, $encerrado, (float) $l['fica_na_conta']),
+            'manchete' => self::manchete($sobrou, $encerrado, (float) $l['fica_na_conta'], (float) $l['poupanca_liquido'] + (float) ($l['invest_liquido'] ?? 0.0)),
             'sobrou' => $sobrou, 'entrou' => (float) $l['entra'], 'saiu' => (float) $l['sai'], 'fica' => (float) $l['fica_na_conta'],
             'sobras' => $encerrado ? [$sobraPlano] : array_values(array_filter([Sobra::ateHoje($mes, $hoje), $sobraPlano])),
             'reserva' => $reserva, 'conferencia' => self::conferencia($dados, $mes, $hoje),
@@ -145,23 +145,40 @@ final class RelatorioDados
                 'mes' => $mes, 'mesAnterior' => $ant];
     }
 
-    private static function manchete(float $sobrou, bool $encerrado, float $fica): string
+    /**
+     * A frase-resultado do topo. A sobra é o balanço da conta (Sobra), em que o guardado (poupança e investimento) sai;
+     * por isso a frase separa o gasto do guardado: num mês em que a casa guardou, a conta que fica menor não é falta.
+     *   guardou e ainda sobrou:            "Guardou R$ 500,00 e ainda sobraram R$ 104,06."
+     *   guardou mais do que sobrou do gasto: "Guardou R$ 500,00; R$ 195,94 vieram do que já estava na conta."
+     *   gastou mais do que entrou:          "Faltaram R$ 80,00." (com o guardado: "…, sem contar os R$ 500,00 guardados.")
+     * @param float $guardou o que foi guardado e aplicado, já sem o que foi tirado (negativo: tirou)
+     */
+    public static function manchete(float $sobrou, bool $encerrado, float $fica, float $guardou = 0.0): string
     {
         if (!$encerrado) {
             return t('Pelo planejado, o mês termina com {valor} na conta.', ['valor' => money($fica)]);
         }
+        $guardou = round(max(0.0, $guardou), 2);
         if ($sobrou > 0.004) {
-            return t('Sobraram {valor}.', ['valor' => money($sobrou)]);
+            return $guardou > 0.004 ? t('Guardou {guardado} e ainda sobraram {valor}.', ['guardado' => money($guardou), 'valor' => money($sobrou)])
+                : t('Sobraram {valor}.', ['valor' => money($sobrou)]);
         }
-        return $sobrou < -0.004 ? t('Faltaram {valor}.', ['valor' => money(abs($sobrou))]) : t('Entrou o mesmo que saiu.');
+        if ($sobrou < -0.004) {
+            if ($guardou > 0.004 && $sobrou + $guardou >= -0.004) {
+                return t('Guardou {guardado}; {valor} vieram do que já estava na conta.', ['guardado' => money($guardou), 'valor' => money(abs($sobrou))]);
+            }
+            return $guardou > 0.004 ? t('Faltaram {valor}, sem contar os {guardado} guardados.', ['valor' => money(abs($sobrou + $guardou)), 'guardado' => money($guardou)])
+                : t('Faltaram {valor}.', ['valor' => money(abs($sobrou))]);
+        }
+        return $guardou > 0.004 ? t('Guardou {guardado}, e entrou o mesmo que saiu.', ['guardado' => money($guardou)]) : t('Entrou o mesmo que saiu.');
     }
 
     /** @return list<array{rotulo:string, valor:float, tipo:string}> uma escada que fecha no centavo */
     private static function ponteEncerrado(array $l): array
     {
-        $r = [['rotulo' => t('Começou com'), 'valor' => (float) $l['sobrou_mes_anterior'], 'tipo' => 'inicio']];
-        $r[] = ['rotulo' => t('Entrou'), 'valor' => (float) $l['entra'], 'tipo' => 'mov'];
-        $r[] = ['rotulo' => t('Saiu'), 'valor' => -(float) $l['sai'], 'tipo' => 'mov'];
+        $r = [['rotulo' => t('Começou com'), 'valor' => (float) $l['sobrou_mes_anterior'], 'tipo' => 'inicio', 'classe' => 'total']];
+        $r[] = ['rotulo' => t('Entrou'), 'valor' => (float) $l['entra'], 'tipo' => 'mov', 'classe' => 'entrada'];
+        $r[] = ['rotulo' => t('Gastou'), 'valor' => -(float) $l['sai'], 'tipo' => 'mov', 'classe' => 'gasto'];
         return array_merge($r, self::ponteResto($l));
     }
 
@@ -179,16 +196,16 @@ final class RelatorioDados
                 }
             }
         }
-        $r = [['rotulo' => t('Começou com'), 'valor' => (float) $l['sobrou_mes_anterior'], 'tipo' => 'inicio']];
-        $r[] = ['rotulo' => t('Entrou até agora'), 'valor' => $lanEnt, 'tipo' => 'mov'];
+        $r = [['rotulo' => t('Começou com'), 'valor' => (float) $l['sobrou_mes_anterior'], 'tipo' => 'inicio', 'classe' => 'total']];
+        $r[] = ['rotulo' => t('Entrou até agora'), 'valor' => $lanEnt, 'tipo' => 'mov', 'classe' => 'entrada'];
         $falta = round((float) $l['entra'] - $lanEnt, 2);
         if (abs($falta) >= 0.005) {
-            $r[] = ['rotulo' => t('Ainda planejado para entrar'), 'valor' => $falta, 'tipo' => 'plan'];
+            $r[] = ['rotulo' => t('Ainda planejado para entrar'), 'valor' => $falta, 'tipo' => 'plan', 'classe' => 'entrada'];
         }
-        $r[] = ['rotulo' => t('Saiu até agora'), 'valor' => -$lanSai, 'tipo' => 'mov'];
+        $r[] = ['rotulo' => t('Gastou até agora'), 'valor' => -$lanSai, 'tipo' => 'mov', 'classe' => 'gasto'];
         $falta = round((float) $l['sai'] - $lanSai, 2);
         if (abs($falta) >= 0.005) {
-            $r[] = ['rotulo' => t('Ainda planejado para sair'), 'valor' => -$falta, 'tipo' => 'plan'];
+            $r[] = ['rotulo' => t('Ainda planejado para gastar'), 'valor' => -$falta, 'tipo' => 'plan', 'classe' => 'gasto'];
         }
         return array_merge($r, self::ponteResto($l, t('Termina com, pelo planejado')));
     }
@@ -196,19 +213,20 @@ final class RelatorioDados
     private static function ponteResto(array $l, ?string $fim = null): array
     {
         $r = [];
-        $add = static function (string $rotulo, float $v) use (&$r): void {
+        // classe: como a tela pinta a linha. O guardado e o empréstimo são neutros: não são gasto (redesenho, § 6.7)
+        $add = static function (string $rotulo, float $v, string $classe) use (&$r): void {
             if (abs($v) >= 0.005) {
-                $r[] = ['rotulo' => $rotulo, 'valor' => $v, 'tipo' => 'mov'];
+                $r[] = ['rotulo' => $rotulo, 'valor' => $v, 'tipo' => 'mov', 'classe' => $classe];
             }
         };
-        $add(t('Crédito do empréstimo'), (float) $l['credito_emprestimo']);
-        $add(t('Parcela do empréstimo'), -(float) $l['parcela_parte']);
-        $add(t('Adiantou do empréstimo'), -(float) $l['amortizacao_extra']);
+        $add(t('Crédito do empréstimo'), (float) $l['credito_emprestimo'], 'divida');
+        $add(t('Parcela do empréstimo'), -(float) $l['parcela_parte'], 'divida');
+        $add(t('Adiantou do empréstimo'), -(float) $l['amortizacao_extra'], 'divida');
         $mov = (float) $l['poupanca_liquido'];
-        $add($mov >= 0 ? t('Guardou na poupança') : t('Tirou da poupança'), -$mov);
+        $add($mov >= 0 ? t('Guardou na poupança') : t('Tirou da poupança'), -$mov, 'guardado');
         $inv = (float) ($l['invest_liquido'] ?? 0.0);
-        $add($inv >= 0 ? t('Aplicou em investimentos') : t('Resgatou de investimentos'), -$inv);
-        $r[] = ['rotulo' => $fim ?? t('Terminou com'), 'valor' => (float) $l['fica_na_conta'], 'tipo' => 'fim'];
+        $add($inv >= 0 ? t('Aplicou em investimentos') : t('Resgatou de investimentos'), -$inv, 'guardado');
+        $r[] = ['rotulo' => $fim ?? t('Terminou com'), 'valor' => (float) $l['fica_na_conta'], 'tipo' => 'fim', 'classe' => 'total'];
         return $r;
     }
 
@@ -303,7 +321,11 @@ final class RelatorioDados
                 ? t('Sobraram {valor}: {n} de cada 100 {moeda} que entraram.', ['valor' => money($sobrou), 'n' => $por100, 'moeda' => moedaPlural()])
                 : t('Sobraram {valor}.', ['valor' => money($sobrou)])];
         } elseif ($sobrou < -0.004) {
-            $ruim[] = ['peso' => abs($sobrou), 'texto' => t('Saiu {valor} a mais do que entrou, sem contar adiantamentos e aplicações.', ['valor' => money(abs($sobrou))])];
+            // a sobra conta o guardado como saída: só é ruim o que passou do que entrou mesmo sem guardar (§ 7.3 do redesenho)
+            $semGuardar = round($sobrou + max(0.0, (float) $l['poupanca_liquido'] + (float) ($l['invest_liquido'] ?? 0.0)), 2);
+            if ($semGuardar < -0.004) {
+                $ruim[] = ['peso' => abs($semGuardar), 'texto' => t('Os gastos passaram o que entrou em {valor}, sem contar o que foi guardado.', ['valor' => money(abs($semGuardar))])];
+            }
         }
         foreach ($cats as $c) {
             if ($c['planejado'] > 0.004 && $c['real'] <= 0.004) {
@@ -698,7 +720,9 @@ final class RelatorioDados
         return [
             'tipo' => 'anual', 'ano' => $ano, 'gerado' => Relogio::agora()->format('Y-m-d H:i'), 'hoje' => $hoje, 'titulo' => $titulo, 'encerrados' => $n, 'totalMeses' => count($meses),
             'situacao' => $n > 0 ? t('De {de} a {ate}. Só os meses encerrados entram nos totais.', ['de' => monthLabel($encerrados[0]), 'ate' => monthLabel(end($encerrados))]) : t('Os totais aparecem quando o primeiro mês for encerrado.'),
-            'manchete' => $n === 0 ? t('Ainda não há mês encerrado neste ano.') : ($sobrou > 0.004 ? t('Sobraram {valor}.', ['valor' => money($sobrou)]) : ($sobrou < -0.004 ? t('Faltaram {valor}.', ['valor' => money(abs($sobrou))]) : t('Entrou o mesmo que saiu.'))),
+            // a mesma frase do mês: o que sobrou depois de guardar, e o guardado com o nome dele
+            'manchete' => $n === 0 ? t('Ainda não há mês encerrado neste ano.')
+                : self::manchete(round($sobrou - ($some('poupanca_liquido') + $some('invest_liquido')), 2), true, 0.0, $some('poupanca_liquido') + $some('invest_liquido')),
             'entrou' => $entrou, 'saiu' => $saiu, 'sobrou' => $sobrou, 'guardou' => round($some('poupanca_liquido') + $some('invest_liquido'), 2),
             'adiantou' => $some('amortizacao_extra'), 'juros' => $some('juros'),
             'contaInicio' => $pri !== null ? (float) $pri['sobrou_mes_anterior'] : null, 'contaFim' => $ult !== null ? (float) $ult['fica_na_conta'] : null,
@@ -758,7 +782,8 @@ final class RelatorioDados
         }
         $saida = [['rotulo' => t('Mês em que mais sobrou'), 'mes' => $melhor['mes'], 'valor' => $melhor['sobrou']]];
         if ($pior['mes'] !== $melhor['mes']) {
-            $saida[] = ['rotulo' => $pior['sobrou'] < 0 ? t('Mês em que mais faltou') : t('Mês em que menos sobrou'), 'mes' => $pior['mes'], 'valor' => $pior['sobrou']];
+            // a sobra do mês já desconta o guardado: um mês negativo pode ser só um mês em que a casa guardou, então não é "faltou"
+            $saida[] = ['rotulo' => t('Mês em que menos sobrou'), 'mes' => $pior['mes'], 'valor' => $pior['sobrou']];
         }
         return $saida;
     }

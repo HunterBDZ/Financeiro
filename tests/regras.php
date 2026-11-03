@@ -354,6 +354,16 @@ $jsonR = json_encode(RelatorioDados::mensal($mesHoje), JSON_UNESCAPED_UNICODE);
 $vazou = array_filter($nomesR, static fn($u) => str_contains((string) $jsonR, ' ' . $u['nome'] . ' '));
 $check('relatório: não traz nome de quem usa', $vazou === []);
 $htmlR = $pagina(RelatorioController::class, 'index', '/relatorio');
+// § 7.3 do redesenho: a frase do topo não chama de falta um mês em que a casa guardou dinheiro
+$frGuardou = RelatorioDados::manchete(-195.94, true, 0.0, 500.0);
+$frSobra = RelatorioDados::manchete(104.06, true, 0.0, 500.0);
+$frFalta = RelatorioDados::manchete(-80.0, true, 0.0, 0.0);
+$frFaltaGuardando = RelatorioDados::manchete(-700.0, true, 0.0, 500.0);
+$check('relatório: guardar não vira "Faltaram" na frase do topo', !str_contains($frGuardou, 'Faltaram') && str_contains($frGuardou, 'Guardou ' . money(500.0))
+    && str_contains($frGuardou, money(195.94)) && $frSobra === 'Guardou ' . money(500.0) . ' e ainda sobraram ' . money(104.06) . '.'
+    && $frFalta === 'Faltaram ' . money(80.0) . '.' && str_contains($frFaltaGuardando, 'Faltaram ' . money(200.0)), json_encode([$frGuardou, $frSobra, $frFalta, $frFaltaGuardando], JSON_UNESCAPED_UNICODE));
+$check('relatório: na cascata, o guardado é neutro e o gasto tem nome próprio ("Gastou")', str_contains($htmlR, 'is-guardado') === str_contains($htmlR, 'Guardou na poupança')
+    && !str_contains($htmlR, '>Saiu<') && (str_contains($htmlR, '>Gastou<') || str_contains($htmlR, '>Gastou até agora<') || !str_contains($htmlR, 'rl-cascata')));
 $check('relatório: a tela mostra a capa e o botão do PDF', str_contains($htmlR, 'rl-capa') && str_contains($htmlR, '/relatorio/pdf?') && str_contains($htmlR, 'Baixar PDF'));
 $_GET = ['tipo' => 'anual'];
 ob_start();
@@ -961,7 +971,7 @@ $emTransacao('gasto por categoria', static function () use ($pdo, $check, $catFa
         && str_contains($hIniFat, 'Ver pela data da compra') && !str_contains($hIniFat, 'Compras no cartão sem categoria') && str_contains($hIniVolta, 'Ver por fatura'));
     $check('"Para onde foi": por fatura, o Relatório soma o que saiu da conta, com a Fatura do cartão', !$relFat['porCompra']
         && abs($relFat['categorias']['totalReal'] - $somaCaixa) < 0.01 && in_array('Fatura', array_column($relFat['categorias']['linhas'], 'nome'), true));
-    $check('"Para onde foi": o Relatório mostra a lista na tela, com a escolha, e o PDF sai', str_contains($hRel, 'class="card rl-onde"') && str_contains($hRel, 'Ver por fatura')
+    $check('"Para onde foi": o Relatório mostra a lista na tela, com a escolha, e o PDF sai', str_contains($hRel, 'class="faixa-grade rl-onde"') && str_contains($hRel, 'Ver por fatura')
         && str_starts_with((new \Financeiro\Pdf\RelatorioPdf($rel))->gerar(), '%PDF') && str_starts_with((new \Financeiro\Pdf\RelatorioPdf($relFat))->gerar(), '%PDF'));
 });
 // sem cartão (sem cartão ativo ou sem a aba), nada muda: a visão é o extrato, e as telas não mostram a escolha

@@ -123,7 +123,8 @@ final class Documento
         $linhas = [];
         foreach (preg_split('/\R/u', $texto) ?: [] as $paragrafo) {
             $atual = '';
-            foreach (preg_split('/\s+/u', trim($paragrafo)) ?: [] as $palavra) {
+            // quebra nos espaços comuns; o espaço que não quebra (NBSP, o de "R$ 1,00") fica junto
+            foreach (preg_split('/[^\S\x{00A0}\x{202F}]+/u', trim($paragrafo)) ?: [] as $palavra) {
                 $tenta = $atual === '' ? $palavra : $atual . ' ' . $palavra;
                 if ($this->medir($tenta, $chave, $corpo) <= $largura) {
                     $atual = $tenta;

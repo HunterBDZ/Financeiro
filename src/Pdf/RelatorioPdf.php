@@ -10,6 +10,9 @@ use Financeiro\SiteIcone;
  * Desenha os relatórios a partir dos fatos de RelatorioDados. Sempre claro, seja qual for o tema, porque é
  * um documento para ler, imprimir e enviar. O centro da página 1 é a escada do saldo: cada linha move a
  * anterior e o total fecha no centavo. Nada de nome de usuário: o arquivo pode sair do app.
+ * O desenho é o do redesenho (design.md, § 6.7): papel claro, tinta azul-marinho, a frase-resultado em Sora leve,
+ * seções em fios; o que entrou em verde, o gasto em vermelho, o guardado e o empréstimo neutros, o planejado
+ * tracejado. As cores são os tokens do tema claro de style.css.
  */
 final class RelatorioPdf
 {
@@ -18,20 +21,23 @@ final class RelatorioPdf
     private const TOPO = 62.0;
     private const FUNDO = 786.0;
 
-    private const TINTA = [0.067, 0.078, 0.106];
-    private const GRAFITE = [0.345, 0.376, 0.439];
-    private const LINHA = [0.867, 0.882, 0.906];
-    private const NEVOA = [0.953, 0.957, 0.965];
-    private const LIMA = [0.784, 0.961, 0.314];
-    private const ENTRA = [0.071, 0.475, 0.659];
-    private const SAI = [0.824, 0.376, 0.039];
-    private const POS = [0.078, 0.424, 0.263];
-    private const NEG = [0.702, 0.149, 0.118];
+    private const TINTA = [0.055, 0.106, 0.180];      // --tinta #0E1B2E
+    private const GRAFITE = [0.290, 0.345, 0.424];    // --tinta-2 #4A586C
+    private const LINHA = [0.890, 0.910, 0.937];      // --fio #E3E8EF
+    private const FIO_FORTE = [0.702, 0.741, 0.796];  // #B3BDCB
+    private const NEVOA = [0.933, 0.949, 0.969];      // --realce #EEF2F7
+    private const AZUL = [0.188, 0.314, 0.784];       // --azul #3050C8
+    private const ENTRA = [0.071, 0.478, 0.298];      // --entrada #127A4C
+    private const SAI = [0.761, 0.149, 0.114];        // --saida #C2261D
+    private const NEUTRO = [0.357, 0.420, 0.510];     // --seg-contas #5B6B82: guardado e empréstimo
+    private const POS = [0.071, 0.478, 0.298];
+    private const NEG = [0.702, 0.149, 0.118];        // --alerta #B3261E
     private const BRANCO = [1, 1, 1];
 
     private const MED = 'manrope-500';
     private const BOLD = 'manrope-700';
     private const DISP = 'sora-600';
+    private const LEVE = 'sora-300';                  // a frase-resultado, os títulos e os números grandes
 
     private Documento $d;
     private float $y = self::TOPO;
@@ -91,14 +97,22 @@ final class RelatorioPdf
         $this->fatura($r['fatura']);
         if (count($r['tendencia']) >= 2) {
             $this->y += 6;
-            $this->secao(t('Como este mês se compara'), t('Entradas e saídas dos últimos meses. As listras marcam o que ainda é planejado.'), 190);
+            $this->secao(t('Como este mês se compara'), t('O que entrou e o que foi gasto nos últimos meses. O tracejado é o planejado.'), 190);
             $this->barrasDoAno($r['tendencia']);
         }
-        if (!$ritmoNaCapa) {
+        // o ritmo que não coube na capa vai para o fim desta página, se couber; senão abre a última, antes do que vem
+        // pela frente (assim nenhuma página fica só com ele)
+        $ritmoFeito = $ritmoNaCapa;
+        if (!$ritmoFeito && $this->y + 190 <= self::FUNDO) {
             $this->ritmo($r['ritmo']);
+            $ritmoFeito = true;
         }
 
         $this->novaPagina();
+        if (!$ritmoFeito) {
+            $this->ritmo($r['ritmo']);
+            $this->y += 10;
+        }
         $this->secao(t('O que vem pela frente'));
         $this->placar($r);
         $this->frente($r['previsao'], $r['temCartao']);
@@ -120,7 +134,7 @@ final class RelatorioPdf
         }
 
         $this->novaPagina();
-        $this->secao(t('Mês a mês'), t('Entradas e saídas de cada mês. As listras marcam o que ainda é planejado.'));
+        $this->secao(t('Mês a mês'), t('O que entrou e o que foi gasto em cada mês. O tracejado é o planejado.'));
         $this->barrasDoAno($r['tabela']);
         $this->tabelaAno($r['tabela']);
 
@@ -149,7 +163,7 @@ final class RelatorioPdf
     {
         $r = $this->r;
         $this->secao(t('O ano em números'));
-        $itens = [[t('Entrou'), money($r['entrou'])], [t('Saiu'), money($r['saiu'])], [t('Guardou ou aplicou'), money($r['guardou'])]];
+        $itens = [[t('Entrou'), money($r['entrou'])], [t('Gastou'), money($r['saiu'])], [t('Guardou ou aplicou'), money($r['guardou'])]];
         if ($r['adiantou'] > 0.004 || $r['temDivida']) {
             $itens[] = [t('Adiantou do empréstimo'), money($r['adiantou'])];
         }
@@ -157,7 +171,7 @@ final class RelatorioPdf
         foreach ($itens as $i => [$rot, $val]) {
             $x = self::MARGEM + $i * $l;
             $this->d->texto($x, $this->y + 10, $rot, self::MED, 9, self::GRAFITE);
-            $this->d->texto($x, $this->y + 28, $val, self::DISP, 14, self::TINTA);
+            $this->d->texto($x, $this->y + 28, $val, self::LEVE, 16, self::TINTA);
         }
         $this->y += 42;
         $this->d->linha(self::MARGEM, $this->y, self::MARGEM + self::LARG, $this->y, self::LINHA);
@@ -188,18 +202,18 @@ final class RelatorioPdf
         $this->d->texto($x + 31, 56.5, 'MyMonetto', self::BOLD, 12, self::TINTA);
         $this->d->texto($x + self::LARG, 56.5, $tipo, self::MED, 10, self::GRAFITE, 'd');
         $this->y = 104;
-        $this->d->texto($x, $this->y, $periodo, self::MED, 13, self::GRAFITE);
+        $this->d->texto($x, $this->y, $periodo, self::MED, 12, self::GRAFITE);
         $this->y += 34;
-        foreach ($this->d->quebrar($manchete, self::DISP, 31, self::LARG) as $l) {
-            $this->d->texto($x, $this->y, $l, self::DISP, 31, self::TINTA, 'e', -0.4);
-            $this->y += 37;
+        foreach ($this->d->quebrar($manchete, self::LEVE, 30, self::LARG) as $l) {
+            $this->d->texto($x, $this->y, $l, self::LEVE, 30, self::TINTA, 'e', -0.6);
+            $this->y += 36;
         }
         $this->y -= 16;
         $this->y = $this->paragrafo($situacao, $x, $this->y, self::LARG, 10, self::GRAFITE);
         if ($conf !== null) {
             $this->y += 1;
             $this->marcaConferencia($conf['tipo'], $x + 5, $this->y + 4);
-            $this->d->texto($x + 15, $this->y + 8, $conf['texto'], self::BOLD, 9.5, self::TINTA);
+            $this->d->texto($x + 15, $this->y + 8, $conf['texto'], self::MED, 9.5, self::GRAFITE);
             $this->y += 16;
         }
         $this->y += 12;
@@ -234,13 +248,12 @@ final class RelatorioPdf
                 return;
             }
         }
-        $k = $t / 96;
-        $this->d->retangulo($x, $y, $t, $t, self::TINTA, null, 22 * $k);
-        $this->d->circulo($x + 30 * $k, $y + 30 * $k, 12 * $k, null, self::LIMA, 5 * $k);
-        $this->d->circulo($x + 30 * $k, $y + 30 * $k, 3.5 * $k, self::LIMA);
-        $this->d->retangulo($x + 18 * $k, $y + 56 * $k, 14 * $k, 22 * $k, [0.47, 0.57, 0.22], null, 4 * $k);
-        $this->d->retangulo($x + 41 * $k, $y + 42 * $k, 14 * $k, 36 * $k, [0.63, 0.77, 0.27], null, 4 * $k);
-        $this->d->retangulo($x + 64 * $k, $y + 20 * $k, 14 * $k, 58 * $k, self::LIMA, null, 4 * $k);
+        // o sinal do app (svgIcon 'marca'): três barras brancas num quadrado azul, raio de controle
+        $k = $t / 24;
+        $this->d->retangulo($x, $y, $t, $t, self::AZUL, null, 5 * $k);
+        foreach ([[6, 12, 17], [12, 7, 17], [18, 9, 17]] as [$bx, $de, $ate]) {
+            $this->d->linha($x + $bx * $k, $y + $de * $k, $x + $bx * $k, $y + $ate * $k, self::BRANCO, 2.2 * $k);
+        }
     }
 
     private function secao(string $titulo, ?string $sub = null, float $min = 60.0): void
@@ -248,8 +261,9 @@ final class RelatorioPdf
         if ($this->y + $min > self::FUNDO) {
             $this->novaPagina();
         }
-        $this->d->texto(self::MARGEM, $this->y + 12, $titulo, self::DISP, 14, self::TINTA, 'e', -0.1);
-        $this->y += 22;
+        $this->d->linha(self::MARGEM, $this->y - 4, self::MARGEM + self::LARG, $this->y - 4, self::LINHA, 0.6);
+        $this->d->texto(self::MARGEM, $this->y + 14, $titulo, self::LEVE, 15, self::TINTA, 'e', -0.15);
+        $this->y += 25;
         if ($sub !== null) {
             $this->y = $this->paragrafo($sub, self::MARGEM, $this->y - 2, self::LARG, 9.5, self::GRAFITE) + 4;
         }
@@ -321,34 +335,61 @@ final class RelatorioPdf
         $alt = 21.0;
         foreach ($linhas as $i => $l) {
             $fim = $l['tipo'] === 'fim';
+            $plan = $l['tipo'] === 'plan';
+            $classe = (string) ($l['classe'] ?? (in_array($l['tipo'], ['inicio', 'fim'], true) ? 'total' : ($l['valor'] >= 0 ? 'entrada' : 'gasto')));
             if ($fim) {
-                $this->d->retangulo($x - 8, $this->y + 1, self::LARG + 16, $alt + 2, self::LIMA, null, 5);
+                // o total sob o fio duplo, como uma conta somada
+                $this->d->linha($x, $this->y + 1, $x + self::LARG, $this->y + 1, self::TINTA, 0.6);
+                $this->d->linha($x, $this->y + 3, $x + self::LARG, $this->y + 3, self::TINTA, 0.6);
+                $this->y += 6;
             } elseif ($i > 0) {
                 $this->d->linha($x, $this->y, $x + self::LARG, $this->y, self::LINHA, 0.5);
             }
-            $base = $this->y + ($fim ? 15.5 : 14.5);
+            $base = $this->y + ($fim ? 17 : 14.5);
             $fonte = $fim || $l['tipo'] === 'inicio' ? self::BOLD : self::MED;
-            $this->d->texto($x, $base, $l['rotulo'], $fonte, 10, self::TINTA);
+            $this->d->texto($x, $base, $l['rotulo'], $fonte, 10, $plan ? self::GRAFITE : self::TINTA);
             [$a, $b] = $pontos[$i];
             [$e, $dd] = [min($a, $b), max($a, $b)];
             $larg = max(1.2, $px($dd) - $px($e));
             $barY = $this->y + 6;
-            if ($fim || $l['tipo'] === 'inicio') {
-                $this->d->retangulo($px($e), $barY, $larg, 10, self::TINTA, null, 1.5);
+            $cor = match ($classe) {
+                'entrada' => self::ENTRA,
+                'gasto' => self::SAI,
+                'guardado', 'divida' => self::NEUTRO,
+                default => self::TINTA,
+            };
+            if ($plan) {
+                $this->tracejado($px($e), $barY, $larg, 10, self::GRAFITE);
             } else {
-                $cor = $l['valor'] >= 0 ? self::ENTRA : self::SAI;
-                if ($l['tipo'] === 'plan') {
-                    $this->d->hachura($px($e), $barY, $larg, 10, $cor, 2.6, 0.8);
-                    $this->d->retangulo($px($e), $barY, $larg, 10, null, $cor, 0, 0.6);
-                } else {
-                    $this->d->retangulo($px($e), $barY, $larg, 10, $cor, null, 1.5);
-                }
+                $this->d->retangulo($px($e), $barY, $larg, 10, $cor, null, 1.5);
             }
-            $sinal = in_array($l['tipo'], ['inicio', 'fim'], true) ? money($l['valor']) : ($l['valor'] >= 0 ? '+' . money($l['valor']) : money($l['valor']));
-            $this->d->texto($x + self::LARG, $base, $sinal, $fim ? self::DISP : $fonte, $fim ? 12 : 10, self::TINTA, 'd');
-            $this->y += $alt;
+            // o valor pela regra de cor do app: entrou em verde com "+", gastou em vermelho com "−", o planejado em
+            // cinza, o guardado e o empréstimo neutros, os totais em tinta
+            $txt = in_array($l['tipo'], ['inicio', 'fim'], true) ? money($l['valor']) : ($l['valor'] >= 0 ? '+' . money($l['valor']) : money($l['valor']));
+            $corTxt = $plan ? self::GRAFITE : match ($classe) {
+                'entrada' => self::ENTRA,
+                'gasto' => self::SAI,
+                default => self::TINTA,
+            };
+            $this->d->texto($x + self::LARG, $base, $txt, $fim ? self::LEVE : $fonte, $fim ? 15 : 10, $corTxt, 'd');
+            $this->y += $alt + ($fim ? 4 : 0);
+        }
+        if (in_array('plan', array_column($linhas, 'tipo'), true)) {
+            $this->y += 4;
+            $this->d->retangulo($x, $this->y, 12, 7, self::TINTA, null, 1.2);
+            $this->d->texto($x + 16, $this->y + 6.5, t('realizado'), self::MED, 8.5, self::GRAFITE);
+            $lx = $x + 22 + $this->d->medir(t('realizado'), self::MED, 8.5);
+            $this->tracejado($lx, $this->y, 12, 7, self::GRAFITE);
+            $this->d->texto($lx + 16, $this->y + 6.5, t('planejado'), self::MED, 8.5, self::GRAFITE);
+            $this->y += 10;
         }
         $this->y += 8;
+    }
+
+    /** Uma barra planejada: só o contorno, tracejado (a regra do app para o que ainda não aconteceu). */
+    private function tracejado(float $x, float $y, float $l, float $a, array $cor): void
+    {
+        $this->d->polilinha([[$x, $y], [$x + $l, $y], [$x + $l, $y + $a], [$x, $y + $a], [$x, $y]], $cor, 0.8, [2.2, 1.6]);
     }
 
     private function linhaDivida(array $d): void
@@ -419,7 +460,7 @@ final class RelatorioPdf
         $this->y += 4;
         $this->d->linha(self::MARGEM, $this->y, self::MARGEM + self::LARG, $this->y, self::LINHA);
         $this->d->texto(self::MARGEM, $this->y + 18, t('Se a renda parasse'), self::MED, 9.5, self::GRAFITE);
-        $this->d->texto(self::MARGEM, $this->y + 38, tn((int) ceil($a['meses']) === 1 && $a['meses'] <= 1.0 ? 1 : 2, '{valor} mês', '{valor} meses', ['valor' => num($a['meses'], 1)]), self::DISP, 16, self::TINTA);
+        $this->d->texto(self::MARGEM, $this->y + 38, tn((int) ceil($a['meses']) === 1 && $a['meses'] <= 1.0 ? 1 : 2, '{valor} mês', '{valor} meses', ['valor' => num($a['meses'], 1)]), self::LEVE, 18, self::TINTA);
         $this->paragrafo($texto, self::MARGEM + 176, $this->y + 6, 330, 9, self::GRAFITE);
         $this->y += $h;
     }
@@ -816,7 +857,7 @@ final class RelatorioPdf
         $this->d->retangulo(self::MARGEM + self::LARG - 118, $this->y, 8, 8, self::ENTRA, null, 1.5);
         $this->d->texto(self::MARGEM + self::LARG - 106, $this->y + 7.5, t('Entrou'), self::MED, 8.5, self::GRAFITE);
         $this->d->retangulo(self::MARGEM + self::LARG - 60, $this->y, 8, 8, self::SAI, null, 1.5);
-        $this->d->texto(self::MARGEM + self::LARG - 48, $this->y + 7.5, t('Saiu'), self::MED, 8.5, self::GRAFITE);
+        $this->d->texto(self::MARGEM + self::LARG - 48, $this->y + 7.5, t('Gastou'), self::MED, 8.5, self::GRAFITE);
         $n = count($t) > 6 ? max(12, count($t)) : count($t);
         $cel = $l / $n;
         $bar = min(count($t) > 6 ? 13.0 : 24.0, ($cel - 6) / 2);
@@ -830,8 +871,7 @@ final class RelatorioPdf
                 if ($m['estado'] === 'real') {
                     $this->d->barra($bx + $dx, $py($v), $bar, $h, $cor, 2.0);
                 } else {
-                    $this->d->hachura($bx + $dx, $py($v), $bar, $h, $cor, 2.6, 0.8);
-                    $this->d->retangulo($bx + $dx, $py($v), $bar, $h, null, $cor, 0, 0.6);
+                    $this->tracejado($bx + $dx, $py($v), $bar, $h, $cor);
                 }
             }
             $this->d->texto($x + ($i + 0.5) * $cel, $topoY + $alt + 11, count($t) > 6 ? mesCurto($m['mes']) : monthLabel($m['mes']), self::MED, 7.8, self::GRAFITE, 'c');
@@ -844,7 +884,7 @@ final class RelatorioPdf
         $x = self::MARGEM;
         $col = [$x + 192, $x + 270, $x + 348, $x + 428, $x + self::LARG];
         $temDiv = array_sum(array_column($t, 'divida')) > 0.004;
-        $cab = [t('Entrou'), t('Saiu'), t('Sobrou'), t('Conta no fim')];
+        $cab = [t('Entrou'), t('Gastou'), t('Sobrou'), t('Conta no fim')];
         if ($temDiv) {
             $cab[] = t('Dívida');
         } else {
