@@ -49,6 +49,7 @@ $router->get('/lancamentos', [LancamentosController::class, 'index']);
 $router->get('/lancamentos/planilha', [LancamentosController::class, 'planilha']);
 $router->post('/lancamentos', [LancamentosController::class, 'store']);
 $router->post('/lancamentos/desfazer', [LancamentosController::class, 'desfazer']);
+$router->post('/lancamentos/pago', [LancamentosController::class, 'pago']);
 $router->get('/lancamentos/{id}/editar', [LancamentosController::class, 'editForm']);
 $router->post('/lancamentos/{id}/excluir', [LancamentosController::class, 'destroy']);
 $router->post('/lancamentos/{id}', [LancamentosController::class, 'update']);

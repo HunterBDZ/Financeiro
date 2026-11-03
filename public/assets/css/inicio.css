@@ -122,6 +122,9 @@
     .dash-gastos { grid-area: gastos; }
     .dash-conf { grid-area: conf; }
     .dash-ult { grid-area: ult; }
+    /* com contas a pagar, elas ficam numa faixa logo abaixo do saldo e do mês */
+    .dash-grade.com-contas { grid-template-areas: "saldo resumo" "contas contas" "ult gastos" "ult conf" "ult ."; }
+    .dash-grade > .cm { grid-area: contas; }
 }
 
 /* tela larga: três colunas (saldo e últimos | o mês e conferir | para onde foi) */
@@ -130,4 +133,5 @@
         grid-template-columns: minmax(0, 5fr) minmax(0, 4fr) minmax(0, 4fr);
         grid-template-areas: "saldo resumo gastos" "ult conf gastos" "ult . .";
     }
+    .dash-grade.com-contas { grid-template-areas: "saldo resumo gastos" "contas contas gastos" "ult conf gastos" "ult . ."; }
 }

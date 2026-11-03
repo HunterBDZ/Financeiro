@@ -20,7 +20,6 @@ window.FIN_DIC = {
     "Faltam {n} parcelas: cada fatura de {inicio} a {fim} sobe {valor}.": "Faltan {n} cuotas: cada factura de {inicio} a {fim} sube {valor}.",
     "Lendo o link…": "Leyendo el enlace…",
     "Li o que deu. Falta {itens}.": "Leí lo que pude. Falta {itens}.",
-    "Mais…": "Más…",
     "Menu organizado.": "Menú organizado.",
     "Modo de organizar o menu. Arraste as abas ou use as setas de cada uma. Para terminar, use Pronto ou a tecla Esc.": "Modo para organizar el menú. Arrastre las pestañas o use las flechas de cada una. Para terminar, use Listo o la tecla Esc.",
     "Não consegui abrir essa foto: tente outra em JPG ou PNG.": "No pude abrir esa foto: intente con otra en JPG o PNG.",

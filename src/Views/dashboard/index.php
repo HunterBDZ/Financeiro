@@ -7,9 +7,11 @@ use Financeiro\Auth;
  * dobrado em "Ver detalhes", com o olho que esconde os valores); o mês em três linhas (entrou, saiu e a
  * sobra com o nome da base; o detalhe fica dobrado); para onde foi; conferir com o banco; últimos lançamentos.
  * Variáveis: $hoje, $mesRef, $mesCal, $estadoRef, $reserva, $conta, $conf, $conferirAberto,
- * $conferirErro, $painel, $sobra (Sobra), $resposta (DashboardController::resposta), $ultimos, $alertas.
+ * $conferirErro, $painel, $sobra (Sobra), $resposta (DashboardController::resposta), $ultimos, $alertas,
+ * $contas (ChecklistContas::fixasAPagar: o bloco "Contas do mês", logo depois do saldo).
  */
 use Financeiro\Services\Sobra;
+use Financeiro\View;
 
 $p        = $painel;
 $previsto = $p['base'] === 'previsto';
@@ -122,7 +124,7 @@ $quandoFoi   = static function (string $data) use ($hoje): string {
     </section>
     <?php endif; ?>
 
-    <div class="dash-grade">
+    <div class="dash-grade<?= !empty($contas) ? ' com-contas' : '' ?>">
 
         <!-- o saldo de hoje contra a reserva -->
         <section class="saldo <?= $clsSaldo ?>" aria-labelledby="saldo-t">
@@ -154,6 +156,8 @@ $quandoFoi   = static function (string $data) use ($hoje): string {
             </details>
             <?php endif; ?>
         </section>
+
+        <?php View::partial('partials/contas_mes', ['contas' => $contas ?? [], 'volta' => '/', 'hoje' => $hoje]); ?>
 
         <!-- o mês em três linhas; o detalhe fica dobrado -->
         <section class="card dash-resumo" aria-labelledby="dash-rec-t">

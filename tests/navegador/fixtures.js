@@ -91,19 +91,30 @@ export async function escolherTema(page, baseURL, tema) {
 }
 
 /**
- * Escolhe a categoria no formulário de lançar como a pessoa faz: um dos botões das mais usadas ou, se ela não
- * estiver entre eles, "Mais…" e a lista completa (com a busca, quando há JS).
+ * Escolhe a categoria no formulário de lançar como a pessoa faz: clica no campo, digita o nome e escolhe na lista.
  */
 export async function escolherCategoria(escopo, nome) {
-    const rapida = escopo.locator('label.lf-chip').filter({ has: escopo.page().locator('.lf-chip-n', { hasText: new RegExp(`^${nome}$`) }) });
-    if (await rapida.count() > 0) {
-        await rapida.first().click();
-        return;
+    const campo = escopo.getByRole('combobox', { name: 'Categoria' });
+    await campo.click();
+    await campo.fill(nome);
+    await escopo.getByRole('listbox', { name: 'Categoria' }).getByRole('option', { name: nome, exact: true }).click();
+    await expect(campo).toHaveValue(nome);
+}
+
+/**
+ * Deixa uma conta fixa do mês sem pagamento, excluindo o lançamento dela (na demonstração, com o relógio no dia 22,
+ * todas já foram pagas): assim ela aparece nas "Contas do mês" do Início e do Extrato. Sem o pagamento, não faz nada.
+ */
+export async function contaSemPagamento(page, baseURL, nome) {
+    await page.goto('/lancamentos');
+    const linha = page.locator('a.ex-linha', { hasText: nome });
+    if (await linha.count() === 0) {
+        return;                                         // já estava sem pagamento (outro teste do mesmo processo)
     }
-    await escopo.locator('[data-lf-mais] > summary').click();
-    const busca = escopo.getByRole('searchbox', { name: 'Buscar categoria' });
-    if (await busca.isVisible()) {
-        await busca.fill(nome);
-    }
-    await escopo.locator('label.lf-op').filter({ hasText: new RegExp(`^\\s*${nome}\\s*$`) }).first().click();
+    const href = await linha.first().getAttribute('href');
+    const id = href.match(/^\/lancamentos\/(\d+)\//)[1];
+    const r = await page.request.post(`${baseURL}/lancamentos/${id}/excluir`, {
+        form: { csrf_token: await token(page.request, baseURL + '/ajuda'), volta: '/' },
+    });
+    expect(r.ok(), `excluir o pagamento de ${nome}`).toBe(true);
 }

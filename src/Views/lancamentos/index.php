@@ -4,7 +4,7 @@
  * $categoria (?array), $categorias (array), $q, $modo ('' = o mês; ano, tudo, datas), $periodo (?de/ate),
  * $rotuloPeriodo, $valores (min/max como digitados), $erroValor, $params (filtros ativos, com mes), $limite,
  * $linhas, $totais, $filtrado, $renda (?float, só sem filtro), $urlAtual, $urlPlanilha,
- * $form (partial de lançar da coluna do desktop).
+ * $form (partial de lançar da coluna do desktop), $contas (ChecklistContas::fixasAPagar, o bloco "Contas do mês").
  * A busca vale para o mês, o ano dele, todos os meses ou entre datas; "Mais filtros" tem valor e quem lançou.
  * Com filtro ou fora do mês, o topo responde com o total do que foi achado.
  */
@@ -81,6 +81,8 @@ $catAtual = $categoria !== null ? (int) $categoria['id'] : 0;
                 </div>
             <?php endif; ?>
         </div>
+
+        <?php View::partial('partials/contas_mes', ['contas' => $contas ?? [], 'volta' => $urlAtual, 'hoje' => $hoje]); ?>
 
         <!-- filtros -->
         <div class="ex-filtros-wrap">

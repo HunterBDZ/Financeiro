@@ -20,7 +20,6 @@ window.FIN_DIC = {
     "Faltam {n} parcelas: cada fatura de {inicio} a {fim} sobe {valor}.": "{n} installments left: each statement from {inicio} to {fim} goes up {valor}.",
     "Lendo o link…": "Reading the link…",
     "Li o que deu. Falta {itens}.": "I read what I could. Still missing {itens}.",
-    "Mais…": "More…",
     "Menu organizado.": "Menu arranged.",
     "Modo de organizar o menu. Arraste as abas ou use as setas de cada uma. Para terminar, use Pronto ou a tecla Esc.": "Menu arranging mode. Drag the tabs or use the arrows on each one. To finish, use Done or the Esc key.",
     "Não consegui abrir essa foto: tente outra em JPG ou PNG.": "I couldn't open this photo: try another in JPG or PNG.",
