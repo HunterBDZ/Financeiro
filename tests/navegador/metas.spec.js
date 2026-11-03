@@ -34,7 +34,7 @@ test('meta só para um mês aparece no Mês e não muda o mês seguinte', async 
 test('"Para usar neste mês" desconta as contas fixas que faltam pagar', async ({ page, baseURL }) => {
     await contaSemPagamento(page, baseURL, 'Luz');
     await page.goto('/meta');
-    const conta = page.getByRole('definition').filter({ hasText: /238,40/ });
+    const conta = page.locator('.mt-conta-dl dd').filter({ hasText: /238,40/ });
     await expect(page.locator('.mt-conta-dl')).toContainText('Contas fixas a pagar');
     await expect(conta.first()).toHaveText('−238,40');
     const pg = page.locator('.mt');

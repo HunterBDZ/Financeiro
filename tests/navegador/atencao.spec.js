@@ -23,7 +23,7 @@ test('conta atrasada aparece na faixa e a ação leva ao lançar, no computador 
 
     // apaga o pagamento da Internet de novembro
     await ir('/lancamentos?mes=2026-11-01&busca=Internet');
-    await page.getByRole('link', { name: /Internet/ }).first().click();
+    await page.locator('.ext-tabela').getByRole('link', { name: /Internet/ }).first().click();
     await page.getByRole('button', { name: 'Excluir lançamento' }).click();
     await expect(page.getByRole('status')).toBeVisible();
 
