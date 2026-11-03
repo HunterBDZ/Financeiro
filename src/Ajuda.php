@@ -53,7 +53,7 @@ final class Ajuda
                 ['id' => 'senha', 'pergunta' => t('Esqueci a senha. E agora?'), 'resposta' => t('Outra pessoa com conta pode definir uma senha nova em Ajustes, em Pessoas. Se não houver outra pessoa, peça a quem instalou o app.')],
                 ['id' => 'pessoas', 'pergunta' => t('Como dou acesso a outra pessoa?'), 'resposta' => t('Em Ajustes, em Pessoas, informe nome, nome de usuário e senha. Todas as pessoas veem os mesmos dados.')],
                 ['id' => 'aparencia', 'pergunta' => t('Como troco o idioma ou o tema?'), 'resposta' => t('O idioma fica em Ajustes, e o tema, na tela Temas. Cada conta tem os seus.')],
-                ['id' => 'dados', 'pergunta' => t('Onde ficam os meus dados?'), 'resposta' => t('No computador onde o app foi instalado. Só a Wishlist usa a internet: o servidor abre os links colados e busca a cotação.')],
+                ['id' => 'dados', 'pergunta' => t('Onde ficam os meus dados?'), 'resposta' => t('No computador onde o app foi instalado. A internet só é usada para a cotação de moedas, os links colados na Wishlist e a busca por versão nova. Detalhes em Privacidade, no fim desta página.')],
                 ['id' => 'aviso', 'pergunta' => t('Por que o navegador diz que a conexão não é segura?'), 'resposta' => t('Esse aviso é esperado: o app roda só na sua rede local, com certificado próprio. Escolha Avançado (ou Detalhes) e depois Continuar ou Prosseguir. Os dados não saem da sua rede.')],
             ]],
         ];

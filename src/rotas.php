@@ -39,6 +39,8 @@ $router->post('/conferir', [DashboardController::class, 'conferir']);
 $router->post('/roteiro/dispensar', [DashboardController::class, 'dispensarRoteiro']);
 $router->get('/ajuda', [AjudaController::class, 'index']);
 $router->get('/ajuda/conexao', [AjudaController::class, 'conexao']);
+$router->get('/privacidade', [AjudaController::class, 'privacidade']);
+$router->get('/favicon.ico', [AjudaController::class, 'favicon']);
 
 // ---- lançar e extrato
 $router->get('/lancar', [LancamentosController::class, 'lancarForm']);

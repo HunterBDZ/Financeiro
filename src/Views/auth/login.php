@@ -80,6 +80,7 @@ $css = array_filter(['/assets/css/style.css', '/assets/css/lancar.css', '/assets
             <p><?= e(t('Outra pessoa com conta pode definir uma senha nova em Ajustes, em Pessoas. Se não houver outra pessoa, peça a quem instalou o app.')) ?></p>
         </details>
         <a class="lg-ajuda" href="/ajuda/conexao"><?= e(t('O navegador avisou “conexão não segura”?')) ?></a>
+        <a class="lg-ajuda" href="/privacidade"><?= e(t('Privacidade e aviso')) ?></a>
     </div>
 </main>
 <script src="<?= e(asset('/assets/js/app.js')) ?>"></script>

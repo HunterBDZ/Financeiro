@@ -16,7 +16,11 @@ test('faz o backup e baixa a cópia com a senha', async ({ page }) => {
     await baixar.getByLabel('A sua senha').fill(SENHA);
     const baixou = page.waitForEvent('download');
     await baixar.getByRole('button', { name: 'Baixar cópia' }).click();
+    // enquanto o servidor prepara, o botão avisa e não aceita outro clique; depois do download, volta ao normal
+    const esperando = baixar.getByRole('button', { name: 'Preparando a cópia…' });
+    await expect(esperando).toHaveAttribute('aria-busy', 'true');
     const arquivo = await baixou;
+    await expect(baixar.getByRole('button', { name: 'Baixar cópia' })).toBeVisible({ timeout: 10_000 });
     expect(arquivo.suggestedFilename()).toMatch(/^financeiro-backup-\d{4}-\d{2}-\d{2}\.sqlite$/);
     const copia = await readFile(await arquivo.path());
     expect(copia.subarray(0, 16).toString('latin1')).toBe('SQLite format 3\0');

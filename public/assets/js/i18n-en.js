@@ -2,6 +2,7 @@ window.FIN_DIC = {
     "1 {moeda} = {simbolo} {valor}, cotação de {data}": "1 {moeda} = {simbolo} {valor}, rate from {data}",
     "A loja não liberou os dados. Preencha o nome, o valor e a foto.": "The store didn't share the details. Fill in the name, amount and photo.",
     "A parcela {parcela} está na fatura aberta, de {mes}.": "Installment {parcela} is on the open statement, for {mes}.",
+    "Aguarde…": "Please wait…",
     "Ainda não há gasto nas categorias com meta.": "No spending yet in categories with goals.",
     "Cada fatura de {inicio} a {fim} sobe {valor}.": "Each statement from {inicio} to {fim} goes up {valor}.",
     "Cai na fatura de {mes}, que vence em {data}.": "Falls on the {mes} statement, due {data}.",

@@ -514,6 +514,53 @@
         }
     });
 
+    // ---- [data-espera]: o que demora (backup, PDF, atualizar) mostra "Gerando…" e não aceita o segundo clique.
+    // Vem depois do [data-confirm]: quem cancelou a pergunta não fica esperando. Um download não troca de
+    // página, então [data-espera-baixa] volta ao normal sozinho; o pageshow cobre quem volta pelo histórico.
+    var esperaOriginal = new WeakMap();
+    function esperaLiga(botao, texto) {
+        if (!botao || esperaOriginal.has(botao)) { return; }
+        esperaOriginal.set(botao, botao.innerHTML);
+        botao.setAttribute('aria-busy', 'true');
+        botao.setAttribute('aria-disabled', 'true');
+        botao.textContent = texto;
+    }
+    function esperaDesliga(botao) {
+        if (!botao || !esperaOriginal.has(botao)) { return; }
+        botao.innerHTML = esperaOriginal.get(botao);
+        esperaOriginal.delete(botao);
+        botao.removeAttribute('aria-busy');
+        botao.removeAttribute('aria-disabled');
+    }
+    function esperaComeca(dono, botao) {
+        if (dono.hasAttribute('data-esperando')) { return false; }
+        dono.setAttribute('data-esperando', '');
+        esperaLiga(botao, dono.getAttribute('data-espera') || T('Aguarde…'));
+        if (dono.hasAttribute('data-espera-baixa')) {
+            setTimeout(function () { esperaTermina(dono); }, 6000);
+        }
+        return true;
+    }
+    function esperaTermina(dono) {
+        dono.removeAttribute('data-esperando');
+        esperaDesliga(dono.matches('form') ? dono.querySelector('[type="submit"]') : dono);
+    }
+    document.addEventListener('submit', function (ev) {
+        var form = ev.target;
+        if (!(form instanceof HTMLFormElement) || !form.matches('[data-espera]')) { return; }
+        if (form.hasAttribute('data-esperando')) { ev.preventDefault(); return; }
+        if (ev.defaultPrevented) { return; }
+        esperaComeca(form, ev.submitter || form.querySelector('[type="submit"]'));
+    });
+    document.addEventListener('click', function (ev) {
+        var a = ev.target instanceof Element ? ev.target.closest('a[data-espera]') : null;
+        if (!a || ev.button !== 0 || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey) { return; }
+        if (!esperaComeca(a, a)) { ev.preventDefault(); }
+    });
+    window.addEventListener('pageshow', function () {
+        document.querySelectorAll('[data-esperando]').forEach(esperaTermina);
+    });
+
     // ---- [data-arquivo]: o botão próprio de escolher arquivo mostra o nome escolhido
     document.addEventListener('change', function (ev) {
         var campo = ev.target;

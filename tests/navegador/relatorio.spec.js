@@ -11,6 +11,7 @@ test('o PDF mensal baixa e é um PDF de verdade', async ({ page }) => {
 
     const baixou = page.waitForEvent('download');
     await page.getByRole('link', { name: 'Baixar PDF' }).click();
+    await expect(page.getByRole('link', { name: 'Gerando o PDF…' })).toHaveAttribute('aria-busy', 'true');
     const arquivo = await baixou;
     expect(arquivo.suggestedFilename()).toMatch(/\.pdf$/);
     const pdf = await readFile(await arquivo.path());

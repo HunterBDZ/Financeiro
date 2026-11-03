@@ -1,0 +1,3 @@
+# O Financeiro é um app privado: nada aqui deve aparecer em buscadores.
+User-agent: *
+Disallow: /

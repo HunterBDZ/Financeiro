@@ -99,6 +99,7 @@ final class Preflight
         header('Content-Type: text/html; charset=utf-8');
         header('X-Content-Type-Options: nosniff');
         header('X-Frame-Options: DENY');
+        header('X-Robots-Tag: noindex, nofollow');
         header("Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'");
         $itens = implode('', array_map(static fn(string $l): string => '<li>' . e($l) . '</li>', $linhas));
         echo '<!doctype html><html lang="', e(Idioma::html()), '"><head><meta charset="utf-8">',

@@ -409,6 +409,13 @@ a.card-acao:hover { color: var(--text); }
 .btn:hover { background: var(--card-3); }
 .btn:active { transform: scale(.985); }
 .btn:disabled, .btn[aria-disabled="true"] { opacity: .45; cursor: not-allowed; transform: none; }
+/* esperando o servidor (data-espera no app.js): o texto diz o que acontece, e a roda mostra que está andando */
+.btn[aria-busy="true"] { opacity: .85; cursor: progress; }
+.btn[aria-busy="true"]::before {
+    content: ""; flex: none; width: 16px; height: 16px; border-radius: 50%;
+    border: 2px solid currentColor; border-right-color: transparent; animation: btn-gira .7s linear infinite;
+}
+@keyframes btn-gira { to { transform: rotate(360deg); } }
 .btn-primary { background: var(--acc); color: var(--on-acc); font-weight: 800; }
 .btn-primary:hover { background: var(--acc-hover); }
 .btn-ghost { background: var(--card-2); color: var(--text); }
@@ -818,6 +825,8 @@ a.lista-i:hover { background: var(--sel); }
 .ajuda-grupo .titulo { margin-bottom: 6px; }
 .ajuda-item > summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-weight: 600; }
 .ajuda-item > p { margin: 0 0 12px; color: var(--text-2); line-height: 1.55; }
+.ajuda-rodape { padding: 0 4px; font-size: 14px; }
+.ajuda-rodape a { display: inline-flex; align-items: center; min-height: 44px; color: var(--text-2); text-decoration: underline; text-underline-offset: 3px; }
 .roteiro { display: flex; flex-direction: column; gap: 10px; }
 .roteiro-lista { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0; list-style: none; }
 .roteiro-lista li { display: flex; align-items: center; gap: 8px; min-height: 36px; }

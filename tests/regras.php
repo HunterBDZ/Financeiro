@@ -822,6 +822,17 @@ ob_start();
 (new \Financeiro\Controllers\AjudaController())->conexao();
 $htmlCon = (string) ob_get_clean();
 $check('ajuda: o aviso de conexão abre sem o layout', str_contains($htmlCon, 'href="/login"') && !str_contains($htmlCon, 'class="tabbar"'));
+ob_start();
+(new \Financeiro\Controllers\AjudaController())->privacidade();
+$htmlPriv = (string) ob_get_clean();
+$check('privacidade: abre sem o layout e diz o que sai do computador', !str_contains($htmlPriv, 'class="tabbar"')
+    && str_contains($htmlPriv, 'economia.awesomeapi.com.br') && str_contains($htmlPriv, 'api.frankfurter.dev') && str_contains($htmlPriv, 'github.com')
+    && str_contains($htmlPriv, 'AGPL-3.0') && str_contains($htmlPriv, '/issues') && str_contains($htmlPriv, 'SECURITY.md'));
+$check('privacidade: os sites citados são os mesmos do SEGURANCA.md', (static function (): bool {
+    $doc = (string) file_get_contents(__DIR__ . '/../docs/SEGURANCA.md');
+    return str_contains($doc, 'economia.awesomeapi.com.br') && str_contains($doc, 'api.frankfurter.dev');
+})());
+$check('robots.txt tira o app dos buscadores', preg_match('~^User-agent: \*\R+Disallow: /$~m', (string) file_get_contents(__DIR__ . '/../public/robots.txt')) === 1);
 
 // ---- 24. fuso: a conexão anda junto
 $moedaAntes = Site::moeda();

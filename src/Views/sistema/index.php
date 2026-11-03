@@ -58,7 +58,7 @@ docker compose up -d</pre>
                 <?php if ($consulta['notas'] !== ''): ?><details class="sis-notas"><summary><?= e(t('O que muda')) ?></summary><pre><?= e($consulta['notas']) ?></pre></details><?php endif; ?>
                 <?php if ($pode && $tipo === 'pacote'): ?>
                     <p class="aj-ajuda"><?= e(t('Antes de aplicar, o Financeiro testa a versão numa cópia dos seus dados e faz um backup. Se algo falhar, ele volta sozinho.')) ?></p>
-                    <form method="post" action="/sistema/atualizar" data-confirm="<?= e(t('Atualizar para a versão {versao}? O site fica fora do ar por alguns instantes.', ['versao' => $consulta['versao']])) ?>">
+                    <form method="post" action="/sistema/atualizar" data-espera="<?= e(t('Atualizando…')) ?>" data-confirm="<?= e(t('Atualizar para a versão {versao}? O site fica fora do ar por alguns instantes.', ['versao' => $consulta['versao']])) ?>">
                         <?= $csrf ?><input type="hidden" name="versao" value="<?= e($consulta['versao']) ?>">
                         <button type="submit" class="btn btn-primary aj-salvar"><?= e(t('Atualizar agora')) ?></button>
                     </form>
@@ -67,7 +67,7 @@ docker compose up -d</pre>
                 <p class="sis-nova"><?= e(t('Você já está na versão mais nova.')) ?></p>
             <?php endif; ?>
         <?php elseif ($pode && ($estado === null || $estado['fase'] !== 'rodando')): ?>
-            <form method="post" action="/sistema/consultar">
+            <form method="post" action="/sistema/consultar" data-espera="<?= e(t('Procurando…')) ?>">
                 <?= $csrf ?>
                 <button type="submit" class="btn btn-ghost aj-salvar"><?= e(t('Procurar versão nova')) ?></button>
             </form>
@@ -86,13 +86,13 @@ docker compose up -d</pre>
             <?php endif; ?>
             <p class="aj-ajuda"><?= e(t('O Financeiro faz uma cópia por dia, na primeira vez que você abre. Elas ficam neste computador: guarde de vez em quando uma cópia em outro lugar, como um pen drive.')) ?></p>
             <?php if ($pastaBackups !== null): ?><p class="aj-ajuda sis-pasta"><?= e($pastaBackups) ?></p><?php endif; ?>
-            <form method="post" action="/sistema/backup">
+            <form method="post" action="/sistema/backup" data-espera="<?= e(t('Fazendo backup…')) ?>">
                 <?= $csrf ?>
                 <button type="submit" class="btn btn-ghost aj-salvar"><?= e(t('Fazer backup agora')) ?></button>
             </form>
             <details class="sis-acao">
                 <summary><?= e(t('Baixar uma cópia')) ?></summary>
-                <form class="aj-form" method="post" action="/sistema/exportar">
+                <form class="aj-form" method="post" action="/sistema/exportar" data-espera="<?= e(t('Preparando a cópia…')) ?>" data-espera-baixa>
                     <?= $csrf ?>
                     <p class="aj-ajuda"><?= e(t('A cópia tem todos os dados do site. Guarde em um lugar seguro.')) ?></p>
                     <?php $senha('sis-senha-exportar'); ?>
@@ -101,7 +101,7 @@ docker compose up -d</pre>
             </details>
             <details class="sis-acao" id="restaurar">
                 <summary><?= e(t('Restaurar um backup')) ?></summary>
-                <form class="aj-form" method="post" action="/sistema/restaurar" enctype="multipart/form-data" data-confirm="<?= e(t('Trocar todos os dados do site pelos do backup? Quem estiver usando vai precisar entrar de novo.')) ?>">
+                <form class="aj-form" method="post" action="/sistema/restaurar" enctype="multipart/form-data" data-espera="<?= e(t('Restaurando…')) ?>" data-confirm="<?= e(t('Trocar todos os dados do site pelos do backup? Quem estiver usando vai precisar entrar de novo.')) ?>">
                     <?= $csrf ?>
                     <p class="aj-ajuda"><?= e(t('Todos os dados do site são trocados pelos do backup. Antes, o Financeiro guarda uma cópia do que há agora.')) ?></p>
                     <?php if ($backups !== []): ?>

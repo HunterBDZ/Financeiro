@@ -2,6 +2,15 @@
 
 Cada versão publicada é uma tag `vX.Y.Z` deste repositório. Pacotes atualizam em Ajustes, em Backup e atualização; servidores, com `sudo financeiro-atualizar`.
 
+## 1.13.0
+
+- **Privacidade e aviso:** página nova em `/privacidade`, aberta sem login, com link na tela de entrar, no fim da Ajuda e em Ajustes. Diz o que sai do computador, quais cookies o app usa (só os necessários, por isso não há aviso de consentimento), a licença, que o app não é aconselhamento financeiro e onde relatar problemas. O mesmo texto está em `docs/PRIVACIDADE.md`.
+- **Fora dos buscadores:** `robots.txt` com `Disallow: /` e o cabeçalho `X-Robots-Tag: noindex, nofollow` em todas as páginas. Um servidor exposto por engano não entra no Google.
+- **`/favicon.ico`** leva ao ícone escolhido em Ajustes (antes dava "não encontrado").
+- **Botões que demoram:** baixar o PDF, fazer backup, baixar a cópia, restaurar, procurar versão nova e atualizar mostram o que está acontecendo ("Gerando o PDF…", "Fazendo backup…"), com uma roda girando, e não aceitam o segundo clique. Sem JavaScript, tudo funciona como antes.
+- **Ajuda:** a resposta "Onde ficam os meus dados?" agora cita tudo o que usa a internet (antes esquecia a busca por versão nova).
+- **Mais leve:** o arquivo com os ícones das categorias caiu de 433 KB para 213 KB, sem diferença à vista. Os prints do README passaram para WebP (1,5 MB → 0,9 MB).
+
 ## 1.12.0
 
 - **Empréstimo:** a pergunta "Como a parcela é paga?" fica na aba Empréstimo, junto dos dados, e saiu de Ajustes. As opções são "Descontada do salário (consignado em folha)" e "Paga à parte, com o dinheiro da conta".
