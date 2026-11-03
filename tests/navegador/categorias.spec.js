@@ -14,13 +14,14 @@ test('cria, edita tudo e vê a categoria no lugar novo', async ({ page }) => {
     // a lista leva ao editar
     await page.locator('#categorias').getByRole('link', { name: /Aula do teste/ }).click();
     await expect(page).toHaveURL(/\/categorias\/\d+$/);
-    await expect(page.getByRole('heading', { level: 1, name: 'Editar categoria' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Aula do teste' })).toBeVisible();     // o título é o nome
+    await expect(page.locator('main .aj-volta')).toHaveAttribute('href', /\/ajustes\?aberto=categorias/);
     // gasto que varia: o vencimento só aparece para conta fixa ou pontual
     await expect(page.getByLabel('Vence no dia (opcional)')).toBeHidden();
 
     await page.getByLabel('Nome', { exact: true }).fill('Natação do teste');
     await page.getByLabel('Apelido (opcional)').fill('Natação');
-    await page.getByText('Fixo todo mês (conta)').click();
+    await page.getByText('Fixo todo mês', { exact: true }).click();
     await page.getByLabel('Vence no dia (opcional)').fill('40');
     await page.getByText('Essencial', { exact: true }).click();
     await page.getByRole('button', { name: 'Salvar' }).click();
@@ -36,7 +37,7 @@ test('cria, edita tudo e vê a categoria no lugar novo', async ({ page }) => {
     await expect(page).toHaveURL(/\/ajustes\?aberto=categorias/);
     await expect(page.getByRole('status').filter({ hasText: 'Natação salva' })).toBeVisible();
     const item = page.locator('#categorias').getByRole('link', { name: /Natação/ });
-    await expect(item).toContainText('Fixos · dia 12');
+    await expect(item).toContainText('Fixos, dia 12');
 
     // de volta ao editar: ficou tudo gravado; arquivar tira da lista
     await item.click();
@@ -51,8 +52,11 @@ test('cria, edita tudo e vê a categoria no lugar novo', async ({ page }) => {
 test('a categoria com lançamentos não troca entre entrada e saída', async ({ page }) => {
     await page.goto('/ajustes?aberto=categorias');
     await page.locator('#categorias').getByRole('link', { name: /Combustível/ }).click();
-    await expect(page.getByRole('radio', { name: 'Entrada' })).toBeDisabled();
-    await expect(page.getByRole('group', { name: 'Tipo' })).toHaveAccessibleDescription('Já tem lançamentos: trocar o tipo inverteria o histórico.');
+    // travado, o tipo aparece como texto (sem a escolha que não responde), com o motivo
+    await expect(page.getByRole('radio', { name: 'Entrada' })).toHaveCount(0);
+    const tipo = page.getByRole('group', { name: 'Tipo' });
+    await expect(tipo).toContainText('Saída');
+    await expect(tipo).toHaveAccessibleDescription('Já tem lançamentos: trocar o tipo inverteria o histórico.');
     await expect(page.getByRole('link', { name: /Valor e recorrência/ })).toHaveAttribute('href', /^\/meta\?add=\d+#c\d+$/);
 });
 

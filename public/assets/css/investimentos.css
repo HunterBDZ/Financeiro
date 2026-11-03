@@ -1,17 +1,23 @@
-/* Aba Investimentos */
-.inv { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
-.inv-total .saldo-v { margin: 10px 0 8px; font-size: 34px; }
-.inv-partes { display: grid; gap: 14px; min-width: 0; }
-.inv-parte { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
-.inv-saldo { font-family: var(--fn); font-size: 28px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.2; }
-.inv-saldo small { color: var(--text-2); font-size: 16px; }
-.inv-conta > div { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-top: 1px solid var(--line); }
-.inv-conta dt { color: var(--text-2); font-size: 14px; font-weight: 600; }
-.inv-conta dd { font-weight: 700; }
-.inv-acoes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.inv-acoes .btn { min-height: 44px; }
-.inv-vazio { color: var(--text-2); font-size: 14px; }
-.inv-sub { color: var(--text-2); font-size: 13px; font-weight: 750; }
-@media (min-width: 1000px) {
-    .inv-partes { grid-template-columns: 1fr 1fr; align-items: start; }
+/* Hallmark · checked: 2026-11-03 · genre: modern-minimal · shape: answer + positions table · scope: app · built: Investimentos do MyMonetto (design.md) · v1 */
+/* ==========================================================================
+   investimentos.css — aba Investimentos (prefixo .inv-*), na grade: o total como resposta, a tabela de posições
+   (o livro-razão de style.css) e os últimos lançamentos de cada posição. Sem cartões.
+   ========================================================================== */
+.inv-vazio { display: flex; flex-direction: column; align-items: flex-start; gap: var(--e-3); }
+.inv-vazio p { max-width: 60ch; color: var(--tinta-2); text-wrap: pretty; }
+.inv-tabela { margin-top: var(--e-2); }
+.inv-tabela .inv-nome { font-weight: 400; }
+.inv-sinal { margin-right: 1px; color: var(--tinta-2); }
+.inv-tabela td.situacao { width: auto; }
+.inv-acoes { white-space: nowrap; }
+.inv-acoes .btn-link { margin-left: var(--e-2); }
+.inv-v { display: flex; flex-direction: column; align-items: flex-end; text-align: right; }
+.inv-v small { color: var(--tinta-3); font-size: var(--t-meta); line-height: var(--lh-meta); }
+.inv-nada { padding: var(--e-4) 0; color: var(--tinta-2); font-size: var(--t-rotulo); }
+@media (max-width: 1023px) {
+    /* no celular, cada posição é uma linha: o nome e o saldo; as ações embaixo */
+    .inv-tabela td.situacao { padding: var(--e-2) 0 0; }
+    .inv-tabela tfoot td.c-prev { display: none; }
 }
+.inv-ult-t { margin-bottom: var(--e-5); font: 400 var(--t-titulo)/var(--lh-titulo) var(--f-num); letter-spacing: -.01em; }
+.inv-duas .secao-cab h3 { color: var(--tinta-2); font: 400 var(--t-rotulo)/var(--lh-rotulo) var(--f-ui); }

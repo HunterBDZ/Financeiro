@@ -236,6 +236,8 @@ $htmlInv = $pagina(InvestimentosController::class, 'index', '/investimentos');
 $pdo->rollBack();
 MotorFinanceiro::limparCache();
 $check('investimentos: o lançamento soma em outros investimentos e no total', abs($depoisInv['outros']['saldo'] - $antesInv['outros']['saldo'] - 700) < 0.01 && abs($depoisInv['total'] - $antesInv['total'] - 700) < 0.01 && abs($depoisInv['poupanca']['saldo'] - $antesInv['poupanca']['saldo']) < 0.01);
+$check('investimentos: o total é a resposta e as posições ficam numa tabela, sem cartão', str_contains($htmlInv, 'class="faixa-grade inv-total"') && str_contains($htmlInv, 'class="livro inv-tabela"')
+    && str_contains($htmlInv, 'class="total-final"') && !str_contains($htmlInv, 'class="saldo ') && !str_contains($htmlInv, 'card inv-parte'));
 $check('investimentos: o dinheiro sai da conta', abs($saldoAntes - $saldoDepois - 700) < 0.01);
 $check('investimentos: não muda entradas nem gastos do plano', abs($linhaDepois['entra'] - $linhaAntes['entra']) < 0.01 && abs($linhaDepois['sai'] - $linhaAntes['sai']) < 0.01);
 $check('investimentos: o plano registra a aplicação', abs($linhaDepois['invest_liquido'] - $linhaAntes['invest_liquido'] - 700) < 0.01 && abs($linhaDepois['invest_saldo'] - $linhaAntes['invest_saldo'] - 700) < 0.01);
@@ -1077,6 +1079,9 @@ $antesEmp = (int) $pdo->query('SELECT COUNT(*) FROM lancamentos')->fetchColumn()
 $htmlEmp = $render(EmprestimoController::class, 'index', []);
 $check('empréstimo: a aba abre, com o menu do M e fora da barra', str_contains($htmlEmp, '<h1>Empréstimo</h1>') && str_contains($htmlEmp, 'class="menu-item is-active" href="/emprestimo"')
     && !preg_match('#<nav class="tabbar"(?:(?!<details).)*?href="/emprestimo"#s', $htmlEmp));
+$check('empréstimo: a linha do tempo diz quantas parcelas faltam e dá nome a cada fim', preg_match('~Faltam \d+ parcelas~', $htmlEmp) === 1
+    && str_contains($htmlEmp, 'Fim das parcelas') && (!str_contains($htmlEmp, 'emp-t-plano') || str_contains($htmlEmp, 'Quitação prevista pelo plano'))
+    && !str_contains($htmlEmp, 'class="saldo '));
 $htmlErro = $render(EmprestimoController::class, 'index', ['valor' => '12a', 'parcial' => '1']);
 $check('empréstimo: valor inválido diz como corrigir', str_contains($htmlErro, 'Valor inválido') && !str_contains($htmlEmp, 'Empréstimo quitado'));
 $check('empréstimo: o pedaço do resultado vem sem o layout', !str_contains($htmlErro, '<html'));
@@ -1161,6 +1166,13 @@ try {
     WishlistModel::mover($a, 'primeiro');
     $check('wishlist: a aba abre, com o 1º em destaque, previsão e fora da barra', str_contains($htmlW, '<h1>Wishlist</h1>') && str_contains($htmlW, 'wl-vitrine') && str_contains($htmlW, 'Quando comprar')
         && str_contains($htmlW, 'class="menu-item is-active" href="/wishlist"') && !preg_match('#<nav class="tabbar"(?:(?!<details).)*?href="/wishlist"#s', $htmlW));
+    $check('wishlist: os outros itens vêm numa grade, com foto quadrada, preço e o lugar na fila', str_contains($htmlW, 'class="wl-lista"') && str_contains($htmlW, 'Depois do 1º da lista')
+        && !str_contains($htmlW, 'card wl-novo'));
+    $ativosWl = array_map(static fn(array $i): int => (int) $i['id'], WishlistModel::ativos());
+    $pdo->exec('UPDATE wishlist_itens SET comprado_em = ' . $pdo->quote($hoje) . ' WHERE comprado_em IS NULL');
+    $htmlWv = $render(WishlistController::class, 'index', []);
+    $pdo->exec('UPDATE wishlist_itens SET comprado_em = NULL WHERE id IN (' . implode(',', $ativosWl) . ')');
+    $check('wishlist: vazia, pede o link com o campo ali mesmo', str_contains($htmlWv, 'Cole o link de algo que você quer comprar') && str_contains($htmlWv, 'data-wl-url'));
     $check('wishlist: texto da loja é escapado', str_contains($htmlW, '&lt;b&gt;Item A&lt;/b&gt;') && !str_contains($htmlW, '<b>Item A</b>'));
     $check('wishlist: foto não vem como link externo', !preg_match('#<img[^>]+src="https?://#', $htmlW));
     $check('wishlist: a previsão parcial vem sem layout', !str_contains($render(WishlistController::class, 'index', ['parcial' => '1', 'parcelas' => '3']), '<html'));
@@ -1210,8 +1222,14 @@ $passoComecar = static function (int $passo) use ($hoje): string {
     \Financeiro\View::renderAuth('comecar/index', ['passo' => $passo, 'total' => 4, 'hoje' => $hoje, 'inicio' => $hoje, 'contas' => [['id' => 1, 'nome' => 'Luz']], 'usos' => [], 'erro' => null]);
     return (string) ob_get_clean();
 };
-$check('começar: o 3º passo pergunta o que usa, e a parcela só com empréstimo', str_contains($passoComecar(3), 'name="usa_cartao"') && str_contains($passoComecar(3), 'cm-grupo cm-so-emp') && !str_contains($passoComecar(3), 'salário'));
+$check('começar: o 3º passo pergunta o que usa, e a parcela só com empréstimo', str_contains($passoComecar(3), 'name="usa_cartao"') && str_contains($passoComecar(3), 'com-grupo com-so-emp') && !str_contains($passoComecar(3), 'salário'));
 $check('começar: o 4º passo pede as contas fixas', str_contains($passoComecar(4), 'name="valor[1]"') && !str_contains($passoComecar(4), 'name="usa_cartao"'));
+$check('começar: o 4º passo deixa adicionar outra conta fixa e não mostra a regra interna do início',
+    str_contains($passoComecar(4), 'name="nova_nome[]"') && str_contains($passoComecar(4), 'data-com-mais')
+    && preg_match('~antes do dia \d~', $passoComecar(4) . $passoComecar(2)) === 0);
+$check('começar: a prévia do mês fica ao lado da pergunta, e a sobra só aparece com o saldo informado',
+    str_contains($passoComecar(1), 'data-previa') && str_contains($passoComecar(1), 'a responder')
+    && preg_match('~data-previa-total><span class="com-falta">~', $passoComecar(1)) === 1);
 ob_start();
 (new \Financeiro\Controllers\AjudaController())->conexao();
 $htmlCon = (string) ob_get_clean();
@@ -1499,7 +1517,7 @@ SiteIcone::remover();
 $pdo->rollBack();
 $check('ícone: arquivo que não é imagem é recusado', LinkProduto::fotoValida('<?php echo 1;') === null);
 $imagensApp = array_values(array_diff(scandir(__DIR__ . '/../public/assets/img') ?: [], ['.', '..']));
-$check('ícone: nenhuma imagem individual no código, só as do app', $imagensApp === ['categorias.svg', 'icone-180.png', 'icone-32.png', 'icone-64.png', 'linhas-cartao.svg', 'linhas-fundo.svg', 'marca.svg'], implode(', ', $imagensApp));
+$check('ícone: nenhuma imagem individual no código, só as do app', $imagensApp === ['categorias.svg', 'icone-180.png', 'icone-32.png', 'icone-64.png', 'linhas-cartao.svg', 'marca.svg'], implode(', ', $imagensApp));
 
 // ---- 3g. relatório: o PDF
 $docT = new Documento('Título ação', 'pt-BR', '20261122153000');

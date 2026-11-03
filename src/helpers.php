@@ -613,11 +613,18 @@ function svgIcon(string $name, int $size = 14, string $class = ''): string
 
 /* ------------------------------------------------------------------ erro */
 
-/** Página de erro mínima, com o mesmo visual do resto do app (nunca texto puro). */
+/**
+ * Página de erro, com a casca das páginas de fora do app (auth/_casca, entrar.css): a marca no topo, o título, uma
+ * frase e a volta ao Início. O código fica só no <title>: o número não é o assunto da página.
+ */
 function renderErro(int $codigo, string $titulo, string $mensagem): never
 {
     http_response_code($codigo);
-    $css = '/assets/css/style.css';
+    $sinal = \Financeiro\SiteIcone::personalizado() !== null
+        ? '<span class="marca-sinal is-imagem"><img src="' . e(\Financeiro\SiteIcone::url()) . '" alt="" width="28" height="28"></span>'
+        : '<span class="marca-sinal">' . svgIcon('marca', 18) . '</span>';
+    $maiuscula = static fn(string $t): string => mb_strtoupper(mb_substr($t, 0, 1)) . mb_substr($t, 1);
+    $mensagem = $maiuscula($mensagem);
     ?>
 <!doctype html>
 <html lang="<?= e(\Financeiro\Idioma::html()) ?>">
@@ -628,17 +635,18 @@ function renderErro(int $codigo, string $titulo, string $mensagem): never
 <meta name="theme-color" content="#0A1020" media="(prefers-color-scheme: dark)">
 <title><?= e((string) $codigo) ?> · MyMonetto</title>
 <?= \Financeiro\SiteIcone::tags() ?><link rel="preload" href="/assets/fonts/manrope-var-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/assets/fonts/sora-var-latin.woff2" as="font" type="font/woff2" crossorigin>
 <script src="<?= e(asset('/assets/js/theme.js')) ?>"></script>
-<link rel="stylesheet" href="<?= e(asset($css)) ?>">
+<link rel="stylesheet" href="<?= e(asset('/assets/css/style.css')) ?>">
+<link rel="stylesheet" href="<?= e(asset('/assets/css/entrar.css')) ?>">
 <link rel="stylesheet" href="<?= e(asset('/assets/css/temas.css')) ?>">
 </head>
-<body class="tela-erro">
-<main class="erro">
-    <img class="erro-marca" src="<?= e(\Financeiro\SiteIcone::url()) ?>" alt="" width="96" height="96">
-    <p class="erro-codigo num" aria-hidden="true"><?= e((string) $codigo) ?></p>
-    <h1 class="erro-titulo"><?= e(mb_strtoupper(mb_substr($titulo, 0, 1)) . mb_substr($titulo, 1)) ?></h1>
-    <p class="erro-msg"><?= e(mb_strtoupper(mb_substr($mensagem, 0, 1)) . mb_substr($mensagem, 1)) ?>.</p>
-    <a class="btn btn-primary" href="/"><?= e(t('Voltar ao início')) ?></a>
+<body class="pub">
+<header class="pub-topo"><a class="pub-marca" href="/"><?= $sinal ?><b translate="no">MyMonetto</b></a></header>
+<main class="pub-meio pub-leitura pub-erro-pg">
+    <h1 class="pub-titulo"><?= e($maiuscula($titulo)) ?></h1>
+    <p class="pub-lead"><?= e(preg_match('/[.!?]$/u', $mensagem) === 1 ? $mensagem : $mensagem . '.') ?></p>
+    <p><a class="btn btn-principal" href="/"><?= e(t('Voltar ao Início')) ?></a></p>
 </main>
 </body>
 </html>

@@ -34,7 +34,7 @@ function totp(segredo, desloca = 0) {
 
 async function entrarComSenha(page) {
     await page.goto('/login');
-    await page.getByLabel('Login').fill(LOGIN);
+    await page.getByLabel('Usuário').fill(LOGIN);
     await page.getByLabel('Senha').fill(SENHA);
     await page.getByRole('button', { name: 'Entrar' }).click();
 }

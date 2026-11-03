@@ -1,5 +1,5 @@
 /* ==========================================================================
-   lancar.css — Lançar (folha e página), Extrato, Entrar e as Contas do mês. Prefixos .lf-*, .ex-*, .lg-*, .cm-*.
+   lancar.css — Lançar (folha e página), Extrato e as Contas do mês. Prefixos .lf-*, .ex-*, .cm-*.
    Lançar: a pergunta "Quanto foi?", o valor grande no centro, a categoria numa lista com busca
    e os campos arredondados. Todo campo tem 16 px ou mais (o iOS não amplia a tela).
    ========================================================================== */
@@ -194,27 +194,7 @@
 .ex-limpar { min-height: 40px; display: inline-flex; align-items: center; padding: 0 6px; color: var(--text); font-weight: 750; }
 .ex-limpar:hover { text-decoration: underline; text-underline-offset: 3px; }
 
-/* categorias (criar e remover) */
-.ex-nova { padding-top: 6px; padding-bottom: 6px; }
-.ex-nova[open] { padding-bottom: 16px; }
-.ex-nova-sum { display: flex; align-items: center; gap: 10px; min-height: 48px; list-style: none; font-weight: 750; }
-.ex-nova-sum svg { color: var(--text-2); }
-.ex-nova-sum::after {
-    content: ""; margin-left: auto; margin-right: 4px; width: 8px; height: 8px;
-    border-right: 2px solid var(--text-3); border-bottom: 2px solid var(--text-3);
-    transform: rotate(45deg) translateY(-3px); transition: transform .2s cubic-bezier(.16, 1, .3, 1);
-}
-.ex-nova[open] > .ex-nova-sum::after { transform: rotate(-135deg) translateY(-1px); }
-.ex-nova-form { display: flex; flex-direction: column; gap: 12px; margin-top: 6px; }
-.ex-nova-opts { display: flex; flex-direction: column; gap: 6px; }
-.ex-nova-opts legend { margin-bottom: 6px; color: var(--text-2); font-size: 13px; font-weight: 650; }
-.ex-nova-varia, .ex-nova-fixo { display: grid; gap: 10px; margin-top: 8px; }
-.ex-nova-fixo { display: none; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
-.ex-nova-valor:has(input[value="fixo"]:checked) .ex-nova-fixo { display: grid; }
-.ex-nova-valor:has(input[value="fixo"]:checked) .ex-nova-varia { display: none; }
-.ex-nova-criar:has(input[name="tipo"][value="entrada"]:checked) :is(.ex-nova-valor, .ex-nova-ess) { display: none; }
-.chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
-.ex-nova-btn { align-self: flex-start; }
+/* criar categoria: em temas-tela.css (Ajustes) */
 .ex-cats { margin-top: 18px; }
 .ex-cats-grupo { margin: 14px 0 2px; color: var(--text-2); font-size: 13px; font-weight: 700; }
 .ex-cats-lista { display: flex; flex-direction: column; }
@@ -270,72 +250,7 @@
     .ex-busca-txt { display: inline; }
 }
 
-/* ---------------------------------------------------------------- entrar */
-.lg-body { position: relative; min-height: 100dvh; background: var(--bg); }
-.lg-body::before {                 /* linhas abstratas na página inteira */
-    content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none;
-    background: url('/assets/img/linhas-fundo.svg') center / cover no-repeat; opacity: .85;
-}
-:root[data-theme="light"] .lg-body::before { opacity: .55; }
-@media (prefers-color-scheme: light) { :root:not([data-theme]) .lg-body::before { opacity: .55; } }
-.lg {
-    position: relative; z-index: 1;
-    width: 100%; max-width: 460px; min-height: 100dvh; margin: 0 auto;
-    display: flex; flex-direction: column; gap: 22px;
-    padding: calc(20px + env(safe-area-inset-top, 0px)) max(18px, env(safe-area-inset-right, 0px)) 28px max(18px, env(safe-area-inset-left, 0px));
-}
-.lg-topo { display: flex; align-items: center; gap: 10px; }
-.lg-topo b { font-family: var(--fn); font-size: 18px; font-weight: 700; letter-spacing: -0.02em; }
-.lg-topo .ic { margin-left: auto; }
-.lg-esq { margin-top: auto; }
-.lg-titulo { font-family: var(--fn); font-size: 34px; font-weight: 600; line-height: 1.08; letter-spacing: -0.04em; }
-.lg-sub { margin-top: 10px; color: var(--text-2); font-size: 16px; }
-.lg-dir { display: flex; flex-direction: column; gap: 12px; }
-.lg-card {
-    position: relative; display: flex; flex-direction: column; gap: 10px;
-    margin-top: 90px; padding: 18px; border-radius: 22px;
-    background: var(--card); border: 1px solid var(--line); box-shadow: var(--sombra);
-    --campo: var(--card-2);
-}
-.lg-card-sem-espia { margin-top: 24px; }
-.lg-espia { position: absolute; right: 16px; bottom: calc(100% - 1px); width: 108px; height: auto; }   /* espia por cima do cartão */
-.lg-card-t { display: none; font-size: 18px; font-weight: 800; }
-.lg-campo { position: relative; display: block; }
-.lg-campo > svg { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-3); pointer-events: none; }
-.lg-campo > input { min-height: 52px; padding-left: 44px; }
-.lg-lembrar { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; padding: 0 2px; font-weight: 600; cursor: pointer; }
-.lg-card .btn { margin-top: 4px; min-height: 52px; border-radius: 14px; }
-.lg-cert { color: var(--text-2); font-size: 13px; padding: 0 4px; }
-.lg-cert > summary { min-height: 40px; display: flex; align-items: center; text-decoration: underline; text-underline-offset: 3px; }
-.lg-cert > p { margin-top: 4px; line-height: 1.5; }
-.lg-ajuda { display: flex; align-items: center; min-height: var(--tap); padding: 0 4px; color: var(--text-2); font-size: 13px; text-decoration: underline; text-underline-offset: 3px; }
-.lg-nota { margin: -2px 4px 0; color: var(--text-2); font-size: 13px; line-height: 1.45; }
-.lg-texto { display: flex; flex-direction: column; gap: 16px; max-width: 520px; }
-.lg-texto .lg-card { display: flex; flex-direction: column; gap: 14px; line-height: 1.5; }
-.lg-privacidade { max-width: 640px; }
-.lg-privacidade .titulo { font-size: 22px; font-weight: 800; }
-.lg-privacidade section { display: flex; flex-direction: column; gap: 6px; }
-.lg-privacidade h2 { font-size: 16px; font-weight: 800; }
-.lg-privacidade p, .lg-privacidade li { color: var(--text-2); }
-.lg-privacidade ul { display: flex; flex-direction: column; gap: 6px; margin: 0; padding-left: 20px; list-style: disc; }
-.lg-privacidade li::marker { color: var(--text-3); }
-.lg-links { display: flex; flex-wrap: wrap; gap: 0 18px; }
-.lg-links a { display: inline-flex; align-items: center; min-height: 44px; color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
-
-@media (min-width: 1024px) {
-    .lg {
-        max-width: 1200px; display: grid; grid-template-columns: minmax(0, 1fr) 440px; grid-template-rows: auto 1fr;
-        gap: 0 96px; padding: 36px 64px; align-items: center;
-    }
-    .lg-topo { grid-column: 1 / -1; }
-    .lg-esq { grid-column: 1; margin: 0; max-width: 540px; }
-    .lg-titulo { font-size: 56px; }
-    .lg-sub { font-size: 17px; }
-    .lg-dir { grid-column: 2; }
-    .lg-card { margin-top: 0; padding: 28px; }
-    .lg-card-t { display: block; }
-    .lg-espia { width: 120px; right: 24px; }
-}
+/* entrar, criar conta e o código: em entrar.css (as páginas de fora do app) */
 
 /* tela larga: o extrato vira tabela (descrição | categoria | valor e dia) */
 @media (min-width: 1600px) {
@@ -345,38 +260,7 @@
     .ex-lista .lista-n small { font-size: 14px; }
 }
 
-/* ---------------------------------------------------------------- ícones: escolher e trocar */
-.ic-picker { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.ic-picker > legend { margin-bottom: 4px; color: var(--text-2); font-size: 13px; font-weight: 650; }
-.ic-dica { color: var(--text-2); font-size: 13px; }
-.ic-grupo { margin-top: 8px; color: var(--text-2); font-size: 12.5px; font-weight: 750; }
-.ic-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); gap: 6px; }
-.ic-opcao {
-    position: relative; display: grid; place-items: center; height: 54px; border-radius: 14px;
-    background: var(--card-2); cursor: pointer; transition: background-color .12s ease-out, box-shadow .12s ease-out;
-}
-.ic-opcao:hover { background: var(--card-3); }
-.ic-opcao > input { position: absolute; top: 0; left: 0; width: 1px; height: 1px; margin: 0; opacity: 0; pointer-events: none; }
-.ic-opcao > input:checked + .ci { outline: 2px solid var(--text); outline-offset: 5px; border-radius: 6px; }   /* sem :has */
-.ic-opcao:has(input:checked) { background: var(--card); box-shadow: inset 0 0 0 2px var(--text); }
-.ic-opcao:has(input:checked) > .ci { outline: 0; }
-.ic-opcao:has(input:focus-visible) { outline: 2px solid var(--foco); outline-offset: 2px; }
-.ic-escolher > summary { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; min-height: var(--tap); font-weight: 700; cursor: pointer; }
-.ic-escolher > summary > span { text-decoration: underline; text-underline-offset: 3px; }
-.ic-escolher > summary small { color: var(--text-2); font-size: 13px; font-weight: 500; }
-.ex-nova-form .ic-picker { margin-top: 2px; }
-
-.ic-pagina { width: 100%; max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
-.ic-pagina .lf-topo { justify-content: flex-start; }
-.ic-atual {
-    display: flex; align-items: center; gap: 16px; padding: 16px; border-radius: var(--r);
-    background: var(--card); border: 1px solid var(--line); box-shadow: var(--sombra);
-}
-.ic-atual p { color: var(--text-2); }
-.ic-atual b { color: var(--text); }
-.ic-form { display: flex; flex-direction: column; gap: 16px; padding: 16px; border-radius: var(--r); background: var(--card); border: 1px solid var(--line); box-shadow: var(--sombra); --campo: var(--card-2); }
-.ic-salvar { position: sticky; bottom: calc(86px + env(safe-area-inset-bottom, 0px)); box-shadow: 0 12px 30px -12px rgba(0, 0, 0, .45); }
-@media (min-width: 1024px) { .ic-salvar { bottom: 20px; } }
+/* ícones (escolher e trocar) e o editar categoria: em temas-tela.css (Ajustes e as subtelas) */
 
 /* ---------------------------------------------------------------- contas do mês (Início e Extrato) */
 /* as contas fixas ainda não pagas: o nome abre o Lançar (outro valor), o Pago lança o previsto */

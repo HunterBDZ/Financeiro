@@ -13,13 +13,16 @@ foreach ($paletas as $pid => $p) {
     $grupos[$p['grupo']][$pid] = $p;
 }
 $modos = ['light' => t('Claro'), 'dark' => t('Escuro'), 'auto' => t('Automático')];
-// um lado da amostra: o fundo, a tinta, o azul e um valor que entrou e outro que saiu, com as cores do próprio tema
+// um lado da prévia: o painel do mês em miniatura, com as cores do próprio tema. No fundo, o painel (superfície)
+// com o rótulo, o número grande, a barra do dinheiro do mês (o que saiu, as contas, o que dá para gastar em azul)
+// e uma linha de lista com um valor que entrou e outro que saiu
 $lado = static fn(array $c): string => '<span class="tm-lado" style="--a-fundo:' . e($c['fundo']) . ';--a-sup:' . e($c['superficie']) . ';--a-tinta:' . e($c['tinta'])
     . ';--a-tinta2:' . e($c['tinta2']) . ';--a-fio:' . e($c['fio']) . ';--a-azul:' . e($c['azul']) . ';--a-entrada:' . e($c['entrada']) . ';--a-saida:' . e($c['saida']) . '">'
-    . '<i class="tm-l1"></i><i class="tm-l2"></i><span class="tm-vals"><i class="tm-e"></i><i class="tm-s"></i></span><i class="tm-bt"></i></span>';
+    . '<span class="tm-painel"><i class="tm-rot"></i><i class="tm-num"></i><span class="tm-segs"><i></i><i></i><i></i></span>'
+    . '<span class="tm-vals"><i class="tm-e"></i><i class="tm-s"></i></span></span></span>';
 ?>
-<div class="grade tms">
-    <?php \Financeiro\View::partial('partials/topo', ['titulo' => t('Temas'), 'apoio' => t('Escolha para experimentar. Salve para manter em todos os seus aparelhos.')]); ?>
+<div class="grade aj-subtela tms">
+    <?php \Financeiro\View::partial('ajustes/_sub_topo', ['titulo' => t('Temas'), 'apoio' => t('Escolha para experimentar. Salve para manter em todos os seus aparelhos.')]); ?>
     <?php foreach ($grupos as $grupo => $lista): ?>
         <section class="faixa-grade" aria-labelledby="tm-g-<?= e(md5((string) $grupo)) ?>">
             <h2 class="tm-grupo" id="tm-g-<?= e(md5((string) $grupo)) ?>"><?= e(t((string) $grupo)) ?></h2>

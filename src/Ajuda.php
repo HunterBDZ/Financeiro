@@ -4,7 +4,7 @@ namespace Financeiro;
 /** As perguntas da aba Ajuda. Os textos ficam aqui, sem depender de internet, e passam por t() como os das telas. */
 final class Ajuda
 {
-    /** @return list<array{titulo: string, itens: list<array{id: string, pergunta: string, resposta: string}>}> */
+    /** @return list<array{titulo: string, itens: list<array{id: string, pergunta: string, resposta: string, link?: array{0: string, 1: string}}>}> */
     public static function grupos(): array
     {
         $grupos = [
@@ -54,7 +54,8 @@ final class Ajuda
                 ['id' => 'pessoas', 'pergunta' => t('Como dou acesso a outra pessoa?'), 'resposta' => t('Em Ajustes, em Pessoas, informe nome, nome de usuário e senha. Todas as pessoas veem os mesmos dados.')],
                 ['id' => 'aparencia', 'pergunta' => t('Como troco o idioma ou o tema?'), 'resposta' => t('O idioma fica em Ajustes, e o tema, na tela Temas. Cada conta tem os seus.')],
                 ['id' => 'dados', 'pergunta' => t('Onde ficam os meus dados?'), 'resposta' => t('No computador onde o app foi instalado. A internet só é usada para a cotação de moedas, os links colados na Wishlist e a busca por versão nova. Detalhes em Privacidade, no fim desta página.')],
-                ['id' => 'aviso', 'pergunta' => t('Por que o navegador diz que a conexão não é segura?'), 'resposta' => t('Esse aviso é esperado: o app roda só na sua rede local, com certificado próprio. Escolha Avançado (ou Detalhes) e depois Continuar ou Prosseguir. Os dados não saem da sua rede.')],
+                ['id' => 'aviso', 'pergunta' => t('Por que o navegador diz que a conexão não é segura?'), 'resposta' => t('É esperado: na instalação, o MyMonetto criou um certificado próprio, e o navegador ainda não o conhece. A conexão continua criptografada, e os dados não saem da sua rede.'),
+                    'link' => ['/ajuda/conexao', t('Os passos de cada navegador')]],
             ]],
         ];
         // sem cartão ou sem empréstimo, as perguntas deles somem junto com a aba

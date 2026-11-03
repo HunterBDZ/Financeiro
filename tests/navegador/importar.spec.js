@@ -28,6 +28,7 @@ test('importa um CSV, revisa, lança todos e desfaz', async ({ page, context }) 
     await page.getByRole('main').locator('.ext-menu > summary').click();
     await page.getByRole('link', { name: 'Importar extrato' }).first().click();
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Importar extrato');
+    await expect(page.locator('[aria-current="step"]')).toContainText('Arquivo');          // os passos à vista
     expect(await graves(page)).toEqual([]);
 
     // o arquivo vai para a conta; o CSV pede as colunas na primeira vez, já com o palpite
@@ -43,6 +44,17 @@ test('importa um CSV, revisa, lança todos e desfaz', async ({ page, context }) 
     await expect(page.getByText('2 para lançar')).toBeVisible();
     await expect(page.locator('.imp-tabela')).toContainText('1.234,56');
     expect(await graves(page)).toEqual([]);
+    for (const desc of ['PADARIA DA ESQUINA', 'Mercado do bairro']) {
+        const cat = page.getByRole('combobox', { name: 'Categoria de ' + desc });
+        if ((await cat.inputValue()) === '') {
+            await cat.selectOption({ index: 1 });
+        }
+    }
+    // o erro da regra aparece junto do campo, não num aviso solto
+    await page.getByRole('button', { name: 'Criar regra' }).click();
+    const regra = page.getByRole('textbox', { name: 'Sempre que tiver' });
+    await expect(regra).toHaveAttribute('aria-invalid', 'true');
+    await expect(regra).toHaveAccessibleDescription('Escreva o texto da regra, com 2 a 60 letras.');
     for (const desc of ['PADARIA DA ESQUINA', 'Mercado do bairro']) {
         const cat = page.getByRole('combobox', { name: 'Categoria de ' + desc });
         if ((await cat.inputValue()) === '') {

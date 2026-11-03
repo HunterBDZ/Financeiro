@@ -192,15 +192,15 @@ function conferencia(callable $check): void
         ['/mes',           MesController::class,           'index',      [],                  'mes-livro'],
         ['/mes/fechar',    MesController::class,           'fecharForm', [],                  'class="grade fe"'],
         ['/futuro',        FuturoController::class,        'index',      [],                  'sim-meses'],
-        ['/ajustes',       AjustesController::class,       'index',      [],                  'aj-titulo'],
+        ['/ajustes',       AjustesController::class,       'index',      [],                  'ajs-cols'],
         ['/investimentos', InvestimentosController::class, 'index',      [],                  'inv-total'],
         ['/cartao',        CartaoController::class,        'index',      [],                  'ct-momento'],
-        ['/emprestimo',    EmprestimoController::class,    'index',      [],                  'emp-topo'],
-        ['/wishlist',      WishlistController::class,      'index',      [],                  'wl-topo'],
+        ['/emprestimo',    EmprestimoController::class,    'index',      [],                  'emp-resposta'],
+        ['/wishlist',      WishlistController::class,      'index',      [],                  'data-wl-form'],
         ['/relatorio',     RelatorioController::class,     'index',      [],                  'class="grade rl"'],
         ['/relatorio',     RelatorioController::class,     'index',      ['tipo' => 'anual'], 'class="grade rl"'],
         ['/temas',         TemaController::class,          'index',      [],                  'tm-modos'],
-        ['/ajuda',         AjudaController::class,         'index',      [],                  'aj-titulo'],
+        ['/ajuda',         AjudaController::class,         'index',      [],                  'ajuda-indice'],
     ];
     foreach ($telas as [$caminho, $cls, $metodo, $get, $marcador]) {
         $ruim = [];

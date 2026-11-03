@@ -12,7 +12,7 @@ $classes = [
     'entradas'   => ['rotulo' => t('Entradas'), 'cats' => []],
     'essenciais' => ['rotulo' => t('Essenciais'), 'cats' => []],
     'naoess'     => ['rotulo' => t('Não essenciais'), 'cats' => []],
-    'mov'        => ['rotulo' => t('⇄ Movimentações'), 'cats' => []],
+    'mov'        => ['rotulo' => t('Movimentações'), 'cats' => []],
 ];
 foreach ($categorias as $c) {
     $classe = (int) $c['operacional'] === 0 ? 'mov' : ((int) $c['sinal'] === 1 ? 'entradas' : ((int) $c['essencial'] === 1 ? 'essenciais' : 'naoess'));
@@ -24,7 +24,7 @@ $tipo = static function (array $c) use ($dias): string {
         return '';                                          // o título do bloco já diz
     }
     $g = grupoLabel((string) $c['grupo']);
-    return isset($dias[(int) $c['id']]) ? t('{grupo} · dia {dia}', ['grupo' => $g, 'dia' => $dias[(int) $c['id']]]) : $g;
+    return isset($dias[(int) $c['id']]) ? t('{grupo}, dia {dia}', ['grupo' => $g, 'dia' => $dias[(int) $c['id']]]) : $g;
 };
 $item = static function (array $c) use ($tipo): void { ?>
     <li><a class="aj-cat" href="/categorias/<?= (int) $c['id'] ?>">
@@ -38,40 +38,41 @@ $item = static function (array $c) use ($tipo): void { ?>
     <summary class="ajs-linha"><?= $linha('tag', t('Categorias'), tn(count($categorias), '1 ativa', '{n} ativas')) ?></summary>
     <div class="ajs-corpo">
         <details class="aj-cat-nova">
-            <summary class="btn btn-ghost"><?= svgIcon('plus', 16) ?><?= e(t('Criar categoria')) ?></summary>
-            <form class="ex-nova-form ex-nova-criar" method="post" action="/categorias">
+            <summary class="btn btn-contorno"><?= svgIcon('plus', 16) ?><?= e(t('Criar categoria')) ?></summary>
+            <form class="aj-cn" method="post" action="/categorias">
                 <?= csrfField() ?>
                 <input type="hidden" name="volta" value="<?= e($volta) ?>">
-                <label class="campo ex-nova-nome"><span><?= e(t('Nome da categoria')) ?></span>
+                <label class="campo"><span><?= e(t('Nome da categoria')) ?></span>
                     <input type="text" name="nome" maxlength="100" required autocomplete="off" placeholder="<?= e(t('ex.: Pet, Farmácia')) ?>">
                 </label>
-                <fieldset class="ex-nova-opts">
+                <fieldset class="aj-cn-opts">
                     <legend><?= e(t('Tipo')) ?></legend>
-                    <div class="chip-row">
+                    <div class="seg">
                         <label class="chip-r"><input type="radio" name="tipo" value="saida" checked><span><?= e(t('Saída')) ?></span></label>
                         <label class="chip-r"><input type="radio" name="tipo" value="entrada"><span><?= e(t('Entrada')) ?></span></label>
                     </div>
                 </fieldset>
-                <fieldset class="ex-nova-opts ex-nova-ess">
+                <fieldset class="aj-cn-opts aj-cn-ess">
                     <legend><?= e(t('Classe')) ?></legend>
-                    <div class="chip-row">
+                    <div class="seg">
                         <label class="chip-r"><input type="radio" name="essencial" value="1" checked><span><?= e(t('Essencial')) ?></span></label>
                         <label class="chip-r"><input type="radio" name="essencial" value="0"><span><?= e(t('Não essencial')) ?></span></label>
                     </div>
                 </fieldset>
                 <?php // só para gasto; o CSS mostra os campos da escolha (fixo ou varia) com :has(), sem JS ?>
-                <fieldset class="ex-nova-opts ex-nova-valor">
+                <fieldset class="aj-cn-opts aj-cn-valor">
                     <legend><?= e(t('O valor é')) ?></legend>
-                    <div class="chip-row">
-                        <label class="chip-r"><input type="radio" name="valor_tipo" value="varia" checked><span><?= e(t('Varia (gasto do dia a dia)')) ?></span></label>
-                        <label class="chip-r"><input type="radio" name="valor_tipo" value="fixo"><span><?= e(t('Fixo todo mês (conta)')) ?></span></label>
+                    <div class="seg">
+                        <label class="chip-r"><input type="radio" name="valor_tipo" value="varia" checked><span><?= e(t('Varia')) ?></span></label>
+                        <label class="chip-r"><input type="radio" name="valor_tipo" value="fixo"><span><?= e(t('Fixo todo mês')) ?></span></label>
                     </div>
-                    <div class="ex-nova-varia">
+                    <p class="aj-ajuda"><?= e(t('Varia: gasto do dia a dia, com meta. Fixo: uma conta, com valor e vencimento.')) ?></p>
+                    <div class="aj-cn-varia">
                         <label class="campo"><span><?= e(t('Meta de gasto por mês (opcional)')) ?></span>
                             <input type="text" name="meta" inputmode="decimal" autocomplete="off" placeholder="<?= e(t('ex.: 400')) ?>">
                         </label>
                     </div>
-                    <div class="ex-nova-fixo">
+                    <div class="aj-cn-fixo">
                         <label class="campo"><span><?= e(t('Valor por mês (opcional)')) ?></span>
                             <input type="text" name="valor_fixo" inputmode="decimal" autocomplete="off" placeholder="<?= e(t('ex.: 159,90')) ?>">
                         </label>
@@ -84,13 +85,13 @@ $item = static function (array $c) use ($tipo): void { ?>
                     <summary><span><?= e(t('Escolher ícone')) ?></span> <small><?= e(t('Sem escolher, o ícone vem do nome.')) ?></small></summary>
                     <?php View::partial('partials/icone_picker', ['sugerir' => true, 'semDica' => true, 'legenda' => t('Ícone')]); ?>
                 </details>
-                <button type="submit" class="btn btn-primary ex-nova-btn"><?= e(t('Criar categoria')) ?></button>
+                <button type="submit" class="btn btn-principal aj-salvar"><?= e(t('Criar categoria')) ?></button>
             </form>
         </details>
 
         <p class="aj-ajuda"><?= e(t('Escolha uma categoria para mudar o nome, o tipo, o vencimento, se é essencial ou o ícone.')) ?></p>
         <?php foreach ($classes as $cl): if ($cl['cats'] === []) { continue; } ?>
-            <p class="ex-cats-grupo"><?= e($cl['rotulo']) ?></p>
+            <p class="aj-cats-grupo"><?= e($cl['rotulo']) ?></p>
             <ul class="aj-cats"><?php foreach ($cl['cats'] as $c) { $item($c); } ?></ul>
         <?php endforeach; ?>
 

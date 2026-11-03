@@ -61,3 +61,27 @@ test.describe('no celular', () => {
         await expect(page.locator('.tab-mais > summary')).toHaveClass(/is-active/);
     });
 });
+
+test('a Ajuda é um documento com índice, e o "?" de uma tela abre a resposta certa', async ({ page }) => {
+    await page.goto('/ajuda#gastar');
+    const resposta = page.getByRole('article', { name: 'Como o Início calcula quanto dá para gastar?' });
+    await expect(resposta).toBeInViewport();
+    await expect(resposta).toContainText('É a previsão para o fim do mês menos a reserva.');
+    const indice = page.getByRole('navigation', { name: 'Nesta página' });
+    await expect(indice.getByRole('link', { name: 'Como o Início calcula quanto dá para gastar?' })).toHaveAttribute('href', '#gastar');
+    // a busca esconde o que não tem as palavras
+    await page.getByPlaceholder('Buscar na ajuda').fill('certificado');
+    await expect(page.getByRole('article', { name: 'Por que o navegador diz que a conexão não é segura?' })).toBeVisible();
+    await expect(resposta).toBeHidden();
+    await page.getByRole('link', { name: 'Os passos de cada navegador' }).click();
+    await expect(page).toHaveURL('/ajuda/conexao');
+});
+
+test('Empréstimo: a linha do tempo das parcelas e um fim só, explicado', async ({ page }) => {
+    await page.goto('/emprestimo');
+    await expect(page.getByRole('figure', { name: /Faltam \d+ parcelas/ })).toBeVisible();
+    await expect(page.getByText('Fim das parcelas', { exact: true })).toBeVisible();
+    await expect(page.getByText('Quitação prevista pelo plano', { exact: true })).toBeVisible();
+    await page.getByLabel('Quanto quer adiantar?').fill('2000');
+    await expect(page.locator('#emp-resultado')).toContainText('Falta depois');
+});

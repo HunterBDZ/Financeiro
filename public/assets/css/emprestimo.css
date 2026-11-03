@@ -1,82 +1,123 @@
+/* Hallmark · checked: 2026-11-03 · genre: modern-minimal · shape: answer + timeline + simulator · scope: app · built: Empréstimo do MyMonetto (design.md) · v1 */
 /* ==========================================================================
-   emprestimo.css — aba Empréstimo (prefixo .emp-*). Um destaque por tela: o cartão escuro diz quanto
-   falta; o resultado responde em números simples. Só tokens de style.css.
+   emprestimo.css — aba Empréstimo (prefixo .emp-*), na grade. A resposta da tela é quanto falta (o número grande);
+   a linha do tempo mostra as parcelas, o que já foi pago em tinta cheia e o que falta claro (fato e previsão), com
+   o fim das parcelas e a quitação pelo plano, cada um com o seu nome. Sem caixas: fio, espaço e tom.
    ========================================================================== */
 
-.emp { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
-.emp-topo h1 { font-size: 24px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.15; }
-.emp-cols, .emp-col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
-.emp-saldo-sub { margin: 2px 0 12px; color: var(--cofre-txt-2); font-size: 14px; }
-.emp-saldo .saldo-duas small + b + small { margin-top: 2px; font-weight: 600; }
-.emp-saldo .saldo-duas + .emp-saldo-sub { margin: 10px 0 0; }
+.emp-resposta .resposta-num { margin-bottom: var(--e-6); }
+.emp-quitado { margin-top: var(--e-2); color: var(--tinta-2); }
+.emp-numeros { margin-bottom: var(--e-6); }
+.emp-aviso { margin-top: var(--e-4); max-width: 72ch; font-size: var(--t-rotulo); line-height: var(--lh-rotulo); text-wrap: pretty; }
+.emp-aviso a { margin-left: var(--e-1); }
 
-.emp-form { display: grid; grid-template-columns: 1fr; gap: 12px; }
-.emp-valor { display: flex; align-items: center; gap: 8px; padding-left: 14px; border: 1px solid var(--line-2); border-radius: var(--r-md); background: var(--card); }
-.emp-valor:focus-within { outline: 2px solid var(--foco); outline-offset: 1px; }
-.emp-valor > span { color: var(--text-2); font-size: 18px; font-weight: 600; }
-.emp-valor input { flex: 1 1 auto; width: 100%; min-width: 0; min-height: 60px; padding: 0 14px 0 0; border: 0; border-radius: var(--r-md); background: none; box-shadow: none; outline: 0;
-    font-family: var(--fn); font-size: 28px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
-.emp-ajuda { color: var(--text-2); font-size: var(--t-peq); }
-.emp-acoes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-.emp-acoes .btn { width: 100%; min-height: var(--tap); padding-inline: 10px; white-space: normal; line-height: 1.2; }
-.emp-plano { padding: 0 4px; color: var(--text-2); font-size: 14px; line-height: 1.45; }
-.emp-plano a { color: var(--text); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; white-space: nowrap; }
-.emp-convite p { color: var(--text-2); font-size: 15px; line-height: 1.5; }
+/* a linha do tempo das parcelas: uma régua de traços, um por parcela (até 120; depois, uma faixa lisa) */
+.emp-linha { margin: 0; padding-top: var(--e-5); border-top: 1px solid var(--fio); }
+.emp-linha-cab { display: flex; align-items: baseline; justify-content: space-between; gap: var(--e-4); margin-bottom: var(--e-3); }
+.emp-linha-cab > span:first-child { font: 400 var(--t-titulo)/var(--lh-titulo) var(--f-num); letter-spacing: -.01em; }
+.emp-linha-pagas { color: var(--tinta-3); font-size: var(--t-rotulo); }
+.emp-trilho { position: relative; display: flex; gap: 2px; height: 24px; }
+.emp-trilho > i { display: block; flex: var(--k) 1 0; min-width: 2px; height: 100%; }   /* largura proporcional ao número de parcelas */
+.emp-t-pago { background: var(--seg-saiu); border-radius: var(--raio-controle) 0 0 var(--raio-controle); }
+.emp-t-falta { background: var(--seg-metas); border-radius: 0 var(--raio-controle) var(--raio-controle) 0; }
+.emp-t-falta:only-child { border-radius: var(--raio-controle); }
+/* com até 120 parcelas, cada uma é um traço: o fundo se repete na largura de uma parcela */
+.emp-trilho.com-parcelas > i {
+    background: repeating-linear-gradient(90deg, var(--cor-t) 0 calc(100% / var(--k) - 2px), transparent calc(100% / var(--k) - 2px) calc(100% / var(--k)));
+    border-radius: 0;
+}
+.emp-trilho.com-parcelas > .emp-t-pago { --cor-t: var(--seg-saiu); }
+.emp-trilho.com-parcelas > .emp-t-falta { --cor-t: var(--seg-metas); }
+/* a quitação pelo plano: um marco azul na régua */
+.emp-t-plano { position: absolute; top: -6px; bottom: -6px; left: var(--x); width: 2px; margin-left: -1px; background: var(--azul); border-radius: 1px; }
+.emp-linha-eixo { display: flex; justify-content: space-between; margin-top: var(--e-2); color: var(--tinta-3); font-size: var(--t-meta); line-height: var(--lh-meta); }
+.emp-fins { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--e-4); margin-top: var(--e-5); }
+.emp-fins > div { min-width: 0; }
+.emp-fins dt { color: var(--tinta-2); font-size: var(--t-rotulo); line-height: var(--lh-rotulo); }
+.emp-fins dd { margin-top: var(--e-1); font: 300 24px/30px var(--f-num); letter-spacing: -.02em; }
+.emp-fins dd.emp-fins-nota { margin-top: var(--e-1); font: 400 var(--t-meta)/var(--lh-meta) var(--f-ui); letter-spacing: 0; color: var(--tinta-3); text-wrap: pretty; }
+.emp-fim-plano dt { color: var(--azul); font-weight: 600; }
+.emp-fim-plano dt::before { content: ""; display: inline-block; width: 2px; height: 12px; margin-right: var(--e-2); background: var(--azul); vertical-align: -1px; }
 
-.emp-res { display: flex; flex-direction: column; gap: 14px; }
-.emp-res-t { color: var(--text-2); font-size: 14px; font-weight: 700; }
-.emp-res-v small { display: block; color: var(--text-2); font-size: var(--t-peq); font-weight: 650; }
-.emp-res-v b { font-family: var(--fn); font-size: 32px; font-weight: 600; letter-spacing: -0.03em; line-height: 1.2; }
+/* simular: o formulário à esquerda, o resultado à direita */
+.emp-cols { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--e-6); margin-top: var(--e-5); }
+.emp-form { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--e-4); align-content: start; }
+.emp-valor { display: flex; align-items: center; gap: var(--e-2); padding-left: var(--e-3); border-radius: var(--raio-controle); background: var(--superficie); box-shadow: inset 0 0 0 1px var(--fio-forte); }
+.emp-valor:hover { box-shadow: inset 0 0 0 1px var(--tinta-3); }
+.emp-valor:focus-within { box-shadow: inset 0 0 0 2px var(--azul); }
+.emp-valor:has([aria-invalid="true"]) { box-shadow: inset 0 0 0 2px var(--alerta); }
+.emp-valor > span { color: var(--tinta-2); font-size: var(--t-corpo); }
+.emp-valor input {
+    flex: 1 1 auto; width: 100%; min-width: 0; min-height: 56px; padding: 0 var(--e-3) 0 0; border-radius: var(--raio-controle);
+    background: none; box-shadow: none; font: 300 var(--t-pagina)/1 var(--f-num); letter-spacing: -.02em; font-variant-numeric: tabular-nums;
+}
+.emp-valor input:hover, .emp-valor input:focus-visible { box-shadow: none; }
+.emp-ajuda { color: var(--tinta-3); font-size: var(--t-rotulo); }
+.emp-form select { min-height: 56px; }
+.emp-acoes { display: flex; flex-wrap: wrap; gap: var(--e-2); }
+.emp-res-lugar { min-width: 0; }
+.emp-convite p { color: var(--tinta-2); max-width: 48ch; text-wrap: pretty; }
+.emp-res-erro { padding-top: var(--e-1); }
+.emp-res { display: flex; flex-direction: column; gap: var(--e-4); }
+.emp-res-t { color: var(--tinta-2); font-size: var(--t-rotulo); font-weight: 400; }
+.emp-res-v small { display: block; color: var(--tinta-2); font-size: var(--t-rotulo); }
+.emp-res-v b { display: block; margin-top: var(--e-1); font: 300 var(--t-numero)/var(--lh-numero) var(--f-num); letter-spacing: -.02em; }
 .emp-dl { display: flex; flex-direction: column; }
-.emp-dl > div { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 10px 0; border-top: 1px solid var(--line); }
-.emp-dl dt { color: var(--text-2); font-size: 14px; font-weight: 600; }
-.emp-dl dd { min-width: 0; font-size: 16px; font-weight: 750; text-align: right; }
-.emp-dl dd small { display: block; white-space: normal; color: var(--text-2); font-size: var(--t-peq); font-weight: 600; }
-.emp-dl dd small.pos { color: var(--pos); }
+.emp-dl > div { display: flex; align-items: baseline; justify-content: space-between; gap: var(--e-4); min-height: var(--linha); padding: var(--e-2) 0; border-top: 1px solid var(--fio); }
+.emp-dl > div:last-child { border-bottom: 1px solid var(--fio); }
+.emp-dl dt { color: var(--tinta-2); font-size: var(--t-rotulo); }
+.emp-dl dd { min-width: 0; text-align: right; font-variant-numeric: tabular-nums; }
+.emp-dl dd small { display: block; color: var(--tinta-3); font-size: var(--t-meta); }
+.emp-dl dd.neg { color: var(--alerta); }
 
+/* o gráfico da dívida: só as parcelas tracejado (a previsão sem mudar nada), com o adiantamento em tinta */
 .emp-graf { margin: 0; }
 .emp-graf svg { display: block; width: 100%; height: 150px; overflow: visible; }
-.emp-leg { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-bottom: 10px; color: var(--text-2); font-size: var(--t-peq); font-weight: 600; }
-.emp-leg span { display: inline-flex; align-items: center; gap: 6px; }
-.emp-leg i { width: 20px; height: 0; border-top: 2px solid var(--text); }
-.emp-leg i.emp-l-antes { border-top: 2px dashed var(--text-3); }
-.emp-base { stroke: var(--line-2); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.emp-leg { display: flex; flex-wrap: wrap; gap: var(--e-1) var(--e-4); margin-bottom: var(--e-3); color: var(--tinta-2); font-size: var(--t-meta); }
+.emp-leg span { display: inline-flex; align-items: center; gap: var(--e-2); }
+.emp-leg i { width: 20px; height: 0; border-top: 2px solid var(--tinta); }
+.emp-leg i.emp-l-antes { border-top: 2px dashed var(--tinta-3); }
+.emp-base { stroke: var(--fio-forte); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .emp-antes, .emp-com { fill: none; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
-.emp-antes { stroke: var(--text-3); stroke-width: 2; stroke-dasharray: 5 5; }
-.emp-com { stroke: var(--text); stroke-width: 2.5; }
-.emp-eixo { display: flex; justify-content: space-between; margin-top: 6px; color: var(--text-2); font-size: var(--t-peq); }
-
-.emp-anos { border-top: 1px solid var(--line); padding-top: 2px; }
+.emp-antes { stroke: var(--tinta-3); stroke-width: 2; stroke-dasharray: 5 5; }
+.emp-com { stroke: var(--tinta); stroke-width: 2; }
+.emp-eixo { display: flex; justify-content: space-between; margin-top: var(--e-2); color: var(--tinta-3); font-size: var(--t-meta); }
+.emp-anos { border-top: 1px solid var(--fio); }
+details.emp-anos > summary { font-weight: 400; }
 .emp-tab-rola { overflow-x: auto; }
-.emp-anos table { width: 100%; border-collapse: collapse; font-size: 14px; }
-.emp-anos th, .emp-anos td { padding: 8px 0 8px 12px; text-align: right; font-weight: 600; white-space: nowrap; }
+.emp-anos table { margin-bottom: var(--e-4); font-size: var(--t-rotulo); }
+.emp-anos th, .emp-anos td { height: 40px; padding: 0 0 0 var(--e-3); text-align: right; font-weight: 400; white-space: nowrap; border-bottom: 1px solid var(--fio); }
 .emp-anos th:first-child { padding-left: 0; text-align: left; }
-.emp-anos thead th { color: var(--text-2); font-size: var(--t-peq); }
-.emp-anos tbody tr { border-top: 1px solid var(--line); }
-.emp-parc { padding-bottom: 8px; color: var(--text-2); font-size: 14px; line-height: 1.5; }
-.emp-parc b { color: var(--text); }
+.emp-anos thead th { color: var(--tinta-3); font-size: var(--t-meta); border-bottom-color: var(--fio-forte); }
+.emp-parc { padding-bottom: var(--e-4); color: var(--tinta-2); font-size: var(--t-rotulo); line-height: var(--lh-rotulo); }
+.emp-parc b { color: var(--tinta); font-weight: 600; }
+.emp-ja-paguei { align-self: flex-start; padding: 0; }
 
-.emp-dados { scroll-margin-top: 72px; }
-
-.emp-como ul { display: flex; flex-direction: column; gap: 8px; padding: 0 0 4px 18px; color: var(--text-2); font-size: 14px; line-height: 1.45; list-style: disc; }
-.emp-como a { color: var(--text); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
-
-.emp-consolidar { scroll-margin-top: 72px; }
-.emp-consolidar-cab { display: flex; flex-direction: column; gap: 4px; }
-.emp-consolidar input[type="date"] { min-height: 60px; }
-.emp-consolidar > .btn { width: 100%; }
-
-.emp-feitos ul { display: flex; flex-direction: column; }
-.emp-feitos li a { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: var(--tap); border-top: 1px solid var(--line); font-size: 15px; }
-.emp-feitos li a:hover { background: var(--sel); }
-.emp-feitos li span { color: var(--text-2); }
-.emp-feitos .btn-link { display: inline-flex; align-items: center; min-height: var(--tap); }
+/* o que já foi pago e os dados do contrato: dobras numa coluna de texto */
+.emp-dobras { display: flex; flex-direction: column; max-width: 720px; }
+.emp-dobras > details.dobra { border-bottom: 1px solid var(--fio); }
+.emp-dobras > details.dobra:first-child { border-top: 1px solid var(--fio); }
+.emp-dobras > details.dobra > summary { font-weight: 400; }
+.emp-dobras > details[open] > :last-child { margin-bottom: var(--e-5); }
+.emp-dados, .emp-consolidar { scroll-margin-top: var(--e-6); }
+.emp-consolidar { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--e-4); }
+.emp-consolidar-cab { display: flex; flex-direction: column; gap: var(--e-1); }
+.emp-consolidar > .btn { justify-self: start; }
+.emp-como ul { display: flex; flex-direction: column; gap: var(--e-2); padding: 0 0 0 var(--e-5); color: var(--tinta-2); font-size: var(--t-rotulo); line-height: var(--lh-rotulo); list-style: disc; }
+.emp-como a { color: var(--azul); font-weight: 600; }
+.emp-feitos { margin: var(--e-6) 0 var(--e-5); }
+.emp-feitos .secao-cab h3 { font: 400 var(--t-titulo)/var(--lh-titulo) var(--f-num); letter-spacing: -.01em; }
+.emp-feitos li a { display: flex; align-items: center; justify-content: space-between; gap: var(--e-4); min-height: var(--linha); border-bottom: 1px solid var(--fio); }
+.emp-feitos li a:hover { background: var(--realce); }
+.emp-feitos li span { color: var(--tinta-2); }
 
 @media (min-width: 620px) {
-    .emp-form { grid-template-columns: minmax(0, 1fr) 150px; align-items: end; }
-    .emp-consolidar { grid-template-columns: minmax(0, 1fr) 170px; }
+    .emp-form { grid-template-columns: minmax(0, 1fr) 160px; align-items: end; }
+    .emp-consolidar { grid-template-columns: minmax(0, 1fr) 180px; align-items: end; }
     .emp-ajuda, .emp-acoes, .emp-inteira, .emp-consolidar-cab { grid-column: 1 / -1; }
+    .emp-fins { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
-@media (min-width: 1100px) {
-    .emp-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
+@media (min-width: 1024px) {
+    .emp-trilho { height: 32px; }
+    .emp-cols { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); column-gap: var(--e-8); align-items: start; }
 }

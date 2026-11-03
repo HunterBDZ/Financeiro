@@ -26,7 +26,7 @@ $acao = $novo ? '/wishlist' : '/wishlist/' . (int) $item['id'];
     <?= csrfField() ?>
     <input type="hidden" name="lido" value="" data-wl-lido>
     <input type="hidden" name="foto_base64" value="" data-wl-foto64>
-    <?php if (!empty($form['erro'])): ?><p class="aviso aviso-error" role="alert"><?= e((string) $form['erro']) ?></p><?php endif; ?>
+    <?php if (!empty($form['erro'])): ?><p class="aj-erro" role="alert"><?= e((string) $form['erro']) ?></p><?php endif; ?>
     <div class="campo">
         <label for="wl-url-<?= $novo ? 'n' : (int) $item['id'] ?>"><?= e(t('Link do produto')) ?></label>
         <input id="wl-url-<?= $novo ? 'n' : (int) $item['id'] ?>" name="url" type="text" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="<?= e(t('Cole aqui o link da loja')) ?>" value="<?= e($vUrl) ?>" data-wl-url aria-describedby="wl-url-st-<?= $novo ? 'n' : (int) $item['id'] ?>">
@@ -41,7 +41,7 @@ $acao = $novo ? '/wishlist' : '/wishlist/' . (int) $item['id'];
                     <?= svgIcon('gift', 28) ?>
                 <?php endif; ?>
             </div>
-            <label class="btn btn-ghost btn-sm wl-foto-btn">
+            <label class="btn btn-contorno btn-sm wl-foto-btn">
                 <input type="file" name="foto" accept="image/jpeg,image/png,image/webp" data-wl-arquivo>
                 <span><?= e(!$novo && $item['foto_hash'] !== null ? t('Trocar foto') : t('Escolher foto')) ?></span>
             </label>
@@ -69,5 +69,5 @@ $acao = $novo ? '/wishlist' : '/wishlist/' . (int) $item['id'];
             </div>
         </div>
     </div>
-    <button class="btn btn-primary wl-salvar" type="submit" data-wl-salvar><?= e($novo ? t('Adicionar à lista') : t('Salvar')) ?></button>
+    <button class="btn btn-principal wl-salvar" type="submit" data-wl-salvar><?= e($novo ? t('Adicionar à lista') : t('Salvar')) ?></button>
 </form>

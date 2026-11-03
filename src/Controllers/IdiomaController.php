@@ -13,7 +13,8 @@ final class IdiomaController
         csrfCheck();
         $pedido = (string) ($_POST['idioma'] ?? '');
         $id = Auth::id();
-        $volta = $id !== null ? '/ajustes?aberto=idioma#idioma' : '/login';
+        // as páginas de fora do app (privacidade, conexão, o começo) mandam para onde voltar; o padrão segue o de antes
+        $volta = voltaSegura(is_string($_POST['volta'] ?? null) ? $_POST['volta'] : '', $id !== null ? '/ajustes?aberto=idioma#idioma' : '/login');
         if (!Idioma::existe($pedido)) {
             redirecionar($volta, 303);
         }

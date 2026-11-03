@@ -1,5 +1,5 @@
 /* ==========================================================================
-   mes.css — Mês, Metas, Fechar mês, Anual e Ajustes. Prefixos .mes-*, .meta-*, .fe-*, .fu-*, .aj-*.
+   mes.css — Mês, Metas, Fechar mês e Anual. Prefixos .mes-*, .meta-*, .fe-*, .fu-*; .aj e .aj-titulo (Metas). Ajustes: temas-tela.css.
    Mesma linguagem do Início: cartões arredondados, o cartão escuro do saldo, linhas com nome à
    esquerda e valor à direita, situação em texto com ponto, barras finas, chaves no lugar de caixas.
    ========================================================================== */
@@ -438,154 +438,7 @@ details.mes-ed:target > summary { animation: mes-realce 1.6s ease-out 1; }   /* 
 .fu-det-mudou > span { color: var(--text-2); font-size: 12.5px; font-weight: 600; }
 .fu-det-lado > .fu-abrir { margin-left: -4px; }
 
-/* ---------------------------------------------------------------- 6. ajustes */
-
-.aj { width: 100%; max-width: 760px; }
-.aj-recursos-form { display: flex; flex-direction: column; gap: 6px; }
-.aj-marcar { display: flex; align-items: center; gap: 10px; min-height: 44px; font-weight: 600; }
-.aj-marcar input { flex: none; }
-.aj-marcar input[type=radio] { width: 20px; height: 20px; accent-color: var(--text); }
-.aj-grupo-modo { margin: 6px 0; padding: 0; border: 0; }
-.aj-grupo-modo legend { padding: 0; color: var(--text-2); font-size: 13px; font-weight: 650; }
-.aj-inicio { padding-bottom: 12px; margin-bottom: 12px; border-bottom: 1px solid var(--line); }
-.aj-icone-l { margin-top: 2px; }
-
-/* Ajustes: lista agrupada. Cada grupo tem um título curto e um cartão com linhas: ícone, nome, o estado atual à
-   direita e a seta (para baixo: abre ali; para a direita: outra tela). O que abre fica dentro da própria linha. */
-.ajs-cols, .ajs-col { display: flex; flex-direction: column; gap: 22px; min-width: 0; }
-.ajs-sec { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-.ajs-sec-t { margin: 0 6px; color: var(--text-2); font-size: 13px; font-weight: 750; line-height: 1.3; }
-.ajs-lista {
-    min-width: 0; background: var(--card); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--sombra);
-    overflow: hidden; --campo: var(--card-2);
-}
-.ajs-lista > * + * { border-top: 1px solid var(--line); }
-.ajs-linha {
-    display: flex; align-items: center; gap: 12px; min-height: 58px; padding: 8px 16px;
-    color: inherit; text-decoration: none; list-style: none; cursor: pointer; transition: background-color .12s ease-out;
-}
-div.ajs-linha { cursor: default; }
-.ajs-linha::-webkit-details-marker { display: none; }
-a.ajs-linha:hover, summary.ajs-linha:hover { background: var(--sel); }
-.ajs-linha:focus-visible { outline: 2px solid var(--foco); outline-offset: -3px; }
-.ajs-ic { flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: var(--card-2); color: var(--text); }
-/* o nome fica inteiro; o valor usa o resto e, se não couber, termina em reticências */
-.ajs-rot { flex: 0 1 auto; min-width: 0; font-weight: 650; line-height: 1.3; }
-.ajs-val { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-2); font-size: 14px; text-align: right; font-variant-numeric: tabular-nums; }
-.ajs-seta { flex: none; margin-left: auto; color: var(--text-3); }
-summary.ajs-linha::after {
-    content: ""; flex: none; width: 8px; height: 8px; margin: 0 4px 0 auto;
-    border-right: 2px solid var(--text-3); border-bottom: 2px solid var(--text-3);
-    transform: rotate(45deg) translateY(-3px); transition: transform .2s cubic-bezier(.16, 1, .3, 1);
-}
-.ajs-item[open] > summary.ajs-linha::after { transform: rotate(-135deg) translateY(-1px); }
-.ajs-corpo { display: flex; flex-direction: column; padding: 2px 16px 18px; min-width: 0; }
-.ajs-corpo .campo { padding: 6px 0; }
-.ajs-corpo > .aj-ajuda:first-child { margin-top: 4px; }
-
-/* categorias, dentro de Ajustes: criar, a lista que leva ao editar e as arquivadas */
-.aj-cat-nova { margin: 6px 0 4px; }
-.aj-cat-nova > summary { list-style: none; width: fit-content; }
-.aj-cat-nova > summary::-webkit-details-marker { display: none; }
-.aj-cat-nova[open] > summary { margin-bottom: 12px; }
-.aj-cats { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
-.aj-cats > li + li { border-top: 1px solid var(--line); }
-.aj-cat { display: flex; align-items: center; gap: 12px; min-height: 58px; margin: 0 -8px; padding: 6px 8px; border-radius: 12px; color: inherit; text-decoration: none; }
-.aj-cat:hover { background: var(--sel); }
-.aj-cat-txt { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
-.aj-cat-nome { font-weight: 650; overflow-wrap: anywhere; }
-.aj-cat-tipo { color: var(--text-2); font-size: 13px; }
-.aj-cat-arq { margin-top: 14px; border-top: 1px solid var(--line); }
-.aj-cat-arq > summary { display: flex; align-items: center; min-height: 48px; color: var(--text-2); font-weight: 700; cursor: pointer; }
-
-/* editar uma categoria (/categorias/{id}) */
-.cat-form { display: flex; flex-direction: column; gap: 14px; }
-.cat-sec {
-    display: flex; flex-direction: column; gap: 14px; padding: 16px; min-width: 0;
-    background: var(--card); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--sombra); --campo: var(--card-2);
-}
-.cat-opts { display: flex; flex-direction: column; gap: 6px; min-width: 0; margin: 0; padding: 0; border: 0; }
-.cat-opts legend { margin-bottom: 6px; padding: 0; color: var(--text-2); font-size: 13px; font-weight: 650; }
-.cat-dica { margin: -6px 0 0; color: var(--text-2); font-size: 13px; line-height: 1.45; }
-.cat-opts .cat-dica, .cat-opts .cat-erro { margin-top: 2px; }
-.cat-erro { margin: -6px 0 0; color: var(--neg); font-size: 13px; font-weight: 650; line-height: 1.45; }
-.cat-ic > summary { display: flex; align-items: center; gap: 14px; min-height: 64px; list-style: none; cursor: pointer; font-weight: 700; }
-.cat-ic > summary::-webkit-details-marker { display: none; }
-.cat-ic > summary > span { text-decoration: underline; text-underline-offset: 3px; }
-.cat-ic[open] > summary { margin-bottom: 12px; }
-.cat-dia input { max-width: 160px; }
-.cat-sec input[readonly] { color: var(--text-2); }
-.cat-form:has([name="tipo"][value="entrada"]:checked) .cat-so-gasto { display: none; }
-.cat-form:has([name="valor_tipo"][value="varia"]:checked) .cat-so-conta { display: none; }
-.cat-meta {
-    display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 10px 16px;
-    background: var(--card); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--sombra);
-    color: inherit; text-decoration: none;
-}
-.cat-meta:hover { border-color: var(--line-2); }
-.cat-meta > span { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; font-weight: 650; }
-.cat-meta small { color: var(--text-2); font-size: 13px; font-weight: 500; }
-.cat-meta > svg { flex: none; color: var(--text-3); }
-.cat-remover { display: flex; justify-content: center; margin: 0; }
-.cat-remover-btn { color: var(--neg); }
-.aj-icone-l { display: flex; align-items: center; gap: 14px; }
-.aj-icone-img { flex: none; width: 64px; height: 64px; border-radius: 14px; object-fit: contain; background: var(--card-2); }
-.aj-icone-form { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin: 10px 0 8px; }
-.aj-icone-form > .aj-ajuda { margin: 0; }
-.aj-icone-form > .aj-ajuda:empty { display: none; }
-.aj-arquivo { position: relative; overflow: hidden; cursor: pointer; }   /* o campo do navegador fica invisível, por cima do botão: abre do mesmo jeito */
-.aj-arquivo input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
-.aj-arquivo:focus-within { outline: 2px solid var(--foco); outline-offset: 2px; }
-.aj-quem { display: flex; flex-wrap: wrap; gap: 2px 8px; margin-bottom: 4px; }
-.aj-quem span { color: var(--text-2); }
-.aj-recursos-form:has([name="usa_emprestimo"]:not(:checked)) .aj-so-emp { display: none; }
-.aj-form { display: flex; flex-direction: column; }
-.aj-campo { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 60px; padding: 6px 0; }
-.aj-campo + .aj-campo, .aj-extra + .aj-campo { border-top: 1px solid var(--line); }
-.aj-campo > label { flex: 1 1 auto; min-width: 0; font-weight: 600; }
-.aj-input { position: relative; flex: none; width: 150px; }
-.aj-input > input { text-align: right; font-weight: 750; }
-.aj-input.tem-un > input { padding-right: 34px; }
-.aj-input.aj-input-mes { width: 200px; }
-.aj-un { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); color: var(--text-3); font-weight: 650; pointer-events: none; }
-.aj-ajuda { margin: 2px 0 8px; color: var(--text-2); font-size: 13px; line-height: 1.45; }
-.aj-extra { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 12px; padding-bottom: 8px; }
-.aj-check { display: inline-flex; flex-direction: row-reverse; align-items: center; gap: 12px; min-height: 44px; font-weight: 600; cursor: pointer; }
-.aj-taxa { color: var(--text-2); font-size: 13px; }
-.aj-link { color: var(--text); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
-.aj-form > .aviso { margin-top: 12px; }
-.aj-salvar { align-self: flex-start; min-width: 150px; margin-top: 14px; }
-.aj-contas { display: flex; flex-direction: column; margin-bottom: 14px; }
-.aj-contas > li { display: flex; align-items: center; gap: 12px; min-height: 52px; }
-.aj-contas > li + li { border-top: 1px solid var(--line); }
-.aj-conta-nome { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
-.aj-conta-dia { flex: none; color: var(--text-2); font-size: 13px; }
-.aj-contas form { margin: 0; flex: none; }
-.aj-x {
-    display: grid; place-items: center; width: var(--tap); height: var(--tap); margin-right: -8px; padding: 0; border-radius: 50%;
-    background: none; border: 0; color: var(--text-3); transition: color .15s ease-out, background-color .15s ease-out;
-}
-.aj-x:hover { color: var(--neg); background: var(--neg-bg); }
-.aj-nova { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 8px; }
-.aj-nova > select { grid-column: 1 / -1; }
-.aj-dia { position: relative; display: block; }
-.aj-dia > span { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-3); font-weight: 650; pointer-events: none; }
-.aj-dia > input { padding-left: 44px; text-align: right; }
-.aj-sair { align-self: flex-start; max-width: 100%; white-space: normal; text-align: left; line-height: 1.3; }
-.aj-estado { flex: none; margin-left: auto; padding: 3px 10px; border-radius: 999px; background: var(--card-2); color: var(--text-2); font-size: 12px; font-weight: 700; }
-.aj-estado.is-on { background: var(--pos-bg); color: var(--pos); }
-details.dobra > summary:has(.aj-estado)::after { margin-left: 0; }
-
-/* verificação em duas etapas: a chave para digitar e os códigos de recuperação */
-.de-chave { margin: 0; padding: 10px 12px; white-space: normal; border-radius: 10px; background: var(--card-2); font-size: 17px; font-weight: 700; letter-spacing: .06em; text-align: center; overflow-wrap: anywhere; }
-.de-codigo { font-size: 20px; font-weight: 700; letter-spacing: .2em; }
-.de-lista {
-    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 24px; margin: 0; padding: 14px 20px;
-    border-radius: 12px; background: var(--card-2); font-size: 16px; font-weight: 700; letter-spacing: .04em; white-space: normal;
-}
-.de-lista > li { white-space: nowrap; }      /* um código não quebra no traço */
-@media (max-width: 379px) { .de-lista { grid-template-columns: minmax(0, 1fr); } }
-.aj-form > input[hidden] { display: none; }    /* o login para o gerenciador de senhas; a regra dos campos não pode mostrá-lo */
+/* ---------------------------------------------------------------- 6. ajustes: em temas-tela.css (Ajustes e as subtelas) */
 
 /* ---------------------------------------------------------------- 7. computador */
 
@@ -602,10 +455,6 @@ details.dobra > summary:has(.aj-estado)::after { margin-left: 0; }
     .fu-det { grid-template-columns: minmax(0, 380px) minmax(0, 1fr); column-gap: 40px; align-items: start; }
     .fu-ese-l { grid-template-columns: 88px minmax(0, 170px) minmax(0, 150px) minmax(0, 1fr); grid-template-areas: "rot tipo valor mes"; }
     .fu-ese-mes { max-width: 300px; }
-    .aj-input { width: 180px; }
-    .aj-input.aj-input-mes { width: 220px; }
-    .aj-nova { grid-template-columns: minmax(0, 1fr) 112px auto; }
-    .aj-nova > select { grid-column: auto; }
     .meta-pg { max-width: 920px; }
     .meta-listas { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
     .meta-listas > .meta-contas-fixas { grid-column: 1 / -1; }
@@ -653,17 +502,11 @@ details.dobra > summary:has(.aj-estado)::after { margin-left: 0; }
     .fu-det-mudou { display: none; }
 }
 
-/* fechar mês e ajustes: duas colunas de cartões (os números ocupam a largura toda) */
+/* fechar mês: duas colunas de cartões (os números ocupam a largura toda) */
 @media (min-width: 1280px) {
     .fe { max-width: 1200px; }
     .fe-blocos { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
     .fe-blocos > .fe-bloco:first-child, .fe-blocos > .fe-bloco:last-child:nth-child(even) { grid-column: 1 / -1; }
-    .aj:not(.meta-pg):not(.ajs) { max-width: 1200px; display: block; column-count: 2; column-gap: 16px; }
-    .aj:not(.meta-pg):not(.ajs) > * { break-inside: avoid; margin-bottom: 16px; }
-    .aj:not(.meta-pg):not(.ajs) > .aj-titulo { column-span: all; margin-bottom: 18px; }
-    /* ajustes: os grupos em duas colunas, e cada coluna cresce sozinha quando uma linha abre */
-    .ajs { max-width: 1200px; }
-    .ajs-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; align-items: start; }
 }
 
 @media (min-width: 1600px) {
@@ -686,45 +529,6 @@ details.dobra > summary:has(.aj-estado)::after { margin-left: 0; }
 .fu-tabela > summary { display: inline-flex; align-items: center; list-style: none; margin-bottom: 10px; cursor: pointer; }
 .fu-tabela > summary::-webkit-details-marker { display: none; }
 
-/* backup, atualização e acesso pela rede */
-.sis-voltar { margin: 0 0 4px; font-size: 14px; }
-.sis-voltar a { text-decoration: underline; text-underline-offset: 3px; }
-.sis-grupo { display: flex; flex-direction: column; gap: 10px; }
-.sis-grupo p { margin: 0; }
-.sis-grupo .aj-salvar { margin-top: 4px; }
-.sis-comando { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--card-2); font-size: 13px; line-height: 1.6; overflow-x: auto; }
-.sis-pasta { overflow-wrap: anywhere; }
-.sis-grupo .aviso a { font-weight: 650; text-decoration: underline; text-underline-offset: 3px; }
-.sis-notas pre { margin: 8px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; font-size: 14px; }
-.sis-acao > summary, .sis-notas > summary { cursor: pointer; font-weight: 650; min-height: 32px; }
-.sis-acao[open] > summary { margin-bottom: 8px; }
-.sis-qr { width: min(260px, 100%); margin: 4px auto; }
-.sis-qr svg { display: block; width: 100%; height: auto; border-radius: 8px; }
-.sis-url { text-align: center; font-size: 18px; overflow-wrap: anywhere; }
-.sis-lista { margin: 0; padding-left: 20px; color: var(--text-2); font-size: 14px; }
-@media (min-width: 1000px) {
-    .aj.sis:not(.meta-pg) { display: flex; columns: auto; max-width: 760px; }
-    .aj.sis:not(.meta-pg) > .aj-titulo { margin-bottom: 0; }
-}
-
-/* Ajustes → Contas: onde o dinheiro está */
-.aj-cd { display: flex; flex-direction: column; margin-bottom: 12px; }
-.aj-cd > li + li { border-top: 1px solid var(--line); }
-.aj-cd-i > summary { display: flex; align-items: center; gap: 10px; min-height: 52px; list-style: none; cursor: pointer; }
-.aj-cd-i > summary::-webkit-details-marker { display: none; }
-.aj-cd-i[open] > summary { margin-bottom: 4px; }
-.aj-cd-ic { flex: none; width: 28px; font-size: 20px; text-align: center; }
-.aj-cd-nome { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 650; }
-.aj-cd-saldo { flex: none; color: var(--text-2); font-size: 14px; font-weight: 650; }
-.aj-cd-arq > li { display: flex; align-items: center; gap: 10px; min-height: 48px; color: var(--text-2); }
-.aj-cd-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 14px; }
-.aj-cd-acoes form { margin: 0; }
-.aj-cd-nova > summary { list-style: none; display: inline-flex; gap: 6px; }
-.aj-cd-nova > summary::-webkit-details-marker { display: none; }
-.aj-cd-nova[open] > summary { margin-bottom: 10px; }
-.aj-conta-tipo { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; border: 0; min-width: 0; }
-.aj-conta-tipo > legend { width: 100%; margin-bottom: 6px; padding: 0; color: var(--text-2); font-size: 13px; font-weight: 650; }
-.aj-conta-tipo .chip-r > span { flex-direction: row; gap: 6px; }
 .fe-bloco .conf-contas { margin: 10px 0 14px; }
 
 /* ---------------------------------------------------------------- 9. o Mês e o Fechar do redesenho */
