@@ -2137,6 +2137,25 @@ $vitPt = $vitrine('pt');
 $check('tela de entrar: a vitrine usa o formato de número do idioma', str_contains($vitEn, '2,398<span class="cent">.66</span>') && str_contains($vitEn, '1,646<span class="cent">.70</span>')
     && str_contains($vitEn, "\u{2212}2,350<span class=\"cent\">.00</span>") && !str_contains($vitEn, '2.398') && str_contains($vitPt, '2.398<span class="cent">,66</span>'));
 
+// ---- 18b4. categorias que o app usa nos cálculos não saem nem arquivam (A-12)
+$protegidasOk = true;
+foreach ([MotorFinanceiro::CAT_SALARIO, MotorFinanceiro::CAT_PARCELA, MotorFinanceiro::CAT_FATURA, MotorFinanceiro::CAT_GUARDAR, MotorFinanceiro::CAT_APLICAR] as $chaveP) {
+    $catP = CategoriaModel::porChave($chaveP);
+    $protegidasOk = $protegidasOk && $catP !== null && CategoriaModel::protegida($catP) && CategoriaModel::remover((int) $catP['id']) === 'protegida'
+        && (int) (CategoriaModel::find((int) $catP['id'])['ativo'] ?? 0) === 1;
+}
+$check('categorias do app: remover não apaga nem arquiva', $protegidasOk);
+$salP = CategoriaModel::porChave(MotorFinanceiro::CAT_SALARIO);
+$errosP = CategoriaModel::editar((int) $salP['id'], ['nome' => (string) $salP['nome'], 'apelido' => (string) ($salP['apelido'] ?? ''), 'icone' => '', 'tipo' => 'entrada',
+    'valor_tipo' => '', 'dia' => '', 'essencial' => false, 'ativo' => false]);
+$check('categorias do app: editar não arquiva', isset($errosP['ativo']) && (int) CategoriaModel::find((int) $salP['id'])['ativo'] === 1);
+$check('categorias do app: a comum continua saindo', !CategoriaModel::protegida(CategoriaModel::porNome('Mercado') ?? ['chave' => 'x']));
+ob_start();
+(new CategoriaController())->editarForm((string) $salP['id']);
+$htmlSal = (string) ob_get_clean();
+$check('categorias do app: a tela não oferece remover e diz o porquê', !str_contains($htmlSal, '/remover"') && str_contains($htmlSal, 'não pode ser removida nem arquivada')
+    && !str_contains($htmlSal, 'name="ativo" value="0"'));
+
 // ---- 18c. verificação em duas etapas: TOTP da RFC 6238, janela, reuso, recuperação, login, limite, desligar e o
 // comando que redefine a senha. Numa conta só do teste, com um instante fixo (o código não usa Relogio).
 $rfc = '12345678901234567890';      // a semente SHA1 dos vetores da RFC 6238, apêndice B

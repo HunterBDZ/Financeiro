@@ -2347,4 +2347,5 @@ return [
     'Revisar' => 'Review',
     'Outra pessoa mudou isto agora. Confira e salve de novo.' => 'Someone else just changed this. Check it and save again.',
     'A senha não pode ser só espaços.' => 'The password can\'t be only spaces.',
+    'O app usa esta categoria nos cálculos, então ela não pode ser removida nem arquivada.' => 'The app uses this category in its calculations, so it can\'t be removed or archived.',
 ];

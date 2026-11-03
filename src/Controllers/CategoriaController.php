@@ -100,6 +100,7 @@ final class CategoriaController
             'icone'      => Icones::daCategoria((int) $cat['id'], (string) $cat['nome'], (string) $cat['grupo']),
             'dia'        => $conta !== null && (int) $conta['ativo'] === 1 ? (int) $conta['dia_vencimento'] : null,
             'doApp'      => CategoriaModel::doApp($cat),
+            'protegida'  => CategoriaModel::protegida($cat),
             'historico'  => CategoriaModel::temHistorico((int) $cat['id']),
             'erros'      => $erro['erros'] ?? [],
             'valores'    => $erro['valores'] ?? null,
@@ -142,7 +143,7 @@ final class CategoriaController
         redirecionar('/categorias/' . (int) $id . ($volta !== '' ? '?volta=' . rawurlencode($volta) : ''), 301);
     }
 
-    /** POST /categorias/{id}/remover — arquiva (se tem histórico) ou apaga (se vazia). */
+    /** POST /categorias/{id}/remover — arquiva (se tem histórico) ou apaga (se vazia); a que o app usa fica. */
     public function remover(string $id): void
     {
         Auth::requireLogin();
@@ -156,6 +157,7 @@ final class CategoriaController
         match ($r) {
             'apagada'   => flash('success', t('{nome} apagada', ['nome' => $nome])),
             'arquivada' => flash('success', t('{nome} arquivada · fora das listas, histórico mantido', ['nome' => $nome])),
+            'protegida' => flash('error', t('O app usa esta categoria nos cálculos, então ela não pode ser removida nem arquivada.')),
             default     => flash('error', t('Categoria não encontrada.')),
         };
         redirecionar($volta, 303);
