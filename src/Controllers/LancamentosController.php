@@ -738,8 +738,20 @@ final class LancamentosController
     public static function sessaoRenovada(): never
     {
         $volta = voltaSegura(self::post('volta'), '/');
-        $_SESSION['lanc_antigo'] = self::antigoDe($_POST) + ['erro' => t('A sessão foi renovada. Confira os dados e lance de novo.')];
+        $_SESSION['lanc_antigo'] = self::antigoDe($_POST) + ['erro' => t('Sua sessão venceu. Confira e salve.')];
         redirecionar('/lancar?volta=' . rawurlencode($volta), 303);
+    }
+
+    /**
+     * POST /lancamentos sem sessão (ela venceu, ou os cookies foram apagados): Auth::requireLogin manda para a tela de
+     * entrar. O que foi digitado fica na sessão nova, e depois de entrar o Lançar volta preenchido, com o aviso.
+     * Nada é gravado: o token do formulário era da sessão que acabou.
+     */
+    public static function guardarSemSessao(): void
+    {
+        $volta = voltaSegura(self::post('volta'), '/');
+        $_SESSION['lanc_antigo'] = self::antigoDe($_POST) + ['erro' => t('Sua sessão venceu. Confira e salve.')];
+        $_SESSION['next'] = '/lancar?volta=' . rawurlencode($volta);
     }
 
     /** O que o usuário digitou, para a página voltar preenchida (erro ou duplicado). */

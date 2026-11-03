@@ -1,7 +1,7 @@
 // Lançar um gasto: no computador (o diálogo, também no Extrato) e no celular (o "+" da barra de baixo); as usadas
 // por último, o valor sugerido das contas fixas, o erro no campo, Conta e Cartão em abas e o aviso sem verde.
 // Cada teste usa valor e categoria só seus: lançamento igual no mesmo dia pede confirmação antes de entrar.
-import { test, expect, escolherCategoria, contaSemPagamento, token } from './fixtures.js';
+import { test, expect, escolherCategoria, contaSemPagamento, token, LOGIN, SENHA } from './fixtures.js';
 
 test.describe('no computador', () => {
     test('lança 45 no Extrato, vê o aviso e desfaz', async ({ page }) => {
@@ -230,6 +230,27 @@ test.describe('no computador', () => {
         const idNov = hrefNov.match(/^\/lancamentos\/(\d+)\//)[1];
         const ed = await page.request.post(`${baseURL}/lancamentos/${idNov}`, { form: { csrf_token: csrf, valor: '10', categoria_id: '10', data: '2026-10-20', volta: '/' } });
         expect(await ed.text()).toContain(fechado);
+    });
+
+    test('sessão vencida no Lançar: depois de entrar, o formulário volta preenchido (B-13)', async ({ page, context }) => {
+        await page.goto('/');
+        await page.keyboard.press('n');
+        const dialogo = page.getByRole('dialog', { name: 'lançar' });
+        await dialogo.getByRole('textbox', { name: 'valor' }).fill('77');
+        await escolherCategoria(dialogo, 'Mercado');
+        await dialogo.getByLabel('descrição', { exact: true }).fill('sessão vencida');
+        await context.clearCookies();                       // a sessão venceu
+        await dialogo.getByRole('button', { name: 'Lançar' }).click();
+        await expect(page).toHaveURL(/\/login/);
+        await page.getByLabel('Usuário').fill(LOGIN);
+        await page.getByLabel('Senha').fill(SENHA);
+        await page.getByRole('button', { name: 'Entrar' }).click();
+        await expect(page).toHaveURL(/\/lancar/);
+        const form = page.getByRole('main');
+        await expect(form.getByRole('alert').filter({ hasText: 'Sua sessão venceu. Confira e salve.' })).toBeVisible();
+        await expect(form.getByRole('textbox', { name: 'valor' })).toHaveValue('77,00');
+        await expect(form.getByLabel('descrição', { exact: true })).toHaveValue('sessão vencida');
+        await expect(form.getByRole('combobox', { name: 'Categoria' })).toHaveValue('Mercado');
     });
 
     test('o diálogo de lançar abre pelo menu e pela tecla n, e fecha', async ({ page }) => {

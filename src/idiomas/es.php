@@ -2378,4 +2378,5 @@ return [
     'em {mes}' => 'en {mes}',
     'Nada com “{q}” {onde}.' => 'Nada con “{q}” {onde}.',
     'Nada encontrado com esses filtros {onde}.' => 'No se encontró nada con estos filtros {onde}.',
+    'Sua sessão venceu. Confira e salve.' => 'Su sesión venció. Revise y guarde.',
 ];

@@ -497,6 +497,9 @@ final class Auth
         $expirou = isset($_COOKIE[session_name()]);
         if (in_array($_SERVER['REQUEST_METHOD'] ?? 'GET', ['GET', 'HEAD'], true)) {
             $_SESSION['next'] = $_SERVER['REQUEST_URI'] ?? '/';
+        } elseif (strtok((string) ($_SERVER['REQUEST_URI'] ?? ''), '?') === '/lancamentos') {
+            // o Lançar enviado com a sessão vencida: nada é gravado, e depois de entrar o formulário volta preenchido
+            \Financeiro\Controllers\LancamentosController::guardarSemSessao();
         }
         header('Location: /login' . ($expirou ? '?expirou=1' : ''), true, 302);
         exit;
