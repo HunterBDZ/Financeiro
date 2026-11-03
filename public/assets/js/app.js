@@ -331,7 +331,7 @@
         if (typeof form.requestSubmit === 'function') { form.requestSubmit(); } else { form.submit(); }
     });
 
-    // ---- Ajuda: o "?" abre a resposta; a busca esconde o que não tem as palavras
+    // ---- Ajuda: o "?" abre a resposta; a busca esconde o que não tem as palavras, também no índice
     (function () {
         var alvo = location.hash.length > 1 ? document.getElementById(location.hash.slice(1)) : null;
         if (alvo && alvo.matches('[data-ajuda-item]')) { alvo.open = true; alvo.scrollIntoView({ block: 'center' }); }
@@ -349,6 +349,13 @@
                 g.hidden = !noGrupo; algum = algum || noGrupo;
             });
             document.querySelector('[data-ajuda-vazio]').hidden = algum;
+            // o índice "Nesta página" mostra só o que sobrou: cada link some junto com a resposta (ou o grupo) dele
+            document.querySelectorAll('.ajuda-indice a[href^="#"]').forEach(function (a) {
+                var alvo = document.getElementById(a.getAttribute('href').slice(1));
+                var item = a.parentElement;
+                item.hidden = !!alvo && alvo.hidden;
+                if (item.matches('.ajuda-indice-g') && item.nextElementSibling) { item.nextElementSibling.hidden = item.hidden; }
+            });
         });
     })();
 

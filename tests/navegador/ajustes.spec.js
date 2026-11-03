@@ -164,3 +164,23 @@ test('errar a senha atual 5 vezes bloqueia só a troca, com aviso, e a sessão c
         await ctx.close();
     }
 });
+
+test('Ajuda: com a busca, o índice "Nesta página" mostra só o que sobrou (A-14)', async ({ page }) => {
+    await page.goto('/ajuda');
+    const indice = page.getByRole('navigation', { name: 'Nesta página' });
+    await expect(indice).toBeVisible();
+    const total = await indice.getByRole('link').count();
+    await page.getByPlaceholder('Buscar na ajuda').fill('senha');
+    const visiveis = indice.getByRole('link');
+    const n = await visiveis.count();
+    expect(n).toBeGreaterThan(0);
+    expect(n).toBeLessThan(total);
+    // cada link que ficou leva a uma resposta à vista
+    for (const href of await visiveis.evaluateAll((l) => l.map((a) => a.getAttribute('href')))) {
+        await expect(page.locator(href)).toBeVisible();
+    }
+    await visiveis.last().click();
+    await expect(page.locator(await visiveis.last().getAttribute('href'))).toBeInViewport();
+    await page.getByPlaceholder('Buscar na ajuda').fill('');
+    await expect(indice.getByRole('link')).toHaveCount(total);
+});
