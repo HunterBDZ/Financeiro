@@ -832,9 +832,12 @@ $emTransacao('cartão alimentando o plano', static function () use ($pdo, $check
     $htmlMesC = $sit($mesSeg) === 'PREVISAO' ? $render(MesController::class, 'index', ['mes' => $mesSeg]) : 'mes-do-cartao';
     $check('cartão: no Mês, a Fatura do cartão vem do cartão (só leitura, leva à fatura)', str_contains($htmlMesC, 'mes-do-cartao'));
     $htmlCt = $render(CartaoController::class, 'index', []);
-    $check('cartão: a aba mostra o cartão, a escada, a fatura e o parcelamento', str_contains($htmlCt, 'class="ct-plastico"')
-        && str_contains($htmlCt, 'class="ct-escada"') && str_contains($htmlCt, 'TV teste') && str_contains($htmlCt, 'class="ct-parc"')
-        && !str_contains($htmlCt, 'ct-conf-tab'));
+    $check('cartão: a aba mostra o cartão, as próximas faturas, a fatura e o parcelamento', str_contains($htmlCt, 'class="ct-plastico"')
+        && str_contains($htmlCt, 'class="ct-barras"') && str_contains($htmlCt, 'TV teste') && str_contains($htmlCt, 'aria-labelledby="ct-parc-t"')
+        && substr_count($htmlCt, 'class="ct-tab"') >= 2 && !str_contains($htmlCt, 'ct-conf-tab'));
+    // o redesenho: o cartão liso (sem chip, sem pílula de situação) e a situação em frase, sem "A · B · C"
+    $check('cartão: o desenho é liso e a situação vem em frase, sem "·"', !str_contains($htmlCt, 'ct-chip') && !str_contains($htmlCt, 'ct-status')
+        && preg_match('#class="ct-aberta-sit">[^<]*·#u', $htmlCt) === 0 && preg_match('#class="ct-fat-sit">[^<]*·#u', $htmlCt) === 0);
     $antigas = Sql::tabelaExiste($pdo, 'cartao_compras_v1')
         ? (int) $pdo->query('SELECT COUNT(*) FROM cartao_compras_v1 v WHERE NOT EXISTS (SELECT 1 FROM cartao_compras n
                              WHERE n.descricao = v.descricao AND n.criado_em = v.criado_em)')->fetchColumn() : 0;   // as que ainda não vieram
@@ -3146,7 +3149,7 @@ if (Sql::sqlite()) {
         && str_contains($h1Ini, 'name="saldo_informado"') && !str_contains($h1Ext, 'name="conta"') && !str_contains($h1Ext, 'ex-transf')
         && str_contains($h1Ext, 'Mais filtros: valor e quem lançou') && str_contains($h1Fe, 'name="saldo"') && !str_contains($h1Fe, 'saldo_conta['));
     $check('uma conta: Ajustes tem Contas e o saldo do início continua no ponto de partida', str_contains($h1Aj, 'id="carteira"') && str_contains($h1Aj, 'valores[saldo_ini]'));
-    $check('um cartão: sem seletor de cartões; "Novo cartão" fica no menu', !str_contains($h1Ct, 'class="ct-cartoes"') && str_contains($h1Ct, 'class="menu-item" href="/cartao?novo=1"'));
+    $check('um cartão: sem seletor de cartões; "Novo cartão" fica no menu', !str_contains($h1Ct, 'ct-cartoes"') && str_contains($h1Ct, 'class="menu-item" href="/cartao?novo=1"'));
 
     // ---- várias contas: o saldo inicial do plano, transferências que não mudam o plano, o saldo de cada conta e as telas
     $emTransacao('contas e transferências', static function () use ($pdo, $check, $render, $hoje, $mesHoje, $uid, $catGasto): void {
@@ -3250,9 +3253,9 @@ if (Sql::sqlite()) {
         $check('estorno: abate da fatura', abs((CartaoFatura::totais(CartaoModel::compras($c2))[$f2] ?? 0.0) - (($tot2[$f2] ?? 0.0) - 50.0)) < 0.001);
         LancarForm::limparCache();
         $hCt = $render(CartaoController::class, 'index', ['cartao' => (string) $c2]);
-        $check('vários cartões: a aba tem o seletor, mostra o cartão escolhido e "Novo cartão"', str_contains($hCt, 'class="ct-cartoes"')
-            && str_contains($hCt, 'href="/cartao?cartao=' . $c2 . '" aria-current="page"') && str_contains($hCt, 'Cartão dois · fecha dia 10 · vence dia 20')
-            && str_contains($hCt, 'class="chip ct-novo" href="/cartao?novo=1"'));
+        $check('vários cartões: a aba tem o seletor, mostra o cartão escolhido e "Novo cartão"', str_contains($hCt, 'class="faixa-grade ct-cartoes"')
+            && str_contains($hCt, 'href="/cartao?cartao=' . $c2 . '" aria-current="page"') && str_contains($hCt, 'Cartão dois: fecha dia 10, vence dia 20')
+            && substr_count($hCt, 'fecha dia 10') === 1 && str_contains($hCt, 'class="btn-link ct-novo" href="/cartao?novo=1"'));
         $hLc = $render(LancamentosController::class, 'lancarForm', ['pagou' => 'cartao:' . $c2]);
         $check('vários cartões: no lançar, um botão para cada cartão, já no escolhido', str_contains($hLc, 'value="cartao:' . $c2 . '" checked')
             && str_contains($hLc, 'value="cartao:' . $c1['id'] . '"') && str_contains($hLc, '&quot;cartoes&quot;'));
@@ -3504,7 +3507,7 @@ $emTransacao('categoria fixa e ordem do cartão', static function () use ($pdo, 
     $check('categoria: fixa vira conta (Fixos), a que varia fica no dia a dia', $grupoDe($idF) === 'Fixos' && $grupoDe($idV) === 'Dia a dia');
     $html = $render(CartaoController::class, 'index', ['ordem' => 'alfa']);
     if (preg_match('#<div class="ct-fat" id="[^"]*">(.*?)</div>\s*(?:<div class="ct-fat"|</section>)#s', $html, $mF) === 1) {
-        preg_match_all('#<span class="ct-linha-n"><b>([^<]+)</b>#', $mF[1], $nm);
+        preg_match_all('#<span class="ct-nome-txt"><a [^>]*>([^<]+)</a>#', $mF[1], $nm);
         $nomes = array_map(static fn(string $n): string => mb_strtolower(html_entity_decode($n)), $nm[1]);
         $ord = $nomes;
         sort($ord, SORT_LOCALE_STRING);

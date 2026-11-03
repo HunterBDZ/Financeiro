@@ -1,4 +1,4 @@
-// Cartão: a escada das faturas escolhe a fatura mostrada (sem JS, cada degrau é um link ?fatura=);
+// Cartão: as barras das próximas faturas escolhem a fatura mostrada (sem JS, cada barra é um link ?fatura=);
 // no "+", "Pagou com: Cartão" mostra a prévia de em que fatura a compra cai e quais sobem.
 // Arquivo externo (CSP script-src 'self'); não faz nada nas páginas sem esses elementos.
 (function () {
@@ -20,14 +20,9 @@
         return mesStr(a, m);
     }
 
-    /* ---- a escada escolhe a fatura */
-    var degraus = document.querySelectorAll('.ct-cima .ct-degrau[data-fatura]');
+    /* ---- as próximas faturas: cada barra escolhe a fatura mostrada embaixo */
+    var degraus = document.querySelectorAll('.ct-barra[data-fatura]');
     var leg = document.querySelector('[data-escada-leg]');
-    // a escada rola para o lado: abre com a fatura escolhida à vista
-    var escolhido = document.querySelector('.ct-cima .ct-degrau[aria-current="true"]');
-    if (escolhido && escolhido.parentNode.scrollWidth > escolhido.parentNode.clientWidth) {
-        escolhido.parentNode.scrollLeft = escolhido.offsetLeft - escolhido.parentNode.offsetLeft - 44;
-    }
     for (var i = 0; i < degraus.length; i++) {
         degraus[i].addEventListener('click', function (ev) {
             if (ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.button !== 0) { return; }
@@ -37,12 +32,23 @@
             d.setAttribute('aria-current', 'true');
             var fs = document.querySelectorAll('.ct-fat');
             for (var k = 0; k < fs.length; k++) { fs[k].hidden = fs[k].id !== d.getAttribute('data-fatura'); }
-            if (leg) { leg.innerHTML = ''; leg.appendChild(document.createTextNode(d.getAttribute('data-rot') + ' · '));
-                var b = document.createElement('b'); b.className = 'num'; b.textContent = d.getAttribute('data-v'); leg.appendChild(b); }
+            if (leg) { leg.innerHTML = ''; leg.appendChild(document.createTextNode(d.getAttribute('data-rot') + ': '));
+                var b = document.createElement('b'); b.textContent = d.getAttribute('data-v'); leg.appendChild(b); }
             if (window.history && history.replaceState) {
                 var u = new URL(d.href, location.href);
                 history.replaceState(null, '', u.pathname + u.search);
             }
+        });
+    }
+
+    /* ---- "Configurar o cartão" (no ⋯) abre o configurar, lá embaixo */
+    var cfgLink = document.querySelector('[data-ct-configurar]');
+    var cfgDet = document.querySelector('details.ct-config');
+    if (cfgLink && cfgDet) {
+        cfgLink.addEventListener('click', function () {
+            cfgDet.open = true;
+            var menu = cfgLink.closest('details');
+            if (menu) { menu.open = false; }
         });
     }
 
@@ -134,7 +140,7 @@
     var vis = document.querySelector('[data-ct-vis]');
     var plastico = document.querySelector('[data-ct-plastico]');
     if (vis) {
-        var VARS = ['--ct-a', '--ct-b', '--ct-txt', '--ct-txt-2', '--ct-pill'];
+        var VARS = ['--ct-a', '--ct-b', '--ct-txt', '--ct-txt-2', '--ct-pill'];   // a cor lisa é a --ct-a
         var miniPropria = vis.querySelector('[data-ct-vis-propria]');
         var cor = vis.querySelector('input[name="visual_cor"]');
         var pintar = function (el, valor, c) {

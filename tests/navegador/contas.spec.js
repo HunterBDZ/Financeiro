@@ -80,7 +80,7 @@ test('transfere para uma conta nova e paga a fatura escolhendo o cartão', async
     await page.getByRole('navigation', { name: 'cartões' }).getByRole('link', { name: 'Cartão dois' }).click();
     await expect(page.locator('[data-ct-plastico]')).toHaveAttribute('data-visual', 'verde');
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Cartão');
-    await expect(page.getByText('Cartão dois · fecha dia 10 · vence dia 20')).toBeVisible();
+    await expect(page.getByText('Cartão dois: fecha dia 10, vence dia 20')).toBeVisible();
     await page.getByRole('link', { name: /Fatura de nov\/26/ }).click();
     const fatura = page.locator('#f-2026-11');
     await expect(fatura).toBeVisible();

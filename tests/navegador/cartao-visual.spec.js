@@ -1,4 +1,4 @@
-// O visual do cartão: o estilo escolhido aparece no cartão desenhado antes de salvar, fica depois de salvar, e a aba
+// O visual do cartão: o cartão desenhado é liso (sem chip, sem reflexo, sem pílula); o estilo escolhido aparece nele antes de salvar, fica depois de salvar, e a aba
 // Cartão passa no axe com ele, nos temas Claro e Escuro. No fim, o cartão volta ao Padrão (o banco é do processo).
 import AxeBuilder from '@axe-core/playwright';
 import { test, expect, escolherTema } from './fixtures.js';
@@ -51,8 +51,10 @@ test('o estilo escolhido aparece no cartão antes e depois de salvar', async ({ 
     await expect(cartao).toHaveAttribute('data-visual', 'grafite-dourado');
     await salvar(page, form);
     await expect(cartao).toHaveAttribute('data-visual', 'grafite-dourado');
-    // o desenho é de verdade outro: a cor do texto do valor é a dourada do estilo
-    await expect(cartao.locator('.ct-plastico-v')).toHaveCSS('color', 'rgb(240, 209, 138)');
+    // o desenho é de verdade outro: a cor do nome é a dourada do estilo, sobre a cor lisa, sem degradê nem reflexo
+    await expect(cartao.locator('.ct-plastico-nome')).toHaveCSS('color', 'rgb(240, 209, 138)');
+    await expect(cartao).toHaveCSS('background-image', 'none');
+    await expect(cartao).toHaveCSS('background-color', 'rgb(58, 60, 65)');
 
     // cor própria: a cor escolhida vai para o cartão, com texto legível
     await page.locator('.ct-config > summary').click();
@@ -61,6 +63,28 @@ test('o estilo escolhido aparece no cartão antes e depois de salvar', async ({ 
     await expect(cartao).toHaveAttribute('data-visual', 'propria');
     await salvar(page, form);
     await expect(cartao).toHaveAttribute('style', /--ct-a:#ffd400;.*--ct-txt:#000000/);
+});
+
+test('o cabeçalho diz nome, fechamento, vencimento e limite uma vez; as próximas faturas cabem na largura', async ({ page }) => {
+    await page.goto('/cartao');
+    await expect(page.locator('.topo-sub')).toHaveText('Cartão Exemplo: fecha dia 25, vence dia 5, limite de 12.000,00');
+    await expect(page.getByText(/fecha dia 25/)).toHaveCount(1);
+    await expect(page.locator('.ct-plastico .ct-chip, .ct-status')).toHaveCount(0);
+    // o gráfico não rola nem corta: a última barra e o último rótulo ficam dentro da caixa
+    const graf = page.locator('.ct-barras');
+    expect(await graf.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+    const caixa = await graf.boundingBox();
+    const ultimo = await page.locator('.ct-barra').last().boundingBox();
+    expect(ultimo.x + ultimo.width).toBeLessThanOrEqual(caixa.x + caixa.width + 1);
+    // o fato em tinta cheia, as faturas que ainda vão cair tracejadas
+    await expect(page.locator('.ct-barra.is-prevista .ct-barra-b > i').first()).toHaveCSS('border-top-style', 'dashed');
+    // a fatura e os parcelamentos são tabelas
+    await expect(page.getByRole('table', { name: /Compras da fatura de dez\/26/ })).toBeVisible();
+    await expect(page.getByRole('table', { name: 'Parcelamentos' }).getByRole('columnheader')).toHaveText(['Compra', 'Parcela', 'Por mês', 'Última']);
+    // a barra escolhe a fatura mostrada
+    await page.getByRole('link', { name: /Fatura de jan\/27/ }).click();
+    await expect(page.locator('#f-2027-01')).toBeVisible();
+    await expect(page.locator('[data-escada-leg]')).toContainText('jan/27');
 });
 
 test.describe('no celular', () => {

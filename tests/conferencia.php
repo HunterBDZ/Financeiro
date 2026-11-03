@@ -194,7 +194,7 @@ function conferencia(callable $check): void
         ['/futuro',        FuturoController::class,        'index',      [],                  'fu-meses'],
         ['/ajustes',       AjustesController::class,       'index',      [],                  'aj-titulo'],
         ['/investimentos', InvestimentosController::class, 'index',      [],                  'inv-total'],
-        ['/cartao',        CartaoController::class,        'index',      [],                  'ct-topo'],
+        ['/cartao',        CartaoController::class,        'index',      [],                  'ct-momento'],
         ['/emprestimo',    EmprestimoController::class,    'index',      [],                  'emp-topo'],
         ['/wishlist',      WishlistController::class,      'index',      [],                  'wl-topo'],
         ['/relatorio',     RelatorioController::class,     'index',      [],                  'rl-topo'],
