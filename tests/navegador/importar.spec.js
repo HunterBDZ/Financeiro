@@ -75,3 +75,20 @@ test('importa um CSV, revisa, lança todos e desfaz', async ({ page, context }) 
     await expect(page.locator('main')).not.toContainText('PADARIA DA ESQUINA');
     expect(srv.logDoApp(), 'avisos ou erros do PHP').toBe('');
 });
+
+test('o valor fora do padrão da coluna vem desmarcado, com "Confira o valor"', async ({ page, context }) => {
+    await entrar(context.request, srv.url);
+    await page.goto(srv.url + '/importar');
+    const misto = 'Data;Descricao;Valor\n10/11/2026;Primeira;1.234,56\n11/11/2026;Segunda;1234.56\n12/11/2026;Terceira;-45,9\n';
+    await page.locator('input[name="arquivo"]').setInputFiles({ name: 'misto.csv', mimeType: 'text/csv', buffer: Buffer.from(misto, 'utf8') });
+    await page.getByRole('button', { name: 'Continuar' }).click();
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Ligar as colunas');
+    await page.getByRole('button', { name: 'Continuar' }).click();
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Revisar importação');
+    const segunda = page.locator('tr.imp-l').filter({ hasText: 'Segunda' });
+    await expect(segunda).toContainText('Confira o valor');
+    await expect(segunda.getByRole('checkbox')).not.toBeChecked();
+    await expect(page.locator('tr.imp-l').filter({ hasText: 'Primeira' }).getByRole('checkbox')).toBeChecked();
+    await page.getByRole('button', { name: 'Cancelar' }).click();
+    expect(srv.logDoApp(), 'avisos ou erros do PHP').toBe('');
+});

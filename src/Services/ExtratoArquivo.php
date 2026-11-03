@@ -12,7 +12,8 @@ namespace Financeiro\Services;
  * Windows-1252. Um OFX que diz 1252 mas é UTF-8 válido com acentos é lido como UTF-8, que é o que ele é.
  *
  * Uma linha lida: ['data' => AAAA-MM-DD, 'valor' => float com sinal (− saiu, + entrou), 'descricao' => string,
- * 'fitid' => string ('' sem), 'categoria' => string (só do CSV com coluna de categoria)].
+ * 'fitid' => string ('' sem), 'categoria' => string (só do CSV com coluna de categoria)]; no CSV, 'duvida' => true
+ * quando o valor foge do padrão da coluna (noPadrao()), e a revisão traz a linha desmarcada.
  */
 final class ExtratoArquivo
 {
@@ -25,7 +26,7 @@ final class ExtratoArquivo
 
     /**
      * O arquivo inteiro: formato e conteúdo.
-     * @return array{formato:'ofx', linhas:list<array>}|array{formato:'csv', sep:string, linhas:list<list<string>>}
+     * @return array{formato:'ofx', linhas:list<array>, ignoradas:int}|array{formato:'csv', sep:string, linhas:list<list<string>>}
      */
     public static function ler(string $bruto): array
     {
@@ -46,7 +47,7 @@ final class ExtratoArquivo
             throw new \InvalidArgumentException(t('Esse arquivo tem partes que o app não lê, por segurança.'));
         }
         if (preg_match('/OFXHEADER|<OFX>/i', substr($texto, 0, 4000))) {
-            return ['formato' => 'ofx', 'linhas' => self::ofx($texto)];
+            return ['formato' => 'ofx'] + self::ofx($texto);
         }
         [$sep, $linhas] = self::csv($texto);
         return ['formato' => 'csv', 'sep' => $sep, 'linhas' => $linhas];
@@ -101,7 +102,8 @@ final class ExtratoArquivo
 
     /**
      * Os STMTTRN do OFX: DTPOSTED, TRNAMT, FITID, NAME e MEMO. Serve ao SGML (folhas sem fechar) e ao XML.
-     * @return list<array{data:string, valor:float, descricao:string, fitid:string, categoria:string}>
+     * Lançamento sem data ou sem valor legível fica de fora e é contado, como no CSV.
+     * @return array{linhas:list<array{data:string, valor:float, descricao:string, fitid:string, categoria:string}>, ignoradas:int}
      */
     public static function ofx(string $texto): array
     {
@@ -112,6 +114,7 @@ final class ExtratoArquivo
             throw new \InvalidArgumentException(t('O arquivo tem mais de {n} lançamentos. Baixe um período menor.', ['n' => num(self::MAX_LINHAS, 0)]));
         }
         $out = [];
+        $ignoradas = 0;
         foreach ($blocos[1] as $b) {
             $campo = static function (string $tag) use ($b): string {
                 return preg_match('/<' . $tag . '>([^<]*)/i', $b, $m) ? self::entidades(trim($m[1])) : '';
@@ -120,6 +123,7 @@ final class ExtratoArquivo
             $data = preg_match('/^(\d{4})(\d{2})(\d{2})/', $dt, $m) && checkdate((int) $m[2], (int) $m[3], (int) $m[1]) ? "{$m[1]}-{$m[2]}-{$m[3]}" : null;
             $valor = self::numero($campo('TRNAMT'), null);
             if ($data === null || $valor === null) {
+                $ignoradas++;
                 continue;
             }
             $out[] = ['data' => $data, 'valor' => $valor, 'descricao' => self::juntarNomeMemo($campo('NAME'), $campo('MEMO')),
@@ -128,7 +132,7 @@ final class ExtratoArquivo
         if ($out === []) {
             throw new \InvalidArgumentException(t('Esse OFX não tem nenhum lançamento.'));
         }
-        return $out;
+        return ['linhas' => $out, 'ignoradas' => $ignoradas];
     }
 
     /** NAME costuma vir cortado, e MEMO completo: fica o que contém o outro, ou os dois. */
@@ -298,6 +302,21 @@ final class ExtratoArquivo
     }
 
     /**
+     * O valor segue o padrão da coluna: o separador de milhar (o que não é o decimal) só em grupos de 3 dígitos, e no
+     * máximo 2 casas depois do decimal. "1234.56" numa coluna de vírgula decimal, "1,234" (milhar ou decimal?) e
+     * "1,234.56" ali fogem do padrão: o app não adivinha, e a linha vem desmarcada com "Confira o valor".
+     */
+    public static function noPadrao(string $s, string $decimal): bool
+    {
+        if (!preg_match('/\d[\d.,]*/', str_replace(["\u{A0}", "\u{202F}", ' '], '', $s), $m)) {
+            return true;                             // sem número: numero() é que recusa
+        }
+        $d = preg_quote($decimal, '/');
+        $mil = preg_quote($decimal === ',' ? '.' : ',', '/');
+        return (bool) preg_match('/^(\d{1,3}(' . $mil . '\d{3})+|\d+)(' . $d . '\d{1,2})?$/D', rtrim($m[0], '.,'));
+    }
+
+    /**
      * Uma data: dd/mm/aaaa, dd/mm/aa, dd-mm-aaaa, dd.mm.aaaa, aaaa-mm-dd, aaaa/mm/dd ou aaaammdd, com ou sem hora.
      * $ordem 'mdy' lê 03/10/2026 como 10 de março. null quando não é data.
      */
@@ -429,7 +448,8 @@ final class ExtratoArquivo
     }
 
     /**
-     * As linhas do CSV com o mapa de colunas. Linha sem data ou sem valor legível fica de fora e é contada.
+     * As linhas do CSV com o mapa de colunas. Linha sem data ou sem valor legível fica de fora e é contada; valor fora
+     * do padrão da coluna (noPadrao()) entra com 'duvida'.
      * @param array{data:int, descricao:int, valor:int, debito:int, credito:int, categoria:int, cabecalho:bool} $mapa
      * @return array{linhas:list<array{data:string, valor:float, descricao:string, fitid:string, categoria:string}>, ignoradas:int}
      */
@@ -450,6 +470,10 @@ final class ExtratoArquivo
         $ignoradas = 0;
         foreach ($dados as $r) {
             $data = self::data((string) ($r[$mapa['data']] ?? ''), $ordem);
+            $duvida = false;
+            foreach ($colunasValor as $c) {
+                $duvida = $duvida || ($c >= 0 && !self::noPadrao((string) ($r[$c] ?? ''), $dec));
+            }
             if ($duas) {
                 $deb = $mapa['debito'] >= 0 ? self::numero((string) ($r[$mapa['debito']] ?? ''), $dec) : null;
                 $cred = $mapa['credito'] >= 0 ? self::numero((string) ($r[$mapa['credito']] ?? ''), $dec) : null;
@@ -462,7 +486,7 @@ final class ExtratoArquivo
                 continue;
             }
             $out[] = ['data' => $data, 'valor' => $valor, 'descricao' => self::limpar((string) ($r[$mapa['descricao']] ?? '')), 'fitid' => '',
-                      'categoria' => $mapa['categoria'] >= 0 ? self::limpar((string) ($r[$mapa['categoria']] ?? '')) : ''];
+                      'categoria' => $mapa['categoria'] >= 0 ? self::limpar((string) ($r[$mapa['categoria']] ?? '')) : ''] + ($duvida ? ['duvida' => true] : []);
         }
         return ['linhas' => $out, 'ignoradas' => $ignoradas];
     }

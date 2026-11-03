@@ -3742,6 +3742,17 @@ $emTransacao('C-04 relatório com dois cartões', static function () use ($check
         && abs($f['soma'] + $f['semDetalhe'] - $f['aMais'] - $f['pago']) < 0.005, json_encode([$f, $semDet, $doPrimeiro]));
 });
 
+// C-05: valor fora do padrão da coluna não é adivinhado: a linha vem desmarcada, com "Confira o valor"
+$lidoM = \Financeiro\Services\ExtratoArquivo::ler("Data;Descricao;Valor\n10/11/2026;A;1.234,56\n11/11/2026;B;1234.56\n12/11/2026;C;-45,9\n");
+$apM = \Financeiro\Services\ExtratoArquivo::aplicarMapa($lidoM['linhas'], \Financeiro\Services\ExtratoArquivo::mapaSugerido($lidoM['linhas']), $lidoM['sep']);
+$revM = \Financeiro\Services\Importacao::revisao($apM['linhas'], ['tipo' => 'conta', 'id' => ContaModel::PRINCIPAL], 'csv');
+$noPadrao = static fn(string $v, string $d): bool => \Financeiro\Services\ExtratoArquivo::noPadrao($v, $d);
+$check('C-05 importar: "1234.56" numa coluna de vírgula decimal vem desmarcado, para conferir',
+    array_column($revM, 'duvida') === [false, true, false] && array_column($revM, 'marcada') === [true, false, true]
+    && $noPadrao('1.234,56', ',') && $noPadrao('-45,9', ',') && $noPadrao('R$ 7,50', ',') && $noPadrao('(12,00)', ',') && $noPadrao('1234', ',') && $noPadrao('1.234.567,89', ',')
+    && !$noPadrao('1234.56', ',') && !$noPadrao('1,234', ',') && !$noPadrao('1,234.56', ',') && !$noPadrao('12,345', ',')
+    && $noPadrao('1,234.56', '.') && $noPadrao('-4.5', '.') && !$noPadrao('1.234,56', '.'), json_encode(array_map(static fn($r) => [$r['valor'], $r['duvida'], $r['marcada']], $revM)));
+
 // C-07: no lançar, só as categorias que o servidor aceita numa compra no cartão vêm marcadas para o cartão
 LancarForm::limparCache();
 $okC07 = true;
@@ -3756,6 +3767,31 @@ $htmlC07 = $render(LancamentosController::class, 'lancarForm', ['pagou' => 'cart
 $check('C-07 cartão: a lista e os atalhos do lançar marcam as categorias de compra no cartão com a mesma regra do servidor', $okC07
     && preg_match('#<option value="' . (int) CartaoModel::categoriaFatura() . '"(?![^>]*data-lf-cartao)[^>]*>#', $htmlC07) === 1
     && preg_match('#<option value="' . $catGasto . '"[^>]*data-lf-cartao#', $htmlC07) === 1 && str_contains($htmlC07, 'data-value="' . $catGasto . '" data-lf-cartao'));
+
+// C-12: OFX com lançamentos ilegíveis avisa quantos ficaram de fora
+$ofxRuim = "OFXHEADER:100\n<OFX><BANKTRANLIST>"
+    . "<STMTTRN><DTPOSTED>20261110<TRNAMT>-10.00<FITID>1<NAME>BOM</STMTTRN>"
+    . "<STMTTRN><DTPOSTED>20261131<TRNAMT>-11.00<FITID>2<NAME>DATA RUIM</STMTTRN>"
+    . "<STMTTRN><DTPOSTED>20261112<TRNAMT>abc<FITID>3<NAME>VALOR RUIM</STMTTRN></BANKTRANLIST></OFX>";
+$lidoO = \Financeiro\Services\ExtratoArquivo::ler($ofxRuim);
+$okO = \Financeiro\Controllers\ImportacaoController::lerArquivo($ofxRuim, 'ruim.ofx', ['tipo' => 'conta', 'id' => ContaModel::PRINCIPAL]) === null
+    && ($_SESSION['importar']['ignoradas'] ?? null) === 2;
+unset($_SESSION['importar']);
+$check('C-12 importar: OFX com 2 lançamentos ilegíveis avisa as 2 linhas de fora', count($lidoO['linhas']) === 1 && $lidoO['ignoradas'] === 2 && $okO);
+
+// C-13: "parece já lançada" só com a descrição parecida; com outra bem diferente, a linha vem marcada, com a nota
+$emTransacao('C-13 importar: duplicado pela descrição', static function () use ($check, $uid, $catGasto, $render): void {
+    LancamentoModel::criar('2026-11-22', 'POSTO CENTRAL', $catGasto, 1234.56, $uid, ContaModel::PRINCIPAL);
+    $conta = ['tipo' => 'conta', 'id' => ContaModel::PRINCIPAL];
+    $outra = \Financeiro\Services\Importacao::revisao([['data' => '2026-11-22', 'valor' => -1234.56, 'descricao' => 'Loja de móveis', 'fitid' => '', 'categoria' => '']], $conta, 'csv');
+    $mesma = \Financeiro\Services\Importacao::revisao([['data' => '2026-11-22', 'valor' => -1234.56, 'descricao' => 'POSTO CENTRAL 0042', 'fitid' => '', 'categoria' => '']], $conta, 'csv');
+    $check('C-13 importar: mesma data e valor com descrição bem diferente vem marcada, com "Mesmo valor e data de…"',
+        $outra[0]['dup'] === null && $outra[0]['marcada'] && $outra[0]['mesmo'] === 'POSTO CENTRAL' && $mesma[0]['dup'] === 'parecida' && !$mesma[0]['marcada']
+        && \Financeiro\Services\Importacao::descricaoParecida('RESTAURANTE SABOR - Almoço', 'almoço') && \Financeiro\Services\Importacao::descricaoParecida('', 'X')
+        && \Financeiro\Services\Importacao::descricaoParecida('IFOOD 123', 'Alimentação', ['Alimentação', ''])
+        && !\Financeiro\Services\Importacao::descricaoParecida('COMPRA LOJA DE MOVEIS', 'COMPRA POSTO CENTRAL'),
+        json_encode([$outra[0]['dup'], $outra[0]['mesmo'], $mesma[0]['dup']]));
+});
 
 // C-14: o dia do cartão é inteiro de 1 a 31; os dados do empréstimo têm limites de contrato de verdade
 $lerE = static fn(array $v): ?string => AjustesController::lerValores($v, AjusteModel::DO_EMPRESTIMO)['erro'];

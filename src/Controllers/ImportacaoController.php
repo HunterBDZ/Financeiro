@@ -96,7 +96,7 @@ final class ImportacaoController
         $estado = ['token' => bin2hex(random_bytes(12)), 'destino' => $destino, 'nome' => mb_substr($nome, 0, 255), 'hash' => hash('sha256', $bruto),
                    'formato' => $lido['formato'], 'linhas' => null, 'ignoradas' => 0, 'escolhas' => [], 'csv' => null];
         if ($lido['formato'] === 'ofx') {
-            $estado['linhas'] = $lido['linhas'];
+            [$estado['linhas'], $estado['ignoradas']] = [$lido['linhas'], $lido['ignoradas']];
         } else {
             $cab = ExtratoArquivo::temCabecalho($lido['linhas']);
             $estado['csv'] = ['sep' => $lido['sep'], 'linhas' => $lido['linhas'], 'mapa' => null];

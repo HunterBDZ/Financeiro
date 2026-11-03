@@ -23,7 +23,9 @@ use Financeiro\Relogio;
  * (a 2ª linha igual é a 2ª compra igual, não uma cópia; um banco que repete o FITID não faz perder linha). A parcela
  * troca data e FITID por 1ª fatura, nº de parcelas e valor, que se repetem na fatura seguinte. A identidade
  * já gravada marca a linha como "já importada"; uma linha de mesma data, valor e conta (ou, no cartão, a mesma compra)
- * lançada de outro jeito, como "parece já lançada". As duas vêm desmarcadas.
+ * lançada de outro jeito, com a descrição parecida, como "parece já lançada". As duas vêm desmarcadas. Com a descrição
+ * bem diferente, a linha vem marcada, só com a nota "Mesmo valor e data de …"; o valor fora do padrão da coluna do CSV
+ * vem desmarcado, com "Confira o valor".
  *
  * Categoria sugerida: a coluna de categoria do CSV, se tiver; senão a regra "contém" de texto mais longo; senão a
  * categoria mais usada (e, no empate, a mais recente) para a mesma descrição normalizada. Sempre do tipo certo:
@@ -95,7 +97,8 @@ final class Importacao
             $desc = ExtratoArquivo::limpar($l['descricao']);
             $r = ['i' => $i, 'data' => $l['data'], 'valor' => (float) $l['valor'], 'descricao' => $desc, 'fitid' => (string) $l['fitid'],
                   'categoria_csv' => (string) ($l['categoria'] ?? ''), 'k' => 0, 'n' => 1, 'fatura' => null, 'primeira' => null,
-                  'gravar' => $desc, 'total' => abs((float) $l['valor']), 'motivo' => null, 'dup' => null, 'parecida' => null];
+                  'gravar' => $desc, 'total' => abs((float) $l['valor']), 'motivo' => null, 'dup' => null, 'parecida' => null,
+                  'duvida' => !empty($l['duvida']), 'mesmo' => null];
             if ($cartao !== null) {
                 $v = $r['valor'] * $sinalCompra;
                 $r['fatura'] = CartaoFatura::faturaDe($l['data'], $cartao['fecha'], $cartao['vence']);
@@ -137,7 +140,8 @@ final class Importacao
         foreach ($out as &$r) {
             $r['pode'] = $r['motivo'] === null;
             $e = $escolhas[$r['i']] ?? null;
-            $r['marcada'] = $r['pode'] && (is_array($e) ? (bool) ($e['m'] ?? false) : $r['dup'] === null);
+            // repetida ou com o valor fora do padrão da coluna: vem desmarcada, e a pessoa decide
+            $r['marcada'] = $r['pode'] && (is_array($e) ? (bool) ($e['m'] ?? false) : $r['dup'] === null && !$r['duvida']);
             $c = is_array($e) ? (int) ($e['c'] ?? 0) : 0;
             $r['categoria_id'] = $c > 0 && isset(self::permitidas($r['tipo'])[$c]) ? $c : $r['sugestao'];
         }
@@ -165,18 +169,12 @@ final class Importacao
                 if ($r['dup'] !== null || $r['tipo'] === 'pagamento') {
                     continue;
                 }
-                foreach ($existentes as $j => $c) {
-                    $igual = match ($r['tipo']) {
-                        'parcela' => $c['parcelas'] === $r['n'] && $c['primeira_fatura'] === $r['primeira'] && abs($c['valor_total'] - $r['total']) <= 0.01 * $r['n'] + 0.005,
-                        'estorno' => $c['parcelas'] === 1 && $c['data'] === $r['data'] && abs($c['valor_total'] + $r['total']) < 0.005,
-                        default   => $c['parcelas'] === 1 && $c['data'] === $r['data'] && abs($c['valor_total'] - $r['total']) < 0.005,
-                    };
-                    if ($igual) {
-                        [$r['dup'], $r['parecida']] = ['parecida', $c['descricao']];
-                        unset($existentes[$j]);
-                        break;
-                    }
-                }
+                $iguais = array_filter($existentes, static fn(array $c): bool => match ($r['tipo']) {
+                    'parcela' => $c['parcelas'] === $r['n'] && $c['primeira_fatura'] === $r['primeira'] && abs($c['valor_total'] - $r['total']) <= 0.01 * $r['n'] + 0.005,
+                    'estorno' => $c['parcelas'] === 1 && $c['data'] === $r['data'] && abs($c['valor_total'] + $r['total']) < 0.005,
+                    default   => $c['parcelas'] === 1 && $c['data'] === $r['data'] && abs($c['valor_total'] - $r['total']) < 0.005,
+                });
+                self::casar($r, $existentes, $iguais, (string) $r['gravar']);
             }
             unset($r);
             return;
@@ -188,15 +186,60 @@ final class Importacao
             if ($r['dup'] !== null) {
                 continue;
             }
-            foreach ($existentes as $j => $l) {
-                if ($l['data'] === $r['data'] && abs($l['valor'] - abs($r['valor'])) < 0.005 && $l['sinal'] === ($r['valor'] > 0 ? 1 : -1)) {
-                    [$r['dup'], $r['parecida']] = ['parecida', $l['descricao']];
-                    unset($existentes[$j]);
-                    break;
-                }
-            }
+            $iguais = array_filter($existentes, static fn(array $l): bool => $l['data'] === $r['data'] && abs($l['valor'] - abs($r['valor'])) < 0.005
+                && $l['sinal'] === ($r['valor'] > 0 ? 1 : -1));
+            self::casar($r, $existentes, $iguais, (string) $r['descricao']);
         }
         unset($r);
+    }
+
+    /**
+     * Entre os já gravados de mesma data e valor ($iguais, chaves de $existentes), o primeiro de descrição parecida
+     * marca a linha como "parece já lançada" e não serve a outra linha. Com a descrição bem diferente, não é a mesma
+     * coisa: a linha continua marcada, só com a nota "Mesmo valor e data de …" ('mesmo').
+     */
+    private static function casar(array &$r, array &$existentes, array $iguais, string $descricao): void
+    {
+        foreach ($iguais as $j => $e) {
+            if (self::descricaoParecida($descricao, $e['descricao'], $e['categoria'] ?? [])) {
+                [$r['dup'], $r['parecida']] = ['parecida', $e['descricao']];
+                unset($existentes[$j]);
+                return;
+            }
+        }
+        if ($iguais !== []) {
+            $r['mesmo'] = (string) reset($iguais)['descricao'];
+        }
+    }
+
+    /** Palavras que quase todo extrato repete e não dizem o que foi. */
+    private const PALAVRAS_COMUNS = ['compra', 'compras', 'pix', 'ted', 'doc', 'pagamento', 'pagto', 'pgto', 'debito', 'credito', 'cartao',
+        'transferencia', 'transf', 'enviado', 'enviada', 'recebido', 'recebida', 'loja', 'com', 'para', 'dos', 'das', 'nacional', 'parc', 'parcela'];
+
+    /**
+     * A descrição do arquivo e a de um lançamento já gravado falam da mesma coisa: uma contém a outra, têm uma palavra
+     * em comum (fora as comuns) ou são quase iguais. Vazia, ou só o nome da categoria (o que o lançar grava quando a
+     * pessoa não escreve nada), conta como parecida.
+     * @param list<string> $nomesCategoria o nome e o apelido da categoria do lançamento gravado
+     */
+    public static function descricaoParecida(string $arquivo, string $gravada, array $nomesCategoria = []): bool
+    {
+        $a = self::normalizar($arquivo);
+        $b = self::normalizar($gravada);
+        foreach ($nomesCategoria as $n) {
+            if ($b !== '' && self::normalizar((string) $n) === $b) {
+                $b = '';
+            }
+        }
+        if ($a === '' || $b === '' || str_contains($a, $b) || str_contains($b, $a)) {
+            return true;
+        }
+        $palavras = static fn(string $s): array => array_diff(array_filter(explode(' ', $s), static fn(string $p): bool => strlen($p) >= 3), self::PALAVRAS_COMUNS);
+        if (array_intersect($palavras($a), $palavras($b)) !== []) {
+            return true;
+        }
+        similar_text($a, $b, $pct);
+        return $pct >= 70.0;
     }
 
     /**

@@ -108,22 +108,28 @@ final class ImportacaoModel
     public static function lancamentosDaConta(int $contaId, string $de, string $ate): array
     {
         $st = Database::connection()->prepare(
-            'SELECT l.id, l.data, l.valor, c.sinal, l.descricao, l.importacao_chave FROM lancamentos l JOIN categorias c ON c.id = l.categoria_id
+            'SELECT l.id, l.data, l.valor, c.sinal, l.descricao, l.importacao_chave, c.nome AS cat_nome, c.apelido AS cat_apelido
+             FROM lancamentos l JOIN categorias c ON c.id = l.categoria_id
              WHERE l.conta_id = :c AND l.data >= :de AND l.data <= :ate ORDER BY l.data, l.id'
         );
         $st->execute(['c' => $contaId, 'de' => $de, 'ate' => $ate]);
         return array_map(static fn(array $r): array => ['id' => (int) $r['id'], 'data' => (string) $r['data'], 'valor' => (float) $r['valor'],
-            'sinal' => (int) $r['sinal'], 'descricao' => (string) $r['descricao'], 'chave' => $r['importacao_chave'] !== null ? (string) $r['importacao_chave'] : null], $st->fetchAll());
+            'sinal' => (int) $r['sinal'], 'descricao' => (string) $r['descricao'], 'chave' => $r['importacao_chave'] !== null ? (string) $r['importacao_chave'] : null,
+            'categoria' => [(string) $r['cat_nome'], (string) ($r['cat_apelido'] ?? '')]], $st->fetchAll());
     }
 
     /** As compras de um cartão com a identidade de importação. @return list<array> */
     public static function comprasDoCartao(int $cartaoId): array
     {
-        $st = Database::connection()->prepare('SELECT id, data, descricao, valor_total, parcelas, primeira_fatura, importacao_chave FROM cartao_compras WHERE cartao_id = :c');
+        $st = Database::connection()->prepare(
+            'SELECT cc.id, cc.data, cc.descricao, cc.valor_total, cc.parcelas, cc.primeira_fatura, cc.importacao_chave, c.nome AS cat_nome, c.apelido AS cat_apelido
+             FROM cartao_compras cc LEFT JOIN categorias c ON c.id = cc.categoria_id WHERE cc.cartao_id = :c'
+        );
         $st->execute(['c' => $cartaoId]);
         return array_map(static fn(array $r): array => ['id' => (int) $r['id'], 'data' => (string) $r['data'], 'descricao' => (string) $r['descricao'],
             'valor_total' => (float) $r['valor_total'], 'parcelas' => (int) $r['parcelas'], 'primeira_fatura' => (string) $r['primeira_fatura'],
-            'chave' => $r['importacao_chave'] !== null ? (string) $r['importacao_chave'] : null], $st->fetchAll());
+            'chave' => $r['importacao_chave'] !== null ? (string) $r['importacao_chave'] : null,
+            'categoria' => [(string) ($r['cat_nome'] ?? ''), (string) ($r['cat_apelido'] ?? '')]], $st->fetchAll());
     }
 
     /**

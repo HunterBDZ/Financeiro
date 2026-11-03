@@ -2345,6 +2345,8 @@ return [
     'Colunas' => 'Columnas',
     'Colunas, se for CSV' => 'Columnas, si es CSV',
     'Revisar' => 'Revisar',
+    'Mesmo valor e data de {descricao}' => 'Mismo valor y fecha que {descricao}',
+    'Confira o valor' => 'Revise el valor',
     'Os juros vão de 0 a {max}% ao mês.' => 'El interés va de 0 a {max}% al mes.',
     'O número de parcelas vai de 1 a {max}, sem fração.' => 'El número de cuotas va de 1 a {max}, sin fracción.',
     'A parcela precisa ser maior que zero.' => 'La cuota tiene que ser mayor que cero.',

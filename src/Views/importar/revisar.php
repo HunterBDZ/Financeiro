@@ -75,10 +75,14 @@ $erroLancar = $erroRegra === null ? $erroRev : null;
                     } elseif ($r['tipo'] === 'estorno') {
                         $notas[] = t('Estorno, volta na fatura de {mes}', ['mes' => monthLabel((string) $r['fatura'])]);
                     }
+                    if (($r['mesmo'] ?? null) !== null && $r['dup'] === null) {
+                        // mesma data e valor de um lançamento de descrição bem diferente: não é repetida, mas vale olhar
+                        $notas[] = t('Mesmo valor e data de {descricao}', ['descricao' => nomeCategoria((string) $r['mesmo'])]);
+                    }
                     $aviso = $r['motivo'] ?? match ($r['dup']) {
                         'importada' => t('Já foi importada antes.'),
                         'parecida'  => t('Parece já lançada: {descricao}', ['descricao' => nomeCategoria((string) $r['parecida'])]),
-                        default     => null,
+                        default     => !empty($r['duvida']) ? t('Confira o valor') : null,
                     };
                     $origem = match ($r['origem'] ?? null) {
                         'regra'   => t('pela regra “{texto}”', ['texto' => (string) $r['regra']]),
