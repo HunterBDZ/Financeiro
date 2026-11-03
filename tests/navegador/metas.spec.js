@@ -16,8 +16,8 @@ test('meta só para um mês aparece no Mês e não muda o mês seguinte', async 
     await expect(linha.locator('.meta-proprio')).toHaveText('só em dezembro · meta 1.500,00');
 
     await page.goto('/mes?mes=2026-12-01');
-    await expect(page.locator('#saidas')).toContainText('Mercado');
-    await expect(page.locator('#saidas')).toContainText('777,00');
+    // no livro do Mês, o previsto do Mercado em dezembro
+    await expect(page.locator('.mes-livro tr', { hasText: 'Mercado' }).locator('td.c-prev')).toContainText('−777,00');
 
     await page.goto('/meta?mes=2027-01-01');
     await expect(linha.locator('.mes-val')).toHaveText('1.500,00');

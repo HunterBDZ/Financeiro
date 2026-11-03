@@ -75,6 +75,27 @@ for (const tema of ['claro', 'escuro']) {
             expect(await graves(page)).toEqual([]);
         });
 
+        test('Mês com a edição do previsto aberta, o mês fechado e o Fechar', async ({ page }) => {
+            await page.goto('/mes');
+            await page.locator('tr', { hasText: 'Mercado' }).locator('details.mes-ed > summary').click();
+            await fimDaAnimacao(page, 'details.mes-ed[open] > .mes-ed-painel');
+            expect(await graves(page)).toEqual([]);
+            await page.goto('/mes?mes=2026-10-01');
+            expect(await graves(page)).toEqual([]);
+            await page.goto('/mes/fechar');
+            expect(await graves(page)).toEqual([]);
+        });
+
+        test('diálogo de lançar com o erro no campo', async ({ page }) => {
+            await page.goto('/');
+            await page.keyboard.press('n');
+            const dialogo = page.getByRole('dialog', { name: 'lançar' });
+            await dialogo.getByRole('textbox', { name: 'valor' }).fill('');
+            await dialogo.getByRole('button', { name: 'Lançar' }).click();
+            await expect(dialogo.getByText('Digite o valor.')).toBeVisible();
+            expect(await graves(page)).toEqual([]);
+        });
+
         test('Início e Extrato com contas do mês a pagar', async ({ page, baseURL }) => {
             await contaSemPagamento(page, baseURL, 'Luz');
             for (const caminho of ['/', '/lancamentos']) {

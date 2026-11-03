@@ -833,6 +833,9 @@ details.mes-ed[open] > .mes-ed-painel { animation: menu-abre var(--entra) var(--
     .mes-acao { align-items: flex-end; text-align: right; }
 }
 
+/* os centavos de entrada e saída na cor cheia (a opacidade da base deixa o verde e o vermelho abaixo de 4,5:1) */
+.mes :is(.v-entrada, .v-saida) .cent, .fe :is(.v-entrada, .v-saida) .cent { opacity: 1; }
+
 /* o Fechar: as faixas da grade, a escada até o balanço como um livro curto e o botão no fim */
 .grade.fe { max-width: none; }
 .fe-volta-seta { transform: scaleX(-1); }

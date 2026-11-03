@@ -120,3 +120,6 @@
     .ini-aten .aten-lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); column-gap: var(--e-6); }
     .ini-aten .aten-lista > li + li { border-top: 0; }
 }
+
+/* os centavos de entrada e saída na cor cheia: com a opacidade da base, o verde e o vermelho ficam abaixo de 4,5:1 */
+.ini :is(.v-entrada, .v-saida) .cent { opacity: 1; }
