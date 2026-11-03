@@ -1,11 +1,10 @@
 <?php
 namespace Financeiro\Services;
 
+use Financeiro\Controllers\DashboardController;
 use Financeiro\Database;
 use Financeiro\Models\AjusteModel;
 use Financeiro\Models\CartaoModel;
-use Financeiro\Models\ContaModel;
-use Financeiro\Models\LancamentoModel;
 use Financeiro\Relogio;
 
 /**
@@ -480,30 +479,16 @@ final class RelatorioDados
 
     /* ------------------------------------------------------------------ conferência, fatura e placar */
 
+    /** A última conferência do mês até hoje, a mesma do Início (DashboardController::conferenciaAtual). */
     private static function conferencia(array $dados, string $mes, string $hoje): array
     {
-        $st = Database::connection()->prepare('SELECT data, saldo_informado, conta_id FROM saldo_conferencias WHERE data >= ? AND data <= ? AND data <= ? ORDER BY data DESC, id DESC LIMIT 1');
-        $st->execute([$mes, date('Y-m-t', (int) strtotime($mes)), $hoje]);
-        $c = $st->fetch(\PDO::FETCH_ASSOC);
-        if ($c === false) {
+        $c = DashboardController::conferenciaAtual(min($hoje, date('Y-m-t', (int) strtotime($mes))), $mes);
+        if ($c === null) {
             return ['tipo' => 'sem', 'texto' => t('Sem conferência com o banco neste mês')];
         }
-        if ($c['conta_id'] !== null) {
-            // várias contas: todas as conferidas nesse dia, cada uma contra o saldo dela
-            $st = Database::connection()->prepare('SELECT saldo_informado, conta_id FROM saldo_conferencias WHERE data = ? AND conta_id IS NOT NULL');
-            $st->execute([$c['data']]);
-            $saldos = ContaModel::saldos((string) $c['data']);
-            $dif = 0.0;
-            foreach ($st->fetchAll(\PDO::FETCH_ASSOC) as $r) {
-                $dif += (float) $r['saldo_informado'] - (float) ($saldos[(int) $r['conta_id']] ?? 0.0);
-            }
-            $dif = round($dif, 2);
-        } else {
-            $dif = round((float) $c['saldo_informado'] - LancamentoModel::saldoCalculado((float) ($dados['aj']['saldo_ini'] ?? 0.0), (string) $c['data']), 2);
-        }
-        return abs($dif) < 0.01
+        return $c['bate']
             ? ['tipo' => 'ok', 'texto' => t('Conferido com o banco em {data}: bate', ['data' => diaMes((string) $c['data'])])]
-            : ['tipo' => 'dif', 'texto' => t('Conferido com o banco em {data}: diferença de {valor}', ['data' => diaMes((string) $c['data']), 'valor' => money(abs($dif))])];
+            : ['tipo' => 'dif', 'texto' => t('Conferido com o banco em {data}: diferença de {valor}', ['data' => diaMes((string) $c['data']), 'valor' => money(abs((float) $c['dif']))])];
     }
 
     /** @return list<array> os cartões ativos, se a aba Cartão está em uso */

@@ -1538,6 +1538,24 @@ $emTransacao('atenção e metas', static function () use ($check, $render, $mesH
     }
 });
 
+// ---- 9g. Conferência com o banco: com a segunda conta, a de antes continua no Início, igual ao Relatório (B-06)
+$emTransacao('conferência com várias contas', static function () use ($pdo, $check, $mesHoje, $hoje, $uid): void {
+    $pdo->exec('DELETE FROM saldo_conferencias');
+    $saldoP = ContaModel::saldo(ContaModel::PRINCIPAL, $hoje);
+    \Financeiro\Models\SaldoConferenciaModel::registrar($hoje, round($saldoP + 11.06, 2), $uid);     // a do total, com uma conta só
+    $antes = DashboardController::conferenciaAtual($hoje);
+    ContaModel::salvar(null, 'Carteira B06', 'dinheiro', 300.0);
+    MotorFinanceiro::limparCache();
+    $depois = DashboardController::conferenciaAtual($hoje);
+    $rel = (new \ReflectionMethod(RelatorioDados::class, 'conferencia'))->invoke(null, MotorFinanceiro::dados(), $mesHoje, $hoje);
+    $check('conferência: com a segunda conta, a de antes continua, como a da conta principal', $antes !== null && $depois !== null && $depois['data'] === $hoje
+        && abs($depois['dif'] - 11.06) < 0.005 && !$depois['bate'] && abs($antes['dif'] - $depois['dif']) < 0.005, json_encode([$antes, $depois]));
+    $check('conferência: o Relatório diz o mesmo que o Início', $rel['tipo'] === 'dif' && str_contains($rel['texto'], money(11.06)), json_encode($rel));
+    $check('conferência: e o "Precisa de atenção" também', in_array('conferencia', array_column(\Financeiro\Services\Atencao::avisos($hoje, $depois), 'tipo'), true));
+});
+ContaModel::limparCache();
+LancarForm::limparCache();
+
 // ---- 9d. Mês fechado não muda (B-01): lançar, editar, excluir, transferir, pagar e a compra cuja fatura é de mês fechado
 $emTransacao('mês fechado não muda', static function () use ($pdo, $check, $render, $catDia, $mesHoje, $hoje, $uid): void {
     $fechado = (string) $pdo->query("SELECT MAX(mes) FROM meses WHERE situacao = 'REAL'")->fetchColumn();
