@@ -162,8 +162,69 @@ test('errar a senha atual 5 vezes bloqueia só a troca, com aviso, e a sessão c
         await outro.close();
     } finally {
         await ctx.close();
+        await removerAcesso(page, 'Teste do bloqueio');
     }
 });
+
+/** Em Pessoas, "Remover o acesso de", aceitando a confirmação. */
+async function removerAcesso(page, nome) {
+    await page.goto('/ajustes?aberto=pessoas');
+    page.once('dialog', (d) => d.accept());
+    await page.locator('#pessoas').getByRole('button', { name: `Remover o acesso de ${nome}` }).click();
+    await expect(page.getByText(`${nome} não entra mais. Os lançamentos ficam.`)).toBeVisible();
+}
+
+test('Pessoas: remover o acesso pede confirmação, a pessoa não entra mais e os lançamentos ficam (A-15)', async ({ page, browser, baseURL }) => {
+    await page.goto('/ajustes?aberto=pessoas');
+    const pessoas = page.locator('#pessoas');
+    await expect(pessoas.getByRole('button', { name: 'Remover o acesso de Ana' })).toHaveCount(0);     // a si mesma, não
+    await pessoas.getByLabel('Nome', { exact: true }).fill('Eva de teste');
+    await pessoas.getByLabel('Nome de usuário').fill('eva-a15');
+    await pessoas.getByLabel('Senha', { exact: true }).fill('senha-da-eva');
+    await pessoas.getByRole('button', { name: 'Adicionar pessoa' }).click();
+    await expect(page.locator('#pessoas > summary')).toContainText('3 pessoas');
+
+    // a Eva entra e lança uma saída
+    const ctx = await browser.newContext({ baseURL });
+    await entrar(ctx.request, baseURL, 'eva-a15', 'senha-da-eva');
+    await page.goto('/lancar');
+    const mercado = await page.locator('select[name="categoria_id"] option', { hasText: 'Mercado' }).first().getAttribute('value');
+    const lancou = await ctx.request.post(baseURL + '/lancamentos', {
+        form: { csrf_token: await token(ctx.request, baseURL + '/lancar'), categoria_id: mercado, valor: '12,34', descricao: 'Lançado pela Eva', data: '2026-11-22' },
+    });
+    expect(lancou.ok()).toBe(true);
+
+    // cancelar a pergunta não remove
+    await page.goto('/ajustes?aberto=pessoas');
+    page.once('dialog', (d) => d.dismiss());
+    await pessoas.getByRole('button', { name: 'Remover o acesso de Eva de teste' }).click();
+    await expect(page.locator('#pessoas > summary')).toContainText('3 pessoas');
+
+    await removerAcesso(page, 'Eva de teste');
+    await expect(page.locator('#pessoas > summary')).toContainText('2 pessoas');
+    await expect(page.locator('#pessoas')).toContainText(/Sem acesso: (.+, )?Eva de teste\./);
+    // a sessão aberta dela caiu, e a senha não entra mais
+    const r = await ctx.request.get(baseURL + '/');
+    expect(new URL(r.url()).pathname).toBe('/login');
+    const tentativa = await ctx.request.post(baseURL + '/login', { form: { csrf_token: await token(ctx.request, baseURL + '/login'), login: 'eva-a15', senha: 'senha-da-eva' } });
+    expect(tentativa.status()).toBe(401);
+    await ctx.close();
+
+    // o que ela lançou continua no Extrato
+    await page.goto('/lancamentos?q=' + encodeURIComponent('Lançado pela Eva'));
+    const linha = page.locator('.ext-linha .ext-c-desc > a', { hasText: 'Lançado pela Eva' });
+    await expect(linha).toHaveCount(1);
+    const id = (await linha.getAttribute('href')).match(/^\/lancamentos\/(\d+)\//)[1];
+
+    // um POST direto para remover a si mesma é recusado
+    const proprio = await page.request.post(baseURL + '/ajustes/pessoas/1/remover', { form: { csrf_token: await token(page.request, baseURL + '/ajuda') } });
+    expect(await proprio.text()).toContain('Você não pode remover o próprio acesso.');
+
+    // devolve a demonstração como estava: sem o lançamento de teste
+    const apagou = await page.request.post(`${baseURL}/lancamentos/${id}/excluir`, { form: { csrf_token: await token(page.request, baseURL + '/ajuda'), volta: '/' } });
+    expect(apagou.ok()).toBe(true);
+});
+
 
 test('Ajuda: com a busca, o índice "Nesta página" mostra só o que sobrou (A-14)', async ({ page }) => {
     await page.goto('/ajuda');

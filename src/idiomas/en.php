@@ -2346,4 +2346,10 @@ return [
     'Outra pessoa mudou isto agora. Confira e salve de novo.' => 'Someone else just changed this. Check it and save again.',
     'A senha não pode ser só espaços.' => 'The password can\'t be only spaces.',
     'O app usa esta categoria nos cálculos, então ela não pode ser removida nem arquivada.' => 'The app uses this category in its calculations, so it can\'t be removed or archived.',
+    '{nome} não entra mais. Os lançamentos ficam.' => '{nome} can no longer sign in. Their entries stay.',
+    'Você não pode remover o próprio acesso.' => 'You can\'t remove your own access.',
+    'É a última pessoa com acesso: alguém precisa continuar entrando.' => 'This is the last person with access: someone has to keep being able to sign in.',
+    'Sem acesso: {nomes}. Para devolver, defina uma senha nova.' => 'No access: {nomes}. To give it back, set a new password.',
+    'Remover o acesso de {nome}? A pessoa não entra mais, e os lançamentos dela ficam.' => 'Remove access for {nome}? They will no longer sign in, and their entries stay.',
+    'Remover o acesso de {nome}' => 'Remove access for {nome}',
 ];

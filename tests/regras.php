@@ -2156,6 +2156,44 @@ $htmlSal = (string) ob_get_clean();
 $check('categorias do app: a tela não oferece remover e diz o porquê', !str_contains($htmlSal, '/remover"') && str_contains($htmlSal, 'não pode ser removida nem arquivada')
     && !str_contains($htmlSal, 'name="ativo" value="0"'));
 
+// ---- 18b5. Pessoas: remover o acesso (A-15). A pessoa não entra mais, o que ela lançou fica, e o site nunca fica sem ninguém
+$loginRA = 'remover-' . bin2hex(random_bytes(3));
+$idRA = UsuarioModel::criar('Teste remover', $loginRA, 'senha-remover');
+$idRB = UsuarioModel::criar('Teste fica', $loginRA . '-b', 'senha-remover');
+$hashesRA = $pdo->query('SELECT id, senha_hash FROM usuarios')->fetchAll(PDO::FETCH_KEY_PAIR);
+$sessaoRA = $_SESSION;
+try {
+    $versaoRA = (int) UsuarioModel::sessaoVersao($idRA);
+    Auth::lembrar($idRA);
+    $check('pessoas: ninguém remove o próprio acesso', UsuarioModel::removerAcesso($idRB, $idRB) === 'proprio');
+    $rRA = UsuarioModel::removerAcesso($idRA, $idRB);
+    Auth::sairDeTodos($idRA);
+    $_SESSION = [];
+    $check('pessoas: removido, não entra mais, nem pelo aparelho lembrado', $rRA === 'ok' && Auth::primeiroPasso($loginRA, 'senha-remover', false) === 'errada'
+        && !Auth::tentarLembrado() && (int) UsuarioModel::sessaoVersao($idRA) > $versaoRA);
+    $listaRA = array_column(UsuarioModel::todos(), 'acesso', 'id');
+    $check('pessoas: a pessoa continua no banco, sem acesso, e o login fica reservado', ($listaRA[$idRA] ?? null) === 0 && ($listaRA[$idRB] ?? null) === 1
+        && UsuarioModel::loginExiste($loginRA) && UsuarioModel::removerAcesso($idRA, $idRB) === 'inexistente');
+    UsuarioModel::trocarSenha($idRA, 'senha-de-volta');
+    $_SESSION = [];
+    $check('pessoas: uma senha nova devolve o acesso', Auth::primeiroPasso($loginRA, 'senha-de-volta', false) === 'entrou');
+    // só uma pessoa com acesso: ela não sai, e é ela quem administra
+    $pdo->prepare('UPDATE usuarios SET senha_hash = ? WHERE id <> ?')->execute([UsuarioModel::SEM_ACESSO, $idRB]);
+    $check('pessoas: a última pessoa com acesso não sai', UsuarioModel::removerAcesso($idRB, $idRA) === 'ultimo' && UsuarioModel::administradorId() === $idRB);
+} catch (\Throwable $e) {
+    $check('pessoas: remover o acesso', false, get_class($e) . ': ' . $e->getMessage());
+} finally {
+    $stRA = $pdo->prepare('UPDATE usuarios SET senha_hash = ? WHERE id = ?');
+    foreach ($hashesRA as $idH => $hashH) {
+        $stRA->execute([$hashH, $idH]);
+    }
+    $pdo->prepare('DELETE FROM sessoes_lembradas WHERE usuario_id IN (?, ?)')->execute([$idRA, $idRB]);
+    $pdo->prepare('DELETE FROM usuarios WHERE id IN (?, ?)')->execute([$idRA, $idRB]);
+    unset($_COOKIE[Auth::COOKIE_LEMBRAR]);
+    $_SESSION = $sessaoRA;
+}
+$check('pessoas: a conta mais antiga com acesso administra', UsuarioModel::administradorId() === $uid);
+
 // ---- 18c. verificação em duas etapas: TOTP da RFC 6238, janela, reuso, recuperação, login, limite, desligar e o
 // comando que redefine a senha. Numa conta só do teste, com um instante fixo (o código não usa Relogio).
 $rfc = '12345678901234567890';      // a semente SHA1 dos vetores da RFC 6238, apêndice B

@@ -2346,4 +2346,10 @@ return [
     'Outra pessoa mudou isto agora. Confira e salve de novo.' => 'Otra persona acaba de cambiar esto. Revísalo y guarda de nuevo.',
     'A senha não pode ser só espaços.' => 'La contraseña no puede ser solo espacios.',
     'O app usa esta categoria nos cálculos, então ela não pode ser removida nem arquivada.' => 'La app usa esta categoría en los cálculos, así que no se puede quitar ni archivar.',
+    '{nome} não entra mais. Os lançamentos ficam.' => '{nome} ya no puede entrar. Sus movimientos se quedan.',
+    'Você não pode remover o próprio acesso.' => 'No puedes quitar tu propio acceso.',
+    'É a última pessoa com acesso: alguém precisa continuar entrando.' => 'Es la última persona con acceso: alguien tiene que seguir pudiendo entrar.',
+    'Sem acesso: {nomes}. Para devolver, defina uma senha nova.' => 'Sin acceso: {nomes}. Para devolverlo, define una contraseña nueva.',
+    'Remover o acesso de {nome}? A pessoa não entra mais, e os lançamentos dela ficam.' => '¿Quitar el acceso de {nome}? Ya no podrá entrar, y sus movimientos se quedan.',
+    'Remover o acesso de {nome}' => 'Quitar el acceso de {nome}',
 ];

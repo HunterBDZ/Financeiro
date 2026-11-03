@@ -414,6 +414,27 @@ final class AjustesController
         redirecionar('/ajustes?aberto=pessoas#pessoas', 303);
     }
 
+    /**
+     * "Remover acesso" em Pessoas (a tela pede confirmação): a pessoa não entra mais, os aparelhos e as sessões dela
+     * caem, e os lançamentos ficam. Não vale para si mesmo nem para a última pessoa com acesso (UsuarioModel::removerAcesso).
+     */
+    public function removerPessoa(string $id): void
+    {
+        Auth::requireLogin();
+        csrfCheck();
+
+        $alvo = (int) $id;
+        $pessoa = UsuarioModel::find($alvo);
+        $r = UsuarioModel::removerAcesso($alvo, (int) Auth::id());
+        if ($r === 'ok') {
+            Auth::sairDeTodos($alvo);
+            flash('success', t('{nome} não entra mais. Os lançamentos ficam.', ['nome' => (string) ($pessoa['nome'] ?? '')]));
+        } elseif ($r !== 'inexistente') {
+            $_SESSION['aj_erro'] = ['grupo' => 'pessoas', 'msg' => $r === 'proprio' ? t('Você não pode remover o próprio acesso.') : t('É a última pessoa com acesso: alguém precisa continuar entrando.')];
+        }
+        redirecionar('/ajustes?aberto=pessoas#pessoas', 303);
+    }
+
     public function trocarSenha(): void
     {
         Auth::requireLogin();

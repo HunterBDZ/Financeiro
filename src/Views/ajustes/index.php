@@ -59,6 +59,8 @@ $redeLigada = \Financeiro\Primeira::modo() !== 'instalador' || \Financeiro\Rede:
 // o tipo de cada conta, com um ícone de traço (sem emoji)
 $iconeConta = static fn(string $tipo): string => svgIcon(['corrente' => 'emprestimo', 'digital' => 'celular', 'dinheiro' => 'carteira'][$tipo] ?? 'tag', 18);
 $pessoas = \Financeiro\Models\UsuarioModel::todos();
+$comAcesso = array_values(array_filter($pessoas, static fn(array $p): bool => $p['acesso'] === 1));
+$semAcesso = array_values(array_filter($pessoas, static fn(array $p): bool => $p['acesso'] === 0));
 $usa = static fn(string $k): bool => (float) ($aj[$k]['valor'] ?? 1) >= 1;
 $usos = array_values(array_filter([$usa('usa_cartao') ? t('Cartão') : '', $usa('usa_emprestimo') ? t('Empréstimo') : '', $usa('usa_carro') ? t('Carro') : '']));
 $inicioPlano = \Financeiro\Models\AjusteModel::dataInicio();
@@ -329,9 +331,10 @@ $formConta = static function (?array $c) use ($csrf, $erroConta, $tiposD, $inici
             </details>
 
             <details class="ajs-item" id="pessoas"<?= $aberto('pessoas') ?>>
-                <summary class="ajs-linha"><?= $linha('pessoas', t('Pessoas'), tn(count($pessoas), '1 pessoa', '{n} pessoas')) ?></summary>
+                <summary class="ajs-linha"><?= $linha('pessoas', t('Pessoas'), tn(count($comAcesso), '1 pessoa', '{n} pessoas')) ?></summary>
                 <div class="ajs-corpo">
-                    <p class="aj-ajuda"><?= e(implode(', ', array_column($pessoas, 'nome'))) ?></p>
+                    <p class="aj-ajuda"><?= e(implode(', ', array_column($comAcesso, 'nome'))) ?></p>
+                    <?php if ($semAcesso !== []): ?><p class="aj-ajuda"><?= e(t('Sem acesso: {nomes}. Para devolver, defina uma senha nova.', ['nomes' => implode(', ', array_column($semAcesso, 'nome'))])) ?></p><?php endif; ?>
                     <form class="aj-form" method="post" action="/ajustes/pessoas">
                         <?= $csrf ?>
                         <?php $pessoaDigitada = $erro !== null && ($erro['grupo'] ?? '') === 'pessoas' ? (array) ($erro['pessoa'] ?? []) : []; ?>
@@ -351,6 +354,11 @@ $formConta = static function (?array $c) use ($csrf, $erroConta, $tiposD, $inici
                                 <button type="submit" class="btn btn-primary aj-salvar"><?= e(t('Definir senha')) ?></button>
                             </form>
                         </details>
+                        <?php if ($pessoa['acesso'] === 1 && count($comAcesso) > 1): ?>
+                            <form method="post" action="/ajustes/pessoas/<?= (int) $pessoa['id'] ?>/remover" data-confirm="<?= e(t('Remover o acesso de {nome}? A pessoa não entra mais, e os lançamentos dela ficam.', ['nome' => $pessoa['nome']])) ?>">
+                                <?= $csrf ?><button type="submit" class="btn-link aj-remover-pessoa"><?= e(t('Remover o acesso de {nome}', ['nome' => $pessoa['nome']])) ?></button>
+                            </form>
+                        <?php endif; ?>
                     <?php endforeach; ?>
                 </div>
             </details>
