@@ -39,6 +39,30 @@ test('"E se": a comparação com o plano e o aviso de que nada foi salvo', async
     await expect(page.getByRole('table', { name: 'Plano comparado com a simulação' })).toBeVisible();
 });
 
+test('valores enormes: os números da tabela não se encostam e o rótulo "Dívida" não cobre o eixo', async ({ page }) => {
+    await page.goto('/futuro?se=1&uma=1000000&uma_tipo=gasto');
+    // a tabela já vem aberta com a simulação; em cada linha, um número termina antes do seguinte começar
+    const encostam = await page.locator('.sim-tab .sim-cols').evaluateAll((linhas) => linhas.filter((l) => {
+        // o texto à vista de cada número (sem o nome para leitor de tela), não a coluna: é ele que pode passar dela
+        const cx = [...l.querySelectorAll(':scope > .sim-v')].filter((c) => c.offsetParent !== null).map((c) => {
+            const caixas = [];
+            const w = document.createTreeWalker(c, NodeFilter.SHOW_TEXT, { acceptNode: (t) => (t.parentElement.closest('.sr-only') || t.textContent.trim() === '' ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT) });
+            for (let t = w.nextNode(); t; t = w.nextNode()) {
+                const r = document.createRange();
+                r.selectNodeContents(t);
+                caixas.push(r.getBoundingClientRect());
+            }
+            return { left: Math.min(...caixas.map((b) => b.left)), right: Math.max(...caixas.map((b) => b.right)) };
+        });
+        return cx.some((c, i) => i > 0 && c.left < cx[i - 1].right + 2);
+    }).length);
+    expect(encostam).toBe(0);
+    const serie = await page.locator('.sim-serie').boundingBox();
+    const eixo = await page.locator('.sim-gl').evaluateAll((els) => els.map((e) => e.getBoundingClientRect()).map((r) => ({ x: r.x, y: r.y, width: r.width, height: r.height })));
+    const cruza = (a, b) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+    expect(eixo.filter((g) => cruza(serie, g))).toEqual([]);
+});
+
 test.describe('no celular', () => {
     test.use({ viewport: { width: 390, height: 844 } });
 

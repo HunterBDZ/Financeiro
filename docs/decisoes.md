@@ -117,7 +117,7 @@ As regras do app e o porquê de cada uma. Para instalar e operar, veja o [manual
 - **O que compara:** conta e dívida no fim, mês mais apertado, meses abaixo da reserva, quando o empréstimo acaba e juros até quitar. A dívida no fim entrou porque, sem ela, "sem adiantar" parece melhor do que é.
 - **Gráfico:** o título diz a conclusão. Linha reta, um ponto por mês (fechado, aberto, previsto), previsão tracejada, faixas abaixo da reserva e de zero. No celular só ficam os pontos de hoje, do mês mais apertado e do fim, porque os outros embolam.
 - **Ganho de adiantar:** `AnualResumo::ganho` compara com o mesmo plano sem adiantamento (`objetivo` 3) e continua só com as parcelas até zerar.
-- **Tabela:** os números não se esticam em tela larga, a cor só aparece nas exceções, e a dívida quitada vira "—". O "mudou em relação ao mês anterior" é calculado a cada página, da previsão e dos lançamentos. As referências para gráfico e tabela foram IBCS, Stephen Few, Datawrapper, NN/g e GOV.UK.
+- **Tabela:** os números não se esticam em tela larga, a cor só aparece nas exceções, e a dívida quitada vira "—". As colunas têm largura fixa: de 100.000 para cima, o número sai sem centavos, e a linha aberta mostra o valor inteiro. O rótulo "Dívida" do gráfico fica na descida da dívida ou no mês de hoje, nunca nos primeiros 10% da largura, onde ficam os números do eixo. O "mudou em relação ao mês anterior" é calculado a cada página, da previsão e dos lançamentos. As referências para gráfico e tabela foram IBCS, Stephen Few, Datawrapper, NN/g e GOV.UK.
 
 ## Empréstimo
 

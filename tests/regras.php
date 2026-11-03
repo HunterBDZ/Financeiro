@@ -3787,6 +3787,15 @@ preg_match('#Faltam (\d+) parcelas#', $htmlC08, $mFal);
 $check('C-08 empréstimo: "3 de 72 pagas", com a parcela do mês de referência entre as pagas', isset($mPag[2], $mFal[1])
     && (int) $mPag[2] === (int) round(AjusteModel::valor('n_parcelas')) && (int) $mPag[1] + (int) $mFal[1] === (int) $mPag[2], json_encode([$mPag, $mFal]));
 
+// C-09: Simular com um gasto enorme: na tabela, de 100.000 para cima sem centavos; o rótulo "Dívida" longe do eixo
+$htmlC09 = $render(FuturoController::class, 'index', ['se' => '1', 'uma' => '1000000', 'uma_tipo' => 'gasto']);
+preg_match_all('#<span class="sim-v[^"]*">(?:<span class="sr-only">[^<]*</span>)?(?:<svg.*?</svg>)?([^<]*)#s', $htmlC09, $mCel);
+$largos = array_filter($mCel[1], static fn(string $v): bool => preg_match('/\d{3}\.\d{3}/', $v) === 1);
+$comCentavos = array_filter($largos, static fn(string $v): bool => str_contains($v, ','));
+preg_match('#class="sim-serie" style="left:([\d.]+)%#', $htmlC09, $mSerie);
+$check('C-09 simular: valores enormes sem centavos na tabela e o rótulo "Dívida" fora da faixa do eixo', $largos !== [] && $comCentavos === []
+    && (!str_contains($htmlC09, 'sim-serie') || (isset($mSerie[1]) && (float) $mSerie[1] >= 10.0)), json_encode([array_values($comCentavos), $mSerie[1] ?? null]));
+
 // C-12: OFX com lançamentos ilegíveis avisa quantos ficaram de fora
 $ofxRuim = "OFXHEADER:100\n<OFX><BANKTRANLIST>"
     . "<STMTTRN><DTPOSTED>20261110<TRNAMT>-10.00<FITID>1<NAME>BOM</STMTTRN>"

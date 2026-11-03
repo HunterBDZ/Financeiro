@@ -38,6 +38,10 @@ $fim    = $marcos['fim'] ?? ['mes' => $ultimo, 'fica' => $vals[$n - 1], 'desde' 
 $valor  = static fn(float $v): string => ($v < -0.004 ? MENOS : '') . num(abs($v));
 $valor2 = static fn(float $v): string => ($v < -0.004 ? MENOS : '') . num(abs($v));
 $sinal  = static fn(float $v): string => ($v > 0.004 ? '+' : ($v < -0.004 ? MENOS : '')) . num(abs($v));
+// na tabela mês a mês, as colunas têm largura fixa: de 100.000 para cima, sem centavos (a linha aberta mostra tudo)
+$cel    = static fn(float $v): string => num($v, abs($v) >= 100000 ? 0 : 2);
+$celV   = static fn(float $v): string => ($v < -0.004 ? MENOS : '') . num(abs($v), abs($v) >= 100000 ? 0 : 2);
+$celS   = static fn(float $v): string => ($v > 0.004 ? '+' : ($v < -0.004 ? MENOS : '')) . num(abs($v), abs($v) >= 100000 ? 0 : 2);
 $faixa  = static function (string $ini, string $fimM): string {
     if ($ini === $fimM) {
         return monthLabel($ini);
@@ -200,7 +204,8 @@ $caminhoD = static function (int $de, int $ate) use ($ptsD, $f): string {
     }
     return $s;
 };
-// rótulo "Dívida" na descida (o 1º mês com até 2/3 da dívida de hoje), à direita do ponto; sem descida, no começo
+// rótulo "Dívida" na descida (o 1º mês com até 2/3 da dívida de hoje), à direita do ponto e acima da linha; sem
+// descida, no mês de hoje. Nunca nos primeiros 10% da largura, onde ficam os números do eixo
 $iDivRot = null;
 for ($i = $iRef; $i <= $iZera; $i++) {
     if ($divs[$i] <= $divs[$iRef] * 0.66) {
@@ -208,6 +213,7 @@ for ($i = $iRef; $i <= $iZera; $i++) {
         break;
     }
 }
+$iDivRot = min($iZera, max($iDivRot ?? $iRef, (int) ceil($n * 0.1)));
 $baseCaminho = '';
 if ($sim) {
     foreach ($valsBase as $i => $v) {
@@ -394,7 +400,7 @@ $opcoesMes = static function (string $sel) use ($se): string {
                     <span class="sim-evento" style="left:<?= $pc($x($iQuita), $VW) ?>"><?= e(t('fim do empréstimo')) ?></span>
                 <?php endif; ?>
                 <?php if ($comDivida): ?>
-                    <span class="sim-serie<?= $iDivRot === null ? ' is-inicio' : '' ?>" style="left:<?= $pc($x($iDivRot ?? 0), $VW) ?>;top:<?= $pc($y($divs[$iDivRot ?? 0]), $VH) ?>"><?= e(t('Dívida')) ?></span>
+                    <span class="sim-serie" style="left:<?= $pc($x($iDivRot), $VW) ?>;top:<?= $pc($y($divs[$iDivRot]), $VH) ?>"><?= e(t('Dívida')) ?></span>
                 <?php endif; ?>
                 <?php foreach ($linhas as $i => $l): ?>
                     <i class="sim-pt is-<?= $l['estado'] === 'real' ? 'real' : ($l['estado'] === 'aberto' ? 'aberto' : 'prev') ?><?= $l['alerta'] !== '' ? ' is-' . e($l['alerta']) : '' ?><?= $i === $iRef || $i === $iAp || $i === $n - 1 ? ' is-chave' : '' ?>" style="left:<?= $pc($x($i), $VW) ?>;top:<?= $pc($y($vals[$i]), $VH) ?>"></i>
@@ -524,11 +530,11 @@ $opcoesMes = static function (string $sel) use ($se): string {
                         <details class="sim-mes<?= $l['mes'] === $ref ? ' is-ref' : '' ?><?= $prev ? ' is-prev' : '' ?>">
                             <summary class="sim-cols num">
                                 <span class="sim-m"><?= $marca($l['estado']) ?><?= e(monthLabel($l['mes'])) ?><span class="sr-only">, <?= e(mb_strtolower(estadoLabel($l['estado']))) ?></span></span>
-                                <span class="sim-v sim-largo"><span class="sr-only"><?= e(t('entra na conta')) ?> </span><?= e(num($l['entra'])) ?></span>
-                                <span class="sim-v sim-largo"><span class="sr-only"><?= e(t('sai da conta')) ?> </span><?= e(num($l['sai'])) ?></span>
-                                <span class="sim-v sim-bal<?= $balCls ?>"><span class="sr-only"><?= e(t('balanço')) ?> </span><?= e($sinal((float) $l['bal'])) ?></span>
-                                <span class="sim-v sim-fica<?= $l['alerta'] !== '' ? ' ' . e($l['alerta']) : '' ?>"><span class="sr-only"><?= e(t('conta no fim')) ?> </span><?= $alertaIc($l['alerta']) ?><?= e($valor((float) $l['fica'])) ?><?= $l['alerta'] === 'warn' ? '<span class="sr-only">, ' . e(t('abaixo da reserva')) . '</span>' : ($l['alerta'] === 'neg' ? '<span class="sr-only">, ' . e(t('no vermelho')) . '</span>' : '') ?></span>
-                                <span class="sim-v sim-largo sim-div"><span class="sr-only"><?= e(t('dívida')) ?> </span><?= $l['divida'] > 0.004 ? e(num((float) $l['divida'])) : '<span aria-hidden="true">—</span><span class="sr-only">' . e(t('quitada')) . '</span>' ?></span>
+                                <span class="sim-v sim-largo"><span class="sr-only"><?= e(t('entra na conta')) ?> </span><?= e($cel($l['entra'])) ?></span>
+                                <span class="sim-v sim-largo"><span class="sr-only"><?= e(t('sai da conta')) ?> </span><?= e($cel($l['sai'])) ?></span>
+                                <span class="sim-v sim-bal<?= $balCls ?>"><span class="sr-only"><?= e(t('balanço')) ?> </span><?= e($celS((float) $l['bal'])) ?></span>
+                                <span class="sim-v sim-fica<?= $l['alerta'] !== '' ? ' ' . e($l['alerta']) : '' ?>"><span class="sr-only"><?= e(t('conta no fim')) ?> </span><?= $alertaIc($l['alerta']) ?><?= e($celV((float) $l['fica'])) ?><?= $l['alerta'] === 'warn' ? '<span class="sr-only">, ' . e(t('abaixo da reserva')) . '</span>' : ($l['alerta'] === 'neg' ? '<span class="sr-only">, ' . e(t('no vermelho')) . '</span>' : '') ?></span>
+                                <span class="sim-v sim-largo sim-div"><span class="sr-only"><?= e(t('dívida')) ?> </span><?= $l['divida'] > 0.004 ? e($cel((float) $l['divida'])) : '<span aria-hidden="true">—</span><span class="sr-only">' . e(t('quitada')) . '</span>' ?></span>
                                 <span class="sim-xl sim-chips"><?= $chipsHtml($lista) ?></span>
                             </summary>
                             <div class="sim-det">
@@ -559,11 +565,11 @@ $opcoesMes = static function (string $sel) use ($se): string {
                     <?php endforeach; ?>
                     <div class="sim-cols sim-total num">
                         <span class="sim-m"><?= e(t('Total {ano}', ['ano' => $ano])) ?><small><?= e($parcial) ?></small></span>
-                        <span class="sim-v sim-largo"><span class="sr-only"><?= e(t('entra na conta')) ?> </span><?= e(num($somaE)) ?></span>
-                        <span class="sim-v sim-largo"><span class="sr-only"><?= e(t('sai da conta')) ?> </span><?= e(num($somaS)) ?></span>
-                        <span class="sim-v sim-bal<?= $somaB < -0.004 ? ' neg' : '' ?>"><span class="sr-only"><?= e(t('balanço')) ?> </span><?= e($sinal($somaB)) ?></span>
-                        <span class="sim-v sim-fica<?= $ultimoDoAno['alerta'] !== '' ? ' ' . e($ultimoDoAno['alerta']) : '' ?>"><span class="sr-only"><?= e(t('conta no fim de {mes}', ['mes' => monthLabel($ultimoDoAno['mes'])])) ?> </span><?= e($valor((float) $ultimoDoAno['fica'])) ?></span>
-                        <span class="sim-v sim-largo sim-div"><span class="sr-only"><?= e(t('dívida no fim do ano')) ?> </span><?= $ultimoDoAno['divida'] > 0.004 ? e(num((float) $ultimoDoAno['divida'])) : '<span aria-hidden="true">—</span><span class="sr-only">' . e(t('quitada')) . '</span>' ?></span>
+                        <span class="sim-v sim-largo"><span class="sr-only"><?= e(t('entra na conta')) ?> </span><?= e($cel($somaE)) ?></span>
+                        <span class="sim-v sim-largo"><span class="sr-only"><?= e(t('sai da conta')) ?> </span><?= e($cel($somaS)) ?></span>
+                        <span class="sim-v sim-bal<?= $somaB < -0.004 ? ' neg' : '' ?>"><span class="sr-only"><?= e(t('balanço')) ?> </span><?= e($celS($somaB)) ?></span>
+                        <span class="sim-v sim-fica<?= $ultimoDoAno['alerta'] !== '' ? ' ' . e($ultimoDoAno['alerta']) : '' ?>"><span class="sr-only"><?= e(t('conta no fim de {mes}', ['mes' => monthLabel($ultimoDoAno['mes'])])) ?> </span><?= e($celV((float) $ultimoDoAno['fica'])) ?></span>
+                        <span class="sim-v sim-largo sim-div"><span class="sr-only"><?= e(t('dívida no fim do ano')) ?> </span><?= $ultimoDoAno['divida'] > 0.004 ? e($cel((float) $ultimoDoAno['divida'])) : '<span aria-hidden="true">—</span><span class="sr-only">' . e(t('quitada')) . '</span>' ?></span>
                         <span class="sim-xl"></span>
                         <span></span>
                     </div>

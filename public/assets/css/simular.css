@@ -42,7 +42,6 @@
 .sim-hoje, .sim-evento { position: absolute; top: 0; transform: translate(-50%, calc(-100% - 4px)); color: var(--tinta-2); font-weight: 600; }
 .sim-evento { color: var(--entrada); }
 .sim-serie { position: absolute; transform: translate(6px, calc(-100% - 4px)); color: var(--tinta-3); font-size: var(--t-meta); font-weight: 600; line-height: 1; white-space: nowrap; }
-.sim-serie.is-inicio { transform: translate(-4px, 8px); }
 .sim-pt {
     --c: var(--tinta);
     position: absolute; width: 10px; height: 10px; margin: -5px 0 0 -5px; box-sizing: border-box; border-radius: 50%;
