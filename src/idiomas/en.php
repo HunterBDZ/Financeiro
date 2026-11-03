@@ -2163,4 +2163,9 @@ return [
     'Posição' => 'Position',
     'Ações' => 'Actions',
     'Nada lançado ainda. Use {acao} quando guardar um valor.' => 'Nothing recorded yet. Use {acao} when you put money aside.',
+    'Cole o link de algo que você quer comprar' => 'Paste the link of something you want to buy',
+    'O MyMonetto lê o nome, o preço e a foto, e diz em que mês a compra cabe sem passar da reserva.' => 'MyMonetto reads the name, price and photo, and tells you in which month the purchase fits without dipping into your reserve.',
+    'O próximo da lista' => 'Next on the list',
+    'Na ordem da fila' => 'In queue order',
+    'Depois do {n}º da lista' => 'After #{n} on the list',
 ];

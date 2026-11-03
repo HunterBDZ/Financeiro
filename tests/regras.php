@@ -1138,6 +1138,13 @@ try {
     WishlistModel::mover($a, 'primeiro');
     $check('wishlist: a aba abre, com o 1º em destaque, previsão e fora da barra', str_contains($htmlW, '<h1>Wishlist</h1>') && str_contains($htmlW, 'wl-vitrine') && str_contains($htmlW, 'Quando comprar')
         && str_contains($htmlW, 'class="menu-item is-active" href="/wishlist"') && !preg_match('#<nav class="tabbar"(?:(?!<details).)*?href="/wishlist"#s', $htmlW));
+    $check('wishlist: os outros itens vêm numa grade, com foto quadrada, preço e o lugar na fila', str_contains($htmlW, 'class="wl-lista"') && str_contains($htmlW, 'Depois do 1º da lista')
+        && !str_contains($htmlW, 'card wl-novo'));
+    $ativosWl = array_map(static fn(array $i): int => (int) $i['id'], WishlistModel::ativos());
+    $pdo->exec('UPDATE wishlist_itens SET comprado_em = ' . $pdo->quote($hoje) . ' WHERE comprado_em IS NULL');
+    $htmlWv = $render(WishlistController::class, 'index', []);
+    $pdo->exec('UPDATE wishlist_itens SET comprado_em = NULL WHERE id IN (' . implode(',', $ativosWl) . ')');
+    $check('wishlist: vazia, pede o link com o campo ali mesmo', str_contains($htmlWv, 'Cole o link de algo que você quer comprar') && str_contains($htmlWv, 'data-wl-url'));
     $check('wishlist: texto da loja é escapado', str_contains($htmlW, '&lt;b&gt;Item A&lt;/b&gt;') && !str_contains($htmlW, '<b>Item A</b>'));
     $check('wishlist: foto não vem como link externo', !preg_match('#<img[^>]+src="https?://#', $htmlW));
     $check('wishlist: a previsão parcial vem sem layout', !str_contains($render(WishlistController::class, 'index', ['parcial' => '1', 'parcelas' => '3']), '<html'));
