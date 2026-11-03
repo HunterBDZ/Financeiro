@@ -137,7 +137,7 @@ $colunas = 4;
                     <div><dt><?= e(t('Achados')) ?></dt><dd class="num"><?= e(num((int) $totais['n'], 0)) ?><span class="nota"><?= e(tn((int) $totais['n'], 'lançamento', 'lançamentos')) ?></span></dd></div>
                 <?php endif; ?>
                 <div><dt><?= e(t('Entrou')) ?></dt><dd data-ex-total="entrada"><?= valor((float) $totais['entrada'], 'entrada') ?></dd></div>
-                <div><dt><?= e(t('Gasto')) ?></dt><dd data-ex-total="gasto"><?= valor(-(float) $totais['gasto'], 'saida') ?></dd></div>
+                <div><dt><?= e(t('Gastou')) ?></dt><dd data-ex-total="gasto"><?= valor(-(float) $totais['gasto'], 'saida') ?></dd></div>
                 <?php if ($temMov): ?>
                     <div><dt><?= e(t('Movimentações')) ?></dt><dd><span class="num ext-v-mov">⇄ <?= valor((float) $totais['mov']) ?></span><span class="nota"><?= e(t('guardado e empréstimo')) ?></span></dd></div>
                 <?php endif; ?>

@@ -7,7 +7,7 @@ test('a faixa do período, a tabela por dia e as colunas do livro-razão', async
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Extrato');
     const faixa = page.getByRole('region', { name: /^Resumo de Novembro de 2026/ });
     await expect(faixa.getByText('Entrou', { exact: true })).toBeVisible();
-    await expect(faixa.getByText('Gasto', { exact: true })).toBeVisible();
+    await expect(faixa.getByText('Gastou', { exact: true })).toBeVisible();
     await expect(faixa.getByText('Saldo do período', { exact: true })).toBeVisible();
 
     const tabela = page.getByRole('table', { name: /Lançamentos de Novembro de 2026/ });

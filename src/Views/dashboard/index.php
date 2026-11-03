@@ -176,7 +176,7 @@ $vazio = !$temLancamento && ($destino === null || $destino['total'] < 0.005);
                 </dd>
             </div>
             <div><dt><?= e(t('Entrou')) ?></dt><dd data-entrou><?= valor((float) $sobra['renda'], $previsto ? 'previsto' : 'entrada') ?></dd></div>
-            <div><dt><?= e(t('Gasto')) ?></dt><dd data-gasto><?= valor((float) $sobra['saidas'], $previsto ? 'previsto' : 'saida') ?></dd></div>
+            <div><dt><?= e(t('Gastou')) ?></dt><dd data-gasto><?= valor((float) $sobra['saidas'], $previsto ? 'previsto' : 'saida') ?></dd></div>
             <div><dt><?= e(t('Guardado')) ?></dt><dd data-guardado><?= $guardado >= 0 ? valor($guardado, 'saida') : valor(-$guardado, 'entrada') ?></dd></div>
         </dl>
     </section>

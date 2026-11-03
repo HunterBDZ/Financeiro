@@ -230,7 +230,7 @@ $gastoContas = round(array_sum(array_column($contas, 'gasto')), 2);
             </div>
             <dl class="mt-conta-dl num" aria-label="<?= e(t('A conta do valor para usar')) ?>">
                 <div><dt><?= e(t('Entrou e já estava na conta')) ?></dt><dd><?= valor($renda, 'neutro', ['centavos' => false]) ?></dd></div>
-                <div><dt><?= e(t('Gasto')) ?></dt><dd><?= valor(-$gastoTotal, 'saida', ['centavos' => false]) ?></dd></div>
+                <div><dt><?= e(t('Gastou')) ?></dt><dd><?= valor(-$gastoTotal, 'saida', ['centavos' => false]) ?></dd></div>
                 <?php if (!$fechado): ?>
                     <div><dt><?= e(t('Contas fixas a pagar')) ?></dt><dd><?= valor(-$porPagar, 'previsto', ['centavos' => false]) ?></dd></div>
                 <?php endif; ?>
