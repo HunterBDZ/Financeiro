@@ -69,11 +69,12 @@ final class RelatorioDados
         // a mesma sobra das outras telas (Sobra): no mês encerrado, a do mês; em andamento, a prevista e a até hoje
         $sobraPlano = Sobra::prevista($l);
         $sobrou = $sobraPlano['sobra'];
-        $cats = self::categoriasDoMes($dados, $mes);
         $porCompra = !$porFatura && GastoPorCategoria::ativo();
+        // o "Para onde foi" e o que foi bom ou ruim usam a mesma conta: com o cartão aberto, pela data da compra
+        $cats = self::categoriasDoMes($dados, $mes, $porCompra);
         $encerradosAntes = self::encerradosAte($plano, $mes);
         $achados = $encerrado
-            ? self::achadosDoMes($dados, $plano, $mes, $l, $sobrou, $cats, $encerradosAntes, $reserva, $hoje)
+            ? self::achadosDoMes($dados, $plano, $mes, $l, $sobrou, $cats, $encerradosAntes, $reserva, $hoje, $porCompra)
             : ['bom' => [], 'ruim' => [], 'melhorar' => [], 'conferir' => []];
         $nomeMes = self::maiuscula(mesExtenso($mes));
         $ano = substr($mes, 0, 4);
@@ -88,7 +89,7 @@ final class RelatorioDados
             'ponte' => $encerrado ? self::ponteEncerrado($l) : self::ponteAndamento($dados, $l),
             'divida' => self::divida($dados, $l),
             'achados' => $achados,
-            'categorias' => self::topCategorias($porCompra ? self::categoriasDoMes($dados, $mes, true) : $cats), 'fatura' => self::fatura($dados, $mes, $hoje),
+            'categorias' => self::topCategorias($cats), 'fatura' => self::fatura($dados, $mes, $hoje),
             'porCompra' => $porCompra, 'cartaoAberto' => GastoPorCategoria::ativo(),
             'semCategoria' => $porCompra ? GastoPorCategoria::semCategoria($mes) : null,
             'placar' => $encerrado ? self::placar($dados, $plano, $mes) : null,
@@ -311,7 +312,8 @@ final class RelatorioDados
         return $renda > 0.004 && $d >= $renda * self::RELEVANTE_RENDA && ($c['planejado'] <= 0.004 || $d >= $c['planejado'] * self::RELEVANTE_PLANO);
     }
 
-    private static function achadosDoMes(array $dados, array $plano, string $mes, array $l, float $sobrou, array $cats, array $antes, float $reserva, string $hoje): array
+    /** $cats: as do "Para onde foi" (categoriasDoMes); $porCompra diz como os meses anteriores são lidos. */
+    private static function achadosDoMes(array $dados, array $plano, string $mes, array $l, float $sobrou, array $cats, array $antes, float $reserva, string $hoje, bool $porCompra = false): array
     {
         $renda = (float) $l['entra'];
         $bom = $ruim = $conferir = [];
@@ -328,6 +330,9 @@ final class RelatorioDados
             }
         }
         foreach ($cats as $c) {
+            if (!empty($c['semPlano'])) {                  // "Fatura sem detalhe" e "Cartão sem categoria" não têm plano para comparar
+                continue;
+            }
             if ($c['planejado'] > 0.004 && $c['real'] <= 0.004) {
                 if ($c['planejado'] >= $renda * self::RELEVANTE_RENDA) {
                     $conferir[] = ['peso' => $c['planejado'], 'texto' => t('{categoria}: {valor} planejados e nada lançado. Vale conferir se faltou lançar.', ['categoria' => $c['nome'], 'valor' => money($c['planejado'])])];
@@ -342,7 +347,7 @@ final class RelatorioDados
             } elseif ($c['planejado'] <= 0.004) {
                 $ruim[] = ['peso' => $c['dif'], 'texto' => t('{categoria}: {valor} sem nada planejado.', ['categoria' => $c['nome'], 'valor' => money($c['real'])])];
             } elseif ($c['grupo'] !== 'Ano') {                 // conta pontual oscila de mês a mês: o anual é que julga
-                $ruim[] = ['peso' => $c['dif'], 'texto' => self::textoAcima($dados, $c, $antes)];
+                $ruim[] = ['peso' => $c['dif'], 'texto' => self::textoAcima($dados, $c, $antes, $porCompra)];
             }
         }
         if ($reserva > 0.004 && (float) $l['fica_na_conta'] >= $reserva) {
@@ -368,12 +373,13 @@ final class RelatorioDados
                 'melhorar' => self::melhorar($dados, $plano, $mes, $cats, $renda, $reserva, $hoje)];
     }
 
-    private static function textoAcima(array $dados, array $c, array $antes): string
+    private static function textoAcima(array $dados, array $c, array $antes, bool $porCompra = false): string
     {
         $base = t('{categoria}: {valor} acima do planejado', ['categoria' => $c['nome'], 'valor' => money($c['dif'])]);
+        $real = static fn(string $m): float => (float) ($porCompra ? max(0.0, GastoPorCategoria::doMes($m)[$c['id']] ?? 0.0) : ($dados['real'][$m][$c['id']] ?? 0.0));
         $ultimo = $antes === [] ? null : end($antes);
         if ($ultimo !== null) {
-            $rAntes = (float) ($dados['real'][$ultimo][$c['id']] ?? 0.0);
+            $rAntes = $real($ultimo);
             $pAntes = (float) ($dados['prev'][$ultimo][$c['id']] ?? 0.0);
             if ($rAntes > $pAntes * (1 + self::RELEVANTE_PLANO) && $pAntes > 0.004) {
                 return t('{fato}, pelo segundo mês seguido.', ['fato' => $base]);
@@ -382,7 +388,7 @@ final class RelatorioDados
         if (count($antes) >= self::ENCERRADOS_PARA_MEDIA) {
             $soma = 0.0;
             foreach ($antes as $m) {
-                $soma += (float) ($dados['real'][$m][$c['id']] ?? 0.0);
+                $soma += $real($m);
             }
             $media = $soma / count($antes);
             if ($media > 0.004 && $c['real'] > $media * (1 + self::ACIMA_DA_MEDIA)) {
@@ -525,16 +531,40 @@ final class RelatorioDados
     /**
      * O que tinha na fatura do mês. O plano continua contando só a fatura; isto é para ler, não para julgar.
      * O pago é o desta fatura, mesmo que antes do mês (CartaoFatura::atribuir), para bater com as compras dela.
+     * Com vários cartões, entram só os cartões cuja fatura do mês recebeu pagamento, e o "sem detalhe" é o de cada um,
+     * como no "Para onde foi" (GastoPorCategoria): a compra de outro cartão não explica o que este pagou.
+     * Sem nenhum pagamento, as compras de todos, como "Compras na fatura deste mês".
      */
     private static function fatura(array $dados, string $mes, string $hoje): ?array
     {
         $cat = CartaoModel::categoriaFatura();
-        if (self::cartoes() === [] || $cat === null) {
+        $cartoes = self::cartoes();
+        if ($cartoes === [] || $cat === null) {
             return null;
         }
-        $pago = round((float) (($dados['fatura']['cat'] ?? null) === $cat
-            ? ($dados['fatura']['faturas'][$mes]['pago'] ?? 0.0) : ($dados['real'][$mes][$cat] ?? 0.0)), 2);
-        $itens = CartaoFatura::porFatura(self::compras())[$mes] ?? [];
+        $ligado = ($dados['fatura']['cat'] ?? null) === $cat;
+        $pagoDe = [];                                   // cartão => o pago da fatura do mês
+        foreach ($ligado ? $cartoes : [] as $c) {
+            $v = round((float) ($dados['fatura']['porCartao'][$c['id']][$mes]['pago'] ?? 0.0), 2);
+            if ($v > 0.004) {
+                $pagoDe[$c['id']] = $v;
+            }
+        }
+        $itens = [];
+        $semDetalhe = $aMais = 0.0;
+        foreach ($cartoes as $c) {
+            if ($pagoDe !== [] && !isset($pagoDe[$c['id']])) {
+                continue;
+            }
+            $doCartao = CartaoFatura::porFatura(CartaoModel::compras($c['id']))[$mes] ?? [];
+            array_push($itens, ...$doCartao);
+            if (isset($pagoDe[$c['id']])) {
+                $somaC = round(array_sum(array_column($doCartao, 'valor')), 2);
+                $semDetalhe += max(0.0, round($pagoDe[$c['id']] - $somaC, 2));
+                $aMais += max(0.0, round($somaC - $pagoDe[$c['id']], 2));
+            }
+        }
+        $pago = $ligado ? round(array_sum($pagoDe), 2) : round((float) ($dados['real'][$mes][$cat] ?? 0.0), 2);
         if ($pago <= 0.004 && $itens === []) {
             return null;
         }
@@ -549,9 +579,13 @@ final class RelatorioDados
         }
         usort($linhas, static fn($a, $b) => $b['valor'] <=> $a['valor']);
         $soma = round(array_sum(array_column($linhas, 'valor')), 2);
+        if (!$ligado) {                                 // sem o vínculo de cada pagamento: a fatura inteira contra as compras
+            $semDetalhe = max(0.0, round($pago - $soma, 2));
+            $aMais = $pago > 0.004 ? max(0.0, round($soma - $pago, 2)) : 0.0;
+        }
         return ['pago' => $pago, 'soma' => $soma, 'linhas' => array_slice($linhas, 0, 6),
                 'restoCategorias' => round(array_sum(array_column(array_slice($linhas, 6), 'valor')), 2),
-                'semDetalhe' => max(0.0, round($pago - $soma, 2)), 'aMais' => $pago > 0.004 ? max(0.0, round($soma - $pago, 2)) : 0.0, 'paga' => $pago > 0.004];
+                'semDetalhe' => round($semDetalhe, 2), 'aMais' => round($aMais, 2), 'paga' => $pago > 0.004];
     }
 
     /** O que o plano dizia no começo do mês contra o que aconteceu, e de onde veio a diferença. */
@@ -703,9 +737,8 @@ final class RelatorioDados
         $pri = $n > 0 ? $plano[$encerrados[0]] : null;
         $valorLiq = static fn(array $l, string $conta): float => (float) $l[$conta] + (float) $l['poupanca_saldo'] + (float) ($l['invest_saldo'] ?? 0.0) - max(0.0, (float) $l['falta_pagar']);
         $liqFim = $ult !== null ? $valorLiq($ult, 'fica_na_conta') : null;
-        $cats = self::categoriasDoAno($dados, $encerrados);
         $porCompra = !$porFatura && GastoPorCategoria::ativo();
-        $onde = $porCompra ? self::categoriasDoAno($dados, $encerrados, true) : $cats;
+        $onde = self::categoriasDoAno($dados, $encerrados, $porCompra);   // a mesma conta no "Para onde foi" e no que foi bom ou ruim
         $ref = substr($hoje, 0, 8) . '01';
         $titulo = $n === 0
             ? t('{ano}: nenhum mês encerrado ainda', ['ano' => $ano])
@@ -729,7 +762,7 @@ final class RelatorioDados
             'dividaFim' => $ult !== null ? max(0.0, (float) $ult['falta_pagar']) : null,
             'liquido' => $liqFim, 'reserva' => $reserva, 'tabela' => $tabela,
             'destaques' => self::destaques($tabela),
-            'achados' => $n === 0 ? ['bom' => [], 'ruim' => [], 'melhorar' => [], 'conferir' => []] : self::achadosDoAno($dados, $plano, $encerrados, $cats, $entrou, $sobrou, $reserva, $some('amortizacao_extra'), round($some('poupanca_liquido') + $some('invest_liquido'), 2), $hoje),
+            'achados' => $n === 0 ? ['bom' => [], 'ruim' => [], 'melhorar' => [], 'conferir' => []] : self::achadosDoAno($dados, $plano, $encerrados, $onde, $entrou, $sobrou, $reserva, $some('amortizacao_extra'), round($some('poupanca_liquido') + $some('invest_liquido'), 2), $hoje),
             'categorias' => ['linhas' => array_slice($onde, 0, 12), 'totalReal' => round(array_sum(array_column($onde, 'real')), 2), 'totalPlanejado' => round(array_sum(array_column($onde, 'planejado')), 2), 'outros' => count($onde) > 12 ? [
                 'n' => count($onde) - 12, 'real' => round(array_sum(array_column(array_slice($onde, 12), 'real')), 2), 'planejado' => round(array_sum(array_column(array_slice($onde, 12), 'planejado')), 2)] : null],
             'heatmap' => $n >= self::ENCERRADOS_PARA_HEATMAP ? self::heatmap($dados, $encerrados, $onde, $porCompra) : null,
@@ -791,14 +824,18 @@ final class RelatorioDados
     private static function achadosDoAno(array $dados, array $plano, array $encerrados, array $cats, float $entrou, float $sobrou, float $reserva, float $adiantou, float $guardou, string $hoje): array
     {
         $bom = $ruim = [];
-        if ($sobrou > 0.004) {
-            $por100 = $entrou > 0.004 ? (int) round($sobrou / $entrou * 100) : 0;
-            $bom[] = ['peso' => $sobrou, 'texto' => t('Sobraram {valor}: {n} de cada 100 {moeda} que entraram.', ['valor' => money($sobrou), 'n' => $por100, 'moeda' => moedaPlural()])];
+        // "sobrou" com o sentido da manchete: depois de guardar e aplicar, que viram um item à parte
+        $sobra = round($sobrou - max(0.0, $guardou), 2);
+        if ($sobra > 0.004) {
+            $por100 = $entrou > 0.004 ? (int) round($sobra / $entrou * 100) : 0;
+            $bom[] = ['peso' => $sobra, 'texto' => $por100 > 0
+                ? t('Sobraram {valor}: {n} de cada 100 {moeda} que entraram.', ['valor' => money($sobra), 'n' => $por100, 'moeda' => moedaPlural()])
+                : t('Sobraram {valor}.', ['valor' => money($sobra)])];
         } elseif ($sobrou < -0.004) {
             $ruim[] = ['peso' => abs($sobrou), 'texto' => t('Saiu {valor} a mais do que entrou, sem contar adiantamentos e aplicações.', ['valor' => money(abs($sobrou))])];
         }
         foreach ($cats as $c) {
-            if ($c['planejado'] <= 0.004 && $c['real'] <= 0.004 || !self::relevante($c, $entrou) || $c['real'] <= 0.004) {
+            if (!empty($c['semPlano']) || $c['planejado'] <= 0.004 && $c['real'] <= 0.004 || !self::relevante($c, $entrou) || $c['real'] <= 0.004) {
                 continue;
             }
             if ($c['dif'] < 0) {

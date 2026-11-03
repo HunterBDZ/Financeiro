@@ -257,7 +257,6 @@ return [
     'Data de início' => 'Fecha de inicio',
     'Data do pagamento' => 'Fecha del pago',
     'data do saldo' => 'fecha del saldo',
-    'Data inválida ({erro}): escolha o dia em que pagou.' => 'Fecha inválida ({erro}): elija el día en que pagó.',
     'De' => 'Desde',
     'De A a Z' => 'De A a Z',
     'de {ano}, {estado}' => 'de {ano}, {estado}',

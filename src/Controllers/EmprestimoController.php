@@ -199,7 +199,7 @@ final class EmprestimoController
         }
         $erroData = LancamentosController::validarData($data);
         if ($erroData !== null) {
-            return [t('Data inválida ({erro}): escolha o dia em que pagou.', ['erro' => $erroData]), 0.0];
+            return [$erroData, 0.0];
         }
         return [null, $valor];
     }

@@ -35,7 +35,7 @@ final class ChecklistContas
                 $conta['dia_vencimento'] = $fatura['vence'];
                 $pagoFatura    = $fatura['faturas'][$mes] ?? null;
                 $pago          = (float) ($pagoFatura['pago'] ?? 0.0);
-                $dataPagamento = $pagoFatura['primeiro'] ?? null;
+                $dataPagamento = $pagoFatura['ultimo'] ?? null;          // paga em partes: o dia em que completou
             } else {
                 $pago          = LancamentoModel::somaPorCategoriaNome($conta['categoria_nome'], $mes);
                 $dataPagamento = $pago > 0 ? LancamentoModel::primeiraDataPorCategoriaNome($conta['categoria_nome'], $mes) : null;

@@ -1103,7 +1103,9 @@ $check('consolidar: valor inválido, data futura e data fora do plano são recus
     EmprestimoController::validarAdiantamento('12a', $hoje, $hoje)[0] !== null
     && EmprestimoController::validarAdiantamento('0', $hoje, $hoje)[0] !== null
     && str_contains((string) EmprestimoController::validarAdiantamento('100', date('Y-m-d', strtotime($hoje . ' +1 day')), $hoje)[0], 'depois de hoje')
-    && str_contains((string) EmprestimoController::validarAdiantamento('100', '2000-01-01', $hoje)[0], 'Data inválida')
+    && str_contains((string) EmprestimoController::validarAdiantamento('100', '2000-01-01', $hoje)[0], 'A data é antes do início')
+    // C-15: a frase da data é uma só, sem outra dentro de parênteses
+    && EmprestimoController::validarAdiantamento('100', '2026-02-31', $hoje)[0] === 'Escolha uma data válida.'
     && EmprestimoController::validarAdiantamento('100', 'ontem', $hoje)[0] !== null
     && EmprestimoController::validarAdiantamento('1.250,50', $hoje, $hoje) === [null, 1250.5]);
 $catAmortT = MotorFinanceiro::dados()['esp']['amort'];
@@ -3701,6 +3703,45 @@ $check('C-02 cartão: editar a data recalcula a fatura; a fatura escolhida à m�
     && CartaoController::primeiraNaEdicao($compraE, '2026-11-11', CartaoFatura::faturaDe('2026-11-11', 10, 20), '2027-01-01') === '2027-01-01'
     && CartaoController::primeiraNaEdicao($compraE, '2026-11-11', '2026-12-01', '2026-12-01') === '2026-12-01');
 
+// C-03: "O que foi bom" e "Para onde foi" dão o mesmo número para a mesma categoria (no mês e no ano)
+$contradiz = static function (?array $r): array {
+    $erros = [];
+    foreach ($r['categorias']['linhas'] ?? [] as $c) {
+        foreach (['bom' => 'abaixo do planejado', 'ruim' => 'acima do planejado'] as $lado => $frase) {
+            foreach ($r['achados'][$lado] ?? [] as $txt) {
+                if (str_starts_with($txt, $c['nome'] . ':') && str_contains($txt, 'planejado')
+                    && (!str_contains($txt, $frase) || !str_contains($txt, money(abs($c['dif']))))) {
+                    $erros[] = $txt . ' / ' . $c['nome'] . ' ' . $c['dif'];
+                }
+            }
+        }
+    }
+    return $erros;
+};
+$relOut = RelatorioDados::mensal('2026-10-01', $hoje);
+$relAno = RelatorioDados::anual(2026, $hoje);
+$check('C-03 relatório: o que foi bom ou ruim usa a mesma conta do "Para onde foi"', $relOut !== null && $relOut['encerrado'] && $relOut['porCompra']
+    && $contradiz($relOut) === [] && $contradiz($relAno) === [], json_encode([$contradiz($relOut), $contradiz($relAno)], JSON_UNESCAPED_UNICODE));
+
+// C-04: com dois cartões, "O que tinha na fatura" só tem as compras do cartão que a fatura pagou, e o "sem detalhe" bate
+$emTransacao('C-04 relatório com dois cartões', static function () use ($check, $hoje, $uid, $catGasto): void {
+    $c2 = CartaoModel::salvar(null, 'Cartão dois', 10, 20, null);
+    CartaoModel::criarCompra($c2, '2026-09-15', 'delivery no outro cartão', $catGasto, 100.0, 1, '2026-10-01', $uid);
+    MotorFinanceiro::limparCache();
+    $r = RelatorioDados::mensal('2026-10-01', $hoje);
+    $f = $r['fatura'] ?? null;
+    $semDet = 0.0;
+    foreach ($r['categorias']['linhas'] ?? [] as $c) {
+        if (!empty($c['semPlano']) && $c['id'] === GastoPorCategoria::categoriaFatura()) {
+            $semDet = $c['real'];
+        }
+    }
+    $doPrimeiro = CartaoFatura::totais(CartaoModel::compras(CartaoModel::padrao()['id']))['2026-10-01'] ?? 0.0;
+    $check('C-04 relatório: a fatura paga mostra só as compras do cartão dela, e "Fatura sem detalhe" é a mesma nos dois quadros',
+        $f !== null && $f['paga'] && abs($f['soma'] - $doPrimeiro) < 0.005 && abs($f['semDetalhe'] - $semDet) < 0.005
+        && abs($f['soma'] + $f['semDetalhe'] - $f['aMais'] - $f['pago']) < 0.005, json_encode([$f, $semDet, $doPrimeiro]));
+});
+
 // C-07: no lançar, só as categorias que o servidor aceita numa compra no cartão vêm marcadas para o cartão
 LancarForm::limparCache();
 $okC07 = true;
@@ -3724,6 +3765,22 @@ $check('C-14 validação: "10.5" não vira dia 10; juros até 15% ao mês, de 1 
     && $lerE(['n_parcelas' => '500']) === 'n_parcelas' && $lerE(['n_parcelas' => '480']) === null && $lerE(['n_parcelas' => '12.5']) === 'n_parcelas'
     && $lerE(['parcela_mensal' => '0']) === 'parcela_mensal' && $lerE(['recebido_emprestimo' => '-5']) === 'recebido_emprestimo'
     && str_contains(AjustesController::erroDoCampo('juros_mes'), '15%') && str_contains(AjustesController::erroDoCampo('n_parcelas'), '480'));
+
+// C-15: o "sobrou" do anual é o mesmo da manchete; a fatura paga em partes mostra o dia do último pagamento
+$sobraAno = $relAno !== null ? round($relAno['sobrou'] - max(0.0, $relAno['guardou']), 2) : 0.0;
+$sobrouBom = array_values(array_filter($relAno['achados']['bom'] ?? [], static fn(string $t): bool => str_starts_with($t, 'Sobraram')));
+$check('C-15 relatório anual: "Sobraram" diz o mesmo valor da manchete', $relAno !== null && $relAno['guardou'] > 0.004 && $sobraAno > 0.004
+    && str_contains($relAno['manchete'], money($sobraAno)) && !str_contains(implode(' ', $relAno['achados']['bom']), money(round($relAno['sobrou'], 2)))
+    && array_filter($sobrouBom, static fn(string $t): bool => !str_contains($t, money($sobraAno))) === [], json_encode([$relAno['manchete'] ?? null, $sobrouBom], JSON_UNESCAPED_UNICODE));
+$emTransacao('C-15 Mês: o último pagamento da fatura', static function () use ($check, $hoje, $uid): void {
+    $cartao = CartaoModel::padrao();
+    $fat = (int) CartaoModel::categoriaFatura();
+    $mesF = substr($hoje, 0, 8) . '01';
+    LancamentoModel::criar($hoje, 'Fatura do cartão', $fat, 10.0, $uid, ContaModel::PRINCIPAL, ['cartao_id' => $cartao['id'], 'fatura' => $mesF]);
+    MotorFinanceiro::limparCache();
+    $linha = array_values(array_filter(ChecklistContas::statusPorMes($mesF, $hoje), static fn(array $c): bool => $c['categoria_id'] === $fat));
+    $check('C-15 Mês: a fatura paga em partes mostra o dia do último pagamento', isset($linha[0]) && $linha[0]['data_pagamento'] === $hoje, json_encode($linha));
+});
 
 echo "\n{$ok} ok, {$falhas} falha(s)\n";
 exit($falhas > 0 ? 1 : 0);
