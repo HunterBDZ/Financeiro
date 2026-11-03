@@ -348,6 +348,16 @@ final class Importacao
             return ['erro' => tn($semCategoria, 'Falta a categoria de 1 linha marcada.', 'Falta a categoria de {n} linhas marcadas.'), 'id' => 0, 'n' => 0];
         }
         $cartao = $destino['tipo'] === 'cartao';
+        // os resgates do arquivo, somados por categoria, não passam do que estava guardado
+        $resgates = [];
+        foreach ($cartao ? [] : $marcadas as $r) {
+            $resgates[$r['categoria_id']] = [($resgates[$r['categoria_id']][0] ?? 0.0) + abs($r['valor']), max($resgates[$r['categoria_id']][1] ?? '', $r['data'])];
+        }
+        foreach ($resgates as $cat => [$soma, $ate]) {
+            if (($erro = Investimentos::erroResgate((int) $cat, round($soma, 2), $ate)) !== null) {
+                return ['erro' => $erro, 'id' => 0, 'n' => 0];
+            }
+        }
         $pdo = Database::connection();
         $abriu = !$pdo->inTransaction();             // dentro de outra transação (os testes), fica nela
         if ($abriu) {

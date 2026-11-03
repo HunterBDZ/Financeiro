@@ -14,6 +14,7 @@ use Financeiro\Models\PrevisaoModel;
 use Financeiro\Models\UsuarioModel;
 use Financeiro\Relogio;
 use Financeiro\Services\ChecklistContas;
+use Financeiro\Services\Investimentos;
 use Financeiro\Services\LancarForm;
 use Financeiro\Services\MotorFinanceiro;
 use Financeiro\Services\Planilha;
@@ -479,7 +480,7 @@ final class LancamentosController
         }
         $volta = voltaSegura(self::post('volta'), '/lancamentos?mes=' . substr($l['data'], 0, 8) . '01');
 
-        [$erro, $d] = self::validar($_POST);
+        [$erro, $d] = self::validar($_POST, (int) $l['id']);
         if ($erro !== null) {
             $_SESSION['lanc_antigo'] = self::antigoDe($_POST) + ['erro' => $erro, 'id' => (int) $l['id']];
             redirecionar('/lancamentos/' . (int) $l['id'] . '/editar?volta=' . rawurlencode($volta), 303);
@@ -601,7 +602,7 @@ final class LancamentosController
     /**
      * @return array{0:?string, 1:?array{data:string,descricao:string,categoria_id:int,valor:float,cat:array}}
      */
-    private static function validar(array $in): array
+    private static function validar(array $in, ?int $editando = null): array
     {
         $valor = parseMoedaBr(is_string($in['valor'] ?? null) ? $in['valor'] : null);
         $valor = $valor === null ? null : round(abs($valor), 2);     // "-50" / "−50" gravam 50 (o sinal vem da categoria)
@@ -617,6 +618,10 @@ final class LancamentosController
 
         $data = self::dataDoQuando($in);
         if (($erro = self::validarData($data)) !== null) {
+            return [$erro, null];
+        }
+        // resgatar mais do que estava guardado deixaria a poupança (ou os investimentos) negativa
+        if (($erro = Investimentos::erroResgate($categoriaId, $valor, $data, $editando)) !== null) {
             return [$erro, null];
         }
 

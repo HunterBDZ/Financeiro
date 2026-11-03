@@ -2345,6 +2345,7 @@ return [
     'Colunas' => 'Columnas',
     'Colunas, se for CSV' => 'Columnas, si es CSV',
     'Revisar' => 'Revisar',
+    'O resgate passa do saldo de {valor}.' => 'El retiro supera el saldo de {valor}.',
     'Mesmo valor e data de {descricao}' => 'Mismo valor y fecha que {descricao}',
     'Confira o valor' => 'Revise el valor',
     'Os juros vão de 0 a {max}% ao mês.' => 'El interés va de 0 a {max}% al mes.',

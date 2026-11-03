@@ -165,6 +165,7 @@ As regras do app e o porquê de cada uma. Para instalar e operar, veja o [manual
 - Aplicar e resgatar são movimentações: saem da conta e entram no balanço, mas nunca contam como renda ou gasto. Por isso o grupo `Investimento` tem `operacional = 0`.
 - No plano, aplicar reduz o dinheiro disponível, e o adiantamento automático daquele mês diminui junto.
 - Rendimento não entra: a aba mostra o que foi aplicado, não o valor de mercado. O nome de cada aplicação vai na descrição do lançamento.
+- **Resgate até o saldo (`Investimentos::erroResgate`):** o resgate da poupança ou de investimentos não passa do que estava guardado na data dele (o valor de partida mais o que entrou menos o que saiu até ali): "O resgate passa do saldo de R$ X." Vale no lançar, no editar (sem contar o próprio lançamento) e na importação (os resgates do arquivo somados).
 
 ## Relatório
 

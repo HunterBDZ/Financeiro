@@ -24,6 +24,32 @@ final class Investimentos
         return $saida;
     }
 
+    /**
+     * O resgate (da poupança ou de investimentos) não pode passar do que estava guardado na data dele: o valor de
+     * partida mais o que entrou menos o que saiu até ali, sem o lançamento que está sendo editado ($ignorar).
+     * Outra categoria passa sem conta. null = cabe; senão a frase para a tela.
+     */
+    public static function erroResgate(int $categoriaId, float $valor, string $data, ?int $ignorar = null): ?string
+    {
+        $pdo = Database::connection();
+        $st = $pdo->prepare('SELECT chave FROM categorias WHERE id = ?');
+        $st->execute([$categoriaId]);
+        $chave = (string) $st->fetchColumn();
+        foreach (self::PARTES as $p) {
+            if ($chave !== $p['sai']) {
+                continue;
+            }
+            $soma = $pdo->prepare(
+                'SELECT COALESCE(SUM(CASE WHEN c.chave = ? THEN l.valor ELSE -l.valor END), 0) FROM lancamentos l JOIN categorias c ON c.id = l.categoria_id
+                 WHERE c.chave IN (?, ?) AND l.data <= ? AND l.id <> ?'
+            );
+            $soma->execute([$p['entra'], $p['entra'], $p['sai'], $data, $ignorar ?? 0]);
+            $saldo = round(AjusteModel::valor($p['ini']) + (float) $soma->fetchColumn(), 2);
+            return $valor > $saldo + 0.004 ? t('O resgate passa do saldo de {valor}.', ['valor' => money(max(0.0, $saldo))]) : null;
+        }
+        return null;
+    }
+
     private static function parte(array $p, string $hoje, int $ultimos): array
     {
         $pdo = Database::connection();

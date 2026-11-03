@@ -3753,6 +3753,18 @@ $check('C-05 importar: "1234.56" numa coluna de vírgula decimal vem desmarcado,
     && !$noPadrao('1234.56', ',') && !$noPadrao('1,234', ',') && !$noPadrao('1,234.56', ',') && !$noPadrao('12,345', ',')
     && $noPadrao('1,234.56', '.') && $noPadrao('-4.5', '.') && !$noPadrao('1.234,56', '.'), json_encode(array_map(static fn($r) => [$r['valor'], $r['duvida'], $r['marcada']], $revM)));
 
+// C-06: o resgate não passa do que está guardado
+$emTransacao('C-06 resgate maior que o saldo', static function () use ($check, $hoje, $uid): void {
+    $resg = (int) CategoriaModel::porChave(MotorFinanceiro::CAT_RESGATE)['id'];
+    $saldoP = (float) Investimentos::resumo($hoje)['poupanca']['saldo'];
+    $erroP = Investimentos::erroResgate($resg, $saldoP + 99999.0, $hoje);
+    $idR = LancamentoModel::criar($hoje, 'resgate', $resg, max(0.01, $saldoP), $uid, ContaModel::PRINCIPAL);
+    $check('C-06 investimentos: resgate maior que o saldo é recusado; até o saldo passa, e o editado não conta duas vezes',
+        $saldoP > 0 && $erroP === t('O resgate passa do saldo de {valor}.', ['valor' => money($saldoP)])
+        && Investimentos::erroResgate($resg, max(0.01, $saldoP), $hoje, $idR) === null && Investimentos::erroResgate($resg, 1.0, $hoje) !== null
+        && Investimentos::erroResgate((int) CategoriaModel::porChave(MotorFinanceiro::CAT_SALARIO)['id'], 99999.0, $hoje) === null, (string) $erroP);
+});
+
 // C-07: no lançar, só as categorias que o servidor aceita numa compra no cartão vêm marcadas para o cartão
 LancarForm::limparCache();
 $okC07 = true;

@@ -2345,6 +2345,7 @@ return [
     'Colunas' => 'Columns',
     'Colunas, se for CSV' => 'Columns, if it is a CSV',
     'Revisar' => 'Review',
+    'O resgate passa do saldo de {valor}.' => 'The withdrawal is more than the balance of {valor}.',
     'Mesmo valor e data de {descricao}' => 'Same amount and date as {descricao}',
     'Confira o valor' => 'Check the amount',
     'Os juros vão de 0 a {max}% ao mês.' => 'Interest goes from 0 to {max}% a month.',
