@@ -29,7 +29,7 @@ final class Ajuda
                 ['id' => 'conferir', 'pergunta' => t('E se o saldo não bater com o banco?'), 'resposta' => t('Em geral, é um lançamento esquecido ou repetido. Revise o Extrato e lance o que faltou.')],
             ]],
             ['titulo' => t('Mês e metas'), 'itens' => [
-                ['id' => 'metas', 'pergunta' => t('O que é uma meta?'), 'resposta' => t('É quanto você quer gastar por mês em uma categoria. Ela vale para todos os meses em aberto. Para mudar só um mês, ajuste o valor em Mês.')],
+                ['id' => 'metas', 'pergunta' => t('O que é uma meta?'), 'resposta' => t('É quanto você quer gastar por mês em uma categoria. Em Metas, escolha a partir de que mês ela vale e até quando: sem fim, só um mês ou até um mês escolhido. Também dá para corrigir um mês que já fechou.')],
                 ['id' => 'fechar', 'pergunta' => t('O que é fechar o mês?'), 'resposta' => t('É conferir o mês e guardar o resultado: o previsto dá lugar ao que foi lançado. O botão aparece em Mês. Dá para reabrir depois, e isso não desfaz um ajuste aplicado no mês seguinte.')],
             ]],
             ['titulo' => t('Cartão'), 'itens' => [
