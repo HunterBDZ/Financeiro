@@ -70,10 +70,25 @@ for (const tema of ['claro', 'escuro']) {
             test('Início, com a barra de baixo e o menu aberto', async ({ page }) => {
                 await page.goto('/');
                 expect(await graves(page)).toEqual([]);
-                await page.getByRole('banner').getByText('Menu').click();
+                await page.getByRole('banner').getByText('Menu', { exact: true }).click();
                 await expect(page.getByRole('banner').getByRole('link', { name: 'Ajustes' })).toBeVisible();
                 expect(await graves(page)).toEqual([]);
             });
+
+            test('menu do botão Menu no modo organizar', async ({ page }) => {
+                await page.goto('/');
+                await page.getByRole('banner').getByText('Menu', { exact: true }).click();
+                await page.getByRole('banner').getByRole('button', { name: 'Organizar menu' }).click();
+                await expect(page.getByRole('banner').getByRole('button', { name: 'Pronto' })).toBeVisible();
+                expect(await graves(page)).toEqual([]);
+            });
+        });
+
+        test('menu lateral no modo organizar', async ({ page }) => {
+            await page.goto('/');
+            await page.getByRole('complementary', { name: 'menu' }).getByRole('button', { name: 'Organizar menu' }).click();
+            await expect(page.getByRole('complementary', { name: 'menu' }).getByRole('button', { name: 'Pronto' })).toBeVisible();
+            expect(await graves(page)).toEqual([]);
         });
     });
 

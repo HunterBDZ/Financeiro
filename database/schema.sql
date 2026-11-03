@@ -316,6 +316,7 @@ CREATE TABLE `usuarios` (
   `idioma` varchar(5) DEFAULT NULL,
   `duas_etapas_segredo` varchar(255) DEFAULT NULL,
   `duas_etapas_passo` int unsigned DEFAULT NULL,
+  `menu_ordem` varchar(1000) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `login` (`login`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;

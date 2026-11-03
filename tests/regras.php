@@ -133,6 +133,8 @@ use Financeiro\Controllers\FuturoController;
 use Financeiro\Controllers\LancamentosController;
 use Financeiro\Controllers\MesController;
 use Financeiro\Controllers\MetaController;
+use Financeiro\Controllers\MenuController;
+use Financeiro\Menu;
 use Financeiro\Database;
 use Financeiro\Icones;
 use Financeiro\Models\AjusteModel;
@@ -1340,6 +1342,99 @@ $check('botão Menu (celular), sem o círculo da inicial, leva ao Relatório e a
 $htmlFuAtivo = $render(FuturoController::class, 'index', []);
 $check('Simular: fica aceso ele mesmo, no menu lateral e no botão Menu', str_contains($htmlFuAtivo, 'class="lat-i is-active" href="/futuro"') && str_contains($htmlFuAtivo, 'class="menu-item is-active" href="/futuro"')
     && str_contains($htmlFuAtivo, 'class="menu-botao is-active"') && !str_contains($htmlFuAtivo, 'class="tab is-active"') && !str_contains($htmlFuAtivo, 'class="lat-i is-active" href="/relatorio"'));
+
+// ---- 12b. ordem do menu: cada conta organiza as abas; o servidor aplica, ignora chave estranha e põe aba nova no fim
+$check('menu: sem ordem guardada, a padrão', Menu::ordenar(null) === Menu::CHAVES && Menu::ordenar(Menu::ler('isto não é JSON')) === Menu::CHAVES && Menu::ler('{"a":1}') === null);
+$check('menu: a ordem guardada vale, e o que falta segue na ordem padrão', Menu::ordenar(['meta', 'ajustes'])
+    === ['meta', 'ajustes', 'inicio', 'extrato', 'mes', 'cartao', 'relatorio', 'simular', 'emprestimo', 'investimentos', 'wishlist', 'temas', 'ajuda']);
+$check('menu: chave desconhecida ou repetida é ignorada', Menu::ordenar(['xyz', 'meta', 7, 'meta', null, 'inicio']) === array_merge(['meta', 'inicio'], array_values(array_diff(Menu::CHAVES, ['meta', 'inicio']))));
+$semNovas = array_reverse(array_values(array_diff(Menu::CHAVES, ['investimentos', 'wishlist'])));
+$check('menu: aba nova (fora da lista guardada) entra no fim, na ordem padrão', Menu::ordenar($semNovas) === [...$semNovas, 'investimentos', 'wishlist']);
+$check('menu: a lista do navegador só passa com chaves conhecidas e sem repetir', Menu::validar(['mes', 'inicio']) === ['mes', 'inicio']
+    && Menu::validar(['mes', 'xyz']) === null && Menu::validar(['mes', 'mes']) === null && Menu::validar([]) === null && Menu::validar('mes') === null
+    && Menu::validar(['a' => 'mes']) === null && Menu::validar([['mes']]) === null);
+$check('menu: reorganizar parte das abas deixa as outras no lugar (a escondida guarda a posição)',
+    Menu::mesclar(['inicio', 'cartao', 'mes', 'meta'], ['meta', 'inicio', 'mes']) === ['meta', 'cartao', 'inicio', 'mes']);
+$ordemDe = static function (string $html, string $onde): array {
+    preg_match('#' . $onde . '.*?<ul class="org-lista" data-org-lista>(.*?)</ul>#s', $html, $m);
+    preg_match_all('#data-aba="([a-z]+)"#', $m[1] ?? '', $k);
+    return $k[1];
+};
+$menuAntes = UsuarioModel::menuOrdem($uid);
+try {
+    UsuarioModel::salvarMenuOrdem($uid, json_encode(['meta', 'ajustes', 'xyz', 'cartao']));
+    $htmlMenu = $render(MetaController::class, 'index', []);
+    $lat = $ordemDe($htmlMenu, '<aside class="lateral"');
+    $cel = $ordemDe($htmlMenu, '<details class="menu menu-geral">');
+    preg_match('#<nav class="tabbar".*?</nav>#s', $htmlMenu, $mb);
+    preg_match_all('#href="([^"?]+)#', $mb[0] ?? '', $hb);
+    $check('menu: a página aplica a ordem da conta no menu lateral e no botão Menu, sem a chave estranha', array_slice($lat, 0, 5) === ['meta', 'ajustes', 'cartao', 'inicio', 'extrato']
+        && count($lat) === count(Menu::CHAVES) && !in_array('xyz', $lat, true) && array_slice($cel, 0, 3) === ['meta', 'ajustes', 'relatorio'] && !in_array('cartao', $cel, true), implode(',', $lat) . ' | ' . implode(',', $cel));
+    $check('menu: o Lançar fica no topo e a barra de baixo não muda', strpos($htmlMenu, 'class="lat-lancar"') < strpos($htmlMenu, 'data-org-lista') && $hb[1] === ['/', '/lancamentos', '/lancar', '/mes', '/cartao'], implode(',', $hb[1]));
+    $pdo->beginTransaction();
+    AjusteModel::setValor('usa_cartao', 0.0);
+    $semCartao = $ordemDe($render(MetaController::class, 'index', []), '<aside class="lateral"');
+    $pdo->rollBack();
+    $check('menu: aba escondida em Ajustes some do menu, mas a ordem das outras fica', array_slice($semCartao, 0, 3) === ['meta', 'ajustes', 'inicio'] && !in_array('cartao', $semCartao, true));
+
+    // o POST: só a lista à vista vem do navegador; as outras guardam o lugar
+    $csrfAntes = $_SESSION['csrf_token'] ?? null;
+    $_SESSION['csrf_token'] = str_repeat('c', 64);
+    $postarMenu = static function (array $post): int {
+        $_POST = $post + ['csrf_token' => str_repeat('c', 64)];
+        http_response_code(200);
+        (new MenuController())->salvarOrdem();
+        $_POST = [];
+        return (int) http_response_code();
+    };
+    UsuarioModel::salvarMenuOrdem($uid, null);
+    $cod = $postarMenu(['ordem' => ['ajustes', 'relatorio', 'simular', 'emprestimo', 'investimentos', 'wishlist', 'temas', 'meta', 'ajuda']]);
+    $check('menu: POST com o token grava; as abas que não estavam na lista ficam no lugar', $cod === 204
+        && Menu::daConta($uid) === ['inicio', 'extrato', 'mes', 'cartao', 'ajustes', 'relatorio', 'simular', 'emprestimo', 'investimentos', 'wishlist', 'temas', 'meta', 'ajuda'], $cod . ' ' . implode(',', Menu::daConta($uid)));
+    $gravada = UsuarioModel::menuOrdem($uid);
+    $cod = $postarMenu(['ordem' => ['ajustes', 'xyz']]);
+    $check('menu: POST com chave desconhecida é recusado e nada muda', $cod === 422 && UsuarioModel::menuOrdem($uid) === $gravada);
+    $cod = $postarMenu(['padrao' => '1']);
+    $check('menu: voltar à ordem padrão apaga a escolha', $cod === 204 && UsuarioModel::menuOrdem($uid) === null);
+    $postarMenu(['ordem' => Menu::CHAVES]);
+    $check('menu: a ordem igual à padrão não fica guardada', UsuarioModel::menuOrdem($uid) === null);
+    if ($csrfAntes === null) {
+        unset($_SESSION['csrf_token']);
+    } else {
+        $_SESSION['csrf_token'] = $csrfAntes;
+    }
+
+    // sem o token, a página de erro sai antes de gravar (ela encerra o processo, por isso roda num processo à parte)
+    $filhoMenu = (string) getenv('FIN_REGRAS_PASTA') . '/menu-sem-token.php';
+    file_put_contents($filhoMenu, '<?php
+$_SERVER["REQUEST_URI"] = "/menu/ordem"; $_SERVER["REQUEST_METHOD"] = "POST"; $_SERVER["HTTP_HOST"] = "localhost"; $_SERVER["HTTPS"] = "on";
+require ' . var_export(dirname(__DIR__) . '/src/bootstrap.php', true) . ';
+$_SESSION["usuario_id"] = ' . $uid . '; $_SESSION["usuario_nome"] = "teste"; $_SESSION["sessao_versao"] = ' . (int) UsuarioModel::sessaoVersao($uid) . ';
+$_SESSION["csrf_token"] = str_repeat("c", 64);
+$_POST = ["ordem" => ["ajustes", "inicio"]] + (($argv[1] ?? "") === "errado" ? ["csrf_token" => str_repeat("d", 64)] : []);
+(new Financeiro\Controllers\MenuController())->salvarOrdem();
+echo "GRAVOU";
+');
+    foreach (['sem token' => 'nenhum', 'token errado' => 'errado'] as $caso => $arg) {
+        $proc = proc_open([...\Financeiro\Atualizacao::comandoPhp(), $filhoMenu, $arg],
+            [0 => ['file', PHP_OS_FAMILY === 'Windows' ? 'NUL' : '/dev/null', 'r'], 1 => ['pipe', 'w'], 2 => ['redirect', 1]], $tubos, \Financeiro\Atualizacao::pastaDoProcesso(dirname(__DIR__)), array_filter(getenv(), 'is_string'));
+        $saidaMenu = is_resource($proc) ? (string) stream_get_contents($tubos[1]) : '';
+        if (is_resource($proc)) {
+            fclose($tubos[1]);
+            proc_close($proc);
+        }
+        $check("menu: POST {$caso} é recusado e nada muda", str_contains($saidaMenu, '<title>403') && !str_contains($saidaMenu, 'GRAVOU') && UsuarioModel::menuOrdem($uid) === null, substr(trim(strip_tags($saidaMenu)), 0, 200));
+    }
+    @unlink($filhoMenu);
+} catch (\Throwable $e) {
+    $check('menu: ordem das abas', false, get_class($e) . ': ' . $e->getMessage() . ' em ' . basename($e->getFile()) . ':' . $e->getLine());
+} finally {
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
+    $_POST = [];
+    UsuarioModel::salvarMenuOrdem($uid, $menuAntes);
+}
 
 // ---- 13. Anual: marcos do plano e o que mudou em cada mês (AnualResumo, dados de mentira)
 $pl = static fn(string $m, float $fica, bool $quit = false, float $parc = 0.0): array => ['mes' => $m, 'estado' => 'previsto',

@@ -96,6 +96,20 @@ final class UsuarioModel
         Database::connection()->prepare('UPDATE usuarios SET idioma = ? WHERE id = ?')->execute([$idioma, $id]);
     }
 
+    /** A ordem do menu da conta, em JSON (Financeiro\Menu); null = a ordem padrão. */
+    public static function menuOrdem(int $id): ?string
+    {
+        $st = Database::connection()->prepare('SELECT menu_ordem FROM usuarios WHERE id = ?');
+        $st->execute([$id]);
+        $o = $st->fetchColumn();
+        return $o === false || $o === null ? null : (string) $o;
+    }
+
+    public static function salvarMenuOrdem(int $id, ?string $json): void
+    {
+        Database::connection()->prepare('UPDATE usuarios SET menu_ordem = ? WHERE id = ?')->execute([$json, $id]);
+    }
+
     public static function senhaHash(int $id): ?string
     {
         $pdo = Database::connection();
