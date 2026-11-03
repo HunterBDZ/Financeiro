@@ -51,7 +51,7 @@
 .lf-criar-cat { display: inline-flex; align-items: center; min-height: var(--tap); color: var(--azul); font-size: var(--t-rotulo); font-weight: 600; }
 .lf-criar-cat:hover { text-decoration: underline; text-underline-offset: 3px; }
 .lf-recentes { display: flex; flex-wrap: wrap; gap: var(--e-2); }
-.lf-recentes[hidden] { display: none; }
+.lf-recentes[hidden], .lf-recente[hidden] { display: none; }
 .lf-recente {
     display: inline-flex; align-items: center; gap: var(--e-2); min-height: 36px; max-width: 100%; padding: 0 var(--e-3);
     border: 0; border-radius: var(--raio-controle); background: var(--superficie); color: var(--tinta);

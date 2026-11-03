@@ -3692,5 +3692,29 @@ $check('C-01 cartão: o limite livre desconta a fatura fechada por pagar, e paga
     && abs($livreL([], $antigaL) - (5000.50 - 300.0)) < 0.005,
     json_encode([$livreL([]), $livreL(['2026-11-01' => 40.0]), $livreL(['2026-11-01' => 100.0]), $livreL([], $antigaL)]));
 
+// C-02: a data nova leva a compra para a fatura dela, salvo se a fatura também foi trocada no mesmo envio
+$compraE = ['data' => '2026-11-11', 'primeira_fatura' => '2026-12-01'];
+$daDataE = CartaoFatura::faturaDe('2026-11-09', 10, 20);
+$check('C-02 cartão: editar a data recalcula a fatura; a fatura escolhida à mão no mesmo envio vale',
+    $daDataE === '2026-11-01' && CartaoController::primeiraNaEdicao($compraE, '2026-11-09', $daDataE, '2026-12-01') === '2026-11-01'
+    && CartaoController::primeiraNaEdicao($compraE, '2026-11-09', $daDataE, '2027-01-01') === '2027-01-01'
+    && CartaoController::primeiraNaEdicao($compraE, '2026-11-11', CartaoFatura::faturaDe('2026-11-11', 10, 20), '2027-01-01') === '2027-01-01'
+    && CartaoController::primeiraNaEdicao($compraE, '2026-11-11', '2026-12-01', '2026-12-01') === '2026-12-01');
+
+// C-07: no lançar, só as categorias que o servidor aceita numa compra no cartão vêm marcadas para o cartão
+LancarForm::limparCache();
+$okC07 = true;
+$cartaoC07 = CartaoModel::padrao();
+foreach (LancarForm::dados($hoje)['grupos'] as $itens) {
+    foreach ($itens as $c) {
+        $aceita = CartaoController::validarCompra(['valor' => '10', 'categoria_id' => (string) $c['id'], 'data' => $hoje, 'parcelas' => '1'], $cartaoC07, $hoje)[0] === null;
+        $okC07 = $okC07 && $aceita === $c['cartao'];
+    }
+}
+$htmlC07 = $render(LancamentosController::class, 'lancarForm', ['pagou' => 'cartao']);
+$check('C-07 cartão: a lista e os atalhos do lançar marcam as categorias de compra no cartão com a mesma regra do servidor', $okC07
+    && preg_match('#<option value="' . (int) CartaoModel::categoriaFatura() . '"(?![^>]*data-lf-cartao)[^>]*>#', $htmlC07) === 1
+    && preg_match('#<option value="' . $catGasto . '"[^>]*data-lf-cartao#', $htmlC07) === 1 && str_contains($htmlC07, 'data-value="' . $catGasto . '" data-lf-cartao'));
+
 echo "\n{$ok} ok, {$falhas} falha(s)\n";
 exit($falhas > 0 ? 1 : 0);

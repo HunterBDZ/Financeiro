@@ -41,6 +41,21 @@
         });
     }
 
+    /* ---- editar a compra: a data nova leva a 1ª parcela para a fatura dela, até a pessoa escolher a fatura à mão */
+    var ed = document.querySelector('form[data-ct-editar]');
+    if (ed) {
+        var edData = ed.querySelector('input[name="data"]'), edFat = ed.querySelector('select[name="primeira_fatura"]');
+        var aMao = false;
+        if (edFat) { edFat.addEventListener('change', function () { aMao = true; }); }
+        if (edData && edFat) {
+            edData.addEventListener('change', function () {
+                if (aMao || !/^\d{4}-\d{2}-\d{2}$/.test(edData.value)) { return; }
+                var f = faturaDe(edData.value, parseInt(ed.getAttribute('data-fecha'), 10), parseInt(ed.getAttribute('data-vence'), 10));
+                if (edFat.querySelector('option[value="' + f + '"]')) { edFat.value = f; }
+            });
+        }
+    }
+
     /* ---- "Configurar o cartão" (no ⋯) abre o configurar, lá embaixo */
     var cfgLink = document.querySelector('[data-ct-configurar]');
     var cfgDet = document.querySelector('details.ct-config');

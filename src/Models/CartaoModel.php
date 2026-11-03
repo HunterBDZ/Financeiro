@@ -169,6 +169,15 @@ final class CartaoModel
                     'cr' => $c['criado_em']]);
     }
 
+    /**
+     * A categoria pode receber uma compra no cartão: um gasto operacional, e não a própria Fatura do cartão ($fatura,
+     * de categoriaFatura()). A mesma regra no servidor (lançar, editar, importar) e na lista do lançar.
+     */
+    public static function aceitaCompra(array $cat, ?int $fatura): bool
+    {
+        return (int) $cat['sinal'] === -1 && (int) $cat['operacional'] === 1 && (int) $cat['id'] !== $fatura;
+    }
+
     /** A categoria que recebe as faturas no plano (chave `fatura`, a "Fatura do cartão"), ou null. */
     public static function categoriaFatura(): ?int
     {

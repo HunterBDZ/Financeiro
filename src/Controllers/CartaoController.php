@@ -267,6 +267,9 @@ final class CartaoController
         if ($erro === null && $prim === null) {
             $erro = t('Escolha a fatura da 1ª parcela.');
         }
+        if ($erro === null) {
+            $prim = self::primeiraNaEdicao($c, $d['data'], $d['primeira'], (string) $prim);
+        }
         if ($erro !== null) {
             $_SESSION['cartao_erro'] = ['msg' => $erro];
             redirecionar('/cartao/compras/' . (int) $id . '/editar', 303);
@@ -275,6 +278,15 @@ final class CartaoController
         CartaoFatura::sincronizarPlano((int) Auth::id());
         flash('success', t('Compra salva · {descricao}', ['descricao' => nomeCategoria((string) $d['descricao'])]));
         redirecionar(self::url($cartao['id'], 'fatura=' . $prim), 303);
+    }
+
+    /**
+     * A fatura da 1ª parcela ao editar: com a data nova, a compra vai para a fatura dessa data ($daData, a regra do
+     * lançar), salvo se a pessoa também trocou a fatura neste envio; aí vale a escolha dela.
+     */
+    public static function primeiraNaEdicao(array $compra, string $data, string $daData, string $escolhida): string
+    {
+        return $data !== $compra['data'] && $escolhida === $compra['primeira_fatura'] ? $daData : $escolhida;
     }
 
     /** POST /cartao/compras/{id}/excluir (também o "desfazer" do aviso de compra lançada) */
@@ -341,7 +353,7 @@ final class CartaoController
         if ($cat === null) {
             return [t('Escolha uma categoria.'), null];
         }
-        if ((int) $cat['sinal'] !== -1 || (int) $cat['operacional'] !== 1 || (int) $cat['id'] === $catFatura) {
+        if (!CartaoModel::aceitaCompra($cat, $catFatura)) {
             return [t('Escolha a categoria do que foi comprado (um gasto).'), null];
         }
         $data = LancamentosController::dataDoQuando($in, $hoje);
@@ -391,7 +403,6 @@ final class CartaoController
     public static function categoriasDeGasto(): array
     {
         $fat = CartaoModel::categoriaFatura();
-        return array_values(array_filter(CategoriaModel::ativas(), static fn($c) => (int) $c['sinal'] === -1
-            && (int) $c['operacional'] === 1 && (int) $c['id'] !== $fat));
+        return array_values(array_filter(CategoriaModel::ativas(), static fn($c) => CartaoModel::aceitaCompra($c, $fat)));
     }
 }

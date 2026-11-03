@@ -217,7 +217,7 @@ $transferir = !$editar && $contasF !== [] && ($a['modo'] ?? '') === 'transferir'
                 if ($rc === null) {
                     continue;
                 } ?>
-                <button type="button" class="lf-recente" data-lf-recente="<?= $rid ?>" aria-pressed="<?= $rid === $catSel ? 'true' : 'false' ?>"><?= iconeCategoria($rid, (string) $rc['nome'], (string) $rc['grupo'], 16) ?><span><?= e($rc['curto']) ?></span></button>
+                <button type="button" class="lf-recente" data-lf-recente="<?= $rid ?>"<?= !empty($rc['cartao']) ? ' data-lf-cartao' : '' ?> aria-pressed="<?= $rid === $catSel ? 'true' : 'false' ?>"><?= iconeCategoria($rid, (string) $rc['nome'], (string) $rc['grupo'], 16) ?><span><?= e($rc['curto']) ?></span></button>
             <?php endforeach; ?>
         </div>
     <?php endif; ?>
@@ -228,7 +228,7 @@ $transferir = !$editar && $contasF !== [] && ($a['modo'] ?? '') === 'transferir'
                 <?php $rotG = t((string) $grupo); ?>
                 <optgroup label="<?= e(mb_strtoupper(mb_substr($rotG, 0, 1)) . mb_substr($rotG, 1)) ?>">
                     <?php foreach ($itens as $c): ?>
-                        <option value="<?= (int) $c['id'] ?>"<?= (int) $c['id'] === $catSel ? ' selected' : '' ?><?= $opcoes !== [] && !empty($c['entra']) ? ' data-lf-entra' : '' ?><?= !$editar && isset($sugestoes[(int) $c['id']]) ? ' data-lf-previsto="' . e(numInput((float) $sugestoes[(int) $c['id']])) . '"' : '' ?>><?= e($c['curto']) ?></option>
+                        <option value="<?= (int) $c['id'] ?>"<?= (int) $c['id'] === $catSel ? ' selected' : '' ?><?= $opcoes !== [] && !empty($c['entra']) ? ' data-lf-entra' : '' ?><?= !empty($c['cartao']) ? ' data-lf-cartao' : '' ?><?= !$editar && isset($sugestoes[(int) $c['id']]) ? ' data-lf-previsto="' . e(numInput((float) $sugestoes[(int) $c['id']])) . '"' : '' ?>><?= e($c['curto']) ?></option>
                     <?php endforeach; ?>
                 </optgroup>
             <?php endforeach; ?>
@@ -246,7 +246,7 @@ $transferir = !$editar && $contasF !== [] && ($a['modo'] ?? '') === 'transferir'
                 <div class="lf-combo-g" role="group" aria-label="<?= e(t((string) $grupo)) ?>" data-lf-combo-g>
                     <div class="lf-combo-gt" aria-hidden="true"><?= e(t((string) $grupo)) ?></div>
                     <?php foreach ($itens as $c): ?>
-                        <div class="lf-combo-op" role="option" id="<?= e($pref) ?>-op-<?= (int) $c['id'] ?>" data-value="<?= (int) $c['id'] ?>"
+                        <div class="lf-combo-op" role="option" id="<?= e($pref) ?>-op-<?= (int) $c['id'] ?>" data-value="<?= (int) $c['id'] ?>"<?= !empty($c['cartao']) ? ' data-lf-cartao' : '' ?>
                              data-busca="<?= e(mb_strtolower($c['curto'] . ' ' . nomeCategoria($c['nome']))) ?>" aria-selected="<?= (int) $c['id'] === $catSel ? 'true' : 'false' ?>"><?= iconeCategoria((int) $c['id'], (string) $c['nome'], (string) $c['grupo'], 20) ?><span><?= e($c['curto']) ?></span></div>
                     <?php endforeach; ?>
                 </div>

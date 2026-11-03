@@ -341,6 +341,34 @@
         }
     });
 
+    // "Pagou com: cartão" (ou cartao:id): só as categorias que o servidor aceita numa compra no cartão
+    // (data-lf-cartao, de CartaoModel::aceitaCompra), nos atalhos e na lista; a escolhida que não serve sai
+    function noCartao(form) {
+        var m = form.querySelector('input[name="pagou"]:checked');
+        return !transferindo(form) && !!m && /^cartao/.test(m.value);
+    }
+    function categoriasDoCartao(form) {
+        var ct = noCartao(form);
+        form.querySelectorAll('[data-lf-recente]').forEach(function (b) { b.hidden = ct && !b.hasAttribute('data-lf-cartao'); });
+        var sel = form.querySelector('select[name="categoria_id"]');
+        if (!sel) { return; }
+        Array.prototype.forEach.call(sel.options, function (o) { if (o.value) { o.disabled = ct && !o.hasAttribute('data-lf-cartao'); } });
+        var op = sel.selectedIndex >= 0 ? sel.options[sel.selectedIndex] : null;
+        if (ct && op && op.value && !op.hasAttribute('data-lf-cartao')) {
+            sel.value = '';
+            var combo = form.querySelector('[data-lf-combo]');
+            if (combo && combo.lfSincronizar) { combo.lfSincronizar(); }
+            sel.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+    }
+    document.querySelectorAll('form[data-lf]').forEach(categoriasDoCartao);
+    document.addEventListener('change', function (ev) {
+        var el = ev.target;
+        if (el instanceof Element && el.form && el.form.matches('form[data-lf]') && /^(pagou|modo)$/.test(el.getAttribute('name') || '')) {
+            categoriasDoCartao(el.form);
+        }
+    });
+
     // as usadas por último: um toque escolhe a categoria (sem JS, ficam escondidas e vale o campo)
     document.querySelectorAll('form[data-lf] [data-lf-recentes]').forEach(function (g) {
         g.hidden = false;
@@ -406,10 +434,12 @@
 
         function filtrar(q) {
             q = semAcento(q.trim());
+            var form = combo.closest('form');
+            var ct = !!form && noCartao(form);
             lista.querySelectorAll('[data-lf-combo-g]').forEach(function (g) {
                 var n = 0;
                 g.querySelectorAll('[role="option"]').forEach(function (op) {
-                    var ok = q === '' || semAcento(op.getAttribute('data-busca') || '').indexOf(q) !== -1;
+                    var ok = (q === '' || semAcento(op.getAttribute('data-busca') || '').indexOf(q) !== -1) && (!ct || op.hasAttribute('data-lf-cartao'));
                     op.hidden = !ok;
                     if (ok) { n++; }
                 });

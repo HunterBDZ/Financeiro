@@ -1,7 +1,8 @@
 <?php
 /**
  * Editar uma compra no cartão: descrição, categoria, valor total, vezes, data e a fatura da 1ª
- * parcela (é ela que decide em que faturas as parcelas caem). Excluir fica aqui, em vermelho.
+ * parcela (é ela que decide em que faturas as parcelas caem). Mudar a data leva a 1ª parcela para a fatura dela
+ * (cartao.js e, sem JS, o servidor), salvo se a fatura também foi trocada à mão. Excluir fica aqui, em vermelho.
  * Um estorno (valor negativo) fica marcado e em 1 parcela.
  * Variáveis: $compra, $cartao, $meses (faturas possíveis para a 1ª parcela), $categorias, $erro, $aberta, $volta.
  */
@@ -17,7 +18,7 @@ $estorno = (float) $c['valor_total'] < 0;
         <h1 class="lf-titulo"><?= e(t('Compra no cartão')) ?></h1>
     </header>
     <p class="ct-escada-sub num"><?= $estorno ? e(t('Estorno na fatura de {mes}', ['mes' => monthLabel($c['primeira_fatura'])])) : ((int) $c['parcelas'] === 1 ? e(t('À vista, na fatura de {mes}', ['mes' => monthLabel($c['primeira_fatura'])])) : e(t('{n} × {valor}, de {de} a {ate}', ['n' => (int) $c['parcelas'], 'valor' => num($ps[count($ps) - 1][2]), 'de' => monthLabel($c['primeira_fatura']), 'ate' => monthLabel($ultima)]))) ?></p>
-    <form class="card ct-form" method="post" action="/cartao/compras/<?= (int) $c['id'] ?>">
+    <form class="card ct-form" method="post" action="/cartao/compras/<?= (int) $c['id'] ?>" data-ct-editar data-fecha="<?= (int) $cartao['fecha'] ?>" data-vence="<?= (int) $cartao['vence'] ?>">
         <?= csrfField() ?>
         <?php if ($erro !== ''): ?><p class="aviso aviso-error" role="alert"><?= e($erro) ?></p><?php endif; ?>
         <label><span><?= e(t('O que foi')) ?></span><input type="text" name="descricao" maxlength="255" value="<?= e(descricaoTela((string) $c['descricao'], ['nome' => $c['categoria_nome'] ?? '', 'apelido' => $c['categoria_apelido'] ?? ''])) ?>"></label>

@@ -11,7 +11,7 @@ use Financeiro\Relogio;
 
 /**
  * Dados do formulário de lançar. O layout chama dados() em toda página
- * (o <dialog id="lancar">), então: no máximo 6 consultas (mais 2 por cartão e 3 com várias contas), todas
+ * (o <dialog id="lancar">), então: no máximo 7 consultas (mais 2 por cartão e 3 com várias contas), todas
  * limitadas, e cache por requisição.
  */
 final class LancarForm
@@ -59,10 +59,13 @@ final class LancarForm
         // A lista completa por classe, gastos antes de entradas: essenciais, não essenciais, entradas e ⇄
         // (empréstimo/poupança). O dia a dia é distribuído nos grupos pela sua classe, com os mais usados primeiro.
         $grupos = ['essenciais' => [], 'não essenciais' => [], 'entradas' => [], '⇄ movimentações' => []];
+        $fatura = CartaoModel::categoriaFatura();
         foreach ($cats as $i => $c) {
             $id = (int) $c['id'];
             // entra: dinheiro que chega (renda ou resgate); com várias contas, o "Pagou com" vira "Recebeu em"
-            $base = ['id' => $id, 'nome' => (string) $c['nome'], 'curto' => nomeCurto($c), 'grupo' => (string) $c['grupo'], 'entra' => (int) $c['sinal'] === 1];
+            // cartao: cabe numa compra no cartão (a regra do servidor); com "Pagou com: cartão", só essas aparecem
+            $base = ['id' => $id, 'nome' => (string) $c['nome'], 'curto' => nomeCurto($c), 'grupo' => (string) $c['grupo'], 'entra' => (int) $c['sinal'] === 1,
+                     'cartao' => CartaoModel::aceitaCompra($c, $fatura)];
             $ehDia = $c['grupo'] === 'Dia a dia';
             $fq = [-($freq[$id]['meu'] ?? 0), -($freq[$id]['casa'] ?? 0)];
             if ((int) $c['operacional'] === 0) {

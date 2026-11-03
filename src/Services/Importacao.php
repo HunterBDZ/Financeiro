@@ -214,7 +214,7 @@ final class Importacao
             $ok = match ($tipo) {
                 'gasto'   => (int) $c['sinal'] === -1,
                 'entrada' => (int) $c['sinal'] === 1,
-                'compra', 'parcela', 'estorno' => (int) $c['sinal'] === -1 && (int) $c['operacional'] === 1 && (int) $c['id'] !== $fatura,
+                'compra', 'parcela', 'estorno' => CartaoModel::aceitaCompra($c, $fatura),
                 default   => false,
             };
             if ($ok) {
