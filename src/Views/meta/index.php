@@ -136,7 +136,7 @@ $linha = static function (array $l) use ($editor, $proprio, $colunas): void {
     <details class="mt-linha <?= $cls ?>" id="c<?= (int) $l['id'] ?>" data-valor="<?= e(number_format($valor, 2, '.', '')) ?>" data-gasto="<?= e(number_format($gasto, 2, '.', '')) ?>" data-nome="<?= e($l['nome']) ?>"<?= !empty($l['aberta']) ? ' open' : '' ?>>
         <summary>
             <span class="mt-c mt-c-nome"><?= iconeCategoria((int) $l['id'], (string) $l['nome'], $l['grupo'], 20, 'mt-ic') ?><span class="mt-nome-txt"><span class="mt-nome"><?= e($l['nome']) ?></span><?= $proprio($l) ?></span></span>
-            <?php $colunas($valor, $gasto, $valor <= 0.004 && !$l['proprio'], '', !empty($l['cartao'])); ?>
+            <?php $colunas($valor, $gasto, $valor <= 0.004, '', !empty($l['cartao'])); ?>
         </summary>
         <?php $editor($l, '/meta/editar', false); ?>
     </details>

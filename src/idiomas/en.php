@@ -2362,4 +2362,9 @@ return [
     'Digite o valor da conta por mês.' => 'Enter the bill amount per month.',
     'sem valor' => 'no amount',
     'mais {valor} agendado' => 'plus {valor} scheduled',
+    'Falta para zerar' => 'Short of zero',
+    'Hoje é o último dia do mês: {valor} para hoje.' => 'Today is the last day of the month: {valor} for today.',
+    'Cerca de {valor} por dia nos {n} dias que faltam, contando hoje.' => 'About {valor} a day for the {n} days left, counting today.',
+    'Cerca de {valor} por dia nos {n} dias do mês.' => 'About {valor} a day for the {n} days of the month.',
+    'sem previsão' => 'not forecast',
 ];

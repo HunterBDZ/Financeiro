@@ -2362,4 +2362,9 @@ return [
     'Digite o valor da conta por mês.' => 'Escriba el valor de la cuenta por mes.',
     'sem valor' => 'sin valor',
     'mais {valor} agendado' => 'más {valor} programado',
+    'Falta para zerar' => 'Falta para llegar a cero',
+    'Hoje é o último dia do mês: {valor} para hoje.' => 'Hoy es el último día del mes: {valor} para hoy.',
+    'Cerca de {valor} por dia nos {n} dias que faltam, contando hoje.' => 'Unos {valor} por día en los {n} días que faltan, contando hoy.',
+    'Cerca de {valor} por dia nos {n} dias do mês.' => 'Unos {valor} por día en los {n} días del mes.',
+    'sem previsão' => 'sin previsión',
 ];

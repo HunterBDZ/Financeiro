@@ -239,10 +239,25 @@ function parseMoedaBr(?string $input, bool $dinheiro = true): ?float
 function t(string $texto, array $vars = []): string
 {
     $saida = \Financeiro\Idioma::traduzir($texto);
+    // em inglês, o dia do mês ({dia}, {fim}) depois de "the" é ordinal: "until the 30th", "today is the 22nd"
+    if (\Financeiro\Idioma::atual() === 'en' && str_contains($saida, 'the {')) {
+        foreach (array_intersect_key($vars, ['dia' => 1, 'fim' => 1]) as $k => $v) {
+            if ((is_int($v) || (is_string($v) && ctype_digit($v))) && (int) $v >= 1 && (int) $v <= 31) {
+                $saida = str_replace('the {' . $k . '}', 'the ' . ordinalEn((int) $v), $saida);
+            }
+        }
+    }
     foreach ($vars as $k => $v) {
         $saida = str_replace('{' . $k . '}', (string) $v, $saida);
     }
     return $saida;
+}
+
+/** `1st`, `2nd`, `3rd`, `4th`, `11th`, `21st`: o ordinal em inglês (o dia do mês). */
+function ordinalEn(int $n): string
+{
+    $fim = in_array($n % 100, [11, 12, 13], true) ? 'th' : (['th', 'st', 'nd', 'rd'][$n % 10] ?? 'th');
+    return $n . $fim;
 }
 
 /** Singular ou plural pela quantidade; {n} é a quantidade. */

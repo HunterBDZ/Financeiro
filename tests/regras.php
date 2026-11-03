@@ -1590,6 +1590,39 @@ $emTransacao('agendado e soma do dia', static function () use ($pdo, $check, $re
     $check('Início: a soma de hoje é a do dia inteiro, não só a dos lançamentos à vista', preg_match('#<span>Hoje</span><span class="num">' . MENOS . '280,00</span>#u', $htmlIni) === 1);
 });
 
+// ---- 9i. As contas fecham: categoria tirada do mês (B-08), a barra no vermelho (B-12), o "por dia" (B-19), o ordinal (B-18)
+$emTransacao('as contas fecham', static function () use ($pdo, $check, $render, $mesHoje, $hoje, $uid): void {
+    $comb = (int) $pdo->query("SELECT id FROM categorias WHERE nome = 'Combustível'")->fetchColumn();
+    PrevisaoModel::setValor($comb, $mesHoje, 0.0);                     // "Tirar deste mês", com gasto no mês
+    MotorFinanceiro::limparCache();
+    $htmlMes = $render(MesController::class, 'index', ['mes' => $mesHoje]);
+    $linhaMes = preg_match('#<tr id="cat-' . $comb . '".*?</tr>#s', $htmlMes, $m) ? $m[0] : '';
+    $htmlMeta = $render(MetaController::class, 'index', []);
+    $linhaMeta = preg_match('#id="c' . $comb . '".*?</summary>#s', $htmlMeta, $m) ? $m[0] : '';
+    $check('tirada do mês: o Mês diz "sem previsão", sem "passou"; as Metas, "sem meta", sem "falta 0,00"', $comb > 0 && str_contains($linhaMes, 'sem previsão')
+        && !str_contains($linhaMes, 'passou') && str_contains($linhaMeta, 'sem meta') && !str_contains($linhaMeta, 'falta ' . num(0)), $linhaMes . ' | ' . $linhaMeta);
+
+    // no vermelho, a legenda soma o total (a falta entra com "−")
+    $catLazer = (int) $pdo->query("SELECT id FROM categorias WHERE grupo = 'Dia a dia' AND essencial = 0 AND sinal = -1 AND ativo = 1 ORDER BY id LIMIT 1")->fetchColumn();
+    LancamentoModel::criar($hoje, 'estouro', $catLazer, 30000.0, $uid);
+    MotorFinanceiro::limparCache();
+    $d = \Financeiro\Services\Destino::doMes(MotorFinanceiro::dados(), MotorFinanceiro::calcularPlano()[$mesHoje], $mesHoje);
+    $segs = \Financeiro\Services\Destino::segmentos($d);
+    $check('no vermelho: a falta aparece na legenda, e as partes somam o total', $d['falta'] > 0
+        && abs(array_sum(array_column($segs, 'valor')) - $d['total']) < 0.01 && in_array(-$d['falta'], array_column($segs, 'valor'), true), json_encode([$d, $segs]));
+});
+$htmlIniD = $render(DashboardController::class, 'index', []);
+$diasT = (int) date('t', strtotime($hoje)) - (int) date('j', strtotime($hoje)) + 1;
+$check('por dia: conta hoje, e no último dia o valor é para hoje', $diasT > 1
+    ? str_contains($htmlIniD, 'nos ' . $diasT . ' dias que faltam, contando hoje') : str_contains($htmlIniD, 'Hoje é o último dia do mês:'));
+Idioma::usar('en');
+$check('inglês: o dia do mês é ordinal depois de "the"', t('Dá para gastar até dia {dia}', ['dia' => 30]) === 'You can spend until the 30th'
+    && implode(',', array_map('ordinalEn', [1, 2, 3, 4, 11, 12, 13, 21, 22, 23, 31])) === '1st,2nd,3rd,4th,11th,12th,13th,21st,22nd,23rd,31st'
+    && t('Cerca de {valor} por dia nos {n} dias que faltam.', ['valor' => 'x', 'n' => 9]) === 'About x a day for the 9 days left.');
+Idioma::usar('es');
+$check('espanhol: o dia continua "el día 30"', t('Dá para gastar até dia {dia}', ['dia' => 30]) === 'Puede gastar hasta el día 30');
+Idioma::usar('pt');
+
 // ---- 9d. Mês fechado não muda (B-01): lançar, editar, excluir, transferir, pagar e a compra cuja fatura é de mês fechado
 $emTransacao('mês fechado não muda', static function () use ($pdo, $check, $render, $catDia, $mesHoje, $hoje, $uid): void {
     $fechado = (string) $pdo->query("SELECT MAX(mes) FROM meses WHERE situacao = 'REAL'")->fetchColumn();

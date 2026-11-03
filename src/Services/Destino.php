@@ -76,11 +76,16 @@ final class Destino
      */
     public static function segmentos(array $d): array
     {
+        // no vermelho, as saídas passam do dinheiro do mês: no lugar do "Dá para gastar" (zero), a falta, negativa,
+        // para a legenda somar o total
+        $resposta = (float) ($d['falta'] ?? 0.0) > 0.004
+            ? ['rotulo' => t('Falta para zerar'), 'valor' => -(float) $d['falta'], 'classe' => 's-falta']
+            : ['rotulo' => t('Dá para gastar'), 'valor' => $d['gastar'], 'classe' => 's-gastar', 'destaque' => true];
         return [
             ['rotulo' => t('Já saiu'), 'valor' => $d['saiu'], 'classe' => 's-saiu'],
             ['rotulo' => t('Contas a pagar'), 'valor' => $d['contas'], 'classe' => 's-contas'],
             ['rotulo' => t('Metas que faltam'), 'valor' => $d['metas'], 'classe' => 's-metas'],
-            ['rotulo' => t('Dá para gastar'), 'valor' => $d['gastar'], 'classe' => 's-gastar', 'destaque' => true],
+            $resposta,
             ['rotulo' => t('Reserva'), 'valor' => $d['reserva'], 'classe' => 's-reserva'],
         ];
     }

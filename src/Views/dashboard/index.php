@@ -60,12 +60,15 @@ if ($resposta !== null) {
             if ($tipo === 'justo') {
                 $apoioResposta = e($reserva > 0.004 ? t('{mes} fecha na reserva, sem folga.', ['mes' => $mesFrase]) : t('{mes} fecha sem folga.', ['mes' => $mesFrase]));
             } else {
-                // os dias que faltam depois de hoje; num mês que ainda não começou, todos os dias dele
-                $dias = $noMesHoje ? $fimDia - (int) date('j', $tsHoje) : $fimDia;
-                $apoioResposta = $dias < 1
-                    ? e(t('Hoje é o último dia do mês.'))
-                    : tn($dias, 'Cerca de {valor} no 1 dia que falta.', 'Cerca de {valor} por dia nos {n} dias que faltam.',
-                        ['valor' => '<b class="num">' . e(money($v / $dias)) . '</b>']);
+                // os dias que faltam contando hoje (hoje ainda dá para gastar); num mês que ainda não começou, todos os
+                // dias dele. No último dia, o valor inteiro é para hoje
+                $dias = $noMesHoje ? $fimDia - (int) date('j', $tsHoje) + 1 : $fimDia;
+                $porDiaV = ['valor' => '<b class="num">' . e(money($v / max(1, $dias))) . '</b>'];
+                $apoioResposta = match (true) {
+                    $noMesHoje && $dias <= 1 => t('Hoje é o último dia do mês: {valor} para hoje.', $porDiaV),
+                    $noMesHoje => t('Cerca de {valor} por dia nos {n} dias que faltam, contando hoje.', $porDiaV + ['n' => $dias]),
+                    default => t('Cerca de {valor} por dia nos {n} dias do mês.', $porDiaV + ['n' => $dias]),
+                };
             }
     }
 }
