@@ -3716,5 +3716,14 @@ $check('C-07 cartão: a lista e os atalhos do lançar marcam as categorias de co
     && preg_match('#<option value="' . (int) CartaoModel::categoriaFatura() . '"(?![^>]*data-lf-cartao)[^>]*>#', $htmlC07) === 1
     && preg_match('#<option value="' . $catGasto . '"[^>]*data-lf-cartao#', $htmlC07) === 1 && str_contains($htmlC07, 'data-value="' . $catGasto . '" data-lf-cartao'));
 
+// C-14: o dia do cartão é inteiro de 1 a 31; os dados do empréstimo têm limites de contrato de verdade
+$lerE = static fn(array $v): ?string => AjustesController::lerValores($v, AjusteModel::DO_EMPRESTIMO)['erro'];
+$check('C-14 validação: "10.5" não vira dia 10; juros até 15% ao mês, de 1 a 480 parcelas e parcela positiva, com a frase de cada um',
+    CartaoController::dia('10.5') === 0 && CartaoController::dia('1e1') === 0 && CartaoController::dia('ab') === 0 && CartaoController::dia('10') === 10 && CartaoController::dia(' 31 ') === 31
+    && $lerE(['juros_mes' => '99']) === 'juros_mes' && $lerE(['juros_mes' => '15']) === null && $lerE(['juros_mes' => '1,99']) === null
+    && $lerE(['n_parcelas' => '500']) === 'n_parcelas' && $lerE(['n_parcelas' => '480']) === null && $lerE(['n_parcelas' => '12.5']) === 'n_parcelas'
+    && $lerE(['parcela_mensal' => '0']) === 'parcela_mensal' && $lerE(['recebido_emprestimo' => '-5']) === 'recebido_emprestimo'
+    && str_contains(AjustesController::erroDoCampo('juros_mes'), '15%') && str_contains(AjustesController::erroDoCampo('n_parcelas'), '480'));
+
 echo "\n{$ok} ok, {$falhas} falha(s)\n";
 exit($falhas > 0 ? 1 : 0);

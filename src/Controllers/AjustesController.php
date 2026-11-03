@@ -203,6 +203,22 @@ final class AjustesController
         redirecionar('/ajustes?aberto=' . $grupo . '#' . $grupo, 303);
     }
 
+    /** Juros ao mês (%) e número de parcelas que um empréstimo pode ter. */
+    public const MAX_JUROS = 15;
+    public const MAX_PARCELAS = 480;
+
+    /** A frase do campo que lerValores() recusou: a regra dele, quando tem uma, senão "o valor não é válido". */
+    public static function erroDoCampo(string $chave): string
+    {
+        return match ($chave) {
+            'juros_mes'      => t('Os juros vão de 0 a {max}% ao mês.', ['max' => self::MAX_JUROS]),
+            'n_parcelas'     => t('O número de parcelas vai de 1 a {max}, sem fração.', ['max' => self::MAX_PARCELAS]),
+            'parcela_mensal' => t('A parcela precisa ser maior que zero.'),
+            'recebido_emprestimo', 'saldo_devedor' => t('Confira o campo "{campo}": use um valor positivo.', ['campo' => self::rotulo($chave)]),
+            default          => t('Confira o campo "{campo}": o valor não é válido.', ['campo' => self::rotulo($chave)]),
+        };
+    }
+
     /**
      * Confere os campos digitados, só os de $permitidas; os outros são ignorados.
      * @return array{valores: array<string, float>, erro: ?string} os valores prontos para gravar, ou a chave errada
@@ -228,11 +244,12 @@ final class AjustesController
                 continue;
             }
             $v = parseMoedaBr(is_string($bruto) ? $bruto : '', $chave !== 'juros_mes');
+            // o empréstimo tem limites de contrato de verdade: juros de até 15% ao mês e até 480 parcelas (40 anos)
             $ok = $v !== null && match ($chave) {
                 'saldo_ini'  => true,                           // a conta pode começar negativa
-                'n_parcelas' => $v >= 1 && abs($v - round($v)) < 1e-9,
+                'n_parcelas' => $v >= 1 && $v <= self::MAX_PARCELAS && abs($v - round($v)) < 1e-9,
                 'parcela_mensal' => $v > 0,
-                'juros_mes'  => $v >= 0 && $v < 100,
+                'juros_mes'  => $v >= 0 && $v <= self::MAX_JUROS,
                 default      => $v >= 0,
             };
             if (!$ok) {

@@ -89,8 +89,8 @@ final class CartaoController
         Auth::requireLogin();
         csrfCheck();
         $nome   = trim((string) preg_replace('/[\x00-\x1F\x7F]+/', ' ', (string) ($_POST['nome'] ?? '')));
-        $fecha  = (int) ($_POST['dia_fechamento'] ?? 0);
-        $vence  = (int) ($_POST['dia_vencimento'] ?? 0);
+        $fecha  = self::dia($_POST['dia_fechamento'] ?? null);
+        $vence  = self::dia($_POST['dia_vencimento'] ?? null);
         $limTxt = trim((string) ($_POST['limite'] ?? ''));
         $limite = $limTxt === '' ? null : parseMoedaBr($limTxt);
         $cartoes = CartaoModel::ativos();
@@ -125,6 +125,12 @@ final class CartaoController
         flash('success', ($atual === null ? t('Cartão cadastrado · {nome}', ['nome' => $nome]) : t('Cartão salvo · {nome}', ['nome' => $nome]))
             . ($vieram > 0 ? ' · ' . tn($vieram, '{n} compra antiga veio junto', '{n} compras antigas vieram junto') : ''));
         redirecionar(self::url($id), 303);
+    }
+
+    /** Um dia do mês digitado: só número inteiro ("10.5", "1e1" e "ab" dão 0, que a validação recusa). */
+    public static function dia(mixed $v): int
+    {
+        return is_string($v) && preg_match('/^\d{1,2}$/D', trim($v)) ? (int) trim($v) : 0;
     }
 
     /** POST /cartao/plano: liga (ligar=1) ou desliga o cartão `cartao` do plano. */

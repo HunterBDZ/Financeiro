@@ -2346,4 +2346,8 @@ return [
     'Colunas' => 'Columns',
     'Colunas, se for CSV' => 'Columns, if it is a CSV',
     'Revisar' => 'Review',
+    'Os juros vão de 0 a {max}% ao mês.' => 'Interest goes from 0 to {max}% a month.',
+    'O número de parcelas vai de 1 a {max}, sem fração.' => 'The number of installments goes from 1 to {max}, with no fraction.',
+    'A parcela precisa ser maior que zero.' => 'The installment must be more than zero.',
+    'Confira o campo "{campo}": use um valor positivo.' => 'Check the "{campo}" field: use a positive amount.',
 ];

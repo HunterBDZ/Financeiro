@@ -87,7 +87,7 @@ final class EmprestimoController
         $ref  = MesModel::referencia($hoje);
         $brutos = (array) ($_POST['valores'] ?? []);
         ['valores' => $valores, 'erro' => $errado] = AjustesController::lerValores($brutos, AjusteModel::DO_EMPRESTIMO);
-        $msg = $errado !== null ? t('Confira o campo "{campo}": o valor não é válido.', ['campo' => AjustesController::rotulo($errado)]) : null;
+        $msg = $errado !== null ? AjustesController::erroDoCampo($errado) : null;
         if ($errado === null) {
             [$errado, $msg] = self::conferirSaldo($valores, $hoje, (string) MesModel::primeiro(), (string) MesModel::ultimo());
         }
