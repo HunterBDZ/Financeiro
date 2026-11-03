@@ -2,6 +2,18 @@
 
 Cada versão publicada é uma tag `vX.Y.Z` deste repositório. Pacotes atualizam em Ajustes, em Backup e atualização; servidores, com `sudo financeiro-atualizar`.
 
+## 1.14.0
+
+- **Metas com recorrência:** cada categoria tem um editor com o valor, "A partir de" (qualquer mês, inclusive fechado ou o atual) e "Até" (sem fim, só este mês ou até um mês escolhido), com Desfazer. "Sem fim" muda também os meses que tinham valor próprio, como novembro. Um seletor de meses no topo mostra o que vale em cada mês, e o mês com valor próprio aparece na linha ("só em novembro").
+- **Contas fixas em Metas:** valor, vencimento, recorrência, adicionar e desativar ficam na seção Contas fixas da aba Metas. Saíram de Ajustes.
+- **Botão Pago:** no Início e no Extrato, "Contas do mês" lista as contas fixas ainda não pagas, com o vencimento. Pago lança o valor previsto com a data de hoje, com Desfazer; "outro valor" abre o Lançar já com a categoria.
+- **Lançar:** a categoria é um campo só, que abre a lista ao clicar e filtra ao digitar. Os atalhos em cartões saíram.
+- **Editar categoria:** clicar numa categoria em Ajustes abre uma tela para mudar nome, apelido, ícone, tipo, se é fixa ou varia, vencimento, essencial e se está ativa. Categoria com lançamentos não troca entre entrada e saída. Essenciais virou parte da categoria.
+- **Ajustes reorganizado** em grupos: Dinheiro e planejamento, Aparência e idioma, Conta e segurança, Sistema e Sobre, cada linha com o estado atual.
+- **Organizar o menu:** segure uma aba por meio segundo, ou use "Organizar menu", e arraste (ou use as setas). A ordem fica guardada na conta e vale também no menu do celular.
+- **Visual do cartão:** em Configurar, na aba Cartão, escolha entre 14 estilos de cor, a cor do tema ou uma cor própria. O cartão aparece desenhado como um cartão de verdade.
+- **Empréstimo:** a opção da parcela diz "Descontada do salário, antes de cair na conta".
+
 ## 1.13.0
 
 - **Privacidade e aviso:** página nova em `/privacidade`, aberta sem login, com link na tela de entrar, no fim da Ajuda e em Ajustes. Diz o que sai do computador, quais cookies o app usa (só os necessários, por isso não há aviso de consentimento), a licença, que o app não é aconselhamento financeiro e onde relatar problemas. O mesmo texto está em `docs/PRIVACIDADE.md`.
