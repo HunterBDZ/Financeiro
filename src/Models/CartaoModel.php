@@ -2,6 +2,7 @@
 namespace Financeiro\Models;
 
 use Financeiro\Database;
+use Financeiro\Services\CartaoVisual;
 use Financeiro\Sql;
 
 /**
@@ -18,16 +19,16 @@ final class CartaoModel
         return $r ? self::cartao($r) : null;
     }
 
-    /** Cadastra (id null) ou atualiza o cartão; devolve o id. */
-    public static function salvar(?int $id, string $nome, int $fecha, int $vence, ?float $limite): int
+    /** Cadastra (id null) ou atualiza o cartão; devolve o id. $visual já validado (CartaoVisual::validar); null = Padrão. */
+    public static function salvar(?int $id, string $nome, int $fecha, int $vence, ?float $limite, ?string $visual = null): int
     {
         $pdo = Database::connection();
-        $dados = ['n' => $nome, 'f' => $fecha, 'v' => $vence, 'l' => $limite];
+        $dados = ['n' => $nome, 'f' => $fecha, 'v' => $vence, 'l' => $limite, 'vis' => $visual];
         if ($id === null) {
-            $pdo->prepare('INSERT INTO cartoes (nome, dia_fechamento, dia_vencimento, limite) VALUES (:n, :f, :v, :l)')->execute($dados);
+            $pdo->prepare('INSERT INTO cartoes (nome, dia_fechamento, dia_vencimento, limite, visual) VALUES (:n, :f, :v, :l, :vis)')->execute($dados);
             return (int) $pdo->lastInsertId();
         }
-        $pdo->prepare('UPDATE cartoes SET nome = :n, dia_fechamento = :f, dia_vencimento = :v, limite = :l WHERE id = :id')
+        $pdo->prepare('UPDATE cartoes SET nome = :n, dia_fechamento = :f, dia_vencimento = :v, limite = :l, visual = :vis WHERE id = :id')
             ->execute($dados + ['id' => $id]);
         return $id;
     }
@@ -150,6 +151,7 @@ final class CartaoModel
             'id' => (int) $r['id'], 'nome' => (string) $r['nome'], 'fecha' => (int) $r['dia_fechamento'],
             'vence' => (int) $r['dia_vencimento'], 'limite' => $r['limite'] !== null ? (float) $r['limite'] : null,
             'alimenta_plano' => (int) $r['alimenta_plano'] === 1,
+            'visual' => CartaoVisual::normalizar(isset($r['visual']) ? (string) $r['visual'] : null),
         ];
     }
 
