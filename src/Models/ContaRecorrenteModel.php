@@ -38,6 +38,14 @@ final class ContaRecorrenteModel
         return $stmt->fetch() ?: null;
     }
 
+    /** A conta da categoria (ativa ou não), ou null. */
+    public static function daCategoria(int $categoriaId): ?array
+    {
+        $stmt = Database::connection()->prepare('SELECT id, dia_vencimento, ativo FROM contas_recorrentes WHERE categoria_id = :c');
+        $stmt->execute(['c' => $categoriaId]);
+        return $stmt->fetch() ?: null;
+    }
+
     /**
      * Categorias que podem virar conta recorrente: ativas, dos grupos Fixos, Cartao e Ano.
      * @return list<array{id:int,nome:string,apelido:?string,grupo:string}>

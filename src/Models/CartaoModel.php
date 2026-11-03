@@ -2,6 +2,7 @@
 namespace Financeiro\Models;
 
 use Financeiro\Database;
+use Financeiro\Services\CartaoVisual;
 use Financeiro\Sql;
 
 /**
@@ -34,17 +35,20 @@ final class CartaoModel
         return $r ? self::cartao($r) : null;
     }
 
-    /** Cadastra (id null) ou atualiza o cartão; devolve o id. Um cartão novo vai para o fim da fila. */
-    public static function salvar(?int $id, string $nome, int $fecha, int $vence, ?float $limite, ?int $contaId = null): int
+    /**
+     * Cadastra (id null) ou atualiza o cartão; devolve o id. Um cartão novo vai para o fim da fila.
+     * $visual já validado (CartaoVisual::validar); null = Padrão. Vale para este cartão só.
+     */
+    public static function salvar(?int $id, string $nome, int $fecha, int $vence, ?float $limite, ?int $contaId = null, ?string $visual = null): int
     {
         $pdo = Database::connection();
-        $dados = ['n' => $nome, 'f' => $fecha, 'v' => $vence, 'l' => $limite, 'c' => $contaId ?? ContaModel::PRINCIPAL];
+        $dados = ['n' => $nome, 'f' => $fecha, 'v' => $vence, 'l' => $limite, 'c' => $contaId ?? ContaModel::PRINCIPAL, 'vis' => $visual];
         if ($id === null) {
-            $pdo->prepare('INSERT INTO cartoes (nome, dia_fechamento, dia_vencimento, limite, conta_id, ordem)
-                           VALUES (:n, :f, :v, :l, :c, (SELECT COALESCE(MAX(ordem), 0) + 1 FROM cartoes))')->execute($dados);
+            $pdo->prepare('INSERT INTO cartoes (nome, dia_fechamento, dia_vencimento, limite, conta_id, visual, ordem)
+                           VALUES (:n, :f, :v, :l, :c, :vis, (SELECT COALESCE(MAX(ordem), 0) + 1 FROM cartoes))')->execute($dados);
             return (int) $pdo->lastInsertId();
         }
-        $pdo->prepare('UPDATE cartoes SET nome = :n, dia_fechamento = :f, dia_vencimento = :v, limite = :l, conta_id = :c WHERE id = :id')
+        $pdo->prepare('UPDATE cartoes SET nome = :n, dia_fechamento = :f, dia_vencimento = :v, limite = :l, conta_id = :c, visual = :vis WHERE id = :id')
             ->execute($dados + ['id' => $id]);
         return $id;
     }
@@ -194,6 +198,7 @@ final class CartaoModel
             'vence' => (int) $r['dia_vencimento'], 'limite' => $r['limite'] !== null ? (float) $r['limite'] : null,
             'alimenta_plano' => (int) $r['alimenta_plano'] === 1, 'ativo' => (int) $r['ativo'] === 1,
             'conta_id' => $r['conta_id'] !== null ? (int) $r['conta_id'] : ContaModel::PRINCIPAL,
+            'visual' => CartaoVisual::normalizar(isset($r['visual']) ? (string) $r['visual'] : null),
         ];
     }
 

@@ -18,6 +18,7 @@ use Financeiro\Controllers\WishlistController;
 use Financeiro\Controllers\SistemaController;
 use Financeiro\Controllers\TemaController;
 use Financeiro\Controllers\IdiomaController;
+use Financeiro\Controllers\MenuController;
 use Financeiro\Controllers\InvestimentosController;
 use Financeiro\Controllers\ComecarController;
 use Financeiro\Controllers\RelatorioController;
@@ -52,6 +53,7 @@ $router->get('/lancamentos', [LancamentosController::class, 'index']);
 $router->get('/lancamentos/planilha', [LancamentosController::class, 'planilha']);
 $router->post('/lancamentos', [LancamentosController::class, 'store']);
 $router->post('/lancamentos/desfazer', [LancamentosController::class, 'desfazer']);
+$router->post('/lancamentos/pago', [LancamentosController::class, 'pago']);
 $router->get('/lancamentos/{id}/editar', [LancamentosController::class, 'editForm']);
 $router->post('/lancamentos/{id}/excluir', [LancamentosController::class, 'destroy']);
 $router->post('/lancamentos/{id}', [LancamentosController::class, 'update']);
@@ -70,12 +72,17 @@ $router->post('/importar/regras/{id}/remover', [ImportacaoController::class, 're
 $router->post('/importar/{id}/desfazer', [ImportacaoController::class, 'desfazer']);
 $router->post('/categorias', [CategoriaController::class, 'criar']);
 $router->post('/categorias/{id}/remover', [CategoriaController::class, 'remover']);
-$router->get('/categorias/{id}/icone', [CategoriaController::class, 'iconeForm']);
-$router->post('/categorias/{id}/icone', [CategoriaController::class, 'salvarIcone']);
+$router->get('/categorias/{id}/icone', [CategoriaController::class, 'iconeAntigo']);
+$router->get('/categorias/{id}', [CategoriaController::class, 'editarForm']);
+$router->post('/categorias/{id}', [CategoriaController::class, 'salvar']);
 
 // ---- meta (metas de gasto por categoria)
 $router->get('/meta', [MetaController::class, 'index']);
-$router->post('/meta/salvar', [MetaController::class, 'salvar']);
+$router->post('/meta/editar', [MetaController::class, 'editar']);
+$router->post('/meta/contas', [MetaController::class, 'novaConta']);
+$router->post('/meta/contas/{id}/desativar', [MetaController::class, 'desativarConta']);
+$router->post('/meta/contas/{id}/reativar', [MetaController::class, 'reativarConta']);
+$router->post('/meta/contas/{id}', [MetaController::class, 'salvarConta']);
 
 // ---- mês e fechar mês
 $router->get('/mes', [MesController::class, 'index']);
@@ -120,6 +127,9 @@ $router->get('/investimentos', [InvestimentosController::class, 'index']);
 // ---- idioma
 $router->post('/idioma', [IdiomaController::class, 'salvar']);
 
+// ---- ordem das abas do menu (modo organizar)
+$router->post('/menu/ordem', [MenuController::class, 'salvarOrdem']);
+
 // ---- wishlist
 $router->get('/wishlist', [WishlistController::class, 'index']);
 $router->post('/wishlist', [WishlistController::class, 'salvar']);
@@ -139,9 +149,6 @@ $router->post('/ajustes/salvar', [AjustesController::class, 'salvar']);
 $router->post('/ajustes/senha', [AjustesController::class, 'trocarSenha']);
 $router->post('/ajustes/pessoas', [AjustesController::class, 'criarPessoa']);
 $router->post('/ajustes/pessoas/{id}/senha', [AjustesController::class, 'senhaDePessoa']);
-$router->post('/ajustes/contas', [AjustesController::class, 'salvarConta']);
-$router->post('/ajustes/contas/{id}/remover', [AjustesController::class, 'removerConta']);
-$router->post('/ajustes/essenciais', [AjustesController::class, 'salvarEssenciais']);
 $router->post('/contas', [ContaController::class, 'salvar']);
 $router->post('/contas/{id}/arquivar', [ContaController::class, 'arquivar']);
 $router->post('/contas/{id}/reativar', [ContaController::class, 'reativar']);

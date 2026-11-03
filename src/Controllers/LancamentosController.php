@@ -2,6 +2,7 @@
 namespace Financeiro\Controllers;
 
 use Financeiro\Auth;
+use Financeiro\Database;
 use Financeiro\Models\CartaoModel;
 use Financeiro\Models\CategoriaModel;
 use Financeiro\Models\ContaModel;
@@ -12,9 +13,11 @@ use Financeiro\Models\MetaModel;
 use Financeiro\Models\PrevisaoModel;
 use Financeiro\Models\UsuarioModel;
 use Financeiro\Relogio;
+use Financeiro\Services\ChecklistContas;
 use Financeiro\Services\LancarForm;
 use Financeiro\Services\MotorFinanceiro;
 use Financeiro\Services\Planilha;
+use Financeiro\Sql;
 use Financeiro\View;
 
 /**
@@ -99,6 +102,8 @@ final class LancamentosController
             'saldoConta' => $saldoConta,
             'nomesCartao' => count(CartaoModel::ativos()) > 1 ? array_column(CartaoModel::ativos(), 'nome', 'id') : [],
             'form'       => LancarForm::dados() + ['modo' => 'pagina', 'pref' => 'pg', 'volta' => $urlAtual, 'topo' => false],
+            // "Contas do mês" com o botão Pago: só no mês de hoje, sem busca nem filtro
+            'contasMes'  => $mes === Relogio::mes() && !$filtrado ? ChecklistContas::fixasAPagar() : [],
         ], 'extrato');
     }
 
@@ -361,6 +366,80 @@ final class LancamentosController
         $destino = $volta !== '' ? $volta : '/lancamentos?mes=' . substr($r['data'], 0, 8) . '01';
         flash('success', $r['aviso'], ['url' => '/transferencias/' . $r['id'] . '/excluir', 'label' => t('desfazer'), 'campos' => ['volta' => $destino]]);
         redirecionar($destino);
+    }
+
+    /**
+     * POST /lancamentos/pago — o botão Pago das "Contas do mês" (Início e Extrato): lança a conta fixa com o valor
+     * previsto, na data de hoje, sem formulário. O aviso tem o desfazer do Lançar (excluir o lançamento).
+     */
+    public function pago(): void
+    {
+        Auth::requireLogin();
+        csrfCheck();
+
+        $volta = voltaSegura(self::post('volta'), '/');
+        $r = self::pagarConta((int) (self::post('categoria_id') ?? 0), (int) Auth::id());
+        if ($r['erro'] !== null) {
+            flash('warn', $r['erro']);
+            redirecionar($volta);
+        }
+        flash('success', t('{texto} · Pago hoje.', ['texto' => self::valorTexto($r['cat'], $r['valor'], true)]), [
+            'url'    => '/lancamentos/' . $r['id'] . '/excluir',
+            'label'  => t('desfazer'),
+            'campos' => ['volta' => $volta],
+        ]);
+        redirecionar($volta);
+    }
+
+    /**
+     * Paga uma conta fixa do mês de hoje: só se ela está em ChecklistContas::fixasAPagar (Fixos, ativa, previsão
+     * maior que zero e nada lançado no mês), conferido dentro da transação, para o segundo clique não lançar de novo.
+     * @return array{erro:?string, id:int, cat:array, valor:float}
+     */
+    public static function pagarConta(int $categoriaId, int $usuarioId, ?string $hoje = null): array
+    {
+        $hoje ??= Relogio::hoje();
+        $nada = ['id' => 0, 'cat' => [], 'valor' => 0.0];
+        $cat = $categoriaId > 0 ? CategoriaModel::find($categoriaId) : null;
+        if ($cat === null || $cat['grupo'] !== 'Fixos' || (int) $cat['ativo'] !== 1) {
+            return ['erro' => t('Essa conta não pode ser paga por aqui. Use o Lançar.')] + $nada;
+        }
+        $pdo = Database::connection();
+        $abriu = !$pdo->inTransaction();
+        if ($abriu) {
+            $pdo->beginTransaction();
+        }
+        try {
+            // trava a categoria (no SQLite, a transação já tem a vez de escrever): dois cliques entram um de cada vez
+            $pdo->prepare('SELECT id FROM categorias WHERE id = :id' . Sql::travandoLinhas())->execute(['id' => $categoriaId]);
+            MotorFinanceiro::limparCache();
+            $item = null;
+            foreach (ChecklistContas::fixasAPagar($hoje) as $c) {
+                if ($c['categoria_id'] === $categoriaId) {
+                    $item = $c;
+                }
+            }
+            $erro = $item === null ? t('A conta {nome} já foi paga ou não tem valor previsto neste mês.', ['nome' => nomeCurto($cat)]) : self::validarData($hoje);
+            if ($erro !== null) {
+                if ($abriu) {
+                    $pdo->rollBack();
+                }
+                return ['erro' => $erro] + $nada;
+            }
+            // na conta padrão, como todo lançamento que não diz a conta
+            $id = LancamentoModel::criar($hoje, (string) $cat['nome'], $categoriaId, (float) $item['previsto'], $usuarioId, ContaModel::padrao());
+            if ($abriu) {
+                $pdo->commit();
+            }
+        } catch (\Throwable $e) {
+            if ($abriu && $pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $e;
+        } finally {
+            MotorFinanceiro::limparCache();
+        }
+        return ['erro' => null, 'id' => $id, 'cat' => $cat, 'valor' => (float) $item['previsto']];
     }
 
     /* ================================================================== editar */

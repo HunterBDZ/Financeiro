@@ -1,0 +1,88 @@
+/* ==========================================================================
+   menu.css — modo organizar das abas (menu.js), no menu lateral e na lista do botão Menu.
+   Como os ícones do celular: as abas ganham contorno, flutuam de leve e esperam ser arrastadas.
+   Com movimento reduzido, nada balança: fica só o contorno e a sombra.
+   ========================================================================== */
+
+.org [hidden] { display: none !important; }
+.lateral > * { flex-shrink: 0; }     /* no modo a lista cresce: o menu rola, nada encolhe */
+.org-lista { margin: 0; padding: 0; list-style: none; }
+.lat-nav .org-lista { display: grid; gap: 2px; }
+.org-celular .org-lista { display: flex; flex-direction: column; }
+.org-i { position: relative; }
+.org-i > a { -webkit-touch-callout: none; }   /* o toque longo abre o modo, não o menu do navegador */
+
+/* o botão que entra no modo: discreto, no fim da lista */
+.org-abrir {
+    display: flex; align-items: center; gap: 10px; width: 100%; min-height: 36px; margin-top: 6px; padding: 0 12px;
+    border: 0; border-radius: 10px; background: none;
+    color: var(--text-3); font: inherit; font-size: 13px; font-weight: 650; text-align: left;
+}
+.org-abrir:hover { background: var(--sel); color: var(--text); }
+.org-celular .org-abrir { min-height: var(--tap); margin-top: 2px; font-size: 14px; }
+
+/* ---- organizando */
+.organizando .org-lista { gap: 6px; padding: 4px 2px; touch-action: none; }
+.organizando .org-i {
+    display: flex; align-items: center; gap: 2px;
+    border-radius: 12px; background: var(--card);
+    /* sem var(--sombra): nos temas escuros ela é none, e none numa lista anula a sombra inteira */
+    box-shadow: 0 0 0 1px var(--line-2), 0 1px 2px rgba(0, 0, 0, .05), 0 6px 14px -10px rgba(0, 0, 0, .3);
+    -webkit-user-select: none; user-select: none; cursor: grab;
+    transition: transform .18s cubic-bezier(.2, .8, .2, 1), box-shadow .15s ease-out;
+}
+.organizando .org-i > a { flex: 1 1 auto; min-width: 0; pointer-events: none; animation: org-balanca .5s ease-in-out infinite; }
+.organizando .org-i:nth-child(2n) > a { animation-duration: .56s; animation-delay: -.25s; }
+.organizando .org-i:nth-child(3n) > a { animation-delay: -.12s; }
+.organizando .lat-i { gap: 10px; padding: 0 6px 0 12px; }
+.organizando .lat-i.is-active { background: none; }
+.organizando .lat-i span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@keyframes org-balanca {
+    0%, 100% { transform: rotate(-.45deg); }
+    50% { transform: rotate(.45deg); }
+}
+
+/* a aba que está sendo arrastada sobe um pouco e para de balançar */
+.organizando .org-i.org-arrastando {
+    z-index: 2; background: var(--card-2); cursor: grabbing;
+    box-shadow: 0 0 0 1px var(--line-2), var(--sombra-flutua);
+    transition: box-shadow .15s ease-out;
+}
+.org-arrastando > a { animation: none !important; }
+.organizando .org-i.org-sem-transicao { transition: none; }
+
+/* as setas de cada aba: o caminho do teclado e do leitor de tela */
+.org-setas { display: flex; flex: 0 0 auto; padding-right: 4px; }
+.org-seta {
+    display: grid; place-items: center; width: 30px; height: 36px; padding: 0;
+    border: 0; border-radius: 8px; background: none; color: var(--text-2);
+}
+.org-seta:hover:not(:disabled) { background: var(--card-2); color: var(--text); }
+.org-seta:disabled { opacity: .3; cursor: default; }
+.org-celular .org-seta { width: 40px; height: var(--tap); }
+
+/* Pronto e Voltar à ordem padrão: em cima da lista, presos ao topo quando o menu rola */
+.org-barra {
+    position: sticky; top: 0; z-index: 3;
+    display: grid; gap: 8px; margin-bottom: 10px; padding: 12px;
+    border-radius: 14px; background: var(--card-2); box-shadow: 0 0 0 1px var(--line);
+}
+.org-dica { color: var(--text-2); font-size: 13px; line-height: 1.35; }
+.org-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.org-pronto {
+    display: inline-flex; align-items: center; gap: 6px; min-height: 38px; padding: 0 14px;
+    border: 0; border-radius: 10px; background: var(--text); color: var(--bg);
+    font: inherit; font-size: 14px; font-weight: 800;
+}
+.org-padrao {
+    min-height: 38px; padding: 0 6px; border: 0; border-radius: 8px; background: none;
+    color: var(--text-2); font: inherit; font-size: 13px; font-weight: 650;
+    text-decoration: underline; text-underline-offset: 3px;
+}
+.org-padrao:hover { color: var(--text); }
+.org-celular .org-pronto, .org-celular .org-padrao { min-height: var(--tap); }
+
+@media (prefers-reduced-motion: reduce) {
+    .organizando .org-i > a { animation: none; }
+    .organizando .org-i { box-shadow: 0 0 0 1.5px var(--line-2), var(--sombra-flutua); }
+}

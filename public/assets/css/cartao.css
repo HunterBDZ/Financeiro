@@ -33,6 +33,39 @@
 .ct-status { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 99px; background: rgba(255, 255, 255, .09); color: var(--cofre-txt); font-size: 12px; font-weight: 750; white-space: nowrap; }
 .ct-status i { width: 7px; height: 7px; border-radius: 50%; background: var(--cofre-pos); }
 
+/* o visual escolhido no cadastro (Services\CartaoVisual). Sem data-visual, as cores do tema (acima).
+   Cada estilo: --ct-a → --ct-m → --ct-b, o gradiente em diagonal; --ct-txt e --ct-txt-2, o texto, com contraste AA
+   nas três cores e debaixo do brilho (tests/regras.php confere); --ct-pill, o fundo do status, que só aumenta o
+   contraste; --ct-brilho, a faixa de luz (0 = fosco). Lembram cartões comuns no Brasil, mas sem marca nenhuma. */
+[data-visual] { --cofre-txt: var(--ct-txt); --cofre-txt-2: var(--ct-txt-2); --ct-borda: rgb(255 255 255 / .1); --ct-pill: rgb(0 0 0 / .22); }
+.ct-plastico[data-visual], .ct-vis-mini[data-visual] {
+    background: linear-gradient(115deg, transparent 32%, rgb(255 255 255 / var(--ct-brilho, .1)) 48%, transparent 64%),
+                linear-gradient(135deg, var(--ct-a) 0%, var(--ct-m, var(--ct-a)) 50%, var(--ct-b) 100%);
+    color: var(--ct-txt);
+}
+.ct-plastico[data-visual] { box-shadow: inset 0 0 0 1px var(--ct-borda), 0 18px 40px -24px rgba(0, 0, 0, .55); }
+.ct-plastico[data-visual] .ct-status { background: var(--ct-pill); }
+.ct-plastico[data-visual] .ct-plastico-v { color: inherit; }     /* também no cartão vazio do cadastro, na prévia */
+/* cartões claros: texto escuro, fio escuro na borda (some no fundo claro do app sem ele) e status mais claro */
+[data-visual="laranja"], [data-visual="amarelo-azul"], [data-visual="azul-claro"], [data-visual="verde"],
+[data-visual="prata"], [data-visual="rosa"], [data-visual="branco"] { --ct-borda: rgb(0 0 0 / .1); --ct-pill: rgb(255 255 255 / .45); }
+[data-visual="roxo"]            { --ct-a: #8a05be; --ct-m: #7a08ac; --ct-b: #5c0a8f; --ct-txt: #ffffff; --ct-txt-2: #efe2f8; }
+[data-visual="laranja"]         { --ct-a: #ff8c1a; --ct-m: #fb7d0c; --ct-b: #f26b00; --ct-txt: #1f1000; --ct-txt-2: #3a1f00; }
+[data-visual="vermelho"]        { --ct-a: #c8102e; --ct-m: #b00d29; --ct-b: #8a0a22; --ct-txt: #ffffff; --ct-txt-2: #ffeef0; }
+[data-visual="amarelo-azul"]    { --ct-a: #fce227; --ct-m: #f9d614; --ct-b: #f3c400; --ct-txt: #0b2c80; --ct-txt-2: #1d3c8c; }
+[data-visual="azul"]            { --ct-a: #0a5cab; --ct-m: #084f97; --ct-b: #053f7d; --ct-txt: #ffffff; --ct-txt-2: #eaf2fb; }
+[data-visual="azul-marinho"]    { --ct-a: #173775; --ct-m: #11295a; --ct-b: #0a1a3d; --ct-txt: #ffffff; --ct-txt-2: #ccd8ef; }
+[data-visual="azul-claro"]      { --ct-a: #6fd0f4; --ct-m: #4cbeea; --ct-b: #2aa9de; --ct-txt: #03223a; --ct-txt-2: #062c43; }
+[data-visual="verde"]           { --ct-a: #3ad683; --ct-m: #27c26f; --ct-b: #17ad60; --ct-txt: #012417; --ct-txt-2: #04301e; }
+[data-visual="verde-escuro"]    { --ct-a: #115a47; --ct-m: #0c4a3b; --ct-b: #073b2e; --ct-txt: #ffffff; --ct-txt-2: #e2f3ec; }
+[data-visual="preto-fosco"]     { --ct-a: #2a2a2d; --ct-m: #1e1e21; --ct-b: #131315; --ct-txt: #f2f2f3; --ct-txt-2: #bdbdc3; --ct-brilho: 0; --ct-borda: rgb(255 255 255 / .06); }
+[data-visual="grafite-dourado"] { --ct-a: #3a3c41; --ct-m: #2a2b30; --ct-b: #1b1c20; --ct-txt: #f0d18a; --ct-txt-2: #e2c893; --ct-brilho: .07; }
+[data-visual="prata"]           { --ct-a: #eceef1; --ct-m: #b9bfc7; --ct-b: #dde0e5; --ct-txt: #121419; --ct-txt-2: #2c3038; --ct-brilho: .35; }
+[data-visual="rosa"]            { --ct-a: #ff94c4; --ct-m: #f774ae; --ct-b: #ee5598; --ct-txt: #2b0619; --ct-txt-2: #3d0b25; }
+[data-visual="branco"]          { --ct-a: #ffffff; --ct-m: #f3f4f6; --ct-b: #e6e8ec; --ct-txt: #15171c; --ct-txt-2: #4b505b; }
+/* no Prata, o chip também é prateado */
+[data-visual="prata"] .ct-chip { background: #a9afb8; }
+
 .ct-lancar { display: flex; }
 .ct-lancar .btn { width: 100%; }
 
@@ -132,12 +165,34 @@
 .ct-form label > span { display: block; margin-bottom: 6px; color: var(--text-2); font-size: 13px; font-weight: 650; }
 .ct-form p { color: var(--text-2); font-size: 13.5px; line-height: 1.5; }
 
+/* o seletor de visual: miniaturas de cartão que são radios; a escolhida ganha um anel, como o foco */
+.ct-vis legend { margin-bottom: 8px; color: var(--text-2); font-size: 13px; font-weight: 650; }
+.ct-vis-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 12px 8px; }
+.ct-vis-op { position: relative; display: flex; flex-direction: column; align-items: center; gap: 5px; min-width: 0; cursor: pointer; }
+.ct-vis-op input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.ct-vis-mini { position: relative; display: block; width: 100%; aspect-ratio: 1.586; border-radius: 7px;
+               background: var(--cofre); box-shadow: inset 0 0 0 1px var(--ct-borda, rgb(255 255 255 / .1)), 0 0 0 1px var(--line); }
+.ct-vis-mini::before { content: ""; position: absolute; top: 26%; left: 12%; width: 22%; height: 26%; border-radius: 2px; background: #c8b27a; }
+.ct-vis-mini[data-visual="prata"]::before { background: #a9afb8; }
+/* um traço na cor do texto, como o nome no cartão: mostra o par de cores (o azul do Amarelo e azul, o dourado do Grafite) */
+.ct-vis-mini::after { content: ""; position: absolute; left: 12%; bottom: 18%; width: 46%; height: 9%; border-radius: 2px; background: var(--cofre-txt); opacity: .9; }
+.ct-vis-n { color: var(--text-2); font-size: 12px; font-weight: 650; line-height: 1.25; text-align: center; }
+.ct-vis-op:hover .ct-vis-n { color: var(--text); }
+.ct-vis-op:has(input:checked) .ct-vis-mini { box-shadow: 0 0 0 2px var(--card), 0 0 0 4px var(--text); }
+.ct-vis-op:has(input:checked) .ct-vis-n { color: var(--text); font-weight: 800; }
+.ct-vis-op:has(input:focus-visible) .ct-vis-mini { outline: 2px solid var(--foco); outline-offset: 5px; }
+.ct-vis-cor { display: none; align-items: center; gap: 10px; margin-top: 12px; }
+.ct-vis:has(input[value="propria"]:checked) .ct-vis-cor { display: flex; }
+.ct-form .ct-vis-cor > span { margin: 0; }
+.ct-vis-cor input { width: 64px; height: 40px; padding: 3px; border-radius: 10px; cursor: pointer; }
+
 @media (min-width: 1024px) {
     .ct { gap: 18px; }
     .ct-topo h1 { font-size: 26px; }
     .ct-cima { display: grid; grid-template-columns: minmax(320px, 400px) minmax(0, 1fr); gap: 16px; align-items: stretch; }
     .ct-escada { grid-auto-columns: minmax(36px, 1fr); }
     .ct-cima > .card { display: flex; flex-direction: column; justify-content: flex-end; }
+    .ct-cima > .ct-plastico { align-self: start; }      /* na proporção do cartão, sem esticar até a altura da escada */
     .ct-escada { height: 170px; }
 }
 @media (min-width: 1280px) {
@@ -149,6 +204,10 @@
     .ct > .ct-cima { grid-area: cima; }
     .ct > .ct-fatura { grid-area: fatura; }
     .ct > .ct-lado { grid-area: lado; position: sticky; top: 24px; display: flex; flex-direction: column; gap: 16px; }
+}
+/* com a coluna dos parcelamentos ao lado, a escada fica estreita e alta: o cartão em cima e a escada embaixo, larga */
+@media (min-width: 1280px) and (max-width: 1599px) {
+    .ct-cima { grid-template-columns: minmax(0, 1fr); }
 }
 /* ordem no celular: o cartão, o botão, a escada, a fatura, os parcelamentos, os dados */
 @media (max-width: 1279px) {

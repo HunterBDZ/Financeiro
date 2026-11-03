@@ -133,6 +133,8 @@ use Financeiro\Controllers\FuturoController;
 use Financeiro\Controllers\LancamentosController;
 use Financeiro\Controllers\MesController;
 use Financeiro\Controllers\MetaController;
+use Financeiro\Controllers\MenuController;
+use Financeiro\Menu;
 use Financeiro\Database;
 use Financeiro\Icones;
 use Financeiro\Models\AjusteModel;
@@ -146,6 +148,7 @@ use Financeiro\Models\PrevisaoModel;
 use Financeiro\Models\UsuarioModel;
 use Financeiro\Models\ContaModel;
 use Financeiro\Controllers\TransferenciaController;
+use Financeiro\Services\CartaoVisual;
 use Financeiro\Services\EmprestimoSimulacao;
 use Financeiro\Services\Cotacao;
 use Financeiro\Services\LinkProduto;
@@ -155,10 +158,12 @@ use Financeiro\Services\AnualResumo;
 use Financeiro\Services\CartaoFatura;
 use Financeiro\Services\GastoPorCategoria;
 use Financeiro\Services\GastosMensais;
+use Financeiro\Services\ChecklistContas;
 use Financeiro\Services\LancarForm;
 use Financeiro\Services\MotorFinanceiro;
 use Financeiro\Services\PrevisaoEdicao;
 use Financeiro\Services\PrevisaoLote;
+use Financeiro\Services\MetaRecorrencia;
 
 $ok = 0;
 $falhas = 0;
@@ -542,7 +547,7 @@ $check('Mês aberto: editável com "também nos meses seguintes"', str_contains(
 $html = $render(MesController::class, 'index', ['mes' => $realMes]);
 $check('Mês fechado: só leitura', str_contains($html, 'mes-ros') && !str_contains($html, 'action="/mes/previsao"'));
 $check('anual: cada mês leva à aba Mês', str_contains($render(FuturoController::class, 'index', []), 'class="btn-link fu-abrir" href="/mes?mes='));
-$check('meta: explica que a meta é a previsão de todo mês', str_contains($render(MetaController::class, 'index', []), 'meta-previsao'));
+$check('meta: cada categoria abre o editor com o mês e até quando', str_contains($render(MetaController::class, 'index', []), 'name="ate"'));
 
 // ---- 10. fechar congela as metas do mês; mês fechado não segue a meta; reabrir descongela
 $mC = $prevMeses[0];
@@ -570,18 +575,173 @@ $emTransacao('congelar ao fechar', static function () use ($pdo, $check, $catDia
     $check('mês fechado sem linha: a meta não vale', PrevisaoModel::valor($catDia, $mC) == 0.0);
 });
 
+// ---- 10b. Metas com recorrência: valor a partir de um mês, até quando, também em mês fechado; tudo num lote com desfazer
+$realUlt = null;
+foreach (MesModel::todos() as $m) {
+    if ($m['situacao'] === 'REAL') {
+        $realUlt = (string) $m['mes'];
+    }
+}
+if (count($prevMeses) < 5 || $realUlt === null || $catDia === 0) {
+    $check('metas com recorrência', false, 'a demonstração ficou sem 5 meses em PREVISAO, sem mês fechado ou sem categoria de dia a dia');
+} else {
+    [$mA, $mB, $mC2, $mD, $mE] = array_slice($prevMeses, 0, 5);   // nov, dez, jan, fev, mar
+    $gravarPlano = static function (array $plano) use ($uid): ?string {
+        return PrevisaoLote::gravar('propagar', $plano['celulas'], $uid, null, true, $plano['meta']);
+    };
+    $valorEm = static fn(int $c, string $m): float => round(PrevisaoModel::valor($c, $m), 2);
+    // a meta 1.500 e os valores próprios de novembro (800) e dezembro (1.200), como o dono tinha
+    $preparar = static function () use ($pdo, $catDia, $mA, $mB): void {
+        $pdo->prepare('DELETE FROM previsao WHERE categoria_id = :c AND mes > :m')->execute(['c' => $catDia, 'm' => $mA]);
+        MetaModel::definir($catDia, 1500.0);
+        PrevisaoModel::setValor($catDia, $mA, 800.0);
+        PrevisaoModel::setValor($catDia, $mB, 1200.0);
+        MotorFinanceiro::limparCache();
+    };
+
+    $emTransacao('metas: sem fim a partir de novembro', static function () use ($check, $catDia, $mA, $mB, $mC2, $uid, $preparar, $gravarPlano, $valorEm, $linhaCrua): void {
+        $preparar();
+        $lote = $gravarPlano(MetaRecorrencia::plano(MotorFinanceiro::dados(), $catDia, 1000.0, $mA, null));
+        MotorFinanceiro::limparCache();
+        $check('metas: novembro com valor próprio e "sem fim a partir de novembro" muda novembro', $lote !== null
+            && $valorEm($catDia, $mA) === 1000.0 && $linhaCrua($catDia, $mA) === null);
+        $check('metas: sem fim vira a meta e apaga os valores próprios dos meses seguintes', $valorEm($catDia, $mB) === 1000.0
+            && $valorEm($catDia, $mC2) === 1000.0 && abs((float) MetaModel::valor($catDia) - 1000.0) < 0.001);
+        $r = PrevisaoLote::desfazer((string) $lote, $uid);
+        MotorFinanceiro::limparCache();
+        $check('metas: desfazer volta tudo, a meta junto', $r['restauradas'] === $r['total'] && $r['total'] === 3
+            && $valorEm($catDia, $mA) === 800.0 && $valorEm($catDia, $mB) === 1200.0 && $valorEm($catDia, $mC2) === 1500.0
+            && abs((float) MetaModel::valor($catDia) - 1500.0) < 0.001, json_encode($r));
+        $check('metas: o desfazer não deixa a meta antiga guardada', \Financeiro\Models\AjusteModel::valor(PrevisaoLote::CHAVE_META . $lote, -1.0) === -1.0);
+    });
+
+    $emTransacao('metas: os meses antes não mudam', static function () use ($check, $pdo, $catDia, $mA, $mB, $mC2, $mD, $uid, $gravarPlano, $valorEm, $linhaCrua): void {
+        $pdo->prepare('DELETE FROM previsao WHERE categoria_id = :c AND mes >= :m')->execute(['c' => $catDia, 'm' => $mA]);
+        MetaModel::definir($catDia, 1500.0);
+        PrevisaoModel::setValor($catDia, $mB, 1200.0);
+        MotorFinanceiro::limparCache();
+        $antesA = $valorEm($catDia, $mA);
+        $lote = $gravarPlano(MetaRecorrencia::plano(MotorFinanceiro::dados(), $catDia, 1000.0, $mC2, null));
+        MotorFinanceiro::limparCache();
+        $check('metas: sem fim a partir de janeiro não muda novembro nem dezembro', $antesA === 1500.0 && $valorEm($catDia, $mA) === $antesA
+            && $valorEm($catDia, $mB) === 1200.0 && $valorEm($catDia, $mC2) === 1000.0 && $valorEm($catDia, $mD) === 1000.0);
+        $check('metas: o mês antes que seguia a meta guarda o valor de antes', $linhaCrua($catDia, $mA) === 1500.0);
+        PrevisaoLote::desfazer((string) $lote, $uid);
+        MotorFinanceiro::limparCache();
+        $check('metas: desfazer devolve novembro à meta', $linhaCrua($catDia, $mA) === null && $valorEm($catDia, $mA) === 1500.0 && $valorEm($catDia, $mD) === 1500.0);
+    });
+
+    $emTransacao('metas: só este mês e intervalo', static function () use ($check, $catDia, $mA, $mB, $mC2, $mD, $mE, $uid, $preparar, $gravarPlano, $valorEm, $linhaCrua): void {
+        $preparar();
+        $lote = $gravarPlano(MetaRecorrencia::plano(MotorFinanceiro::dados(), $catDia, 700.0, $mC2, $mC2));
+        MotorFinanceiro::limparCache();
+        $check('metas: "só este mês" muda só janeiro e não mexe na meta', $valorEm($catDia, $mC2) === 700.0 && $valorEm($catDia, $mB) === 1200.0
+            && $valorEm($catDia, $mD) === 1500.0 && abs((float) MetaModel::valor($catDia) - 1500.0) < 0.001);
+        PrevisaoLote::desfazer((string) $lote, $uid);
+        $gravarPlano(MetaRecorrencia::plano(MotorFinanceiro::dados(), $catDia, 600.0, $mB, $mD));
+        MotorFinanceiro::limparCache();
+        $check('metas: intervalo de dezembro a fevereiro', $valorEm($catDia, $mB) === 600.0 && $valorEm($catDia, $mC2) === 600.0 && $valorEm($catDia, $mD) === 600.0
+            && $valorEm($catDia, $mA) === 800.0 && $valorEm($catDia, $mE) === 1500.0);
+        $gravarPlano(MetaRecorrencia::plano(MotorFinanceiro::dados(), $catDia, 1500.0, $mB, $mB));
+        $gravarPlano(MetaRecorrencia::plano(MotorFinanceiro::dados(), $catDia, null, $mC2, $mC2));
+        MotorFinanceiro::limparCache();
+        $check('metas: no intervalo, o valor da meta volta a seguir a meta e "sem meta" deixa zero', $linhaCrua($catDia, $mB) === null
+            && $valorEm($catDia, $mB) === 1500.0 && $linhaCrua($catDia, $mC2) === 0.0);
+    });
+
+    $erroPlano = static function (callable $f): string {
+        try {
+            $f();
+        } catch (\InvalidArgumentException $e) {
+            return $e->getMessage();
+        }
+        return '';
+    };
+    $dR = MotorFinanceiro::dados();
+    $check('metas: recusa o fim antes do começo, mês que não existe e categoria que não é gasto',
+        $erroPlano(static fn() => MetaRecorrencia::plano($dR, $catDia, 1.0, $mB, $mA)) !== ''
+        && $erroPlano(static fn() => MetaRecorrencia::plano($dR, $catDia, 1.0, '1990-01-01', null)) !== ''
+        && $erroPlano(static fn() => MetaRecorrencia::plano($dR, $catMov, 1.0, $mA, null)) === 'Escolha uma categoria.');
+
+    $emTransacao('metas: mês fechado', static function () use ($check, $pdo, $catDia, $realUlt, $uid, $gravarPlano, $valorEm, $linhaCrua, $render): void {
+        // o mês já estava fechado antes da mudança (com o relógio parado, a hora do fechamento seria a mesma)
+        $pdo->prepare("UPDATE meses SET fechado_em = '2026-11-01 08:00:00' WHERE mes = :m")->execute(['m' => $realUlt]);
+        $antes = $linhaCrua($catDia, $realUlt);
+        $real = round((float) (MotorFinanceiro::dados()['real'][$realUlt][$catDia] ?? 0.0), 2);
+        $nova = max(1.0, round($real / 2, 2));                    // abaixo do gasto: acima da meta
+        $lote = $gravarPlano(MetaRecorrencia::plano(MotorFinanceiro::dados(), $catDia, $nova, $realUlt, $realUlt));
+        MotorFinanceiro::limparCache();
+        $check('metas: editar um mês fechado grava a meta dele', $lote !== null && $linhaCrua($catDia, $realUlt) === $nova && $valorEm($catDia, $realUlt) === $nova);
+        $htmlR = $render(MesController::class, 'index', ['mes' => $realUlt]);
+        $check('metas: o Mês fechado mostra a nova meta e a situação', str_contains($htmlR, e(t('meta {valor}', ['valor' => num($nova)])))
+            && ($real <= $nova || str_contains($htmlR, 'Acima da meta')), num($nova));
+        $rel = RelatorioDados::mensal($realUlt);
+        $planejado = null;
+        foreach ($rel['categorias']['linhas'] ?? [] as $lR) {
+            if ((int) $lR['id'] === $catDia) {
+                $planejado = (float) $lR['planejado'];
+            }
+        }
+        $check('metas: o Relatório do mês fechado usa a nova meta', $planejado !== null && abs($planejado - $nova) < 0.001);
+        $r = PrevisaoLote::desfazer((string) $lote, $uid);
+        MotorFinanceiro::limparCache();
+        $check('metas: desfazer devolve o mês fechado', $r['restauradas'] === 1 && $linhaCrua($catDia, $realUlt) === $antes);
+        // mês fechado depois da mudança: o fechamento guardou o que valia, e o desfazer não mexe nele
+        $mAberto = (string) $pdo->query("SELECT MIN(mes) FROM meses WHERE situacao = 'PREVISAO'")->fetchColumn();
+        $l2 = $gravarPlano(MetaRecorrencia::plano(MotorFinanceiro::dados(), $catDia, 321.0, $mAberto, $mAberto));
+        $pdo->prepare("UPDATE meses SET situacao = 'REAL', fechado_em = '2027-06-01 08:00:00' WHERE mes = :m")->execute(['m' => $mAberto]);
+        $r2 = PrevisaoLote::desfazer((string) $l2, $uid);
+        $check('metas: mês fechado depois da mudança não volta no desfazer', $r2['restauradas'] === 0 && $linhaCrua($catDia, $mAberto) === 321.0);
+    });
+
+    $emTransacao('metas: a tela', static function () use ($check, $pdo, $catDia, $mA, $mB, $render, $preparar): void {
+        $preparar();
+        $html = $render(MetaController::class, 'index', ['mes' => $mB]);
+        $c = (string) (preg_match('#<details class="mes-linha mes-ed meta-cat[^"]*" id="c' . $catDia . '".*?</details>#s', $html, $mm) ? $mm[0] : '');
+        $check('metas: o seletor de meses e o valor que vale no mês escolhido', str_contains($html, 'data-mes-picker') && str_contains($html, 'href="/meta?mes=' . $mA . '"')
+            && str_contains($c, num(1200.0)) && str_contains($c, 'só em dezembro · meta ' . num(1500.0)));
+        $check('metas: o editor tem valor, a partir de e até', str_contains($c, 'action="/meta/editar"') && str_contains($c, 'name="desde"')
+            && str_contains($c, '<option value="' . $mB . '" selected') && str_contains($c, 'Sem fim') && str_contains($c, 'Só este mês'));
+        $check('metas: sem texto solto de aviso', !str_contains($html, 'meta-previsao') && !str_contains($html, 'Mude só ele na tela'));
+        $check('metas: as contas fixas ficam em Metas', str_contains($html, 'id="contas-fixas"') && str_contains($html, 'action="/meta/contas"')
+            && preg_match('#action="/meta/contas/\d+"#', $html) === 1 && preg_match('#action="/meta/contas/\d+/desativar"#', $html) === 1);
+    });
+
+    // conta fixa com valor em todo mês e sem meta (como a primeira configuração grava): sem fim a partir de dezembro
+    $catConta = (int) $pdo->query("SELECT r.categoria_id FROM contas_recorrentes r JOIN categorias c ON c.id = r.categoria_id WHERE r.ativo = 1 AND c.grupo = 'Fixos' ORDER BY c.id LIMIT 1")->fetchColumn();
+    $emTransacao('metas: conta fixa', static function () use ($check, $catConta, $mA, $mB, $mE, $uid, $gravarPlano, $valorEm): void {
+        MetaModel::remover($catConta);
+        MotorFinanceiro::limparCache();
+        $antesA = $valorEm($catConta, $mA);
+        $lote = $gravarPlano(MetaRecorrencia::plano(MotorFinanceiro::dados(), $catConta, $antesA + 100, $mB, null));
+        MotorFinanceiro::limparCache();
+        $check('metas: conta fixa muda de dezembro em diante, novembro fica', $catConta > 0 && $lote !== null && $valorEm($catConta, $mA) === $antesA
+            && $valorEm($catConta, $mB) === $antesA + 100 && $valorEm($catConta, $mE) === $antesA + 100);
+        PrevisaoLote::desfazer((string) $lote, $uid);
+        MotorFinanceiro::limparCache();
+        $check('metas: desfazer devolve a conta fixa', $valorEm($catConta, $mB) === $antesA && MetaModel::valor($catConta) === null);
+    });
+}
+
 // ---- 11. extrato, ajustes e lançar
 $htmlEx = $render(LancamentosController::class, 'index', []);
 $htmlAjCat = $render(AjustesController::class, 'index', ['aberto' => 'categorias']);
 // o extrato abre no mês do calendário, que na demonstração já tem lançamentos
 $check('extrato: ícone em cada lançamento, sem o painel de categorias', str_contains($htmlEx, 'class="ci"') && !str_contains($htmlEx, 'action="/categorias"'));
-$check('ajustes: categorias, com o ícone dobrado em "Escolher ícone"', str_contains($htmlAjCat, 'id="categorias" open') && str_contains($htmlAjCat, 'action="/categorias"')
-    && str_contains($htmlAjCat, 'class="ic-escolher"') && str_contains($htmlAjCat, 'data-ic-sugerir') && str_contains($htmlAjCat, '/icone?volta='));
+$check('ajustes: categorias, com o ícone dobrado em "Escolher ícone" e cada uma levando ao editar', str_contains($htmlAjCat, 'id="categorias" open') && str_contains($htmlAjCat, 'action="/categorias"')
+    && str_contains($htmlAjCat, 'class="ic-escolher"') && str_contains($htmlAjCat, 'data-ic-sugerir') && str_contains($htmlAjCat, 'class="aj-cat" href="/categorias/' . $catDia . '"')
+    && !str_contains($htmlAjCat, '/icone?volta='));
 $check('lançar: atalho para criar categoria', str_contains($render(LancamentosController::class, 'lancarForm', []), 'class="lf-criar-cat" href="/ajustes?aberto=categorias#categorias"'));
-$check('ajustes: a conta vem primeiro e o Avançado por último', strpos($htmlAjCat, 'id="senha"') < strpos($htmlAjCat, 'aj-idioma')
-    && strpos($htmlAjCat, 'aj-idioma') < strpos($htmlAjCat, 'aj-recursos') && strpos($htmlAjCat, 'aj-recursos') < strpos($htmlAjCat, 'id="parametros"')
-    && strpos($htmlAjCat, 'id="parametros"') < strpos($htmlAjCat, 'id="contas"') && strpos($htmlAjCat, 'id="contas"') < strpos($htmlAjCat, 'aj-avancado')
-    && strpos($htmlAjCat, 'aj-avancado') < strpos($htmlAjCat, 'id="partida"') && strpos($htmlAjCat, 'id="partida"') < strpos($htmlAjCat, 'id="aparelhos"'));
+// os grupos, na ordem: dinheiro e planejamento, aparência e idioma, conta e segurança, sistema e sobre; o perigoso no fim de cada um
+$ordemAj = ['ajs-g-plano', 'id="categorias"', 'id="parametros"', 'ajs-ir" href="/meta#contas-fixas"', 'id="recursos"', 'id="partida"', 'ajs-g-aparencia', 'ajs-ir" href="/temas"', 'id="idioma"',
+    'id="regional"', 'id="icone"', 'ajs-g-conta', 'id="senha"', 'id="duasetapas"', 'id="pessoas"', 'id="aparelhos"', 'ajs-g-sistema', 'ajs-ir" href="/rede"', 'ajs-ir" href="/sistema"', 'ajs-g-sobre', 'ajs-ir" href="/privacidade"'];
+$posAj = array_map(static fn(string $x) => strpos($htmlAjCat, $x), $ordemAj);
+$check('ajustes: grupos por assunto, na ordem combinada', !in_array(false, $posAj, true) && $posAj === array_values(array_unique($posAj)) && (static function (array $p): bool { $q = $p; sort($q); return $q === $p; })($posAj),
+    implode(',', array_map(static fn($x) => var_export($x, true), $posAj)));
+$check('ajustes: contas fixas e essenciais saíram (contas em Metas, essencial em cada categoria)', !str_contains($htmlAjCat, '/ajustes/contas') && !str_contains($htmlAjCat, '/ajustes/essenciais')
+    && !str_contains($htmlAjCat, 'id="essenciais"') && !str_contains($htmlAjCat, 'id="contas"'));
+$check('ajustes: cada linha mostra o estado à direita', substr_count($htmlAjCat, 'class="ajs-val"') >= 10 && str_contains($htmlAjCat, '<span class="ajs-val">' . e(Idioma::LISTA['pt']['nome']) . '</span>'));
+$check('ajustes: só abre o item pedido', substr_count($htmlAjCat, '" open>') === 1);
 $check('ajustes: escolher a imagem do site num botão próprio', str_contains($htmlAjCat, 'class="btn btn-ghost aj-arquivo"') && str_contains($htmlAjCat, 'data-arquivo'));
 $check('lançar: só o select de categoria, sem atalhos', !str_contains($render(LancamentosController::class, 'lancarForm', []), 'lf-atalho'));
 
@@ -755,8 +915,8 @@ $emTransacao('gasto por categoria', static function () use ($pdo, $check, $catFa
         $gastoTotal += max(0.0, $g[(int) $c['id']] ?? 0.0);
     }
     $gastoTotal += $g[GastoPorCategoria::SEM_CATEGORIA];
-    $check('metas: a meta estoura só por causa do cartão', str_contains($hMeta, 'class="meta-cat is-over" id="c' . $catL . '"')
-        && str_contains($hMeta, 'data-gasto="190.00"') && str_contains($hMeta, 'class="meta-cat is-ok" id="c' . $catD . '"'));
+    $check('metas: a meta estoura só por causa do cartão', str_contains($hMeta, 'meta-cat is-over" id="c' . $catL . '"')
+        && str_contains($hMeta, 'data-gasto="190.00"') && str_contains($hMeta, 'meta-cat is-ok" id="c' . $catD . '"'));
     $check('metas: "Resta para usar" conta o cartão pela data da compra, com o sem categoria', str_contains($hMeta, 'data-gasto-total="' . number_format($gastoTotal, 2, '.', '') . '"'), number_format($gastoTotal, 2, '.', ''));
     $check('metas: diz que o cartão conta pela data da compra e leva a categorizar', str_contains($hMeta, 'O cartão conta pela data da compra.')
         && str_contains($hMeta, 'href="/cartao/compras/' . $semCat . '/editar"'));
@@ -811,6 +971,65 @@ $emTransacao('gasto por categoria sem cartão', static function () use ($pdo, $c
             json_encode([GastoPorCategoria::ativo(), $igual, $hIni === $hIniFat]));
     }
 });
+// ---- 15b. o visual do cartão: estilo válido, recusa do inválido, sem estilo = Padrão (as cores do tema)
+$check('visual do cartão: estilo da lista vale, vazio é o Padrão', CartaoVisual::validar('roxo') === [null, 'roxo']
+    && CartaoVisual::validar('') === [null, null] && CartaoVisual::validar('grafite-dourado', '#123456') === [null, 'grafite-dourado']);
+$check('visual do cartão: estilo fora da lista, lixo e cor inválida são recusados', CartaoVisual::validar('dourado-de-marca')[0] !== null
+    && CartaoVisual::validar(['roxo'])[0] !== null && CartaoVisual::validar('propria', 'red')[0] !== null
+    && CartaoVisual::validar('propria', '#12345')[0] !== null && CartaoVisual::validar('#123456')[0] !== null);
+$check('visual do cartão: a cor própria fica como #rrggbb', CartaoVisual::validar('propria', ' #A1B2C3 ') === [null, '#a1b2c3']);
+$emTransacao('visual do cartão', static function () use ($pdo, $check, $render): void {
+    $pdo->exec('UPDATE cartoes SET ativo = 0');
+    $idV = CartaoModel::salvar(null, 'Cartão visual', 25, 5, null, null, 'roxo');
+    $htmlV = $render(CartaoController::class, 'index', []);
+    $check('visual do cartão: o estilo salvo volta e pinta o cartão desenhado', CartaoModel::achar($idV)['visual'] === 'roxo'
+        && str_contains($htmlV, 'class="ct-plastico" data-visual="roxo"') && str_contains($htmlV, 'name="visual" value="roxo" checked'));
+    CartaoModel::salvar($idV, 'Cartão visual', 25, 5, null, null, null);
+    $htmlP = $render(CartaoController::class, 'index', []);
+    $check('visual do cartão: sem estilo, o cartão fica com as cores do tema', CartaoModel::achar($idV)['visual'] === null
+        && preg_match('#class="ct-plastico"(?! data-visual)#', $htmlP) === 1 && str_contains($htmlP, 'name="visual" value="" checked'));
+    CartaoModel::salvar($idV, 'Cartão visual', 25, 5, null, null, '#2f6fdf');
+    $htmlC = $render(CartaoController::class, 'index', []);
+    $check('visual do cartão: a cor própria pinta o cartão e marca "Cor própria"', str_contains($htmlC, 'class="ct-plastico" data-visual="propria" style="--ct-a:')
+        && str_contains($htmlC, 'name="visual" value="propria" checked') && str_contains($htmlC, 'name="visual_cor" value="#2f6fdf"'));
+    $pdo->prepare('UPDATE cartoes SET visual = ? WHERE id = ?')->execute(['estilo-velho', $idV]);
+    $check('visual do cartão: um estilo que não existe mais vira o Padrão', CartaoModel::achar($idV)['visual'] === null);
+});
+// as paletas de cartao.css: toda chave tem a sua, e o texto tem contraste AA sobre as três cores, com e sem o brilho
+$cssCt = (string) file_get_contents(__DIR__ . '/../public/assets/css/cartao.css');
+$semPaleta = $fracos = [];
+foreach (CartaoVisual::ESTILOS as $chaveV) {
+    if (!preg_match('/^\[data-visual="' . preg_quote($chaveV, '/') . '"\]\s*\{([^}]*)\}/m', $cssCt, $mV)) {
+        $semPaleta[] = $chaveV;
+        continue;
+    }
+    preg_match_all('/--(ct-[a-z0-9-]+):\s*([^;]+);/', $mV[1], $vs);
+    $vV = array_combine($vs[1], array_map('trim', $vs[2]));
+    $brilho = isset($vV['ct-brilho']) ? (float) $vV['ct-brilho'] : CartaoVisual::BRILHO;
+    foreach (['ct-a', 'ct-m', 'ct-b'] as $fundoK) {
+        $fundo = CartaoVisual::rgb($vV[$fundoK] ?? '#000000');
+        $comBrilho = CartaoVisual::hex(CartaoVisual::misturar($fundo, [255, 255, 255], $brilho));
+        foreach (['ct-txt', 'ct-txt-2'] as $txtK) {
+            $menor = min(CartaoVisual::contraste($vV[$txtK] ?? '#000000', CartaoVisual::hex($fundo)), CartaoVisual::contraste($vV[$txtK] ?? '#000000', $comBrilho));
+            if ($menor < 4.5) {
+                $fracos[] = $chaveV . ' ' . $txtK . '/' . $fundoK . ' ' . round($menor, 2);
+            }
+        }
+    }
+}
+$check('visual do cartão: todo estilo tem a sua paleta em cartao.css', $semPaleta === [] && count(CartaoVisual::nomes()) === count(CartaoVisual::ESTILOS) + 1, implode(', ', $semPaleta));
+$check('visual do cartão: o texto de todo estilo tem contraste AA, com e sem o brilho', $fracos === [], implode(' | ', $fracos));
+$fracosP = [];
+for ($cV = 0; $cV < 4096; $cV += 37) {
+    $hexV = sprintf('#%x%x%x%x%x%x', $cV >> 8, $cV >> 8, ($cV >> 4) & 15, ($cV >> 4) & 15, $cV & 15, $cV & 15);
+    $pV = CartaoVisual::corPropria($hexV);
+    $menor = min(CartaoVisual::piorContraste($pV['txt'], CartaoVisual::rgb($pV['a'])), CartaoVisual::piorContraste($pV['txt'], CartaoVisual::rgb($pV['b'])));
+    if ($menor < 4.5) {
+        $fracosP[] = $hexV . ' ' . round($menor, 2);
+    }
+}
+$check('visual do cartão: qualquer cor própria fica com texto legível (AA)', $fracosP === [], implode(' | ', array_slice($fracosP, 0, 5)));
+
 $htmlBar = $render(MesController::class, 'index', []);
 preg_match('#<nav class="tabbar".*?</nav>#s', $htmlBar, $mB);
 $check('barra do celular: Início, Extrato, +, Mês, Cartão; Metas e Relatório no botão Menu', str_contains($mB[0] ?? '', 'href="/cartao"')
@@ -1126,6 +1345,85 @@ try {
     MotorFinanceiro::limparCache();
 }
 
+// ---- 9c. Contas do mês: o botão Pago das contas fixas, no Início e no Extrato
+$catPago = (int) $pdo->query("SELECT id FROM categorias WHERE grupo = 'Fixos' AND ativo = 1 ORDER BY id LIMIT 1")->fetchColumn();
+$emTransacao('contas do mês: Pago', static function () use ($pdo, $check, $render, $catPago, $catDia, $mesHoje, $hoje, $uid): void {
+    $noMes = static function (int $cat) use ($pdo, $mesHoje): array {
+        $st = $pdo->prepare('SELECT id, data, valor FROM lancamentos WHERE categoria_id = ? AND data >= ? AND data <= ?');
+        $st->execute([$cat, $mesHoje, date('Y-m-t', strtotime($mesHoje))]);
+        return $st->fetchAll(PDO::FETCH_ASSOC);
+    };
+    $naLista = static function (int $cat): ?array {
+        MotorFinanceiro::limparCache();
+        foreach (ChecklistContas::fixasAPagar() as $c) {
+            if ($c['categoria_id'] === $cat) {
+                return $c;
+            }
+        }
+        return null;
+    };
+    // o selo da conta no Mês (pago, venceu…): o Mês e as Contas do mês nunca discordam
+    $seloMes = static function (int $cat) use ($render, $mesHoje): string {
+        MotorFinanceiro::limparCache();
+        $html = $render(MesController::class, 'index', ['mes' => $mesHoje]);
+        return preg_match('/id="cat-' . $cat . '".*?mes-status-(\w+)/s', $html, $m) ? $m[1] : '';
+    };
+    // uma conta fixa sem nada lançado no mês, com previsão e vencimento no dia 5 (vencida no dia 22 e no dia 30)
+    $pdo->prepare('DELETE FROM lancamentos WHERE categoria_id = ? AND data >= ?')->execute([$catPago, $mesHoje]);
+    PrevisaoModel::setValor($catPago, $mesHoje, 321.09);
+    ContaRecorrenteModel::upsert($catPago, 5);
+    $item = $naLista($catPago);
+    $check('contas do mês: a conta fixa sem pagamento aparece, com o previsto e o vencimento',
+        $item !== null && abs($item['previsto'] - 321.09) < 0.001 && $item['vencimento'] === substr($mesHoje, 0, 8) . '05' && $item['atrasado'], json_encode($item));
+    $check('contas do mês: no Mês, a mesma conta está como não paga', $seloMes($catPago) === 'venceu');
+    $recorrentes = [];
+    foreach (ChecklistContas::statusPorMes($mesHoje) as $st) {
+        if ($st['grupo'] === 'Fixos' && in_array($st['status'], ['pendente', 'atrasado'], true)) {
+            $recorrentes[] = $st['categoria_id'];
+        }
+    }
+    $daLista = array_column(array_filter(ChecklistContas::fixasAPagar(), static fn(array $c): bool => $c['vencimento'] !== null), 'categoria_id');
+    sort($recorrentes);
+    sort($daLista);
+    $check('contas do mês: as mesmas contas que o Mês diz que faltam pagar', $daLista === $recorrentes, json_encode([$daLista, $recorrentes]));
+    MotorFinanceiro::limparCache();
+    $htmlIni = $render(DashboardController::class, 'index', []);
+    MotorFinanceiro::limparCache();
+    $htmlExt = $render(LancamentosController::class, 'index', ['mes' => $mesHoje]);
+    $botao = 'name="categoria_id" value="' . $catPago . '"';
+    $check('contas do mês: no Início e no Extrato, com o botão Pago e o outro valor', str_contains($htmlIni, 'id="contas-mes"') && str_contains($htmlExt, 'id="contas-mes"')
+        && str_contains($htmlIni, $botao) && str_contains($htmlExt, $botao) && str_contains($htmlIni, 'action="/lancamentos/pago"')
+        && str_contains($htmlIni, 'data-categoria="' . $catPago . '"') && str_contains($htmlIni, 'venceu dia 5'));
+    MotorFinanceiro::limparCache();
+    $check('contas do mês: o Extrato com filtro não mostra o bloco', !str_contains($render(LancamentosController::class, 'index', ['mes' => $mesHoje, 'q' => 'x']), 'id="contas-mes"'));
+
+    $r = LancamentosController::pagarConta($catPago, $uid);
+    $lanc = $noMes($catPago);
+    $check('Pago: lança o valor previsto na data de hoje', $r['erro'] === null && count($lanc) === 1 && $lanc[0]['data'] === $hoje
+        && abs((float) $lanc[0]['valor'] - 321.09) < 0.001 && (int) $lanc[0]['id'] === $r['id'], json_encode([$r['erro'], $lanc]));
+    $r2 = LancamentosController::pagarConta($catPago, $uid);
+    $check('Pago: o segundo clique não lança de novo', $r2['erro'] !== null && count($noMes($catPago)) === 1);
+    $check('Pago: a conta paga sai da lista', $naLista($catPago) === null);
+    $check('Pago: no Mês, a conta aparece paga', $seloMes($catPago) === 'pago');
+    LancamentoModel::excluir($r['id']);
+    $check('Pago: desfazer apaga o lançamento e a conta volta à lista', $noMes($catPago) === [] && $naLista($catPago) !== null);
+
+    // só conta fixa ativa, com previsão no mês e nada lançado
+    $antesDia = count($noMes($catDia));
+    $check('Pago: categoria que não é conta fixa é recusada', LancamentosController::pagarConta($catDia, $uid)['erro'] !== null && count($noMes($catDia)) === $antesDia);
+    PrevisaoModel::setValor($catPago, $mesHoje, 0.0);
+    MotorFinanceiro::limparCache();
+    $check('Pago: conta sem valor previsto no mês é recusada', LancamentosController::pagarConta($catPago, $uid)['erro'] !== null && $noMes($catPago) === []);
+    PrevisaoModel::setValor($catPago, $mesHoje, 321.09);
+    $pdo->prepare('UPDATE categorias SET ativo = 0 WHERE id = ?')->execute([$catPago]);
+    MotorFinanceiro::limparCache();
+    $check('Pago: conta arquivada é recusada', LancamentosController::pagarConta($catPago, $uid)['erro'] !== null && $noMes($catPago) === []);
+    $pdo->prepare('UPDATE categorias SET ativo = 1 WHERE id = ?')->execute([$catPago]);
+    $pdo->prepare('INSERT INTO lancamentos (data, descricao, categoria_id, valor, usuario_id) VALUES (?, ?, ?, 100, ?)')->execute([$hoje, 'parte', $catPago, $uid]);
+    MotorFinanceiro::limparCache();
+    $check('Pago: conta com parte já paga fica de fora (o Mês pergunta se foi o valor final)', $naLista($catPago) === null && LancamentosController::pagarConta($catPago, $uid)['erro'] !== null && count($noMes($catPago)) === 1);
+});
+
 // ==== no último dia do mês, só a primeira parte, mais a conferência do site sobre a demonstração
 if ($borda) {
     conferencia($check);
@@ -1223,17 +1521,86 @@ $emTransacao('categoria com ícone', static function () use ($check): void {
         && Icones::daCategoria((int) $id2, 'Farmácia teste', 'Dia a dia') === 'pilula');
 });
 Icones::limpar();
-$_SERVER['REQUEST_URI'] = '/categorias/' . $catDia . '/icone';
+$_SERVER['REQUEST_URI'] = '/categorias/' . $catDia;
 $_GET = [];
 ob_start();
 try {
-    (new CategoriaController())->iconeForm((string) $catDia);
+    (new CategoriaController())->editarForm((string) $catDia);
     $htmlIc = (string) ob_get_clean();
 } catch (\Throwable $e) {
     ob_end_clean();
     $htmlIc = '';
 }
-$check('trocar ícone: a página abre com o atual marcado', str_contains($htmlIc, 'ic-picker') && str_contains($htmlIc, ' checked>'));
+$check('editar categoria: a página abre com o ícone, o tipo e a situação marcados', str_contains($htmlIc, 'ic-picker') && str_contains($htmlIc, ' checked>')
+    && str_contains($htmlIc, 'action="/categorias/' . $catDia . '"') && str_contains($htmlIc, 'name="apelido"') && str_contains($htmlIc, 'name="ativo" value="1" checked')
+    && str_contains($htmlIc, 'href="/meta?add=' . $catDia . '#c' . $catDia . '"'));
+
+// ---- 11b. editar tudo numa categoria: nome, apelido, tipo, fixa ou varia, vencimento, essencial, ativa
+$emTransacao('editar categoria', static function () use ($check, $pdo, $uid, $hoje): void {
+    $base = ['apelido' => '', 'icone' => '', 'tipo' => 'saida', 'valor_tipo' => 'varia', 'dia' => '', 'essencial' => false, 'ativo' => true];
+    $id = (int) CategoriaModel::criar('Teste editar ' . bin2hex(random_bytes(3)), 'saida', false);
+    $novoNome = 'Academia teste ' . bin2hex(random_bytes(3));
+    $erros = CategoriaModel::editar($id, ['nome' => $novoNome, 'apelido' => 'Academia', 'icone' => 'gato', 'valor_tipo' => 'fixo', 'dia' => '7', 'essencial' => true] + $base);
+    $c = CategoriaModel::find($id);
+    $conta = ContaRecorrenteModel::daCategoria($id);
+    $check('editar: nome, apelido, ícone, fixa com vencimento e essencial', $erros === [] && $c['nome'] === $novoNome && $c['apelido'] === 'Academia' && $c['icone'] === 'gato'
+        && $c['grupo'] === 'Fixos' && (int) $c['sinal'] === -1 && (int) $c['essencial'] === 1 && $conta !== null && (int) $conta['dia_vencimento'] === 7 && (int) $conta['ativo'] === 1,
+        json_encode($erros));
+    $erros = CategoriaModel::editar($id, ['nome' => $novoNome, 'valor_tipo' => 'varia', 'dia' => '7'] + $base);
+    $c = CategoriaModel::find($id);
+    $check('editar: voltar a variar tira o vencimento e o essencial', $erros === [] && $c['grupo'] === 'Dia a dia' && (int) $c['essencial'] === 0 && $c['apelido'] === null
+        && (int) ContaRecorrenteModel::daCategoria($id)['ativo'] === 0 && $c['icone'] === 'gato');
+    $erros = CategoriaModel::editar($id, ['nome' => $novoNome, 'valor_tipo' => 'pontual', 'dia' => '32'] + $base);
+    $check('editar: dia fora de 1 a 31 é recusado, junto do campo', $erros === ['dia' => t('O dia do vencimento vai de 1 a 31.')] && CategoriaModel::find($id)['grupo'] === 'Dia a dia');
+    $erros = CategoriaModel::editar($id, ['nome' => $novoNome, 'tipo' => 'entrada', 'essencial' => true, 'dia' => '5'] + $base);
+    $c = CategoriaModel::find($id);
+    $check('editar: sem lançamentos, gasto vira entrada (grupo Entradas, nunca essencial)', $erros === [] && $c['grupo'] === 'Entradas' && (int) $c['sinal'] === 1 && (int) $c['essencial'] === 0);
+    $erros = CategoriaModel::editar($id, ['nome' => 'Mercado'] + $base);
+    $check('editar: o nome continua único', isset($erros['nome']) && CategoriaModel::find($id)['nome'] === $novoNome);
+    $erros = CategoriaModel::editar($id, ['nome' => '  ', 'apelido' => str_repeat('a', 25), 'tipo' => 'x'] + $base);
+    $check('editar: nome vazio, apelido longo e tipo inválido, cada erro no seu campo', isset($erros['nome'], $erros['apelido'], $erros['tipo']));
+    $erros = CategoriaModel::editar($id, ['nome' => $novoNome, 'ativo' => false] + $base);
+    $check('editar: arquivar tira das listas e reativar devolve', $erros === [] && (int) CategoriaModel::find($id)['ativo'] === 0
+        && in_array($id, array_map('intval', array_column(CategoriaModel::arquivadas(), 'id')), true)
+        && CategoriaModel::editar($id, ['nome' => $novoNome] + $base) === [] && (int) CategoriaModel::find($id)['ativo'] === 1);
+
+    // com lançamento, entrada e gasto não se trocam: inverteria o histórico
+    $pdo->prepare('INSERT INTO lancamentos (data, descricao, categoria_id, valor, usuario_id) VALUES (?, ?, ?, 50, ?)')->execute([$hoje, 'teste', $id, $uid]);
+    $sinalAntes = (int) CategoriaModel::find($id)['sinal'];
+    $erros = CategoriaModel::editar($id, ['nome' => $novoNome, 'tipo' => $sinalAntes === 1 ? 'saida' : 'entrada'] + $base);
+    $check('editar: com lançamentos, o tipo não troca', isset($erros['tipo']) && (int) CategoriaModel::find($id)['sinal'] === $sinalAntes && CategoriaModel::temHistorico($id));
+
+    // essencial: só gasto de verdade, como em setEssencial
+    $gastoId = (int) $pdo->query("SELECT id FROM categorias WHERE grupo = 'Dia a dia' AND ativo = 1 AND essencial = 0 ORDER BY id LIMIT 1")->fetchColumn();
+    $g = CategoriaModel::find($gastoId);
+    $erros = CategoriaModel::editar($gastoId, ['nome' => $g['nome'], 'apelido' => (string) $g['apelido'], 'essencial' => true] + $base);
+    $check('editar: marcar essencial na própria categoria', $erros === [] && (int) CategoriaModel::find($gastoId)['essencial'] === 1);
+
+    // as que o app acha pela chave (categorias.chave) não mudam de tipo nem de grupo; o nome muda
+    $sal = CategoriaModel::porChave(MotorFinanceiro::CAT_SALARIO);
+    $erros = CategoriaModel::editar((int) $sal['id'], ['nome' => 'Renda teste', 'tipo' => 'saida'] + $base);
+    $check('editar: o Salário não muda de tipo', isset($erros['tipo']) && !isset($erros['nome']) && CategoriaModel::find((int) $sal['id'])['nome'] === $sal['nome']);
+    $erros = CategoriaModel::editar((int) $sal['id'], ['nome' => 'Renda teste', 'apelido' => 'Pagamento', 'tipo' => 'entrada', 'essencial' => true] + $base);
+    $sal2 = CategoriaModel::find((int) $sal['id']);
+    $check('editar: o Salário muda de nome e de apelido, continua nas Entradas e o app o acha pela chave', $erros === [] && $sal2['nome'] === 'Renda teste'
+        && $sal2['apelido'] === 'Pagamento' && $sal2['grupo'] === 'Entradas' && (int) $sal2['essencial'] === 0
+        && (int) CategoriaModel::porChave(MotorFinanceiro::CAT_SALARIO)['id'] === (int) $sal['id']);
+    $guardar = CategoriaModel::porChave(MotorFinanceiro::CAT_GUARDAR);
+    $erros = CategoriaModel::editar((int) $guardar['id'], ['nome' => (string) $guardar['nome'], 'valor_tipo' => 'fixo', 'essencial' => true] + $base);
+    $guardar2 = CategoriaModel::find((int) $guardar['id']);
+    $check('editar: movimentação fica no grupo dela e nunca é essencial', $erros === [] && $guardar2['grupo'] === 'Poupanca' && (int) $guardar2['essencial'] === 0 && (int) $guardar2['operacional'] === 0);
+    $fatura = CategoriaModel::porChave(MotorFinanceiro::CAT_FATURA);
+    $erros = CategoriaModel::editar((int) $fatura['id'], ['nome' => (string) $fatura['nome'], 'tipo' => 'entrada'] + $base);
+    $check('editar: a fatura do cartão não vira entrada', isset($erros['tipo']) && CategoriaModel::find((int) $fatura['id'])['grupo'] === 'Cartao');
+    $erros = CategoriaModel::editar((int) $fatura['id'], ['nome' => (string) $fatura['nome'], 'valor_tipo' => 'varia', 'dia' => '9', 'essencial' => true] + $base);
+    $check('editar: a fatura aceita o vencimento e continua no Cartão', $erros === [] && CategoriaModel::find((int) $fatura['id'])['grupo'] === 'Cartao'
+        && (int) ContaRecorrenteModel::daCategoria((int) $fatura['id'])['dia_vencimento'] === 9);
+    $erros = CategoriaModel::editar($id, ['nome' => (string) $sal['nome'], 'tipo' => (int) CategoriaModel::find($id)['sinal'] === 1 ? 'entrada' : 'saida'] + $base);
+    $check('editar: o nome de fábrica de uma especial fica livre para outra, e a chave continua na especial', $erros === []
+        && (int) CategoriaModel::porChave(MotorFinanceiro::CAT_SALARIO)['id'] === (int) $sal['id'] && CategoriaModel::porNome((string) $sal['nome'])['id'] == $id);
+    MotorFinanceiro::limparCache();
+    $check('editar: o motor continua achando as categorias dele', MotorFinanceiro::dados()['esp']['guard'] === (int) $guardar['id']);
+});
 
 // ---- 12. barra do celular: o "+" no meio de 4 abas; o Anual abre pelo seletor de meses do Mês
 $htmlMes = $render(MesController::class, 'index', []);
@@ -1249,6 +1616,86 @@ $check('botão Menu (celular), sem o círculo da inicial, leva ao Relatório e a
 $htmlFuAtivo = $render(FuturoController::class, 'index', []);
 $check('Simular: fica aceso ele mesmo, no menu lateral e no botão Menu', str_contains($htmlFuAtivo, 'class="lat-i is-active" href="/futuro"') && str_contains($htmlFuAtivo, 'class="menu-item is-active" href="/futuro"')
     && str_contains($htmlFuAtivo, 'class="menu-botao is-active"') && !str_contains($htmlFuAtivo, 'class="tab is-active"') && !str_contains($htmlFuAtivo, 'class="lat-i is-active" href="/relatorio"'));
+
+// ---- 12b. ordem do menu: cada conta organiza as abas; o servidor aplica, ignora chave estranha e põe aba nova no fim
+$check('menu: sem ordem guardada, a padrão', Menu::ordenar(null) === Menu::CHAVES && Menu::ordenar(Menu::ler('isto não é JSON')) === Menu::CHAVES && Menu::ler('{"a":1}') === null);
+$check('menu: a ordem guardada vale, e o que falta segue na ordem padrão', Menu::ordenar(['meta', 'ajustes'])
+    === ['meta', 'ajustes', 'inicio', 'extrato', 'mes', 'cartao', 'relatorio', 'simular', 'emprestimo', 'investimentos', 'wishlist', 'temas', 'ajuda']);
+$check('menu: chave desconhecida ou repetida é ignorada', Menu::ordenar(['xyz', 'meta', 7, 'meta', null, 'inicio']) === array_merge(['meta', 'inicio'], array_values(array_diff(Menu::CHAVES, ['meta', 'inicio']))));
+$semNovas = array_reverse(array_values(array_diff(Menu::CHAVES, ['investimentos', 'wishlist'])));
+$check('menu: aba nova (fora da lista guardada) entra no fim, na ordem padrão', Menu::ordenar($semNovas) === [...$semNovas, 'investimentos', 'wishlist']);
+$check('menu: a lista do navegador só passa com chaves conhecidas e sem repetir', Menu::validar(['mes', 'inicio']) === ['mes', 'inicio']
+    && Menu::validar(['mes', 'xyz']) === null && Menu::validar(['mes', 'mes']) === null && Menu::validar([]) === null && Menu::validar('mes') === null
+    && Menu::validar(['a' => 'mes']) === null && Menu::validar([['mes']]) === null);
+$check('menu: reorganizar parte das abas deixa as outras no lugar (a escondida guarda a posição)',
+    Menu::mesclar(['inicio', 'cartao', 'mes', 'meta'], ['meta', 'inicio', 'mes']) === ['meta', 'cartao', 'inicio', 'mes']);
+$ordemDe = static function (string $html, string $onde): array {
+    preg_match('#' . $onde . '.*?<ul class="org-lista" data-org-lista>(.*?)</ul>#s', $html, $m);
+    preg_match_all('#data-aba="([a-z]+)"#', $m[1] ?? '', $k);
+    return $k[1];
+};
+$menuAntes = UsuarioModel::menuOrdem($uid);
+try {
+    UsuarioModel::salvarMenuOrdem($uid, json_encode(['meta', 'ajustes', 'xyz', 'cartao']));
+    $htmlMenu = $render(MetaController::class, 'index', []);
+    $lat = $ordemDe($htmlMenu, '<aside class="lateral"');
+    $cel = $ordemDe($htmlMenu, '<details class="menu menu-geral">');
+    preg_match('#<nav class="tabbar".*?</nav>#s', $htmlMenu, $mb);
+    preg_match_all('#href="([^"?]+)#', $mb[0] ?? '', $hb);
+    $check('menu: a página aplica a ordem da conta no menu lateral e no botão Menu, sem a chave estranha', array_slice($lat, 0, 5) === ['meta', 'ajustes', 'cartao', 'inicio', 'extrato']
+        && count($lat) === count(Menu::CHAVES) && !in_array('xyz', $lat, true) && array_slice($cel, 0, 3) === ['meta', 'ajustes', 'relatorio'] && !in_array('cartao', $cel, true), implode(',', $lat) . ' | ' . implode(',', $cel));
+    $check('menu: o Lançar fica no topo e a barra de baixo não muda', strpos($htmlMenu, 'class="lat-lancar"') < strpos($htmlMenu, 'data-org-lista') && $hb[1] === ['/', '/lancamentos', '/lancar', '/mes', '/cartao'], implode(',', $hb[1]));
+    $pdo->beginTransaction();
+    AjusteModel::setValor('usa_cartao', 0.0);
+    $semCartao = $ordemDe($render(MetaController::class, 'index', []), '<aside class="lateral"');
+    $pdo->rollBack();
+    $check('menu: aba escondida em Ajustes some do menu, mas a ordem das outras fica', array_slice($semCartao, 0, 3) === ['meta', 'ajustes', 'inicio'] && !in_array('cartao', $semCartao, true));
+
+    // o POST: só a lista à vista vem do navegador; as outras guardam o lugar
+    $postarMenu = static fn(array $post): int => MenuController::gravar($uid, $post);
+    UsuarioModel::salvarMenuOrdem($uid, null);
+    $cod = $postarMenu(['ordem' => ['ajustes', 'relatorio', 'simular', 'emprestimo', 'investimentos', 'wishlist', 'temas', 'meta', 'ajuda']]);
+    $check('menu: POST com o token grava; as abas que não estavam na lista ficam no lugar', $cod === 204
+        && Menu::daConta($uid) === ['inicio', 'extrato', 'mes', 'cartao', 'ajustes', 'relatorio', 'simular', 'emprestimo', 'investimentos', 'wishlist', 'temas', 'meta', 'ajuda'], $cod . ' ' . implode(',', Menu::daConta($uid)));
+    $gravada = UsuarioModel::menuOrdem($uid);
+    $cod = $postarMenu(['ordem' => ['ajustes', 'xyz']]);
+    $check('menu: POST com chave desconhecida é recusado e nada muda', $cod === 422 && UsuarioModel::menuOrdem($uid) === $gravada);
+    $cod = $postarMenu(['padrao' => '1']);
+    $check('menu: voltar à ordem padrão apaga a escolha', $cod === 204 && UsuarioModel::menuOrdem($uid) === null);
+    $postarMenu(['ordem' => Menu::CHAVES]);
+    $check('menu: a ordem igual à padrão não fica guardada', UsuarioModel::menuOrdem($uid) === null);
+
+    // sem o token, a página de erro sai antes de gravar (ela encerra o processo, por isso roda num processo à parte)
+    $filhoMenu = (string) getenv('FIN_REGRAS_PASTA') . '/menu-sem-token.php';
+    file_put_contents($filhoMenu, '<?php
+$_SERVER["REQUEST_URI"] = "/menu/ordem"; $_SERVER["REQUEST_METHOD"] = "POST"; $_SERVER["HTTP_HOST"] = "localhost"; $_SERVER["HTTPS"] = "on";
+require ' . var_export(dirname(__DIR__) . '/src/bootstrap.php', true) . ';
+$_SESSION["usuario_id"] = ' . $uid . '; $_SESSION["usuario_nome"] = "teste"; $_SESSION["sessao_versao"] = ' . (int) UsuarioModel::sessaoVersao($uid) . ';
+$_SESSION["csrf_token"] = str_repeat("c", 64);
+$_POST = ["ordem" => ["ajustes", "inicio"]] + (($argv[1] ?? "") === "errado" ? ["csrf_token" => str_repeat("d", 64)] : []);
+(new Financeiro\Controllers\MenuController())->salvarOrdem();
+echo "GRAVOU";
+');
+    foreach (['sem token' => 'nenhum', 'token errado' => 'errado'] as $caso => $arg) {
+        $proc = proc_open([...\Financeiro\Atualizacao::comandoPhp(), $filhoMenu, $arg],
+            [0 => ['file', PHP_OS_FAMILY === 'Windows' ? 'NUL' : '/dev/null', 'r'], 1 => ['pipe', 'w'], 2 => ['redirect', 1]], $tubos, \Financeiro\Atualizacao::pastaDoProcesso(dirname(__DIR__)), array_filter(getenv(), 'is_string'));
+        $saidaMenu = is_resource($proc) ? (string) stream_get_contents($tubos[1]) : '';
+        if (is_resource($proc)) {
+            fclose($tubos[1]);
+            proc_close($proc);
+        }
+        $check("menu: POST {$caso} é recusado e nada muda", str_contains($saidaMenu, '<title>403') && !str_contains($saidaMenu, 'GRAVOU') && UsuarioModel::menuOrdem($uid) === null, substr(trim(strip_tags($saidaMenu)), 0, 200));
+    }
+    @unlink($filhoMenu);
+} catch (\Throwable $e) {
+    $check('menu: ordem das abas', false, get_class($e) . ': ' . $e->getMessage() . ' em ' . basename($e->getFile()) . ':' . $e->getLine());
+} finally {
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
+    $_POST = [];
+    UsuarioModel::salvarMenuOrdem($uid, $menuAntes);
+}
 
 // ---- 13. Anual: marcos do plano e o que mudou em cada mês (AnualResumo, dados de mentira)
 $pl = static fn(string $m, float $fica, bool $quit = false, float $parc = 0.0): array => ['mes' => $m, 'estado' => 'previsto',
@@ -2375,22 +2822,21 @@ $check('frase: sem previsão, sem frase', $fr(null, null, 1500.0) === null);
 $htmlFr = $render(DashboardController::class, 'index', []);
 $check('frase: o cartão do saldo tem uma frase e o resto em "Ver detalhes"', !str_contains($htmlFr, 'data-previsao-fim') || (str_contains($htmlFr, 'data-saldo-frase=') && preg_match('/<details class="saldo-det">\s*<summary>Ver detalhes<\/summary>.*data-previsao-fim/s', $htmlFr) === 1));
 
-// categoria em um toque
+// o campo da categoria: a lista inteira, agrupada, num <select> (sem JS) e no combobox do lancar.js
 LancarForm::limparCache();
 $lf = LancarForm::dados();
-$tipo = static function (int $id) use ($pdo): int {
-    $c = $pdo->query('SELECT sinal, operacional FROM categorias WHERE id = ' . $id)->fetch();
-    return (int) $c['operacional'] === 0 ? 2 : ((int) $c['sinal'] === 1 ? 1 : 0);
-};
-$tiposRap = array_map(static fn(array $c): int => $tipo((int) $c['id']), $lf['rapidas']);
-$check('categorias: de 1 a 8 botões, gastos antes de entradas', $lf['rapidas'] !== [] && count($lf['rapidas']) <= LancarForm::RAPIDAS && $tiposRap === (static function (array $a): array { sort($a); return $a; })($tiposRap), json_encode($tiposRap));
-$chavesLf = array_keys($lf['outras']);
-$check('categorias: a lista completa começa pelos gastos', array_search('entradas', $chavesLf, true) === false || array_search('entradas', $chavesLf, true) > 0);
+$chavesLf = array_keys($lf['grupos']);
+$check('categorias: a lista começa pelos gastos', array_search('entradas', $chavesLf, true) === false || array_search('entradas', $chavesLf, true) > 0);
 $htmlLf = $render(LancamentosController::class, 'lancarForm', []);
-$check('categorias: botões de rádio com ícone, "Mais…" com a lista e a busca, sem o select',
-    substr_count($htmlLf, 'data-lf-rapida') === count($lf['rapidas']) && str_contains($htmlLf, 'data-lf-mais') && str_contains($htmlLf, 'data-lf-busca hidden')
-    && str_contains($htmlLf, '<fieldset class="lf-cats" aria-labelledby=') && str_contains($htmlLf, 'class="lf-chip-c"><span class="ci') && !str_contains($htmlLf, '<select name="categoria_id"'));
-$poucoUsada = (int) $pdo->query("SELECT id FROM categorias WHERE ativo = 1 AND operacional = 1 AND sinal = -1 ORDER BY ordem DESC, id DESC LIMIT 1")->fetchColumn();
+$nCats = (int) $pdo->query('SELECT COUNT(*) FROM categorias WHERE ativo = 1')->fetchColumn();
+$check('categorias: um campo só, com a lista inteira, sem os botões das mais usadas',
+    str_contains($htmlLf, '<select id="pg-cat" name="categoria_id"') && substr_count($htmlLf, 'role="option"') === $nCats
+    && preg_match('/role="combobox"[^>]*aria-expanded="false"[^>]*aria-controls="pg-cat-lista"/', $htmlLf) === 1
+    && str_contains($htmlLf, 'role="listbox"') && str_contains($htmlLf, 'class="lf-combo-op" role="option"')
+    && !str_contains($htmlLf, 'lf-chip') && !str_contains($htmlLf, 'data-lf-mais') && !str_contains($htmlLf, 'type="radio" name="categoria_id"'));
+$check('categorias: a lista tem os grupos e o ícone de cada uma', substr_count($htmlLf, 'class="lf-combo-g" role="group" aria-label="') === count($lf['grupos'])
+    && preg_match('/role="option"[^>]*>\s*<span class="ci/', $htmlLf) === 1);
+$poucoUsada = (int) $pdo->query("SELECT id FROM categorias WHERE ativo = 1 AND operacional = 1 AND sinal = -1 AND grupo <> 'Dia a dia' ORDER BY ordem DESC, id DESC LIMIT 1")->fetchColumn();
 if ($poucoUsada > 0) {
     $emTransacao('categorias: as mais usadas', static function () use ($pdo, $check, $poucoUsada, $uid): void {
         $ins = $pdo->prepare('INSERT INTO lancamentos (data, descricao, categoria_id, valor, usuario_id) VALUES (?, ?, ?, 1, ?)');
@@ -2398,8 +2844,16 @@ if ($poucoUsada > 0) {
             $ins->execute([\Financeiro\Relogio::hoje(), 'teste freq', $poucoUsada, $uid]);
         }
         LancarForm::limparCache();
-        $ids = array_map(static fn(array $c): int => (int) $c['id'], LancarForm::dados()['rapidas']);
-        $check('categorias: a mais usada vira botão, primeiro entre os gastos', ($ids[0] ?? 0) === $poucoUsada, json_encode($ids));
+        // no grupo dela, a mais usada vem logo depois do dia a dia
+        $primeira = null;
+        foreach (LancarForm::dados()['grupos'] as $itens) {
+            foreach ($itens as $c) {
+                if ($c['grupo'] !== 'Dia a dia' && in_array($poucoUsada, array_column($itens, 'id'), true)) {
+                    $primeira ??= (int) $c['id'];
+                }
+            }
+        }
+        $check('categorias: a mais usada sobe na lista do grupo', $primeira === $poucoUsada, (string) $primeira);
     });
     LancarForm::limparCache();
 }
@@ -2558,6 +3012,58 @@ if (Sql::sqlite()) {
                 @unlink($a . $s);
             }
         }
+    }
+
+    // ---- s0040: um site da 1.14 já tem a s0002, a s0003 e a s0004 quando chegam a s0001 e o resto; um banco novo e um
+    // mais antigo (acima) rodam tudo na ordem do nome. Os dois caminhos dão o schema novo, e o visual do cartão fica.
+    $arq114 = sys_get_temp_dir() . '/financeiro-114-' . bin2hex(random_bytes(4)) . '.sqlite';
+    $arqNovo = $arq114 . '.novo';
+    $pasta114 = $arq114 . '.migracoes';
+    try {
+        $v = new \Financeiro\SqliteConexao($arq114);
+        $v->exec((string) file_get_contents(__DIR__ . '/dados/schema-1.10.sqlite.sql'));
+        $v->exec("INSERT INTO usuarios (nome, login, senha_hash) VALUES ('Teste', 'teste', 'x')");
+        $v->exec("INSERT INTO categorias (nome, grupo, sinal, ativo, ordem) VALUES ('Fatura do cartão', 'Cartao', -1, 1, 1)");
+        $v->exec("INSERT INTO cartoes (nome, dia_fechamento, dia_vencimento) VALUES ('Cartão da 1.14', 24, 2), ('Outro da 1.14', 10, 20)");
+        mkdir($pasta114);
+        foreach (['s0002_duas_etapas.sql', 's0003_menu_ordem.sql', 's0004_cartao_visual.sql'] as $a) {
+            copy(\Financeiro\Migrador::pasta() . '/' . $a, $pasta114 . '/' . $a);
+        }
+        $da114 = \Financeiro\Migrador::aplicar($v, $pasta114);
+        $v->exec("UPDATE cartoes SET visual = CASE id WHEN 1 THEN 'roxo' ELSE '#2f6fdf' END");
+        $colunas114 = array_column($v->query('PRAGMA table_info(cartoes)')->fetchAll(), 'name');
+        $feitas = \Financeiro\Migrador::aplicar($v, \Financeiro\Migrador::pasta());
+        $check('s0040: num site da 1.14, a 2.0 roda depois da s0004 e termina na s0040', count($da114) === 3 && end($colunas114) === 'visual'
+            && $feitas[0] === 's0001_contas.sql' && end($feitas) === 's0040_gatilho_cartoes.sql', json_encode([$da114, $feitas]));
+        $novo = new \Financeiro\SqliteConexao($arqNovo);
+        $novo->exec((string) file_get_contents(dirname(__DIR__) . '/database/schema.sqlite.sql'));
+        $e114 = $estrutura($v);
+        $eN = $estrutura($novo);
+        $check('s0040: o banco da 1.14 migrado tem a estrutura de um banco novo (o visual no fim do cartão)', $e114 === $eN,
+            json_encode(array_keys(array_diff_assoc(array_map('json_encode', $e114), array_map('json_encode', $eN)) + array_diff_assoc(array_map('json_encode', $eN), array_map('json_encode', $e114)))));
+        $check('s0040: o visual de cada cartão continua o mesmo', $v->query('SELECT visual FROM cartoes ORDER BY id')->fetchAll(\PDO::FETCH_COLUMN) === ['roxo', '#2f6fdf']
+            && (int) $v->query('SELECT conta_id FROM cartoes WHERE id = 2')->fetchColumn() === 1);
+        $mudou = static function (string $set) use ($v): bool {
+            $v->exec("UPDATE cartoes SET atualizado_em = '2000-01-01 00:00:00' WHERE id = 1");
+            $v->exec('UPDATE cartoes SET ' . $set . ' WHERE id = 1');
+            return $v->query('SELECT atualizado_em FROM cartoes WHERE id = 1')->fetchColumn() !== '2000-01-01 00:00:00';
+        };
+        $check('s0040: o gatilho de atualizado_em olha o visual, a conta e a ordem', $mudou("visual = 'grafite'") && $mudou('ordem = 7') && $mudou('conta_id = NULL'));
+        $check('s0040: as chaves estrangeiras continuam certas; rodar de novo não faz nada', $v->query('PRAGMA foreign_key_check')->fetch() === false
+            && \Financeiro\Migrador::aplicar($v, \Financeiro\Migrador::pasta()) === []);
+    } catch (\Throwable $e) {
+        $check('s0040', false, get_class($e) . ': ' . $e->getMessage() . ' em ' . basename($e->getFile()) . ':' . $e->getLine());
+    } finally {
+        $v = $novo = null;
+        foreach ([$arq114, $arqNovo] as $a) {
+            foreach (['', '-wal', '-shm'] as $s) {
+                @unlink($a . $s);
+            }
+        }
+        foreach ((array) glob($pasta114 . '/*') as $a) {
+            @unlink((string) $a);
+        }
+        @rmdir($pasta114);
     }
 
     // ---- uma conta e um cartão: as telas são as de sempre

@@ -61,6 +61,7 @@ CREATE TABLE `cartoes` (
   `ativo` tinyint(1) NOT NULL DEFAULT '1',
   `criado_em` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `atualizado_em` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `visual` varchar(24) DEFAULT NULL,
   PRIMARY KEY (`id`),
   CONSTRAINT `chk_cartao_dias` CHECK (((`dia_fechamento` between 1 and 31) and (`dia_vencimento` between 1 and 31))),
   CONSTRAINT `chk_cartao_limite` CHECK (((`limite` is null) or (`limite` > 0)))
@@ -316,6 +317,7 @@ CREATE TABLE `usuarios` (
   `idioma` varchar(5) DEFAULT NULL,
   `duas_etapas_segredo` varchar(255) DEFAULT NULL,
   `duas_etapas_passo` int unsigned DEFAULT NULL,
+  `menu_ordem` varchar(1000) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `login` (`login`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;

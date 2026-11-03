@@ -10,6 +10,7 @@ use Financeiro\Models\LancamentoModel;
 use Financeiro\Models\MesModel;
 use Financeiro\Relogio;
 use Financeiro\Services\CartaoFatura;
+use Financeiro\Services\CartaoVisual;
 use Financeiro\Services\MotorFinanceiro;
 use Financeiro\View;
 
@@ -97,21 +98,23 @@ final class CartaoController
         $atual  = $novo ? null : self::escolhido($cartoes, $_POST['id'] ?? null);
         $contaId = (int) ($_POST['conta_id'] ?? 0);
         $conta  = $contaId > 0 ? ContaModel::achar($contaId) : null;
+        [$erroVisual, $visual] = CartaoVisual::validar($_POST['visual'] ?? '', $_POST['visual_cor'] ?? '');
         $erro = match (true) {
             $nome === '' || mb_strlen($nome) > 60 => t('Dê um nome ao cartão, com até 60 letras.'),
             CartaoModel::nomeUsado($nome, $atual['id'] ?? null) => t('Já existe um cartão com esse nome.'),
             $fecha < 1 || $fecha > 31             => t('O dia do fechamento vai de 1 a 31.'),
             $vence < 1 || $vence > 31             => t('O dia do vencimento vai de 1 a 31.'),
             $limTxt !== '' && ($limite === null || $limite <= 0 || $limite > min(valorMaximo() * 10, 9999999999.0)) => t('Limite inválido: use um número como 15.000.'),
+            $erroVisual !== null                  => $erroVisual,
             default => null,
         };
         if ($erro !== null) {
             $_SESSION['cartao_erro'] = ['msg' => $erro, 'nome' => $nome, 'fecha' => $_POST['dia_fechamento'] ?? '',
-                                        'vence' => $_POST['dia_vencimento'] ?? '', 'limite' => $limTxt];
+                                        'vence' => $_POST['dia_vencimento'] ?? '', 'limite' => $limTxt, 'visual' => $visual];
             redirecionar($novo && $cartoes !== [] ? '/cartao?novo=1' : self::url((int) ($atual['id'] ?? 0)) . '#cartao-config', 303);
         }
         $contaId = $conta !== null && $conta['ativa'] ? $conta['id'] : ($atual['conta_id'] ?? ContaModel::padrao());
-        $id = CartaoModel::salvar($atual['id'] ?? null, $nome, $fecha, $vence, $limite !== null ? round($limite, 2) : null, $contaId);
+        $id = CartaoModel::salvar($atual['id'] ?? null, $nome, $fecha, $vence, $limite !== null ? round($limite, 2) : null, $contaId, $visual);
         $vieram = 0;
         if ($cartoes === []) {
             $vieram = CartaoModel::importarAntigas($id);              // compras da versão antiga do app

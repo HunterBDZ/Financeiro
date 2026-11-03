@@ -6,12 +6,14 @@ use Financeiro\Auth;
  * Saudação; o cartão do saldo (em conta hoje, uma frase que responde quanto dá para gastar e o resto
  * dobrado em "Ver detalhes", com o olho que esconde os valores); o mês em três linhas (entrou, saiu e a
  * sobra com o nome da base; o detalhe fica dobrado); "Precisa de atenção", logo abaixo do saldo e só quando há algo;
- * para onde foi; conferir com o banco; últimos lançamentos.
+ * as contas do mês com o botão Pago; para onde foi; conferir com o banco; últimos lançamentos.
  * Com mais de uma conta, "Ver detalhes" mostra o saldo de cada uma, e conferir pede o saldo de cada uma.
  * Variáveis: $hoje, $mesRef, $mesCal, $estadoRef, $reserva, $conta, $contas (só com várias), $conf, $conferirAberto,
- * $conferirErro, $painel, $sobra (Sobra), $resposta (DashboardController::resposta), $ultimos, $avisos (Services\Atencao).
+ * $conferirErro, $painel, $sobra (Sobra), $resposta (DashboardController::resposta), $ultimos, $avisos (Services\Atencao),
+ * $contasMes (ChecklistContas::fixasAPagar: o bloco "Contas do mês", logo depois do saldo e da atenção).
  */
 use Financeiro\Services\Sobra;
+use Financeiro\View;
 
 $p        = $painel;
 $previsto = $p['base'] === 'previsto';
@@ -112,7 +114,7 @@ $quandoFoi   = static function (string $data) use ($hoje): string {
     </section>
     <?php endif; ?>
 
-    <div class="dash-grade<?= $avisos !== [] ? ' tem-aten' : '' ?>">
+    <div class="dash-grade<?= $avisos !== [] ? ' tem-aten' : '' ?><?= !empty($contasMes) ? ' com-contas' : '' ?>">
 
         <!-- o saldo de hoje contra a reserva -->
         <section class="saldo <?= $clsSaldo ?>" aria-labelledby="saldo-t">
@@ -154,8 +156,10 @@ $quandoFoi   = static function (string $data) use ($hoje): string {
 
         <!-- precisa de atenção: só quando há algo, no máximo três, do mais urgente para o menos -->
         <?php if ($avisos !== []): ?>
-            <?php \Financeiro\View::partial('partials/atencao', ['avisos' => $avisos, 'max' => \Financeiro\Services\Atencao::MAX]); ?>
+            <?php View::partial('partials/atencao', ['avisos' => $avisos, 'max' => \Financeiro\Services\Atencao::MAX]); ?>
         <?php endif; ?>
+
+        <?php View::partial('partials/contas_mes', ['contas' => $contasMes ?? [], 'volta' => '/', 'hoje' => $hoje]); ?>
 
         <!-- o mês em três linhas; o detalhe fica dobrado -->
         <section class="card dash-resumo" aria-labelledby="dash-rec-t">

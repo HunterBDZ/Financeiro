@@ -139,6 +139,40 @@ $check('restaurar: leva o backup antigo à versão de agora', $erroDe(static fn(
 $pdo = Database::connection();
 $check('restaurar: a migração vale nos dados restaurados', $pdo->query("SELECT label FROM ajustes WHERE chave = 'teste_backup'")->fetchColumn() === 'migrado' && in_array('s9003_valor.sql', Migrador::feitas($pdo), true));
 $pdo->exec("DELETE FROM migracoes WHERE arquivo = 's9003_valor.sql'");
+// backup de antes da ordem do menu (s0003): restaurar traz a coluna, e as contas seguem iguais
+$semMenu = $dados . '/sem-menu.sqlite';
+copy(Backup::criar('manual'), $semMenu);
+$p = new SqliteConexao($semMenu);
+$p->exec('ALTER TABLE usuarios DROP COLUMN menu_ordem');
+$p->exec("DELETE FROM migracoes WHERE arquivo = 's0003_menu_ordem.sql'");
+$p = null;
+$check('restaurar: backup de antes da ordem do menu é aceito', $erroDe(static fn() => Backup::restaurar($semMenu)) === '');
+$pdo = Database::connection();
+$check('restaurar: a coluna da ordem do menu volta pela migração, e as contas seguem', in_array('menu_ordem', array_column($pdo->query('PRAGMA table_info(usuarios)')->fetchAll(PDO::FETCH_ASSOC), 'name'), true)
+    && in_array('s0003_menu_ordem.sql', Migrador::feitas($pdo), true) && (int) $pdo->query("SELECT COUNT(*) FROM usuarios WHERE login = 'pessoa'")->fetchColumn() === 1);
+$pdo->exec("UPDATE usuarios SET menu_ordem = '[\"meta\"]' WHERE login = 'pessoa'");
+sleep(1);
+$comMenu = Backup::criar('manual');
+$pdo->exec("UPDATE usuarios SET menu_ordem = NULL WHERE login = 'pessoa'");
+Backup::restaurar($comMenu);
+$pdo = Database::connection();
+$check('backup: a ordem do menu vai junto e volta', $pdo->query("SELECT menu_ordem FROM usuarios WHERE login = 'pessoa'")->fetchColumn() === '["meta"]');
+// backup de antes do visual do cartão (s0004): volta com a coluna nova, e o cartão com o Padrão
+sleep(1);
+$pdo->exec("INSERT INTO cartoes (nome, dia_fechamento, dia_vencimento) VALUES ('Cartão do backup', 25, 5)");
+$semVisual = Backup::criar('manual');
+$p = new SqliteConexao($semVisual);
+$p->exec('DROP TRIGGER upd_cartoes');
+$p->exec('ALTER TABLE cartoes DROP COLUMN visual');
+$p->exec('CREATE TRIGGER upd_cartoes AFTER UPDATE ON cartoes WHEN NEW.atualizado_em IS OLD.atualizado_em AND (NEW.nome IS NOT OLD.nome) BEGIN UPDATE cartoes SET atualizado_em = agora_local() WHERE rowid = NEW.rowid; END');
+$p->exec("DELETE FROM migracoes WHERE arquivo = 's0004_cartao_visual.sql'");
+$p = null;
+$erroVisual = $erroDe(static fn() => Backup::restaurar($semVisual));
+$check('restaurar: backup de antes do visual do cartão volta com a coluna nova', $erroVisual === '', $erroVisual);
+$pdo = Database::connection();
+$check('restaurar: o cartão do backup fica com o visual Padrão e o gatilho volta', $pdo->query("SELECT visual FROM cartoes WHERE nome = 'Cartão do backup'")->fetch() === ['visual' => null]
+    && in_array('s0004_cartao_visual.sql', Migrador::feitas($pdo), true)
+    && $pdo->query("SELECT 1 FROM sqlite_master WHERE type = 'trigger' AND name = 'upd_cartoes' AND sql LIKE '%NEW.visual%'")->fetchColumn() == 1);
 
 // ---- pacote .tar
 $tar = static function (array $itens): string {

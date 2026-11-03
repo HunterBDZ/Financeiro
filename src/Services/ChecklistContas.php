@@ -98,6 +98,54 @@ final class ChecklistContas
         return $itens;
     }
 
+    /**
+     * As contas fixas do mês de hoje que ainda não foram pagas: o bloco "Contas do mês" do Início e do Extrato,
+     * e o que o botão Pago aceita. A regra do "Não pago" do Mês: categoria ativa do grupo Fixos, previsão do mês
+     * maior que zero (a mesma do Mês e do plano: MotorFinanceiro::dados) e nada lançado nela no mês. Conta que já
+     * recebeu algum lançamento fica de fora, mesmo menor que o previsto: o Mês pergunta se foi o valor final.
+     * Só com o mês de hoje aberto; fechado ou fora do plano, a lista é vazia.
+     * Ordem do Mês: vencidas, depois pelo vencimento, as sem vencimento cadastrado no fim, e o nome.
+     * @param ?string $hoje 'Y-m-d' (padrão: hoje)
+     * @return list<array{categoria_id:int, nome:string, apelido:?string, grupo:string, previsto:float, vencimento:?string,
+     *   paga_ate:?string, atrasado:bool}> paga_ate: o vencimento, ou o próximo dia útil se ele cai num dia que não é (DiaUtil)
+     */
+    public static function fixasAPagar(?string $hoje = null): array
+    {
+        $hoje ??= Relogio::hoje();
+        $mes = substr($hoje, 0, 8) . '01';
+        $d = MotorFinanceiro::dados();
+        $aberto = false;
+        foreach ($d['meses'] as $m) {
+            if ($m['mes'] === $mes) {
+                $aberto = $m['situacao'] === 'PREVISAO';
+            }
+        }
+        if (!$aberto) {
+            return [];
+        }
+        $dias = [];
+        foreach (ContaRecorrenteModel::ativas() as $conta) {
+            $dias[(int) $conta['categoria_id']] = (int) $conta['dia_vencimento'];
+        }
+        $itens = [];
+        foreach ($d['cats'] as $id => $c) {
+            $previsto = round((float) ($d['prev'][$mes][$id] ?? 0.0), 2);
+            if ($c['grupo'] !== 'Fixos' || $c['ativo'] !== 1 || $previsto <= 0.004 || (float) ($d['real'][$mes][$id] ?? 0.0) > 0.004) {
+                continue;
+            }
+            $vence = isset($dias[$id]) ? self::dataVencimento($mes, $dias[$id])->format('Y-m-d') : null;
+            $pagaAte = $vence !== null ? DiaUtil::proximoUtil($vence) : null;    // como no Mês: atrasa depois do dia útil
+            $itens[] = [
+                'categoria_id' => $id, 'nome' => $c['nome'], 'apelido' => $c['apelido'], 'grupo' => $c['grupo'],
+                'previsto' => $previsto, 'vencimento' => $vence, 'paga_ate' => $pagaAte, 'atrasado' => $pagaAte !== null && $pagaAte < $hoje,
+            ];
+        }
+        usort($itens, static fn(array $a, array $b): int =>
+            [$a['atrasado'] ? 0 : 1, $a['vencimento'] === null ? 1 : 0, (string) $a['vencimento'], $a['nome']]
+            <=> [$b['atrasado'] ? 0 : 1, $b['vencimento'] === null ? 1 : 0, (string) $b['vencimento'], $b['nome']]);
+        return $itens;
+    }
+
     private static function dataVencimento(string $mes, int $diaVencimento): \DateTimeImmutable
     {
         $inicio = new \DateTimeImmutable($mes);

@@ -9,9 +9,13 @@
  * com a soma das parcelas lançadas, mês a mês, e oferece ligar.
  * Com mais de um cartão, um seletor no topo escolhe o cartão; "Novo cartão" (no menu, ou no seletor) cadastra outro.
  * Uma fatura fechada ou vencida tem "Pagar fatura", que lança o pagamento já ligado a ela.
+ * O cartão desenhado tem o visual escolhido no configurar de cada cartão (CartaoVisual; sem escolha, as cores do
+ * tema), e o seletor de visual mostra a escolha nele antes de salvar (cartao.js). Com vários, cada um tem o seu.
  * Variáveis: $cartao (null = cadastrar), $cartoes (os ativos), $contas (as ativas, só com mais de uma), $painel,
  * $hoje, $sel (fatura escolhida), $erro, $temCompras, $lancadoTodos (com vários cartões, a soma das faturas de todos).
  */
+use Financeiro\Services\CartaoVisual;
+
 $erro = is_array($erro ?? null) ? $erro : null;
 $cfg  = $cartao ?? null;
 $cartoes = $cartoes ?? [];
@@ -22,8 +26,10 @@ $urlCartao = static function (string $resto = '') use ($varios, $cfg): string {
     return '/cartao' . ($q !== [] ? '?' . implode('&', $q) : '');
 };
 $campo = static fn(string $k, string $padrao = ''): string => (string) ($erro[$k] ?? $padrao);
-$plastico = static function (string $titulo, string $sub, string $valor, string $status, array $pe, bool $vazio = false): void { ?>
-    <section class="ct-plastico<?= $vazio ? ' ct-vazio-plastico' : '' ?>" aria-label="<?= e($titulo) ?>">
+// o visual que o desenho e o seletor mostram: o que voltou com o erro do formulário ou o guardado
+$visual = $erro !== null && array_key_exists('visual', $erro) ? CartaoVisual::normalizar($erro['visual']) : ($cfg['visual'] ?? null);
+$plastico = static function (string $titulo, string $sub, string $valor, string $status, array $pe, bool $vazio = false, ?string $visual = null): void { ?>
+    <section class="ct-plastico<?= $vazio ? ' ct-vazio-plastico' : '' ?>"<?= CartaoVisual::atributos($visual) ?> aria-label="<?= e($titulo) ?>" data-ct-plastico>
         <div class="ct-plastico-topo">
             <p class="ct-plastico-t"><?= e($titulo) ?><small><?= e($sub) ?></small></p>
             <span class="ct-chip" aria-hidden="true"></span>
@@ -39,7 +45,9 @@ $plastico = static function (string $titulo, string $sub, string $valor, string 
         </div>
     </section>
 <?php };
-$formConfig = static function (?array $cfg, ?array $erro, callable $campo, bool $primeira, bool $novo = false, array $contas = [], bool $comId = false): void { ?>
+$formConfig = static function (?array $cfg, ?array $erro, callable $campo, bool $primeira, ?string $visual, bool $novo = false, array $contas = [], bool $comId = false): void {
+    $marcado = CartaoVisual::escolha($visual);
+    $cor = $marcado === 'propria' ? (string) $visual : CartaoVisual::COR_INICIAL; ?>
     <form class="ct-form" method="post" action="/cartao/config" id="cartao-config">
         <?= csrfField() ?>
         <?php if ($novo): ?><input type="hidden" name="novo" value="1"><?php elseif ($cfg !== null && $comId): ?><input type="hidden" name="id" value="<?= (int) $cfg['id'] ?>"><?php endif; ?>
@@ -56,6 +64,18 @@ $formConfig = static function (?array $cfg, ?array $erro, callable $campo, bool 
                     <?php foreach ($contas as $ct): ?><option value="<?= (int) $ct['id'] ?>"<?= (int) $ct['id'] === (int) ($cfg['conta_id'] ?? 0) ? ' selected' : '' ?>><?= e(nomeConta($ct)) ?></option><?php endforeach; ?>
                 </select></label>
         <?php endif; ?>
+        <fieldset class="ct-vis" data-ct-vis>
+            <legend><?= e(t('Visual do cartão')) ?></legend>
+            <div class="ct-vis-grade">
+                <?php foreach (CartaoVisual::nomes() as $chave => $nomeVis): ?>
+                    <label class="ct-vis-op"><input type="radio" name="visual" value="<?= e($chave) ?>"<?= $marcado === $chave ? ' checked' : '' ?>>
+                        <span class="ct-vis-mini"<?= CartaoVisual::atributos($chave === '' ? null : $chave) ?> aria-hidden="true"></span><span class="ct-vis-n"><?= e($nomeVis) ?></span></label>
+                <?php endforeach; ?>
+                <label class="ct-vis-op"><input type="radio" name="visual" value="propria"<?= $marcado === 'propria' ? ' checked' : '' ?>>
+                    <span class="ct-vis-mini"<?= CartaoVisual::atributos($cor) ?> aria-hidden="true" data-ct-vis-propria></span><span class="ct-vis-n"><?= e(t('Cor própria')) ?></span></label>
+            </div>
+            <label class="ct-vis-cor"><span><?= e(t('Escolha a cor')) ?></span><input type="color" name="visual_cor" value="<?= e($cor) ?>"></label>
+        </fieldset>
         <?php if ($primeira): ?>
             <p><?= e(t('Com o fechamento e o vencimento, o app sabe em que fatura cada compra cai. Depois de lançar as compras parceladas que já estão no cartão, você liga o cartão ao plano e a previsão da Fatura do cartão passa a sair delas.')) ?></p>
         <?php endif; ?>
@@ -74,10 +94,10 @@ if ($cfg === null): $novo = $cartoes !== []; ?>
         <header class="ct-topo"><div><h1><?= e(t('Cartão')) ?></h1><p><?= e(t('Primeiro, conte ao app quando a fatura fecha e vence.')) ?></p></div></header>
     <?php endif; ?>
     <div class="ct-cima">
-        <?php $plastico(t('Fatura do mês'), $novo ? t('novo cartão') : t('seu cartão'), '—', '', [[t('Fecha'), t('dia —')], [t('Vence'), t('dia —')]], true); ?>
+        <?php $plastico(t('Fatura do mês'), $novo ? t('novo cartão') : t('seu cartão'), '—', '', [[t('Fecha'), t('dia —')], [t('Vence'), t('dia —')]], true, $visual); ?>
         <section class="card" aria-labelledby="ct-cad-t">
             <h2 class="titulo" id="ct-cad-t"><?= $novo ? e(t('Cadastre o novo cartão')) : e(t('Cadastre o cartão')) ?></h2>
-            <?php $formConfig(null, $erro, $campo, !$novo, $novo, $contas); ?>
+            <?php $formConfig(null, $erro, $campo, !$novo, $visual, $novo, $contas); ?>
         </section>
     </div>
 </div>
@@ -182,7 +202,7 @@ $hrefLancar = '/lancar?pagou=' . rawurlencode($pagouCartao) . '&volta=' . rawurl
     <?php endif; ?>
 
     <div class="ct-cima">
-        <?php $plastico(t('Fatura de {mes}', ['mes' => mesExtenso($aberta)]), $cfg['nome'], num((float) $fAberta['total']), $statusTxt($fAberta), $pe); ?>
+        <?php $plastico(t('Fatura de {mes}', ['mes' => mesExtenso($aberta)]), $cfg['nome'], num((float) $fAberta['total']), $statusTxt($fAberta), $pe, false, $visual); ?>
         <section class="card ct-escada-card" aria-labelledby="ct-esc-t">
             <div class="ct-escada-cab"><h2 id="ct-esc-t"><?= e(t('Próximas faturas')) ?></h2></div>
             <p class="ct-escada-sub"><?= e(t('Quanto já está comprometido em cada fatura. Novas compras somam a isso.')) ?></p>
@@ -250,7 +270,7 @@ $hrefLancar = '/lancar?pagou=' . rawurlencode($pagouCartao) . '&volta=' . rawurl
         <section class="card ct-dados-card" aria-labelledby="ct-dados-t">
             <details class="ct-config"<?= $erro !== null ? ' open' : '' ?>>
                 <summary><h2 class="titulo" id="ct-dados-t"><?= e($cfg['nome']) ?></h2><span class="ct-config-acao"><span class="se-fechado"><?= e(t('Configurar')) ?></span><span class="se-aberto"><?= e(t('Fechar')) ?></span></span></summary>
-                <?php $formConfig($cfg, $erro, $campo, false, false, $contas, $varios); ?>
+                <?php $formConfig($cfg, $erro, $campo, false, $visual, false, $contas, $varios); ?>
             </details>
             <dl class="ct-dados num">
                 <div><dt><?= e(t('Fecha')) ?></dt><dd><?= e(t('dia {n}', ['n' => (int) $cfg['fecha']])) ?></dd></div><div><dt><?= e(t('Vence')) ?></dt><dd><?= e(t('dia {n}', ['n' => (int) $cfg['vence']])) ?></dd></div>

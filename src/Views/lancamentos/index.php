@@ -4,7 +4,7 @@
  * $categoria (?array), $categorias (array), $q, $modo ('' = o mês; ano, tudo, datas), $periodo (?de/ate),
  * $rotuloPeriodo, $valores (min/max como digitados), $erroValor, $params (filtros ativos, com mes), $limite,
  * $linhas, $totais, $filtrado, $renda (?float, só sem filtro), $urlAtual, $urlPlanilha,
- * $form (partial de lançar da coluna do desktop).
+ * $form (partial de lançar da coluna do desktop), $contasMes (ChecklistContas::fixasAPagar, o bloco "Contas do mês").
  * Com mais de uma conta: $contas (todas, para o filtro), $conta (a filtrada, ou null), $transferencias (as do período,
  * com ↔ e fora dos totais), $saldoConta (o saldo da conta filtrada); $nomesCartao (com mais de um cartão, o nome de
  * cada um, para o pagamento de fatura dizer de qual cartão é).
@@ -98,6 +98,8 @@ $urlImportar = '/importar' . ($conta !== null ? '?destino=conta%3A' . (int) $con
                 </div>
             <?php endif; ?>
         </div>
+
+        <?php View::partial('partials/contas_mes', ['contas' => $contasMes ?? [], 'volta' => $urlAtual, 'hoje' => $hoje]); ?>
 
         <!-- filtros -->
         <div class="ex-filtros-wrap">

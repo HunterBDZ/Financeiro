@@ -557,6 +557,15 @@ function svgIcon(string $name, int $size = 14, string $class = ''): string
         'lock'     => '<rect x="5" y="11" width="14" height="9.5" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
         'tag'      => '<path d="M3.5 12V4.5h7.5l9 9-7.5 7.5-9-9Z"/><circle cx="7.8" cy="8.8" r="1.1"/>',
         'pen'      => '<path d="M4 20h4L19 9l-4-4L4 16v4Z"/>',
+        // linhas de Ajustes
+        'globo'    => '<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17"/><path d="M12 3.5c2.3 2.4 3.4 5.2 3.4 8.5s-1.1 6.1-3.4 8.5c-2.3-2.4-3.4-5.2-3.4-8.5s1.1-6.1 3.4-8.5Z"/>',
+        'imagem'   => '<rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><circle cx="9" cy="9.5" r="1.6"/><path d="m20.5 15.5-4.5-4.5-8.5 8.5"/>',
+        'escudo'   => '<path d="M12 3.2 4.8 6v5.6c0 4.4 3 7.9 7.2 9.2 4.2-1.3 7.2-4.8 7.2-9.2V6L12 3.2Z"/><path d="m9 12 2 2 4-4"/>',
+        'pessoas'  => '<circle cx="9" cy="8.5" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 5.2a3.5 3.5 0 0 1 0 6.6"/><path d="M18 14.2a6.5 6.5 0 0 1 3.5 5.8"/>',
+        'celular'  => '<rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M11 18.5h2"/>',
+        'codigo'   => '<path d="m8.5 7.5-5 4.5 5 4.5"/><path d="m15.5 7.5 5 4.5-5 4.5"/>',
+        'info'     => '<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.5"/><path d="M12 7.7h.01"/>',
+        'carteira' => '<path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/>',
     ];
     $inner = $icons[$name] ?? '';
     $cls = $class !== '' ? ' class="' . e($class) . '"' : '';

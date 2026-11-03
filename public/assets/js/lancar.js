@@ -2,8 +2,9 @@
 // toque — o iOS só abre o teclado dentro do gesto do usuário. Também: [data-categoria],
 // [data-valor], [data-descricao], [data-data] preenchem o form; tecla "n" (desktop); fechar
 // (×, Esc, toque fora); checagem mínima antes de enviar + trava de duplo envio; o valor estilo
-// maquininha (só dígitos, vírgula automática); a categoria em um toque (botões, "Mais…" e a busca
-// da lista); com várias contas, o "Pagou com" / "Recebeu em" e o modo Transferir; o filtro do extrato. Sem nada inline (CSP
+// maquininha (só dígitos, vírgula automática); o campo da categoria (combobox: abre a lista ao clicar,
+// filtra ao digitar, setas, Enter e Esc; sem JS fica o <select>); com várias contas, o "Pagou com" /
+// "Recebeu em" e o modo Transferir; o filtro do extrato. Sem nada inline (CSP
 // script-src 'self'). Sai sem fazer nada quando a página não tem #lancar, form[data-lf] nem filtro.
 (function () {
     'use strict';
@@ -33,64 +34,29 @@
         return form.querySelector('[data-lf-valor]');
     }
 
-    // a categoria: rádios (botões das mais usadas + a lista do "Mais…"); o <select> antigo ainda vale
+    // a categoria: o <select> leva o valor; com JS, quem aparece é o combobox no lugar dele
     function campoCategoria(form) {
-        var marcado = form.querySelector('input[name="categoria_id"]:checked');
-        if (marcado) {
-            return marcado.closest('.lf-op') && !marcado.closest('details[open]') ? form.querySelector('[data-lf-mais] > summary') : marcado;
+        var caixa = form.querySelector('[data-lf-combo-in]');
+        if (caixa && !caixa.closest('[hidden]')) {
+            return caixa;
         }
-        return form.querySelector('input[data-lf-rapida]') || form.querySelector('[data-lf-mais] > summary') || form.querySelector('select[name="categoria_id"]');
+        return form.querySelector('select[name="categoria_id"]');
     }
 
     function categoriaDe(form) {
-        var marcado = form.querySelector('input[name="categoria_id"]:checked');
-        if (marcado) {
-            return marcado.value;
-        }
         var sel = form.querySelector('select[name="categoria_id"]');
         return sel && sel.value !== '' ? sel.value : null;
     }
 
-    // o "Mais…" mostra a categoria escolhida na lista; a que também tem botão fica marcada no botão
-    function sincronizarMais(form) {
-        var mais = form.querySelector('[data-lf-mais]');
-        if (!mais) {
-            return;
-        }
-        var marcado = form.querySelector('input[name="categoria_id"]:checked');
-        var rot = mais.querySelector('[data-lf-mais-rot]');
-        var op = marcado ? marcado.closest('.lf-op') : null;
-        mais.classList.toggle('is-sel', !!op);
-        if (!rot) {
-            return;
-        }
-        rot.textContent = '';
-        if (op) {
-            var ic = op.querySelector('.ci');
-            if (ic) {
-                rot.appendChild(ic.cloneNode(true));
-            }
-            var nome = document.createElement('span');
-            nome.textContent = (op.querySelector('span:last-child') || op).textContent;
-            rot.appendChild(nome);
-        } else {
-            var mais1 = document.createElement('span');
-            mais1.textContent = T('Mais…');
-            rot.appendChild(mais1);
-        }
-    }
-
     function marcarCategoria(form, id) {
-        var radios = form.querySelectorAll('input[name="categoria_id"][value="' + String(id).replace(/[^0-9]/g, '') + '"]');
-        if (radios.length) {
-            var alvo = form.querySelector('input[data-lf-rapida][value="' + String(id).replace(/[^0-9]/g, '') + '"]') || radios[0];
-            alvo.checked = true;
-            sincronizarMais(form);
-            return;
-        }
         var sel = form.querySelector('select[name="categoria_id"]');
         if (sel) {
-            sel.value = String(id);
+            sel.value = String(id).replace(/[^0-9]/g, '');
+            var combo = form.querySelector('[data-lf-combo]');
+            if (combo && combo.lfSincronizar) {
+                combo.lfSincronizar();
+            }
+            contas(form);
         }
     }
 
@@ -241,7 +207,7 @@
         var a = document.activeElement;
         var emCampo = !!(a && (a.isContentEditable || /^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName)));
 
-        // Enter no valor sem categoria: não envia; vai para a categoria
+        // Enter no valor sem categoria: não envia; vai para a categoria, com a lista aberta
         if (ev.key === 'Enter' && a && a.matches && a.matches('[data-lf-valor]')) {
             var form = a.form;
             if (form && !categoriaDe(form)) {
@@ -249,6 +215,10 @@
                 var sel = campoCategoria(form);
                 if (sel) {
                     sel.focus();
+                    var combo = form.querySelector('[data-lf-combo]');
+                    if (combo && combo.lfAbrir && sel.matches('[data-lf-combo-in]')) {
+                        combo.lfAbrir();
+                    }
                 }
             }
             return;
@@ -276,7 +246,8 @@
         if (!fs) {
             return;
         }
-        var cat = form.querySelector('input[name="categoria_id"]:checked');
+        var sel = form.querySelector('select[name="categoria_id"]');
+        var cat = sel && sel.selectedIndex >= 0 ? sel.options[sel.selectedIndex] : null;
         var entra = !!(cat && cat.hasAttribute('data-lf-entra'));
         var rot = fs.querySelector('[data-pagou-rot]');
         if (rot) {
@@ -309,79 +280,187 @@
         }
     });
 
-    // escolher a categoria some com o aviso; na lista, a que tem botão passa para o botão e o "Mais…" fecha
+    // escolher a categoria some com o aviso
     document.addEventListener('change', function (ev) {
         var el = ev.target;
         if (el instanceof Element && el.matches('form[data-lf] [name="categoria_id"]') && el.form) {
             mostrarErro(el.form, '');
-            var form = el.form;
-            if (el.closest('.lf-op')) {
-                var botao = form.querySelector('input[data-lf-rapida][value="' + el.value + '"]');
-                if (botao) {
-                    botao.checked = true;
-                }
-                var mais = form.querySelector('[data-lf-mais]');
-                if (mais && mais.open && !el.matches(':focus-visible')) {
-                    mais.open = false;                  // escolheu com o dedo ou o mouse: a lista fecha
-                }
-            }
-            sincronizarMais(form);
         }
     });
 
-    // busca da lista completa: mostra a caixa (sem JS ela fica escondida) e filtra enquanto se digita
-    document.querySelectorAll('[data-lf-mais]').forEach(function (mais) {
-        var busca = mais.querySelector('[data-lf-busca]');
-        if (!busca) {
+    // o combobox da categoria (padrão do ARIA APG: input com role=combobox, listbox, aria-activedescendant).
+    // O <select> continua no form e leva o valor; a caixa só mostra e escolhe. Clicar abre a lista inteira,
+    // digitar filtra (sem acento e sem caixa), setas andam, Enter escolhe, Esc fecha e volta ao escolhido.
+    var semAcento = function (s) { return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); };
+    document.querySelectorAll('[data-lf-combo]').forEach(function (combo) {
+        var sel = combo.querySelector('select[data-lf-cat]');
+        var caixa = combo.querySelector('[data-lf-combo-caixa]');
+        var input = combo.querySelector('[data-lf-combo-in]');
+        var lista = combo.querySelector('[data-lf-combo-lista]');
+        var icone = combo.querySelector('[data-lf-combo-ic]');
+        var vazio = combo.querySelector('[data-lf-combo-vazio]');
+        if (!sel || !caixa || !input || !lista) {
             return;
         }
-        busca.hidden = false;
-        var vazio = mais.querySelector('[data-lf-vazio]');
-        var sem = function (s) { return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); };
-        var filtrar = function () {
-            var q = sem(busca.value.trim());
-            var achou = 0;
-            mais.querySelectorAll('[data-lf-grupo]').forEach(function (g) {
+        var ops = Array.prototype.slice.call(lista.querySelectorAll('[role="option"]'));
+        var ativo = null;
+        var digitou = false;
+
+        // troca o <select> pela caixa; o rótulo passa a apontar para ela
+        sel.hidden = true;
+        caixa.hidden = false;
+        var rot = combo.parentNode.querySelector('[data-lf-cat-rot]');
+        if (rot) {
+            rot.htmlFor = input.id;
+        }
+
+        function aberta() { return !lista.hidden; }
+        function visiveis() { return ops.filter(function (o) { return !o.hidden; }); }
+        function opDe(valor) {
+            for (var i = 0; i < ops.length; i++) {
+                if (ops[i].getAttribute('data-value') === valor) { return ops[i]; }
+            }
+            return null;
+        }
+        function nomeDe(op) { var n = op.querySelector('span:last-child'); return (n || op).textContent; }
+
+        function marcarAtivo(op) {
+            if (ativo) { ativo.classList.remove('is-ativo'); }
+            ativo = op;
+            if (op) {
+                op.classList.add('is-ativo');
+                input.setAttribute('aria-activedescendant', op.id);
+                op.scrollIntoView({ block: 'nearest' });
+            } else {
+                input.removeAttribute('aria-activedescendant');
+            }
+        }
+
+        function filtrar(q) {
+            q = semAcento(q.trim());
+            lista.querySelectorAll('[data-lf-combo-g]').forEach(function (g) {
                 var n = 0;
-                g.querySelectorAll('[data-lf-op]').forEach(function (op) {
-                    var ok = q === '' || sem(op.getAttribute('data-lf-op')).indexOf(q) !== -1;
+                g.querySelectorAll('[role="option"]').forEach(function (op) {
+                    var ok = q === '' || semAcento(op.getAttribute('data-busca') || '').indexOf(q) !== -1;
                     op.hidden = !ok;
                     if (ok) { n++; }
                 });
                 g.hidden = n === 0;
-                achou += n;
             });
-            if (vazio) {
-                vazio.hidden = achou > 0;
-            }
+            var achou = visiveis().length;
+            if (vazio) { vazio.hidden = achou > 0; }
             return achou;
-        };
-        busca.addEventListener('input', filtrar);
-        busca.addEventListener('keydown', function (ev) {
-            var visiveis = Array.prototype.filter.call(mais.querySelectorAll('[data-lf-op] input'), function (i) { return !i.closest('[hidden]'); });
-            if (ev.key === 'Enter') {
-                ev.preventDefault();                    // Enter na busca não envia o lançamento
-                if (visiveis.length === 1) {
-                    visiveis[0].checked = true;
-                    visiveis[0].dispatchEvent(new Event('change', { bubbles: true }));
-                    mais.open = false;
-                    var s = mais.querySelector('summary');
-                    if (s) { s.focus(); }
-                }
-            } else if (ev.key === 'ArrowDown' && visiveis.length) {
+        }
+
+        function abrir() {
+            if (!aberta()) {
+                filtrar('');
+                lista.hidden = false;
+                input.setAttribute('aria-expanded', 'true');
+            }
+            marcarAtivo(opDe(sel.value) || visiveis()[0] || null);
+        }
+
+        function fechar() {
+            lista.hidden = true;
+            if (vazio) { vazio.hidden = true; }
+            input.setAttribute('aria-expanded', 'false');
+            marcarAtivo(null);
+            digitou = false;
+        }
+
+        // a caixa mostra o que está no <select>: nome, ícone e a marca na lista
+        function sincronizar() {
+            var op = opDe(sel.value);
+            input.value = op ? nomeDe(op) : '';
+            ops.forEach(function (o) { o.setAttribute('aria-selected', o === op ? 'true' : 'false'); });
+            if (icone) {
+                icone.textContent = '';
+                var ic = op ? op.querySelector('.ci') : null;
+                if (ic) { icone.appendChild(ic.cloneNode(true)); }
+            }
+        }
+
+        function escolher(op) {
+            var mudou = sel.value !== op.getAttribute('data-value');
+            sel.value = op.getAttribute('data-value');
+            sincronizar();
+            fechar();
+            if (mudou) {
+                sel.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        }
+
+        combo.lfSincronizar = sincronizar;
+        combo.lfAbrir = abrir;
+
+        input.addEventListener('focus', function () { input.select(); });
+        input.addEventListener('click', function () {
+            if (aberta() && !digitou) { fechar(); } else { abrir(); }
+        });
+        input.addEventListener('input', function () {
+            digitou = true;
+            if (!aberta()) {
+                lista.hidden = false;
+                input.setAttribute('aria-expanded', 'true');
+            }
+            filtrar(input.value);
+            marcarAtivo(visiveis()[0] || null);
+        });
+        input.addEventListener('keydown', function (ev) {
+            var vs = visiveis();
+            var i = ativo ? vs.indexOf(ativo) : -1;
+            if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
                 ev.preventDefault();
-                visiveis[0].focus();
+                if (!aberta()) { abrir(); return; }
+                if (vs.length) {
+                    i = ev.key === 'ArrowDown' ? Math.min(vs.length - 1, i + 1) : Math.max(0, i - 1);
+                    marcarAtivo(vs[i]);
+                }
+            } else if (ev.key === 'Enter') {
+                if (aberta()) {
+                    ev.preventDefault();            // Enter na lista escolhe; não envia o lançamento
+                    if (ativo) { escolher(ativo); }
+                }
+            } else if (ev.key === 'Escape') {
+                if (aberta() || input.value !== (opDe(sel.value) ? nomeDe(opDe(sel.value)) : '')) {
+                    ev.preventDefault();            // só fecha a lista, não o diálogo
+                    ev.stopPropagation();
+                    fechar();
+                    sincronizar();
+                }
+            } else if (ev.key === 'Tab' && aberta() && digitou && ativo) {
+                escolher(ativo);                    // digitou e saiu com Tab: fica a primeira que serve
             }
         });
-        mais.addEventListener('toggle', function () {
-            if (mais.open) {
-                busca.value = '';
-                filtrar();
-                if (window.matchMedia('(pointer: fine)').matches) {
-                    busca.focus();                      // no celular, o teclado não abre sozinho
+        // ao sair: o que foi digitado vira a categoria se só uma serve; senão, volta à escolhida
+        input.addEventListener('blur', function () {
+            if (digitou) {
+                var vs = visiveis();
+                if (vs.length === 1 && input.value.trim() !== '') {
+                    escolher(vs[0]);
+                    return;
                 }
             }
+            fechar();
+            sincronizar();
         });
+        // tocar na lista não tira o foco da caixa (senão o blur fecharia antes do clique)
+        lista.addEventListener('mousedown', function (ev) { ev.preventDefault(); });
+        lista.addEventListener('click', function (ev) {
+            var op = ev.target instanceof Element ? ev.target.closest('[role="option"]') : null;
+            if (!op) { return; }
+            escolher(op);
+            if (!window.matchMedia('(pointer: fine)').matches) {
+                input.blur();                       // no celular, o teclado fecha depois de escolher
+            }
+        });
+        caixa.addEventListener('click', function (ev) {
+            if (ev.target === caixa || (icone && icone.contains(ev.target))) { input.focus(); abrir(); }
+        });
+        // o <select> pode mudar por fora (voltar pelo histórico, reset do form)
+        sel.addEventListener('change', sincronizar);
+        sincronizar();
     });
 
     // antes de enviar: valor e categoria (o servidor valida tudo de novo); trava o duplo toque
@@ -419,11 +498,15 @@
         }
     });
 
-    // voltar pelo histórico (bfcache) devolve o form destravado
+    // voltar pelo histórico (bfcache) devolve o form destravado, com a caixa da categoria igual ao <select>
     window.addEventListener('pageshow', function () {
         var fs = document.querySelectorAll('form[data-lf]');
         for (var i = 0; i < fs.length; i++) {
             destravar(fs[i]);
+            var combo = fs[i].querySelector('[data-lf-combo]');
+            if (combo && combo.lfSincronizar) {
+                combo.lfSincronizar();
+            }
         }
     });
 

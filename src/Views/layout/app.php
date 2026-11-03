@@ -2,7 +2,7 @@
 /**
  * Layout. Variáveis: $content, $pageTitle, $active (inicio|extrato|meta|mes|cartao|relatorio|emprestimo|wishlist|temas|ajustes),
  * $semDialogoLancar (true = não renderiza o <dialog id="lancar">).
- * Computador: menu lateral (marca, Lançar, abas, Claro/Escuro, quem está e sair).
+ * Computador: menu lateral (marca, Lançar, abas na ordem da conta, Claro/Escuro, quem está e sair).
  * Celular: barra de cima (marca, sol/lua, botão Menu) e barra flutuante embaixo com o "+" no
  * meio de 4 abas (Início, Extrato, +, Mês, Cartão). O resto das abas fica no botão Menu, junto com a conta.
  * CSS/JS dos pacotes entram só se o arquivo existir (D19): nenhum 404 durante o build.
@@ -10,28 +10,17 @@
 use Financeiro\Auth;
 use Financeiro\Models\AjusteModel;
 use Financeiro\Idioma;
+use Financeiro\Menu;
 use Financeiro\SiteIcone;
 use Financeiro\Temas;
 use Financeiro\View;
 
 $activePage = (string) ($active ?? '');
 
-// chave => [href, rótulo, ícone]; a ordem é a da barra de baixo (o "+" entra depois da 2ª)
-$abas = [
-    'inicio'  => ['/', t('Início'), 'home'],
-    'extrato' => ['/lancamentos', t('Extrato'), 'list'],
-    'mes'     => ['/mes', t('Mês'), 'calendar'],
-    'cartao'  => ['/cartao', t('Cartão'), 'cartao'],
-    'relatorio' => ['/relatorio', t('Relatório'), 'relatorio'],
-    'simular' => ['/futuro', t('Simular'), 'trend'],
-    'emprestimo' => ['/emprestimo', t('Empréstimo'), 'emprestimo'],
-    'investimentos' => ['/investimentos', t('Investimentos'), 'invest'],
-    'wishlist' => ['/wishlist', t('Wishlist'), 'gift'],
-    'temas'   => ['/temas', t('Temas'), 'paleta'],
-    'meta'    => ['/meta', t('Metas'), 'target'],
-];
+// chave => [href, rótulo, ícone], na ordem padrão (Menu::abas); a barra de baixo segue essa ordem (o "+" entra depois da 2ª)
+$abas = Menu::abas();
 
-// recursos opcionais: a aba do que a pessoa não usa fica escondida
+// recursos opcionais: a aba do que a pessoa não usa fica escondida, mas guarda o lugar na ordem da conta
 $usaCartao = AjusteModel::usa('usa_cartao');
 $usaEmprestimo = AjusteModel::usa('usa_emprestimo');
 if (!$usaCartao) {
@@ -40,11 +29,20 @@ if (!$usaCartao) {
 if (!$usaEmprestimo) {
     unset($abas['emprestimo']);
 }
+// a ordem que a pessoa escolheu (modo organizar, menu.js): vale no menu lateral e na lista do botão Menu
+$ordemMenu = array_values(array_filter(Menu::daConta(Auth::id()), static fn(string $c): bool => isset($abas[$c])));
+// lista do botão Menu (celular): o que não fica na barra de baixo, e o Relatório sempre
+$doBotaoMenu = array_values(array_diff($ordemMenu, ['inicio', 'extrato', 'mes', 'cartao']));
+$csrfMenu = e(csrfToken());
+// o que o menu.js precisa: o token, a ordem padrão daquela lista e o lugar do aviso para leitor de tela
+$organizar = static function (array $chaves) use ($abas, $csrfMenu): string {
+    return ' data-org data-org-csrf="' . $csrfMenu . '" data-org-padrao="' . e(implode(',', array_values(array_intersect(array_keys($abas), $chaves)))) . '"';
+};
 
 $publico = __DIR__ . '/../../../public';
 $existe  = static fn(string $p): bool => is_file($publico . $p);
-$estilos = array_filter(['/assets/css/style.css', '/assets/css/inicio.css', '/assets/css/lancar.css', '/assets/css/mes.css', '/assets/css/investimentos.css', '/assets/css/relatorio.css', '/assets/css/cartao.css', '/assets/css/emprestimo.css', '/assets/css/wishlist.css', '/assets/css/importar.css', '/assets/css/temas-tela.css', '/assets/css/temas.css'], $existe);
-$scripts = array_filter(['/assets/js/app.js', '/assets/js/lancar.js', '/assets/js/mes.js', '/assets/js/cartao.js', '/assets/js/emprestimo.js', '/assets/js/wishlist.js', '/assets/js/importar.js', '/assets/js/temas.js', '/assets/js/relatorio.js', '/assets/js/fuso.js'], $existe);
+$estilos = array_filter(['/assets/css/style.css', '/assets/css/inicio.css', '/assets/css/lancar.css', '/assets/css/mes.css', '/assets/css/investimentos.css', '/assets/css/relatorio.css', '/assets/css/cartao.css', '/assets/css/emprestimo.css', '/assets/css/wishlist.css', '/assets/css/importar.css', '/assets/css/temas-tela.css', '/assets/css/menu.css', '/assets/css/temas.css'], $existe);
+$scripts = array_filter(['/assets/js/app.js', '/assets/js/lancar.js', '/assets/js/mes.js', '/assets/js/cartao.js', '/assets/js/emprestimo.js', '/assets/js/wishlist.js', '/assets/js/importar.js', '/assets/js/temas.js', '/assets/js/relatorio.js', '/assets/js/fuso.js', '/assets/js/menu.js'], $existe);
 
 $uri     = (string) ($_SERVER['REQUEST_URI'] ?? '/');
 $volta   = voltaSegura($uri, '/');
@@ -70,7 +68,7 @@ $atual = static function (string $chave) use ($activePage): string {
     return $activePage === $chave ? ' aria-current="page"' : '';
 };
 // barra do celular: Início, Extrato, +, Mês, Cartão. Com cartão, o Relatório abre pelo menu e quem fica acesa nele é a do Mês; sem cartão, ele toma o lugar
-$barra = array_diff_key($abas, ($usaCartao ? ['relatorio' => true] : []) + ['simular' => true, 'meta' => true, 'emprestimo' => true, 'investimentos' => true, 'wishlist' => true, 'temas' => true]);
+$barra = array_diff_key($abas, ($usaCartao ? ['relatorio' => true] : []) + ['simular' => true, 'meta' => true, 'emprestimo' => true, 'investimentos' => true, 'wishlist' => true, 'temas' => true, 'ajuda' => true, 'ajustes' => true]);
 $acesaNaBarra = $usaCartao && $activePage === 'relatorio' ? 'mes' : $activePage;
 // o tema da conta vem no HTML: nada de piscar, e vale em qualquer aparelho. Null = automático (theme.js)
 $temaConta = Temas::doUsuario();
@@ -116,11 +114,17 @@ $marca = '<span class="marca"><img src="' . e(SiteIcone::url()) . '" alt="" widt
 <aside class="lateral" aria-label="<?= e(t('menu')) ?>">
     <a class="lat-marca" href="/"><?= $marca ?><b translate="no">financeiro</b></a>
     <a class="lat-lancar" href="<?= e($hrefLancar) ?>" data-lancar><?= svgIcon('plus', 18) ?><?= e(t('Lançar')) ?></a>
-    <nav class="lat-nav" aria-label="<?= e(t('principal')) ?>">
-        <?php foreach ($abas + ['ajuda' => ['/ajuda', t('Ajuda'), 'ajuda'], 'ajustes' => ['/ajustes', t('Ajustes'), 'settings']] as $chave => [$href, $rotulo, $icone]): ?>
-            <a class="lat-i<?= $aba($chave) ?>" href="<?= e($href) ?>"<?= $atual($chave) ?>><?= svgIcon($icone, 20) ?><span><?= e($rotulo) ?></span></a>
-        <?php endforeach; ?>
-    </nav>
+    <div class="org"<?= $organizar($ordemMenu) ?>>
+        <?php View::partial('layout/_organizar', ['parte' => 'barra']); ?>
+        <nav class="lat-nav" aria-label="<?= e(t('principal')) ?>">
+            <ul class="org-lista" data-org-lista>
+                <?php foreach ($ordemMenu as $chave): [$href, $rotulo, $icone] = $abas[$chave]; ?>
+                    <li class="org-i" data-aba="<?= e($chave) ?>"><a class="lat-i<?= $aba($chave) ?>" href="<?= e($href) ?>"<?= $atual($chave) ?>><?= svgIcon($icone, 20) ?><span><?= e($rotulo) ?></span></a></li>
+                <?php endforeach; ?>
+            </ul>
+        </nav>
+        <?php View::partial('layout/_organizar', ['parte' => 'abrir']); ?>
+    </div>
     <div class="lat-fim">
         <?php if ($ladosTema !== null): ?>
             <div class="tema-seg" role="group" aria-label="<?= e(t('tema')) ?>"<?= $dadosAtalho ?>>
@@ -150,15 +154,15 @@ $marca = '<span class="marca"><img src="' . e(SiteIcone::url()) . '" alt="" widt
         <summary class="menu-botao<?= in_array($activePage, ['ajuda', 'ajustes', 'simular', 'meta', 'emprestimo', 'investimentos', 'wishlist', 'temas'], true) ? ' is-active' : '' ?>"><?= svgIcon('menu', 19) ?><span><?= e(t('Menu')) ?></span></summary>
         <div class="menu-painel">
             <?php if ($nome): ?><div class="menu-quem"><?= e($nome) ?></div><?php endif; ?>
-            <a class="menu-item<?= $activePage === 'relatorio' ? ' is-active' : '' ?>" href="/relatorio"<?= $atual('relatorio') ?>><?= svgIcon('relatorio', 18) ?><?= e(t('Relatório')) ?></a>
-            <a class="menu-item<?= $activePage === 'simular' ? ' is-active' : '' ?>" href="/futuro"<?= $atual('simular') ?>><?= svgIcon('trend', 18) ?><?= e(t('Simular')) ?></a>
-            <a class="menu-item<?= $activePage === 'meta' ? ' is-active' : '' ?>" href="/meta"<?= $atual('meta') ?>><?= svgIcon('target', 18) ?><?= e(t('Metas')) ?></a>
-            <?php if ($usaEmprestimo): ?><a class="menu-item<?= $activePage === 'emprestimo' ? ' is-active' : '' ?>" href="/emprestimo"<?= $atual('emprestimo') ?>><?= svgIcon('emprestimo', 18) ?><?= e(t('Empréstimo')) ?></a><?php endif; ?>
-            <a class="menu-item<?= $activePage === 'investimentos' ? ' is-active' : '' ?>" href="/investimentos"<?= $atual('investimentos') ?>><?= svgIcon('invest', 18) ?><?= e(t('Investimentos')) ?></a>
-            <a class="menu-item<?= $activePage === 'wishlist' ? ' is-active' : '' ?>" href="/wishlist"<?= $atual('wishlist') ?>><?= svgIcon('gift', 18) ?><?= e(t('Wishlist')) ?></a>
-            <a class="menu-item<?= $activePage === 'temas' ? ' is-active' : '' ?>" href="/temas"<?= $atual('temas') ?>><?= svgIcon('paleta', 18) ?><?= e(t('Temas')) ?></a>
-            <a class="menu-item<?= $activePage === 'ajuda' ? ' is-active' : '' ?>" href="/ajuda"<?= $atual('ajuda') ?>><?= svgIcon('ajuda', 18) ?><?= e(t('Ajuda')) ?></a>
-            <a class="menu-item<?= $activePage === 'ajustes' ? ' is-active' : '' ?>" href="/ajustes"<?= $atual('ajustes') ?>><?= svgIcon('settings', 18) ?><?= e(t('Ajustes')) ?></a>
+            <div class="org org-celular"<?= $organizar($doBotaoMenu) ?>>
+                <?php View::partial('layout/_organizar', ['parte' => 'barra']); ?>
+                <ul class="org-lista" data-org-lista>
+                    <?php foreach ($doBotaoMenu as $chave): [$href, $rotulo, $icone] = $abas[$chave]; ?>
+                        <li class="org-i" data-aba="<?= e($chave) ?>"><a class="menu-item<?= $aba($chave) ?>" href="<?= e($href) ?>"<?= $atual($chave) ?>><?= svgIcon($icone, 18) ?><?= e($rotulo) ?></a></li>
+                    <?php endforeach; ?>
+                </ul>
+                <?php View::partial('layout/_organizar', ['parte' => 'abrir']); ?>
+            </div>
             <form method="post" action="/logout">
                 <?= csrfField() ?>
                 <button type="submit" class="menu-item"><?= svgIcon('logout', 18) ?><?= e(t('Sair')) ?></button>

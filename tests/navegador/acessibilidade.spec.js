@@ -1,7 +1,7 @@
 // Acessibilidade básica: a varredura do axe nas telas principais, nos temas Claro e Escuro. Só reprova o que o axe
 // classifica como grave (serious) ou crítico (critical). Roda só no Chromium (playwright.config.js).
 import AxeBuilder from '@axe-core/playwright';
-import { test, expect, escolherTema, TELAS } from './fixtures.js';
+import { test, expect, escolherTema, contaSemPagamento, TELAS } from './fixtures.js';
 
 // Violações reais que o app ainda tem: [regra do axe, elemento]. As varreduras das telas ignoram só esse elemento
 // nessa regra, para pegar qualquer violação nova. Se aparecer uma, ponha aqui e crie um teste "esperado falhar".
@@ -40,6 +40,18 @@ for (const tema of ['claro', 'escuro']) {
             });
         }
 
+        test('Ajustes com as categorias abertas', async ({ page }) => {
+            await page.goto('/ajustes?aberto=categorias');
+            expect(await graves(page)).toEqual([]);
+        });
+
+        test('editar categoria', async ({ page }) => {
+            await page.goto('/ajustes?aberto=categorias');
+            await page.locator('#categorias').getByRole('link', { name: /Mercado/ }).click();
+            await expect(page.getByRole('heading', { level: 1, name: 'Editar categoria' })).toBeVisible();
+            expect(await graves(page)).toEqual([]);
+        });
+
         test('privacidade', async ({ page }) => {
             await page.goto('/privacidade');
             expect(await graves(page)).toEqual([]);
@@ -50,6 +62,21 @@ for (const tema of ['claro', 'escuro']) {
             await page.getByRole('complementary', { name: 'menu' }).getByRole('link', { name: 'Lançar' }).click();
             await expect(page.getByRole('dialog', { name: 'lançar' })).toBeVisible();
             expect(await graves(page)).toEqual([]);
+            // com a lista de categorias aberta e uma opção em destaque
+            const campo = page.getByRole('dialog', { name: 'lançar' }).getByRole('combobox', { name: 'Categoria' });
+            await campo.click();
+            await campo.press('ArrowDown');
+            await expect(campo).toHaveAttribute('aria-activedescendant', /.+/);
+            expect(await graves(page)).toEqual([]);
+        });
+
+        test('Início e Extrato com contas do mês a pagar', async ({ page, baseURL }) => {
+            await contaSemPagamento(page, baseURL, 'Luz');
+            for (const caminho of ['/', '/lancamentos']) {
+                await page.goto(caminho);
+                await expect(page.getByRole('region', { name: 'Contas do mês' })).toBeVisible();
+                expect(await graves(page)).toEqual([]);
+            }
         });
 
         test.describe('no celular', () => {
@@ -58,10 +85,25 @@ for (const tema of ['claro', 'escuro']) {
             test('Início, com a barra de baixo e o menu aberto', async ({ page }) => {
                 await page.goto('/');
                 expect(await graves(page)).toEqual([]);
-                await page.getByRole('banner').getByText('Menu').click();
+                await page.getByRole('banner').getByText('Menu', { exact: true }).click();
                 await expect(page.getByRole('banner').getByRole('link', { name: 'Ajustes' })).toBeVisible();
                 expect(await graves(page)).toEqual([]);
             });
+
+            test('menu do botão Menu no modo organizar', async ({ page }) => {
+                await page.goto('/');
+                await page.getByRole('banner').getByText('Menu', { exact: true }).click();
+                await page.getByRole('banner').getByRole('button', { name: 'Organizar menu' }).click();
+                await expect(page.getByRole('banner').getByRole('button', { name: 'Pronto' })).toBeVisible();
+                expect(await graves(page)).toEqual([]);
+            });
+        });
+
+        test('menu lateral no modo organizar', async ({ page }) => {
+            await page.goto('/');
+            await page.getByRole('complementary', { name: 'menu' }).getByRole('button', { name: 'Organizar menu' }).click();
+            await expect(page.getByRole('complementary', { name: 'menu' }).getByRole('button', { name: 'Pronto' })).toBeVisible();
+            expect(await graves(page)).toEqual([]);
         });
     });
 

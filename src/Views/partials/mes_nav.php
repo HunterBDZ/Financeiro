@@ -6,6 +6,7 @@
  * Variáveis: $mes (AAAA-MM-01), $meses (linhas {mes, situacao} em ordem), $href (prefixo do link,
  * recebe o mês no fim), $sufixo (opcional, ex. '#contas'), $hoje (opcional, Y-m-d),
  * $anual (opcional: true põe o Relatório e o simulador no fim do painel; no celular é o caminho para eles).
+ * $semTitulo (opcional: true quando a tela já tem o seu h1, como Metas).
  * O mês por extenso é o botão de um seletor (details.menu, funciona sem JS): abre um painel com
  * todos os meses por ano, cada um com o ponto do estado. Setas redondas à direita.
  * O h1 da tela fica escondido para leitor de tela (o botão mostra o mesmo texto).
@@ -45,7 +46,7 @@ foreach ($lista as $k) {
     <?php else: ?>
         <span class="mes-nav-seta is-off" aria-hidden="true">‹</span>
     <?php endif; ?>
-    <h1 class="sr-only"><?= e(t('{mes} de {ano}', ['mes' => $extenso, 'ano' => $ano])) ?></h1>
+    <?php if (empty($semTitulo)): ?><h1 class="sr-only"><?= e(t('{mes} de {ano}', ['mes' => $extenso, 'ano' => $ano])) ?></h1><?php endif; ?>
     <details class="menu mes-picker" data-mes-picker>
         <summary aria-label="<?= e(t('{mes} {ano}, trocar o mês', ['mes' => $extenso, 'ano' => $ano])) ?>">
             <span class="mes-nav-t" aria-hidden="true"><?= e($extenso) ?> <span class="mes-nav-ano num"><?= e($ano) ?></span></span>

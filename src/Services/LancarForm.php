@@ -16,14 +16,11 @@ use Financeiro\Relogio;
  */
 final class LancarForm
 {
-    /** Quantos botões de categoria aparecem antes do "Mais…": duas fileiras de 4 no celular. */
-    public const RAPIDAS = 8;
-
     private static array $cache = [];
 
     /**
      * @return array{
-     *   outras: array<string, list<array{id:int,nome:string,curto:string,grupo:string}>>,
+     *   grupos: array<string, list<array{id:int,nome:string,curto:string,grupo:string}>>,
      *   descricoes: string[], hoje:string, ontem:string, data_min:string, data_max:string,
      *   cartao: ?array{id:int, nome:string, fecha:int, vence:int, aberta:string, serie:list<array{0:string,1:float}>},
      *   cartoes: list<array>, contas: list<array>, padrao: ?string
@@ -31,10 +28,9 @@ final class LancarForm
      * cartao = para o "Pagou com: Cartão" e a prévia (as próximas 14 faturas, da aberta em diante): o primeiro cartão;
      * cartoes = todos, no mesmo formato. contas = as contas ativas, só com mais de uma (com uma, nada muda na tela);
      * padrao = com várias contas, o "Pagou com" da última vez desta pessoa (conta:id ou cartao:id).
-     * outras = a lista completa por classe, gastos antes de entradas; em cada grupo, o dia a dia primeiro,
-     * pela frequência do usuário logado nos últimos 90 dias, depois a da casa, depois categorias.ordem.
-     * rapidas = as RAPIDAS mais usadas (pela mesma frequência; sem uso, o dia a dia), os botões de um toque,
-     * gastos antes de entradas.
+     * grupos = as categorias da lista do campo Categoria, por classe, gastos antes de entradas; em cada grupo,
+     * o dia a dia primeiro, pela frequência do usuário logado nos últimos 90 dias, depois a da casa, depois
+     * categorias.ordem. Cada uma traz entra (renda ou resgate): com várias contas, o "Pagou com" vira "Recebeu em".
      */
     public static function dados(?string $hoje = null): array
     {
@@ -59,8 +55,7 @@ final class LancarForm
 
         // A lista completa por classe, gastos antes de entradas: essenciais, não essenciais, entradas e ⇄
         // (empréstimo/poupança). O dia a dia é distribuído nos grupos pela sua classe, com os mais usados primeiro.
-        $outras = ['essenciais' => [], 'não essenciais' => [], 'entradas' => [], '⇄ movimentações' => []];
-        $candidatas = [];
+        $grupos = ['essenciais' => [], 'não essenciais' => [], 'entradas' => [], '⇄ movimentações' => []];
         foreach ($cats as $i => $c) {
             $id = (int) $c['id'];
             // entra: dinheiro que chega (renda ou resgate); com várias contas, o "Pagou com" vira "Recebeu em"
@@ -76,16 +71,9 @@ final class LancarForm
             } else {
                 $k = 'não essenciais';
             }
-            $classe = (int) $c['operacional'] === 0 ? 2 : ((int) $c['sinal'] === 1 ? 1 : 0);   // gasto · entrada · ⇄
-            $outras[$k][] = $base + ['_ord' => [$ehDia ? 0 : 1, $fq[0], $fq[1], $i]];
-            // botões: primeiro o que foi usado (do mais usado ao menos); sem uso, os gastos do dia a dia
-            $candidatas[] = $base + ['_ord' => [$fq[0] + $fq[1] < 0 ? 0 : 1, $fq[0], $fq[1], $classe, $ehDia ? 0 : 1, $i], '_classe' => $classe];
+            $grupos[$k][] = $base + ['_ord' => [$ehDia ? 0 : 1, $fq[0], $fq[1], $i]];
         }
-        usort($candidatas, static fn(array $a, array $b): int => $a['_ord'] <=> $b['_ord']);
-        $rapidas = array_slice($candidatas, 0, self::RAPIDAS);
-        usort($rapidas, static fn(array $a, array $b): int => [$a['_classe'], $a['_ord']] <=> [$b['_classe'], $b['_ord']]);
-        $rapidas = array_map(static fn(array $c): array => array_diff_key($c, ['_ord' => 1, '_classe' => 1]), $rapidas);
-        foreach ($outras as &$g) {
+        foreach ($grupos as &$g) {
             usort($g, static fn(array $a, array $b): int => $a['_ord'] <=> $b['_ord']);
             foreach ($g as &$it) {
                 unset($it['_ord']);
@@ -115,8 +103,7 @@ final class LancarForm
             'cartoes'    => $cartoes,
             'contas'     => $contas,
             'padrao'     => $contas !== [] ? self::ultimaUsada($uid, $contas, $cartoes) : null,
-            'outras'     => array_filter($outras),
-            'rapidas'    => $rapidas,
+            'grupos'     => array_filter($grupos),
             'descricoes' => $descricoes,
             'hoje'       => $hoje,
             'ontem'      => date('Y-m-d', strtotime($hoje . ' -1 day')),

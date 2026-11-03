@@ -2,12 +2,19 @@
 namespace Financeiro\Models;
 
 use Financeiro\Database;
+use Financeiro\Icones;
 use Financeiro\Sql;
 
 final class CategoriaModel
 {
     /** As categorias de fábrica que só fazem sentido para quem tem carro. */
     private const DE_CARRO = ['Seguro do carro', 'Combustível', 'IPVA', 'Licenciamento do carro', 'Revisão do carro'];
+
+    /** Grupos de que o app depende: a fatura e as movimentações. Não trocam de tipo nem de grupo. */
+    public const GRUPOS_DO_APP = ['Cartao', 'Emprestimo', 'Poupanca', 'Investimento'];
+
+    /** Grupos de gasto que a pessoa escolhe ao editar, pelo "o valor é". */
+    public const GRUPO_DO_VALOR = ['varia' => 'Dia a dia', 'fixo' => 'Fixos', 'pontual' => 'Ano'];
 
     /** @return array<int, array> todas as categorias ativas, ordenadas por grupo/ordem (com apelido e essencial) */
     public static function ativas(): array
@@ -194,6 +201,141 @@ final class CategoriaModel
         $stmt->execute(['c' => $chave]);
         $row = $stmt->fetch();
         return $row ?: null;
+    }
+
+    /** As categorias fora das listas (arquivadas), para voltar a usar. */
+    public static function arquivadas(): array
+    {
+        return Database::connection()->query(
+            'SELECT id, nome, apelido, icone, grupo, sinal, operacional, essencial FROM categorias WHERE ativo = 0 ORDER BY nome'
+        )->fetchAll();
+    }
+
+    /** O app depende do grupo e do sinal desta categoria: a fatura, as movimentações e as que ele acha pela chave. */
+    public static function doApp(array $cat): bool
+    {
+        return in_array((string) $cat['grupo'], self::GRUPOS_DO_APP, true) || (string) ($cat['chave'] ?? '') !== '';
+    }
+
+    /** Tem lançamento ou compra no cartão: trocar entrada por gasto inverteria esse histórico. */
+    public static function temHistorico(int $id): bool
+    {
+        $stmt = Database::connection()->prepare(
+            'SELECT (SELECT COUNT(*) FROM lancamentos WHERE categoria_id = :a) + (SELECT COUNT(*) FROM cartao_compras WHERE categoria_id = :b)'
+        );
+        $stmt->execute(['a' => $id, 'b' => $id]);
+        return (int) $stmt->fetchColumn() > 0;
+    }
+
+    /**
+     * Edita tudo de uma categoria. $d: nome, apelido, icone ('' mantém o atual), tipo ('entrada' ou 'saida'),
+     * valor_tipo ('varia', 'fixo' ou 'pontual', só gasto), dia ('' ou 1 a 31, só conta fixa, pontual e fatura),
+     * essencial e ativo (bool). O que não vale para o tipo é ignorado: entrada nunca é essencial nem tem vencimento.
+     * Recusa trocar o sinal de quem tem histórico e mexer no tipo ou no grupo do que o app usa. O nome é livre: o app
+     * acha as especiais pela chave (categorias.chave).
+     * @return array<string, string> campo => o que está errado; vazio = gravado
+     */
+    public static function editar(int $id, array $d): array
+    {
+        $cat = self::find($id);
+        if ($cat === null) {
+            return ['nome' => t('Categoria não encontrada.')];
+        }
+        $texto = static fn(string $k): string => trim((string) preg_replace('/[\x00-\x1F\x7F]+/', ' ', is_string($d[$k] ?? null) ? $d[$k] : ''));
+        $erros = [];
+
+        $nome = $texto('nome');
+        $outra = $nome !== '' ? self::porNome($nome) : null;
+        $erro = match (true) {
+            $nome === ''                                            => t('Digite o nome da categoria.'),
+            mb_strlen($nome) > 100                                  => t('Nome muito longo. Use até 100 letras.'),
+            $outra !== null && (int) $outra['id'] !== $id           => t('Já existe uma categoria chamada {nome}.', ['nome' => $nome]),
+            default                                                 => null,
+        };
+        if ($erro !== null) {
+            $erros['nome'] = $erro;
+        }
+
+        $apelido = $texto('apelido');
+        if (mb_strlen($apelido) > 24) {
+            $erros['apelido'] = t('Apelido muito longo. Use até 24 letras.');
+        }
+
+        $icone = $texto('icone');
+        if ($icone !== '' && !Icones::existe($icone)) {
+            $erros['icone'] = t('Escolha um ícone da lista.');
+        }
+
+        $tipo = $d['tipo'] ?? '';
+        $sinal = match ($tipo) { 'entrada' => 1, 'saida' => -1, default => 0 };
+        if ($sinal === 0) {
+            $erros['tipo'] = t('Escolha entrada ou gasto.');
+        } elseif ($sinal !== (int) $cat['sinal'] && self::doApp($cat)) {
+            $erros['tipo'] = t('O app usa esta categoria nos cálculos, então o tipo fica como está.');
+        } elseif ($sinal !== (int) $cat['sinal'] && self::temHistorico($id)) {
+            $erros['tipo'] = t('Já tem lançamentos: trocar o tipo inverteria o histórico.');
+        }
+
+        $grupo = (string) $cat['grupo'];
+        if (!self::doApp($cat) && $sinal === 1) {
+            $grupo = 'Entradas';
+        } elseif (!self::doApp($cat) && $sinal === -1) {
+            $grupo = self::GRUPO_DO_VALOR[$d['valor_tipo'] ?? ''] ?? '';
+            if ($grupo === '') {
+                $erros['valor_tipo'] = t('Escolha se o valor varia, é fixo ou é de vez em quando.');
+            }
+        }
+
+        $dia = null;
+        $diaBruto = $texto('dia');
+        if (in_array($grupo, ContaRecorrenteModel::GRUPOS, true) && $diaBruto !== '') {
+            $dia = ctype_digit($diaBruto) ? (int) $diaBruto : 0;
+            if ($dia < 1 || $dia > 31) {
+                $erros['dia'] = t('O dia do vencimento vai de 1 a 31.');
+            }
+        }
+        if ($erros !== []) {
+            return $erros;
+        }
+
+        $operacional = !in_array($grupo, ['Emprestimo', 'Poupanca', 'Investimento'], true);
+        $pdo = Database::connection();
+        $abriu = !$pdo->inTransaction();
+        if ($abriu) {
+            $pdo->beginTransaction();
+        }
+        try {
+            $ordem = (int) $cat['ordem'];
+            if ($grupo !== $cat['grupo']) {                     // muda de grupo: vai para o fim da lista nova
+                $st = $pdo->prepare('SELECT COALESCE(MAX(ordem), 0) + 1 FROM categorias WHERE grupo = :g');
+                $st->execute(['g' => $grupo]);
+                $ordem = (int) $st->fetchColumn();
+            }
+            $pdo->prepare(
+                'UPDATE categorias SET nome = :nome, apelido = :apelido, icone = :icone, grupo = :grupo, sinal = :sinal,
+                        essencial = :ess, ativo = :ativo, ordem = :ordem
+                 WHERE id = :id'
+            )->execute([
+                'nome' => $nome, 'apelido' => $apelido !== '' ? $apelido : null, 'icone' => $icone !== '' ? $icone : $cat['icone'],
+                'grupo' => $grupo, 'sinal' => $sinal, 'ess' => $sinal === -1 && $operacional && !empty($d['essencial']) ? 1 : 0,
+                'ativo' => !empty($d['ativo']) ? 1 : 0, 'ordem' => $ordem, 'id' => $id,
+            ]);
+            $conta = ContaRecorrenteModel::daCategoria($id);
+            if ($dia !== null) {
+                ContaRecorrenteModel::upsert($id, $dia);
+            } elseif ($conta !== null && (int) $conta['ativo'] === 1) {
+                ContaRecorrenteModel::desativar((int) $conta['id']);   // sem dia, ou o grupo não tem vencimento
+            }
+            if ($abriu) {
+                $pdo->commit();
+            }
+        } catch (\Throwable $e) {
+            if ($abriu && $pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $e;
+        }
+        return [];
     }
 
     public static function porNome(string $nome): ?array

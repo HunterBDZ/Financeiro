@@ -133,6 +133,11 @@
     .dash-gastos { grid-area: gastos; }
     .dash-conf { grid-area: conf; }
     .dash-ult { grid-area: ult; }
+    /* com contas a pagar, elas ficam numa faixa logo abaixo do saldo e do mês */
+    .dash-grade.com-contas { grid-template-areas: "saldo resumo" "contas contas" "ult gastos" "ult conf" "ult ."; }
+    .dash-grade > .cm { grid-area: contas; }
+    /* com as duas, as contas vão na coluna do saldo, logo abaixo de "precisa de atenção" */
+    .dash-grade.tem-aten.com-contas { grid-template-areas: "saldo resumo" "aten gastos" "contas gastos" "ult conf" "ult ."; }
 }
 
 /* tela larga: três colunas (saldo e últimos | o mês e conferir | para onde foi) */
@@ -142,6 +147,8 @@
         grid-template-areas: "saldo resumo gastos" "ult conf gastos" "ult . .";
     }
     .dash-grade.tem-aten { grid-template-areas: "saldo resumo gastos" "aten conf gastos" "ult conf gastos" "ult . ."; }
+    .dash-grade.com-contas { grid-template-areas: "saldo resumo gastos" "contas contas gastos" "ult conf gastos" "ult . ."; }
+    .dash-grade.tem-aten.com-contas { grid-template-areas: "saldo resumo gastos" "aten conf gastos" "contas contas gastos" "ult . ."; }
 }
 
 /* várias contas: o saldo de cada uma em "Ver detalhes"; conferir pede o de cada uma */
