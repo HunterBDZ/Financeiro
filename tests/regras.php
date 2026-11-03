@@ -1618,7 +1618,7 @@ $check('por dia: conta hoje, e no último dia o valor é para hoje', $diasT > 1
 Idioma::usar('en');
 $check('inglês: o dia do mês é ordinal depois de "the"', t('Dá para gastar até dia {dia}', ['dia' => 30]) === 'You can spend until the 30th'
     && implode(',', array_map('ordinalEn', [1, 2, 3, 4, 11, 12, 13, 21, 22, 23, 31])) === '1st,2nd,3rd,4th,11th,12th,13th,21st,22nd,23rd,31st'
-    && t('Cerca de {valor} por dia nos {n} dias que faltam.', ['valor' => 'x', 'n' => 9]) === 'About x a day for the 9 days left.');
+    && t('Cerca de {valor} por dia nos {n} dias que faltam, contando hoje.', ['valor' => 'x', 'n' => 9]) === 'About x a day for the 9 days left, counting today.');
 Idioma::usar('es');
 $check('espanhol: o dia continua "el día 30"', t('Dá para gastar até dia {dia}', ['dia' => 30]) === 'Puede gastar hasta el día 30');
 Idioma::usar('pt');
