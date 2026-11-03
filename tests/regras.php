@@ -2899,13 +2899,52 @@ $chavesLf = array_keys($lf['grupos']);
 $check('categorias: a lista começa pelos gastos', array_search('entradas', $chavesLf, true) === false || array_search('entradas', $chavesLf, true) > 0);
 $htmlLf = $render(LancamentosController::class, 'lancarForm', []);
 $nCats = (int) $pdo->query('SELECT COUNT(*) FROM categorias WHERE ativo = 1')->fetchColumn();
-$check('categorias: um campo só, com a lista inteira, sem os botões das mais usadas',
+$check('categorias: um campo só, com a lista inteira; os atalhos são só as 3 usadas por último',
     str_contains($htmlLf, '<select id="pg-cat" name="categoria_id"') && substr_count($htmlLf, 'role="option"') === $nCats
     && preg_match('/role="combobox"[^>]*aria-expanded="false"[^>]*aria-controls="pg-cat-lista"/', $htmlLf) === 1
     && str_contains($htmlLf, 'role="listbox"') && str_contains($htmlLf, 'class="lf-combo-op" role="option"')
-    && !str_contains($htmlLf, 'lf-chip') && !str_contains($htmlLf, 'data-lf-mais') && !str_contains($htmlLf, 'type="radio" name="categoria_id"'));
+    && !str_contains($htmlLf, 'lf-chip') && !str_contains($htmlLf, 'data-lf-mais') && !str_contains($htmlLf, 'type="radio" name="categoria_id"')
+    && substr_count($htmlLf, 'data-lf-recente=') === count($lf['recentes']) && count($lf['recentes']) <= 3);
 $check('categorias: a lista tem os grupos e o ícone de cada uma', substr_count($htmlLf, 'class="lf-combo-g" role="group" aria-label="') === count($lf['grupos'])
     && preg_match('/role="option"[^>]*>\s*<svg class="ci/', $htmlLf) === 1);
+// as usadas por último, o valor previsto das contas fixas e o erro no próprio campo
+$emTransacao('lançar: recentes, sugestão e erro no campo', static function () use ($pdo, $check, $render, $uid): void {
+    $mesL = \Financeiro\Relogio::mes();
+    $cats = $pdo->query("SELECT id FROM categorias WHERE ativo = 1 AND grupo = 'Dia a dia' ORDER BY id LIMIT 4")->fetchAll(PDO::FETCH_COLUMN);
+    $ins = $pdo->prepare("INSERT INTO lancamentos (data, descricao, categoria_id, valor, usuario_id, criado_em) VALUES (?, 'teste recente', ?, 1, ?, ?)");
+    foreach (array_map('intval', $cats) as $i => $c) {
+        $ins->execute([\Financeiro\Relogio::hoje(), $c, $uid, '2099-01-01 00:00:0' . $i]);   // a última criada é a mais recente
+    }
+    LancarForm::limparCache();
+    $rec = LancarForm::dados()['recentes'];
+    $check('lançar: as 3 categorias usadas por último, da mais recente para a mais antiga', $rec === array_reverse(array_slice(array_map('intval', $cats), 1)), json_encode($rec));
+    $fixa = (int) $pdo->query("SELECT id FROM categorias WHERE ativo = 1 AND grupo = 'Fixos' ORDER BY id LIMIT 1")->fetchColumn();
+    $pdo->prepare('DELETE FROM lancamentos WHERE categoria_id = ? AND data >= ?')->execute([$fixa, $mesL]);
+    PrevisaoModel::setValor($fixa, $mesL, 321.09);
+    LancarForm::limparCache();
+    $sug = LancarForm::dados()['sugestoes'];
+    $check('lançar: a conta fixa sem pagamento sugere o previsto do mês', abs(($sug[$fixa] ?? 0.0) - 321.09) < 0.001, json_encode($sug));
+    $h = $render(LancamentosController::class, 'lancarForm', ['categoria' => (string) $fixa]);
+    $check('lançar: sem JS, a conta fixa pelo endereço já vem com o valor sugerido', str_contains($h, 'value="321,09" data-lf-valor data-lf-sugerido')
+        && str_contains($h, 'data-lf-previsto="321,09"'));
+    LancamentoModel::criar(\Financeiro\Relogio::hoje(), 'parte', $fixa, 300.0, $uid);
+    LancarForm::limparCache();
+    $check('lançar: paga em parte, sugere o que falta; paga, não sugere', abs((LancarForm::dados()['sugestoes'][$fixa] ?? 0.0) - 21.09) < 0.001);
+    LancamentoModel::criar(\Financeiro\Relogio::hoje(), 'resto', $fixa, 21.09, $uid);
+    LancarForm::limparCache();
+    $check('lançar: paga, não sugere', !isset(LancarForm::dados()['sugestoes'][$fixa]));
+    // o erro do servidor volta no campo dele
+    $_SESSION['lanc_antigo'] = ['valor' => '', 'categoria_id' => 0, 'erro' => t('Digite um valor.')];
+    $hErr = $render(LancamentosController::class, 'lancarForm', []);
+    $_SESSION['lanc_antigo'] = ['valor' => '10', 'categoria_id' => 0, 'erro' => t('Escolha uma categoria.')];
+    $hErr2 = $render(LancamentosController::class, 'lancarForm', []);
+    $check('lançar: o erro aparece no próprio campo, não no aviso de baixo', preg_match('#data-lf-valor[^>]*aria-invalid="true" aria-describedby="pg-valor-erro"#', $hErr) === 1
+        && preg_match('#id="pg-valor-erro" data-lf-erro-de="valor" role="alert">Digite um valor\.</p>#', $hErr) === 1 && !str_contains($hErr, 'aviso aviso-error lf-aviso" role="alert">Digite')
+        && str_contains($hErr2, 'aria-invalid="true" aria-describedby="pg-cat-erro"') && preg_match('#id="pg-cat-erro" data-lf-erro-de="categoria" role="alert">Escolha uma categoria\.</p>#', $hErr2) === 1);
+    unset($_SESSION['lanc_antigo']);
+    LancarForm::limparCache();
+});
+LancarForm::limparCache();
 $poucoUsada = (int) $pdo->query("SELECT id FROM categorias WHERE ativo = 1 AND operacional = 1 AND sinal = -1 AND grupo <> 'Dia a dia' ORDER BY ordem DESC, id DESC LIMIT 1")->fetchColumn();
 if ($poucoUsada > 0) {
     $emTransacao('categorias: as mais usadas', static function () use ($pdo, $check, $poucoUsada, $uid): void {

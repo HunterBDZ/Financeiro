@@ -2112,4 +2112,6 @@ return [
     '{pagas} de 1 paga' => '{pagas} de 1 pagada',
     'Cerca de {valor} por dia nos {n} dias que faltam.' => 'Unos {valor} por día en los {n} días que faltan.',
     '{pagas} de {n} pagas' => '{pagas} de {n} pagadas',
+    'O previsto para {mes}. Mude se foi outro valor.' => 'Lo previsto para {mes}. Cámbielo si fue otro valor.',
+    'Usadas por último' => 'Usadas por último',
 ];

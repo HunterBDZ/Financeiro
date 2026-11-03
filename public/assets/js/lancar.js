@@ -4,7 +4,8 @@
 // (×, Esc, toque fora); checagem mínima antes de enviar + trava de duplo envio; o valor estilo
 // maquininha (só dígitos, vírgula automática); o campo da categoria (combobox: abre a lista ao clicar,
 // filtra ao digitar, setas, Enter e Esc; sem JS fica o <select>); com várias contas, o "Pagou com" /
-// "Recebeu em" e o modo Transferir; o filtro do extrato. Sem nada inline (CSP
+// "Recebeu em" e o modo Transferir; as 3 categorias usadas por último num toque; o valor previsto sugerido
+// ao escolher uma conta fixa; o erro no próprio campo; o filtro do extrato. Sem nada inline (CSP
 // script-src 'self'). Sai sem fazer nada quando a página não tem #lancar, form[data-lf] nem filtro.
 (function () {
     'use strict';
@@ -57,16 +58,64 @@
                 combo.lfSincronizar();
             }
             contas(form);
+            sugerir(form);
         }
     }
 
-    function mostrarErro(form, texto) {
+    // o erro fica no campo de que ele fala (campo: 'valor' ou 'categoria'); sem campo, no aviso de baixo.
+    // Sem texto, limpa todos
+    function mostrarErro(form, texto, campo) {
+        form.querySelectorAll('[data-lf-erro-de]').forEach(function (p) {
+            var este = !!texto && p.getAttribute('data-lf-erro-de') === campo;
+            p.textContent = este ? texto : '';
+            p.hidden = !este;
+            var alvos = p.getAttribute('data-lf-erro-de') === 'valor'
+                ? [valorDe(form)]
+                : [form.querySelector('[data-lf-combo-in]'), form.querySelector('select[name="categoria_id"]')];
+            alvos.forEach(function (el) {
+                if (!el) { return; }
+                if (este) {
+                    el.setAttribute('aria-invalid', 'true');
+                    el.setAttribute('aria-describedby', p.id);
+                } else if (el.getAttribute('aria-describedby') === p.id) {
+                    el.removeAttribute('aria-invalid');
+                    el.removeAttribute('aria-describedby');
+                }
+            });
+        });
         var box = form.querySelector('[data-lf-erro]');
-        if (!box) {
-            return;
+        if (box) {
+            var geral = !!texto && !form.querySelector('[data-lf-erro-de="' + campo + '"]');
+            box.textContent = geral ? texto : '';
+            box.hidden = !geral;
         }
-        box.textContent = texto || '';
-        box.hidden = !texto;
+    }
+
+    // a conta fixa do mês sugere o valor previsto que falta pagar: entra no campo vazio (ou no lugar de outra
+    // sugestão) e sai quando a pessoa digita. Os botões das usadas por último acompanham a escolha
+    function sugerir(form) {
+        var sel = form.querySelector('select[name="categoria_id"]');
+        var v = valorDe(form);
+        var dica = form.querySelector('[data-lf-sugestao]');
+        var op = sel && sel.selectedIndex >= 0 ? sel.options[sel.selectedIndex] : null;
+        var prev = op ? op.getAttribute('data-lf-previsto') : null;
+        if (v && (v.value === '' || v.hasAttribute('data-lf-sugerido'))) {
+            if (prev) {
+                v.value = prev;
+                v.setAttribute('data-lf-sugerido', '');
+            } else if (v.hasAttribute('data-lf-sugerido')) {
+                v.value = '';
+                v.removeAttribute('data-lf-sugerido');
+            }
+            v.dispatchEvent(new Event('input', { bubbles: true }));
+            if (prev) { v.setAttribute('data-lf-sugerido', ''); }
+        }
+        if (dica) {
+            dica.hidden = !(v && v.hasAttribute('data-lf-sugerido'));
+        }
+        form.querySelectorAll('[data-lf-recente]').forEach(function (b) {
+            b.setAttribute('aria-pressed', sel && b.getAttribute('data-lf-recente') === sel.value ? 'true' : 'false');
+        });
     }
 
     function destravar(form) {
@@ -89,6 +138,9 @@
         }
         if (val) {
             valorDe(form).value = val;
+            valorDe(form).removeAttribute('data-lf-sugerido');     // o valor veio de quem abriu, não é sugestão
+            var dica = form.querySelector('[data-lf-sugestao]');
+            if (dica) { dica.hidden = true; }
         }
         if (desc !== null) {
             var d = form.querySelector('input[name="descricao"]');
@@ -280,12 +332,28 @@
         }
     });
 
-    // escolher a categoria some com o aviso
+    // escolher a categoria some com o aviso e sugere o valor da conta fixa
     document.addEventListener('change', function (ev) {
         var el = ev.target;
         if (el instanceof Element && el.matches('form[data-lf] [name="categoria_id"]') && el.form) {
             mostrarErro(el.form, '');
+            sugerir(el.form);
         }
+    });
+
+    // as usadas por último: um toque escolhe a categoria (sem JS, ficam escondidas e vale o campo)
+    document.querySelectorAll('form[data-lf] [data-lf-recentes]').forEach(function (g) {
+        g.hidden = false;
+        g.addEventListener('click', function (ev) {
+            var b = ev.target instanceof Element ? ev.target.closest('[data-lf-recente]') : null;
+            var form = g.closest('form');
+            var sel = form ? form.querySelector('select[name="categoria_id"]') : null;
+            if (!b || !sel) { return; }
+            sel.value = b.getAttribute('data-lf-recente');
+            var combo = form.querySelector('[data-lf-combo]');
+            if (combo && combo.lfSincronizar) { combo.lfSincronizar(); }
+            sel.dispatchEvent(new Event('change', { bubbles: true }));
+        });
     });
 
     // o combobox da categoria (padrão do ARIA APG: input com role=combobox, listbox, aria-activedescendant).
@@ -476,16 +544,19 @@
         var valor = valorDe(form);
         var erro = null;
         var foco = null;
+        var campo = null;
         if (valor && !/[1-9]/.test(valor.value)) {
             erro = T('Digite o valor.');
             foco = valor;
+            campo = 'valor';
         } else if (!transferindo(form) && !categoriaDe(form)) {
             erro = T('Escolha a categoria.');
             foco = campoCategoria(form);
+            campo = 'categoria';
         }
         if (erro) {
             ev.preventDefault();
-            mostrarErro(form, erro);
+            mostrarErro(form, erro, campo);
             if (foco) {
                 foco.focus();
             }
@@ -564,9 +635,15 @@
     document.querySelectorAll('[data-lf-valor]').forEach(function (input) {
         if (input.value === FIN.num(0)) input.value = '';
         ajustarLargura(input);
-        input.addEventListener('input', function () {
+        input.addEventListener('input', function (ev) {
             input.value = input.value.replace(/[^\d.,]/g, '');
             ajustarLargura(input);
+            if (ev.isTrusted && input.form) {           // a pessoa digitou: deixa de ser a sugestão, e o erro sai
+                input.removeAttribute('data-lf-sugerido');
+                var dica = input.form.querySelector('[data-lf-sugestao]');
+                if (dica) { dica.hidden = true; }
+                if (input.getAttribute('aria-invalid') === 'true') { mostrarErro(input.form, ''); }
+            }
         });
         input.addEventListener('blur', function () {
             input.value = formatarValor(input.value);

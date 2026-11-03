@@ -2112,4 +2112,6 @@ return [
     '{pagas} de 1 paga' => '{pagas} of 1 paid',
     'Cerca de {valor} por dia nos {n} dias que faltam.' => 'About {valor} a day for the {n} days left.',
     '{pagas} de {n} pagas' => '{pagas} of {n} paid',
+    'O previsto para {mes}. Mude se foi outro valor.' => 'The forecast for {mes}. Change it if it was a different amount.',
+    'Usadas por último' => 'Used last',
 ];

@@ -11,7 +11,7 @@ use Financeiro\Relogio;
 
 /**
  * Dados do formulário de lançar. O layout chama dados() em toda página
- * (o <dialog id="lancar">), então: no máximo 4 consultas (mais 2 por cartão e 3 com várias contas), todas
+ * (o <dialog id="lancar">), então: no máximo 6 consultas (mais 2 por cartão e 3 com várias contas), todas
  * limitadas, e cache por requisição.
  */
 final class LancarForm
@@ -23,7 +23,7 @@ final class LancarForm
      *   grupos: array<string, list<array{id:int,nome:string,curto:string,grupo:string}>>,
      *   descricoes: string[], hoje:string, ontem:string, data_min:string, data_max:string,
      *   cartao: ?array{id:int, nome:string, fecha:int, vence:int, aberta:string, serie:list<array{0:string,1:float}>},
-     *   cartoes: list<array>, contas: list<array>, padrao: ?string
+     *   cartoes: list<array>, contas: list<array>, padrao: ?string, recentes: list<int>, sugestoes: array<int, float>
      * }
      * cartao = para o "Pagou com: Cartão" e a prévia (as próximas 14 faturas, da aberta em diante): o primeiro cartão;
      * cartoes = todos, no mesmo formato. contas = as contas ativas, só com mais de uma (com uma, nada muda na tela);
@@ -31,6 +31,9 @@ final class LancarForm
      * grupos = as categorias da lista do campo Categoria, por classe, gastos antes de entradas; em cada grupo,
      * o dia a dia primeiro, pela frequência do usuário logado nos últimos 90 dias, depois a da casa, depois
      * categorias.ordem. Cada uma traz entra (renda ou resgate): com várias contas, o "Pagou com" vira "Recebeu em".
+     * recentes = as 3 categorias que esta pessoa usou por último (o atalho de um toque acima do campo);
+     * sugestoes = [categoria => valor]: nas contas fixas do mês de hoje, o previsto que ainda falta pagar (o valor
+     * que o campo sugere ao escolher a conta).
      */
     public static function dados(?string $hoje = null): array
     {
@@ -95,6 +98,16 @@ final class LancarForm
             $cartoes[] = ['id' => $cartao['id'], 'nome' => $cartao['nome'], 'fecha' => $cartao['fecha'], 'vence' => $cartao['vence'],
                           'aberta' => $aberta, 'serie' => $serie];
         }
+        // 5) as categorias usadas por último; 6) o que falta pagar das contas fixas do mês
+        $ativas = [];
+        foreach ($grupos as $g) {
+            foreach ($g as $c) {
+                $ativas[$c['id']] = true;
+            }
+        }
+        $recentes = self::recentes($uid, $ativas);
+        $sugestoes = self::sugestoes($mesHoje);
+
         // 7–9) com várias contas: elas e o "Pagou com" da última vez
         $contas = ContaModel::varias() ? ContaModel::ativas() : [];
 
@@ -104,6 +117,8 @@ final class LancarForm
             'contas'     => $contas,
             'padrao'     => $contas !== [] ? self::ultimaUsada($uid, $contas, $cartoes) : null,
             'grupos'     => array_filter($grupos),
+            'recentes'   => $recentes,
+            'sugestoes'  => $sugestoes,
             'descricoes' => $descricoes,
             'hoje'       => $hoje,
             'ontem'      => date('Y-m-d', strtotime($hoje . ' -1 day')),
@@ -136,6 +151,51 @@ final class LancarForm
             return 'cartao:' . (int) $c['cartao_id'];
         }
         return $l && in_array((int) $l['conta_id'], $ativas, true) ? 'conta:' . (int) $l['conta_id'] : null;
+    }
+
+    /**
+     * As 3 categorias ativas que esta pessoa lançou por último, da mais recente para a mais antiga.
+     * @param array<int, true> $ativas
+     * @return list<int>
+     */
+    private static function recentes(int $uid, array $ativas): array
+    {
+        $st = Database::connection()->prepare('SELECT categoria_id FROM lancamentos WHERE usuario_id = :u ORDER BY criado_em DESC, id DESC LIMIT 40');
+        $st->execute(['u' => $uid]);
+        $out = [];
+        foreach ($st->fetchAll(\PDO::FETCH_COLUMN) as $id) {
+            $id = (int) $id;
+            if (isset($ativas[$id]) && !in_array($id, $out, true)) {
+                $out[] = $id;
+                if (count($out) === 3) {
+                    break;
+                }
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * Nas contas fixas ativas, o previsto do mês menos o que já foi lançado nele, quando ainda falta algo.
+     * @return array<int, float>
+     */
+    private static function sugestoes(string $mes): array
+    {
+        $st = Database::connection()->prepare(
+            "SELECT p.categoria_id, p.valor - COALESCE((SELECT SUM(l.valor) FROM lancamentos l
+                    WHERE l.categoria_id = p.categoria_id AND l.data >= :ini AND l.data <= :fim), 0) AS falta
+             FROM previsao_efetiva p JOIN categorias c ON c.id = p.categoria_id
+             WHERE p.mes = :mes AND p.fonte IS NOT NULL AND c.grupo = 'Fixos' AND c.ativo = 1"
+        );
+        $st->execute(['mes' => $mes, 'ini' => $mes, 'fim' => date('Y-m-t', strtotime($mes))]);
+        $out = [];
+        foreach ($st->fetchAll() as $r) {
+            $falta = round((float) $r['falta'], 2);
+            if ($falta >= 0.005) {
+                $out[(int) $r['categoria_id']] = $falta;
+            }
+        }
+        return $out;
     }
 
     /** Primeiro dia de MesModel::primeiro(), último dia de MesModel::ultimo() e a situação de $mes — 1 consulta. */

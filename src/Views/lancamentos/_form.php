@@ -7,7 +7,10 @@
  * pelo CSS quando é Conta, então funciona sem JS. Quem grava é LancamentosController::store.
  * Com mais de uma conta (ou de um cartão), "Pagou com" / "Recebeu em" mostra as contas e, num gasto, os cartões
  * (valores conta:id e cartao:id), e o modo Transferir passa dinheiro de uma conta para outra. Com uma conta e um
- * cartão, o formulário é o de sempre.
+ * cartão, o formulário é o de sempre. Conta e Cartão aparecem como abas.
+ * Acima do campo da categoria, as 3 usadas por último ($recentes) num toque (com JS). Numa conta fixa do mês, o valor
+ * previsto que falta vem sugerido ($sugestoes): o lancar.js põe no campo ao escolher a conta, e sem JS ele já vem
+ * preenchido quando a categoria chega pelo endereço. O erro aparece no próprio campo.
  */
 $modo   = in_array($modo ?? '', ['dialog', 'pagina', 'editar'], true) ? $modo : 'dialog';
 $pref   = preg_replace('/[^a-z0-9]/', '', (string) ($pref ?? 'lf')) ?: 'lf';
@@ -20,6 +23,16 @@ $grupos = is_array($grupos ?? null) ? $grupos : [];
 $hoje   = (string) ($hoje ?? \Financeiro\Relogio::hoje());
 
 $erro = isset($a['erro']) && is_string($a['erro']) ? $a['erro'] : null;
+// o erro do servidor vai para o campo que ele fala; o que não é de um campo fica no aviso de baixo
+$erroDe = match ($erro) {
+    null => null,
+    t('Digite um valor.') => 'valor',
+    t('Escolha uma categoria.') => 'categoria',
+    t('Descrição muito longa. Use até 255 letras.') => 'descricao',
+    default => null,
+};
+$erroCampo = static fn(string $campo): ?string => $erroDe === $campo ? $erro : null;
+$erroGeral = $erroDe === null ? $erro : null;
 $dup  = isset($a['duplicado']) && is_array($a['duplicado']) ? $a['duplicado'] : null;
 
 $valorTxt = '';
@@ -33,6 +46,13 @@ if (isset($a['valor']) && $a['valor'] !== '') {
 $catSel = (int) ($a['categoria_id'] ?? ($l['categoria_id'] ?? 0));
 $data   = (string) (($a['data'] ?? '') !== '' ? $a['data'] : ($l['data'] ?? $hoje));
 $desc   = (string) ($a['descricao'] ?? ($l['descricao'] ?? ''));
+// a conta fixa do mês chega com o previsto que falta pagar (sem JS também: /lancar?categoria=9)
+$sugestoes = is_array($sugestoes ?? null) ? $sugestoes : [];
+$sugerido = !$editar && $valorTxt === '' && isset($sugestoes[$catSel]);
+if ($sugerido) {
+    $valorTxt = numInput((float) $sugestoes[$catSel]);
+}
+$recentes = $editar ? [] : array_values(array_filter(array_map('intval', (array) ($recentes ?? []))));
 if (!isset($a['descricao']) && $l !== null && $desc === (string) ($l['categoria_nome'] ?? '')) {
     $desc = '';
 }
@@ -131,8 +151,10 @@ $transferir = !$editar && $contasF !== [] && ($a['modo'] ?? '') === 'transferir'
         <label class="lf-rs" for="<?= e($pref) ?>-valor"><?= e(moedaSimbolo()) ?></label>
         <input id="<?= e($pref) ?>-valor" class="input-grande lf-valor-in" name="valor" type="text"
                inputmode="decimal" autocomplete="off" enterkeyhint="done" placeholder="<?= e(numInput(0)) ?>" aria-label="<?= e(t('valor')) ?>"
-               value="<?= e($valorTxt) ?>" data-lf-valor<?= $foco ? ' data-autofocus' : '' ?>>
+               value="<?= e($valorTxt) ?>" data-lf-valor<?= $sugerido ? ' data-lf-sugerido' : '' ?><?= $foco ? ' data-autofocus' : '' ?><?= $erroCampo('valor') !== null ? ' aria-invalid="true" aria-describedby="' . e($pref) . '-valor-erro"' : '' ?>>
     </div>
+    <p class="campo-erro lf-erro-valor" id="<?= e($pref) ?>-valor-erro" data-lf-erro-de="valor" role="alert"<?= $erroCampo('valor') === null ? ' hidden' : '' ?>><?= e((string) $erroCampo('valor')) ?></p>
+    <p class="lf-sugestao" data-lf-sugestao<?= $sugerido ? '' : ' hidden' ?>><?= e(t('O previsto para {mes}. Mude se foi outro valor.', ['mes' => mesExtenso($hoje)])) ?></p>
 
     <?php if ($cartao !== null): ?>
         <?php $cfgCt = ['fecha' => $cartao['fecha'], 'vence' => $cartao['vence'], 'aberta' => $cartao['aberta'], 'serie' => $cartao['serie']];
@@ -181,6 +203,24 @@ $transferir = !$editar && $contasF !== [] && ($a['modo'] ?? '') === 'transferir'
           // filtra ao digitar, setas, Enter e Esc) e continua mandando o valor pelo <select>. Com várias contas,
           // data-lf-entra marca as entradas: o "Pagou com" vira "Recebeu em" e os cartões somem
           // i18n: t('entradas') t('essenciais') t('não essenciais') t('⇄ movimentações') ?>
+    <?php if ($recentes !== []): ?>
+        <div class="lf-recentes" role="group" aria-label="<?= e(t('Usadas por último')) ?>" data-lf-recentes hidden>
+            <?php foreach ($recentes as $rid):
+                $rc = null;
+                foreach ($grupos as $itens) {
+                    foreach ($itens as $c) {
+                        if ((int) $c['id'] === $rid) {
+                            $rc = $c;
+                        }
+                    }
+                }
+                if ($rc === null) {
+                    continue;
+                } ?>
+                <button type="button" class="lf-recente" data-lf-recente="<?= $rid ?>" aria-pressed="<?= $rid === $catSel ? 'true' : 'false' ?>"><?= iconeCategoria($rid, (string) $rc['nome'], (string) $rc['grupo'], 16) ?><span><?= e($rc['curto']) ?></span></button>
+            <?php endforeach; ?>
+        </div>
+    <?php endif; ?>
     <div class="lf-cat" data-lf-combo>
         <select id="<?= e($pref) ?>-cat" name="categoria_id" class="lf-cat-sel" data-lf-cat>
             <option value=""><?= e(t('Escolha a categoria')) ?></option>
@@ -188,7 +228,7 @@ $transferir = !$editar && $contasF !== [] && ($a['modo'] ?? '') === 'transferir'
                 <?php $rotG = t((string) $grupo); ?>
                 <optgroup label="<?= e(mb_strtoupper(mb_substr($rotG, 0, 1)) . mb_substr($rotG, 1)) ?>">
                     <?php foreach ($itens as $c): ?>
-                        <option value="<?= (int) $c['id'] ?>"<?= (int) $c['id'] === $catSel ? ' selected' : '' ?><?= $opcoes !== [] && !empty($c['entra']) ? ' data-lf-entra' : '' ?>><?= e($c['curto']) ?></option>
+                        <option value="<?= (int) $c['id'] ?>"<?= (int) $c['id'] === $catSel ? ' selected' : '' ?><?= $opcoes !== [] && !empty($c['entra']) ? ' data-lf-entra' : '' ?><?= !$editar && isset($sugestoes[(int) $c['id']]) ? ' data-lf-previsto="' . e(numInput((float) $sugestoes[(int) $c['id']])) . '"' : '' ?>><?= e($c['curto']) ?></option>
                     <?php endforeach; ?>
                 </optgroup>
             <?php endforeach; ?>
@@ -198,7 +238,7 @@ $transferir = !$editar && $contasF !== [] && ($a['modo'] ?? '') === 'transferir'
             <input type="text" id="<?= e($pref) ?>-cat-in" class="lf-combo-in" role="combobox" aria-labelledby="<?= e($pref) ?>-cat-rot"
                    aria-autocomplete="list" aria-expanded="false" aria-controls="<?= e($pref) ?>-cat-lista" autocomplete="off" autocapitalize="off"
                    spellcheck="false" enterkeyhint="done" placeholder="<?= e(t('Escolha ou digite')) ?>"
-                   value="<?= e($catEscolhida !== null ? (string) $catEscolhida['curto'] : '') ?>" data-lf-combo-in>
+                   value="<?= e($catEscolhida !== null ? (string) $catEscolhida['curto'] : '') ?>" data-lf-combo-in<?= $erroCampo('categoria') !== null ? ' aria-invalid="true" aria-describedby="' . e($pref) . '-cat-erro"' : '' ?>>
             <span class="lf-combo-seta" aria-hidden="true"></span>
         </div>
         <div class="lf-combo-lista" id="<?= e($pref) ?>-cat-lista" role="listbox" aria-labelledby="<?= e($pref) ?>-cat-rot" hidden data-lf-combo-lista>
@@ -213,6 +253,7 @@ $transferir = !$editar && $contasF !== [] && ($a['modo'] ?? '') === 'transferir'
             <?php endforeach; ?>
         </div>
         <p class="lf-combo-vazio" data-lf-combo-vazio hidden><?= e(t('Nenhuma categoria com esse nome.')) ?></p>
+        <p class="campo-erro" id="<?= e($pref) ?>-cat-erro" data-lf-erro-de="categoria" role="alert"<?= $erroCampo('categoria') === null ? ' hidden' : '' ?>><?= e((string) $erroCampo('categoria')) ?></p>
     </div>
 
     <label class="lf-dia">
@@ -223,7 +264,8 @@ $transferir = !$editar && $contasF !== [] && ($a['modo'] ?? '') === 'transferir'
 
     <input type="text" name="descricao" class="lf-desc" placeholder="<?= e(t('Descrição (opcional)')) ?>" aria-label="<?= e(t('descrição')) ?>"
            enterkeyhint="send" maxlength="255" autocomplete="off" list="<?= e($pref) ?>-descs"
-           value="<?= e($desc) ?>">
+           value="<?= e($desc) ?>"<?= $erroCampo('descricao') !== null ? ' aria-invalid="true" aria-describedby="' . e($pref) . '-desc-erro"' : '' ?>>
+    <?php if ($erroCampo('descricao') !== null): ?><p class="campo-erro" id="<?= e($pref) ?>-desc-erro"><?= e((string) $erroCampo('descricao')) ?></p><?php endif; ?>
     <?php if (!empty($descricoes)): ?>
         <datalist id="<?= e($pref) ?>-descs">
             <?php foreach ($descricoes as $d): ?>
@@ -232,15 +274,15 @@ $transferir = !$editar && $contasF !== [] && ($a['modo'] ?? '') === 'transferir'
         </datalist>
     <?php endif; ?>
 
-    <?php if ($erro !== null): ?>
-        <div class="aviso aviso-error lf-aviso" role="alert"><?= e($erro) ?></div>
+    <?php if ($erroGeral !== null): ?>
+        <div class="aviso aviso-error lf-aviso" role="alert"><?= e($erroGeral) ?></div>
     <?php endif; ?>
     <?php if ($dup !== null): ?>
         <div class="aviso aviso-warn lf-aviso" role="status"><?= e(t('Já existe um lançamento igual: {descricao}, de {quem}, em {data}. Quer registrar outro?', ['quem' => (string) ($dup['quem'] ?? ''), 'data' => diaMes((string) ($dup['data'] ?? '')), 'descricao' => nomeCategoria((string) ($dup['descricao'] ?? ''))])) ?></div>
     <?php endif; ?>
     <div class="aviso aviso-error lf-aviso" role="alert" data-lf-erro hidden></div>
 
-    <button type="submit" class="btn btn-primary btn-block lf-enviar" data-lf-enviar data-ct-rot="<?= $cartao !== null ? e(t('Lançar no cartão')) : '' ?>"<?= !$editar && $contasF !== [] ? ' data-transf-rot="' . e(t('Transferir')) . '"' : '' ?>><?= e($transferir ? t('Transferir') : (str_starts_with($pagou, 'cartao') ? t('Lançar no cartão') : $botao)) ?></button>
+    <button type="submit" class="btn btn-principal btn-block lf-enviar" data-lf-enviar data-ct-rot="<?= $cartao !== null ? e(t('Lançar no cartão')) : '' ?>"<?= !$editar && $contasF !== [] ? ' data-transf-rot="' . e(t('Transferir')) . '"' : '' ?>><?= e($transferir ? t('Transferir') : (str_starts_with($pagou, 'cartao') ? t('Lançar no cartão') : $botao)) ?></button>
 
     <?= csrfField() ?>
     <input type="hidden" name="volta" value="<?= e($volta) ?>" data-lf-volta>

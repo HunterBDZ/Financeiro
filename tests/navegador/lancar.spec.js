@@ -1,6 +1,7 @@
-// Lançar um gasto: no computador (a coluna do Extrato e o diálogo) e no celular (o "+" da barra de baixo).
+// Lançar um gasto: no computador (a coluna do Extrato e o diálogo) e no celular (o "+" da barra de baixo); as usadas
+// por último, o valor sugerido das contas fixas, o erro no campo, Conta e Cartão em abas e o aviso sem verde.
 // Cada teste usa valor e categoria só seus: lançamento igual no mesmo dia pede confirmação antes de entrar.
-import { test, expect, escolherCategoria } from './fixtures.js';
+import { test, expect, escolherCategoria, contaSemPagamento } from './fixtures.js';
 
 test.describe('no computador', () => {
     test('lança 45 no Extrato, vê o aviso e desfaz', async ({ page }) => {
@@ -74,6 +75,94 @@ test.describe('no computador', () => {
         const escolhida = dialogo.locator('[role="option"][aria-selected="true"]');   // a lista fechada some da árvore de acessibilidade
         await expect(escolhida).toHaveText('Mercado');
         await expect(dialogo.locator('select[name="categoria_id"]')).toHaveValue(await escolhida.getAttribute('data-value'));
+    });
+
+    test('as 3 categorias usadas por último escolhem num toque', async ({ page }) => {
+        await page.goto('/');
+        await page.keyboard.press('n');
+        const dialogo = page.getByRole('dialog', { name: 'lançar' });
+        const recentes = dialogo.getByRole('group', { name: 'Usadas por último' }).getByRole('button');
+        const n = await recentes.count();
+        expect(n).toBeGreaterThan(0);
+        expect(n).toBeLessThanOrEqual(3);
+        const nome = (await recentes.first().textContent()).trim();
+        await recentes.first().click();
+        await expect(dialogo.getByRole('combobox', { name: 'Categoria' })).toHaveValue(nome);
+        await expect(recentes.first()).toHaveAttribute('aria-pressed', 'true');
+    });
+
+    test('a conta fixa sugere o valor previsto, e o que a pessoa digita fica', async ({ page, baseURL }) => {
+        await contaSemPagamento(page, baseURL, 'Luz');
+        await page.goto('/');
+        await page.keyboard.press('n');
+        const dialogo = page.getByRole('dialog', { name: 'lançar' });
+        const valor = dialogo.getByRole('textbox', { name: 'valor' });
+        await valor.fill('');
+        await escolherCategoria(dialogo, 'Luz');
+        await expect(valor).toHaveValue('238,40');
+        await expect(dialogo.getByText('O previsto para novembro')).toBeVisible();
+        await valor.fill('');
+        await valor.pressSequentially('250');
+        await escolherCategoria(dialogo, 'Internet');
+        await expect(valor).toHaveValue('250,00');           // formatado ao sair do campo, e não trocado pela sugestão
+    });
+
+    test('o erro aparece no próprio campo', async ({ page }) => {
+        await page.goto('/');
+        await page.keyboard.press('n');
+        const dialogo = page.getByRole('dialog', { name: 'lançar' });
+        const valor = dialogo.getByRole('textbox', { name: 'valor' });
+        await valor.fill('');
+        await dialogo.getByRole('button', { name: 'Lançar' }).click();
+        await expect(valor).toHaveAttribute('aria-invalid', 'true');
+        await expect(valor).toHaveAccessibleDescription('Digite o valor.');
+        await expect(valor).toBeFocused();
+        await valor.pressSequentially('12');
+        await expect(valor).not.toHaveAttribute('aria-invalid', 'true');
+        await dialogo.getByRole('button', { name: 'Lançar' }).click();
+        const campo = dialogo.getByRole('combobox', { name: 'Categoria' });
+        await expect(campo).toHaveAttribute('aria-invalid', 'true');
+        await expect(campo).toHaveAccessibleDescription('Escolha a categoria.');
+        await expect(dialogo.locator('[data-lf-erro]')).toBeHidden();
+    });
+
+    test('Conta e Cartão em abas; o aviso de lançado fica em tinta, sem verde', async ({ page }) => {
+        await page.goto('/');
+        await page.keyboard.press('n');
+        const dialogo = page.getByRole('dialog', { name: 'lançar' });
+        const abas = dialogo.locator('.ct-pagou');
+        await expect(abas.getByRole('radio', { name: 'Conta' })).toBeChecked();
+        await abas.getByText('Cartão Exemplo').click();
+        await expect(dialogo.getByText('Em quantas vezes?')).toBeVisible();
+        await abas.getByText('Conta', { exact: true }).click();
+        await expect(dialogo.getByText('Em quantas vezes?')).toBeHidden();
+        const sublinhado = await abas.locator('label:has(input:checked)').evaluate((el) => getComputedStyle(el).boxShadow);
+        expect(sublinhado).toContain('inset');
+
+        await dialogo.getByRole('textbox', { name: 'valor' }).fill('');
+        await dialogo.getByRole('textbox', { name: 'valor' }).pressSequentially('19');
+        await escolherCategoria(dialogo, 'Farmácia');
+        await dialogo.getByLabel('descrição', { exact: true }).fill('Aviso do teste');
+        await dialogo.getByRole('button', { name: 'Lançar' }).click();
+        const aviso = page.getByRole('status').filter({ hasText: 'Farmácia' });
+        await expect(aviso).toContainText('19,00');
+        const cores = await aviso.evaluate((el) => {
+            const tinta = getComputedStyle(document.documentElement).getPropertyValue('--tinta').trim();
+            const entrada = getComputedStyle(document.documentElement).getPropertyValue('--entrada').trim();
+            const prova = document.createElement('i');
+            document.body.append(prova);
+            prova.style.color = tinta;
+            const rgbTinta = getComputedStyle(prova).color;
+            prova.style.color = entrada;
+            const rgbEntrada = getComputedStyle(prova).color;
+            prova.remove();
+            const usadas = [el, ...el.querySelectorAll('*')].flatMap((n) => [getComputedStyle(n).color, getComputedStyle(n).backgroundColor]);
+            return { fundo: getComputedStyle(el).backgroundColor, rgbTinta, verde: usadas.includes(rgbEntrada) };
+        });
+        expect(cores.fundo).toBe(cores.rgbTinta);
+        expect(cores.verde).toBe(false);
+        await aviso.getByRole('button', { name: 'desfazer' }).click();
+        await expect(page.getByRole('status').filter({ hasText: 'excluído' })).toContainText('19,00');
     });
 
     test('o diálogo de lançar abre pelo menu e pela tecla n, e fecha', async ({ page }) => {
