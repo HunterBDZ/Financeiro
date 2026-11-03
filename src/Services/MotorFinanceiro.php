@@ -156,6 +156,19 @@ final class MotorFinanceiro
     }
 
     /**
+     * Os dados com o lançado do mês só até $hoje: o lançamento agendado (data depois de hoje, no mês) fica fora do que
+     * já saiu (o "Gastou" e o "Já saiu" do Início e do Mês) e continua no previsto. Mês já terminado: os mesmos dados.
+     */
+    public static function comRealAte(array $dados, string $mes, string $hoje): array
+    {
+        if ($hoje >= date('Y-m-t', strtotime($mes)) || $hoje < $mes) {
+            return $dados;
+        }
+        $dados['real'][$mes] = LancamentoModel::somasDoMesAte($mes, $hoje);
+        return $dados;
+    }
+
+    /**
      * A previsão de cada categoria num mês ainda não fechado, como o motor a usa: a do mês (ou a meta),
      * com o override, e a Fatura do cartão sem o que já foi pago da fatura que vence nele (dados['fatura']),
      * para a fatura paga num mês anterior não entrar de novo. Num mês aberto, a Fatura vira o lançado no mês

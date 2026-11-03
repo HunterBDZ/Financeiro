@@ -97,7 +97,8 @@ if ($modo !== '') {
 $vencidas = array_values(array_filter($contasMes ?? [], static fn(array $c): bool => !empty($c['atrasado'])));
 
 // o valor de uma linha, pela regra de cor: saiu em vermelho com "−", entrou em verde com "+", movimentação neutra
-// com ⇄, agendado (depois de hoje) em cinza
+// com ⇄, agendado (depois de hoje) em cinza, e a soma do dia agendado também; o agendado fica fora do Entrou e do
+// Gastou, com a nota "mais X agendado"
 $valorLinha = static function (array $r) use ($hoje): string {
     $v = (float) $r['valor'];
     $mov = (int) $r['operacional'] !== 1;
@@ -136,8 +137,8 @@ $colunas = 4;
                 <?php if ($filtrado): ?>
                     <div><dt><?= e(t('Achados')) ?></dt><dd class="num"><?= e(num((int) $totais['n'], 0)) ?><span class="nota"><?= e(tn((int) $totais['n'], 'lançamento', 'lançamentos')) ?></span></dd></div>
                 <?php endif; ?>
-                <div><dt><?= e(t('Entrou')) ?></dt><dd data-ex-total="entrada"><?= valor((float) $totais['entrada'], 'entrada') ?></dd></div>
-                <div><dt><?= e(t('Gastou')) ?></dt><dd data-ex-total="gasto"><?= valor(-(float) $totais['gasto'], 'saida') ?></dd></div>
+                <div><dt><?= e(t('Entrou')) ?></dt><dd data-ex-total="entrada"><?= valor((float) $totais['entrada'], 'entrada') ?><?php if ((float) ($totais['entrada_ag'] ?? 0) > 0.004): ?><span class="nota"><?= e(t('mais {valor} agendado', ['valor' => num((float) $totais['entrada_ag'])])) ?></span><?php endif; ?></dd></div>
+                <div><dt><?= e(t('Gastou')) ?></dt><dd data-ex-total="gasto"><?= valor(-(float) $totais['gasto'], 'saida') ?><?php if ((float) ($totais['gasto_ag'] ?? 0) > 0.004): ?><span class="nota"><?= e(t('mais {valor} agendado', ['valor' => num((float) $totais['gasto_ag'])])) ?></span><?php endif; ?></dd></div>
                 <?php if ($temMov): ?>
                     <div><dt><?= e(t('Movimentações')) ?></dt><dd><span class="num ext-v-mov">⇄ <?= valor((float) $totais['mov']) ?></span><span class="nota"><?= e(t('guardado e empréstimo')) ?></span></dd></div>
                 <?php endif; ?>
@@ -294,7 +295,9 @@ $colunas = 4;
                         <?php if ($agrupado): $sd = $somaDia($rows); ?>
                             <tr class="ext-dia">
                                 <th scope="rowgroup" colspan="<?= $colunas - 1 ?>"><?= e($rotuloDia((string) $data)) ?></th>
-                                <td class="ext-c-valor"><?php if (abs($sd) >= 0.005): ?><span class="sr-only"><?= e(t('soma do dia')) ?> </span><?= valor($sd, 'auto', ['centavos' => false, 'classe' => 'ext-soma']) ?><?php endif; ?></td>
+                                <td class="ext-c-valor"><?php if (abs($sd) >= 0.005): ?><span class="sr-only"><?= e(t('soma do dia')) ?> </span><?= (string) $data > $hoje
+                                    ? '<span class="num v-previsto ext-soma">' . ($sd > 0 ? '+' : MENOS) . e(num(abs($sd))) . '</span>'
+                                    : valor($sd, 'auto', ['centavos' => false, 'classe' => 'ext-soma']) ?><?php endif; ?></td>
                             </tr>
                         <?php endif; ?>
                         <?php foreach ($rows as $r): ?>

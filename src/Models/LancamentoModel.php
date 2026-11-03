@@ -2,6 +2,7 @@
 namespace Financeiro\Models;
 
 use Financeiro\Database;
+use Financeiro\Relogio;
 use Financeiro\Services\CartaoFatura;
 use Financeiro\Sql;
 use PDO;
@@ -142,22 +143,27 @@ final class LancamentoModel
     public static function totais(string $mes, array $f): array
     {
         [$where, $params] = self::filtro($mes, $f);
+        // o agendado (data depois de hoje) ainda não aconteceu: fica fora do que entrou e do gasto, e é somado à parte
         $stmt = Database::connection()->prepare(
             'SELECT COUNT(*) AS n,
-                    COALESCE(SUM(CASE WHEN c.operacional = 1 THEN c.sinal * l.valor ELSE 0 END), 0) AS soma,
+                    COALESCE(SUM(CASE WHEN c.operacional = 1 AND l.data <= :hj1 THEN c.sinal * l.valor ELSE 0 END), 0) AS soma,
                     COALESCE(SUM(CASE WHEN c.operacional = 1 THEN 1 ELSE 0 END), 0) AS n_op,
                     COALESCE(SUM(CASE WHEN c.operacional = 1 THEN 0 ELSE l.valor END), 0) AS mov,
-                    COALESCE(SUM(CASE WHEN c.operacional = 1 AND c.sinal = -1 THEN l.valor ELSE 0 END), 0) AS gasto,
-                    COALESCE(SUM(CASE WHEN c.operacional = 1 AND c.sinal = 1 THEN l.valor ELSE 0 END), 0) AS entrada
+                    COALESCE(SUM(CASE WHEN c.operacional = 1 AND c.sinal = -1 AND l.data <= :hj2 THEN l.valor ELSE 0 END), 0) AS gasto,
+                    COALESCE(SUM(CASE WHEN c.operacional = 1 AND c.sinal = 1 AND l.data <= :hj3 THEN l.valor ELSE 0 END), 0) AS entrada,
+                    COALESCE(SUM(CASE WHEN c.operacional = 1 AND c.sinal = -1 AND l.data > :hj4 THEN l.valor ELSE 0 END), 0) AS gasto_ag,
+                    COALESCE(SUM(CASE WHEN c.operacional = 1 AND c.sinal = 1 AND l.data > :hj5 THEN l.valor ELSE 0 END), 0) AS entrada_ag
              FROM lancamentos l
              JOIN categorias c ON c.id = l.categoria_id
              WHERE ' . $where
         );
-        $stmt->execute($params);
+        $hoje = Relogio::hoje();
+        $stmt->execute($params + ['hj1' => $hoje, 'hj2' => $hoje, 'hj3' => $hoje, 'hj4' => $hoje, 'hj5' => $hoje]);
         $r = $stmt->fetch() ?: [];
         return [
             'n' => (int) ($r['n'] ?? 0), 'n_op' => (int) ($r['n_op'] ?? 0), 'soma' => round((float) ($r['soma'] ?? 0), 2),
             'mov' => round((float) ($r['mov'] ?? 0), 2), 'gasto' => round((float) ($r['gasto'] ?? 0), 2), 'entrada' => round((float) ($r['entrada'] ?? 0), 2),
+            'gasto_ag' => round((float) ($r['gasto_ag'] ?? 0), 2), 'entrada_ag' => round((float) ($r['entrada_ag'] ?? 0), 2),
         ];
     }
 
@@ -391,6 +397,44 @@ final class LancamentoModel
         );
         $stmt->execute(['c' => $categoriaId, 'inicio' => $mes, 'fim' => self::fimDoMes($mes)]);
         return (float) $stmt->fetchColumn();
+    }
+
+    /**
+     * A soma de cada dia entre $de e $ate: o que entrou menos o que saiu, sem as movimentações (como a soma do dia do
+     * Extrato). O Início mostra só os últimos lançamentos, mas a soma do dia é a do dia inteiro.
+     * @return array<string, float> data => soma
+     */
+    public static function somasPorDia(string $de, string $ate): array
+    {
+        $stmt = Database::connection()->prepare(
+            'SELECT l.data, SUM(c.sinal * l.valor) AS soma FROM lancamentos l JOIN categorias c ON c.id = l.categoria_id
+             WHERE l.data >= :de AND l.data <= :ate AND c.operacional = 1 GROUP BY l.data'
+        );
+        $stmt->execute(['de' => $de, 'ate' => $ate]);
+        $out = [];
+        foreach ($stmt->fetchAll() as $r) {
+            $out[(string) $r['data']] = round((float) $r['soma'], 2);
+        }
+        return $out;
+    }
+
+    /**
+     * A soma de cada categoria no mês, só até o dia $ate (inclusive): o lançamento agendado, com data depois de hoje,
+     * ainda não saiu (MotorFinanceiro::comRealAte).
+     * @return array<int, float> categoria => soma
+     */
+    public static function somasDoMesAte(string $mes, string $ate): array
+    {
+        $stmt = Database::connection()->prepare(
+            'SELECT categoria_id, SUM(valor) AS total FROM lancamentos
+             WHERE data >= :inicio AND data < :fim AND data <= :ate GROUP BY categoria_id'
+        );
+        $stmt->execute(['inicio' => $mes, 'fim' => self::fimDoMes($mes), 'ate' => $ate]);
+        $out = [];
+        foreach ($stmt->fetchAll() as $r) {
+            $out[(int) $r['categoria_id']] = (float) $r['total'];
+        }
+        return $out;
     }
 
     /** Data do primeiro lançamento de uma categoria num mês (pra saber se foi pago antes/depois do vencimento). */

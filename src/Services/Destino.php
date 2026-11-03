@@ -1,10 +1,13 @@
 <?php
 namespace Financeiro\Services;
 
+use Financeiro\Relogio;
+
 /**
  * "Para onde vai o dinheiro do mês" (a barra do Início e do Mês) e as linhas que o livro-razão do Mês precisa além das
  * categorias de renda e de gasto. Nada é calculado de novo: tudo sai da linha do plano (MotorFinanceiro::calcular) e
  * dos dados do motor, com a mesma regra dele (no mês aberto, cada categoria conta o maior entre o lançado e o previsto).
+ * O lançamento agendado (data depois de hoje) ainda não saiu: fica no que falta pagar, até o dia dele.
  *
  * O dinheiro do mês é o que sobrou do mês anterior mais tudo o que entra (MotorFinanceiro::balancoTotal). Ele se
  * divide em: o que já saiu, as contas que faltam pagar, o que falta das metas do dia a dia, o que dá para gastar e a
@@ -21,7 +24,7 @@ final class Destino
      * @return ?array{total:float, saiu:float, contas:float, metas:float, gastar:float, reserva:float, falta:float, livre:float}
      *   livre = o que fica na conta no fim do mês sem o adiantamento automático do empréstimo (gastar + reserva − falta)
      */
-    public static function doMes(array $dados, array $linha, string $mesHoje): ?array
+    public static function doMes(array $dados, array $linha, string $mesHoje, ?string $hoje = null): ?array
     {
         $estado = (string) ($linha['estado'] ?? 'real');
         if ($estado === 'real') {
@@ -33,16 +36,18 @@ final class Destino
         $auto = (float) ($linha['amortizacao_auto'] ?? 0.0);
         $total = round((float) $linha['sobrou_mes_anterior'] + $entradas, 2);
 
-        // o que ainda falta sair, categoria por categoria: no mês aberto, o previsto menos o lançado; no futuro, o previsto
+        // o que ainda falta sair, categoria por categoria: no mês aberto, o que o plano conta (o maior entre o previsto e
+        // o lançado) menos o lançado até hoje (o agendado ainda não saiu); no futuro, o previsto
         $p = MotorFinanceiro::previsaoDoMes($dados, $mes, $aberto ? 'aberto' : 'previsto', $mesHoje);
-        $r = $aberto ? ($dados['real'][$mes] ?? []) : [];
+        $rTudo = $aberto ? ($dados['real'][$mes] ?? []) : [];
+        $r = $aberto ? (MotorFinanceiro::comRealAte($dados, $mes, $hoje ?? Relogio::hoje())['real'][$mes] ?? []) : [];
         $contas = $metas = 0.0;
-        foreach ($p + $r as $c => $_) {
+        foreach ($p + $rTudo as $c => $_) {
             $cat = $dados['cats'][$c] ?? null;
             if ($cat === null || $cat['operacional'] !== 1 || $cat['sinal'] === 1) {
                 continue;
             }
-            $falta = max(0.0, (float) ($p[$c] ?? 0.0) - (float) ($r[$c] ?? 0.0));
+            $falta = max(0.0, max((float) ($p[$c] ?? 0.0), (float) ($rTudo[$c] ?? 0.0)) - (float) ($r[$c] ?? 0.0));
             if ($cat['grupo'] === 'Dia a dia') {
                 $metas += $falta;
             } else {
@@ -81,11 +86,11 @@ final class Destino
     }
 
     /**
-     * O que foi guardado no mês até agora, já descontados os resgates: poupança e investimentos (o lançado).
+     * O que foi guardado no mês até agora, já descontados os resgates: poupança e investimentos (o lançado até hoje).
      */
-    public static function guardado(array $dados, string $mes): float
+    public static function guardado(array $dados, string $mes, ?string $hoje = null): float
     {
-        $r = $dados['real'][$mes] ?? [];
+        $r = MotorFinanceiro::comRealAte($dados, $mes, $hoje ?? Relogio::hoje())['real'][$mes] ?? [];
         $v = static fn(string $k): float => ($id = $dados['esp'][$k] ?? null) !== null ? (float) ($r[$id] ?? 0.0) : 0.0;
         return round($v('guard') - $v('resg') + $v('aplic') - $v('resgInv'), 2);
     }

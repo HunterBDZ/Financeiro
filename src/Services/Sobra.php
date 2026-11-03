@@ -1,6 +1,8 @@
 <?php
 namespace Financeiro\Services;
 
+use Financeiro\Relogio;
+
 /**
  * A sobra de um mês: a mesma conta e o mesmo nome em todas as telas (Início, Mês, Fechar e Relatório).
  * Conta: tudo o que entrou na conta menos tudo o que saiu, o mesmo balanço do Início (MotorFinanceiro::balancoTotal).
@@ -46,8 +48,9 @@ final class Sobra
     }
 
     /**
-     * A sobra até hoje: só o que foi lançado no mês (o motor de novo, com o mês tratado como fechado; nada é gravado).
-     * Num mês fechado, é a sobra do mês. null = mês fora do plano.
+     * A sobra até hoje: só o que foi lançado no mês até hoje (o motor de novo, com o mês tratado como fechado; nada é
+     * gravado). O lançamento agendado, com data depois de hoje, fica de fora até o dia dele. Num mês fechado, é a sobra
+     * do mês. null = mês fora do plano.
      * @return ?array{bruto:float, parcela:float, renda:float, saidas:float, sobra:float, base:string}
      */
     public static function ateHoje(string $mes, ?string $hoje = null): ?array
@@ -56,7 +59,7 @@ final class Sobra
         if ($hoje !== null) {
             $opts['hoje'] = $hoje;
         }
-        $linha = MotorFinanceiro::calcular(MotorFinanceiro::dados(), $opts)[$mes] ?? null;
+        $linha = MotorFinanceiro::calcular(MotorFinanceiro::comRealAte(MotorFinanceiro::dados(), $mes, $hoje ?? Relogio::hoje()), $opts)[$mes] ?? null;
         return $linha === null ? null : self::de($linha) + ['base' => ($linha['situacao'] ?? '') === 'REAL' ? 'mes' : 'hoje'];
     }
 

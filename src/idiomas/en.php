@@ -2361,4 +2361,5 @@ return [
     'Já existe uma conta fixa com esse nome.' => 'There is already a fixed bill with that name.',
     'Digite o valor da conta por mês.' => 'Enter the bill amount per month.',
     'sem valor' => 'no amount',
+    'mais {valor} agendado' => 'plus {valor} scheduled',
 ];

@@ -1556,6 +1556,40 @@ $emTransacao('conferência com várias contas', static function () use ($pdo, $c
 ContaModel::limparCache();
 LancarForm::limparCache();
 
+// ---- 9h. Lançamento agendado no mês (B-07) e a soma do dia inteiro no Início (B-09)
+$emTransacao('agendado e soma do dia', static function () use ($pdo, $check, $render, $catDia, $mesHoje, $hoje, $uid): void {
+    $fecha = static function () use ($mesHoje, $hoje): array {
+        MotorFinanceiro::limparCache();
+        $linha = MotorFinanceiro::calcularPlano()[$mesHoje];
+        $s = \Financeiro\Services\Sobra::ateHoje($mesHoje);
+        $emConta = LancamentoModel::saldoCalculado(AjusteModel::valor('saldo_ini'), $hoje);
+        $destino = \Financeiro\Services\Destino::doMes(MotorFinanceiro::dados(), $linha, $mesHoje);
+        return ['saidas' => $s['saidas'], 'saiu' => $destino['saiu'], 'gastar' => $destino['gastar'],
+                'fecha' => abs($linha['sobrou_mes_anterior'] + $s['sobra'] - $emConta) < 0.005];
+    };
+    $antes = $fecha();
+    $check('agendado: as somas do Início fecham (em conta hoje = mês anterior + entrou − saiu)', $antes['fecha']);
+    if ($hoje < date('Y-m-t', strtotime($hoje))) {
+        $amanha = date('Y-m-d', strtotime($hoje . ' +1 day'));
+        LancamentoModel::criar($amanha, 'agendado teste', $catDia, 21.0, $uid);
+        $depois = $fecha();
+        $tot = LancamentoModel::totais($mesHoje, []);
+        $check('agendado: fica fora do Gastou e do Já saiu, e as somas continuam fechando', abs($depois['saidas'] - $antes['saidas']) < 0.005
+            && abs($depois['saiu'] - $antes['saiu']) < 0.005 && $depois['fecha'], json_encode([$antes, $depois]));
+        $check('agendado: o Extrato soma à parte', abs($tot['gasto_ag'] - 21.0) < 0.005);
+        $htmlIni = $render(DashboardController::class, 'index', []);
+        $check('agendado: no Início, com a marca, como no Extrato', str_contains($htmlIni, '(agendado)') && str_contains($htmlIni, '· agendado'));
+    }
+    // sete lançamentos hoje: o Início mostra 6, e a soma do dia é a dos sete
+    $pdo->prepare('DELETE FROM lancamentos WHERE data = ?')->execute([$hoje]);
+    for ($i = 1; $i <= 7; $i++) {
+        LancamentoModel::criar($hoje, 'dia ' . $i, $catDia, 10.0 * $i, $uid);
+    }
+    MotorFinanceiro::limparCache();
+    $htmlIni = $render(DashboardController::class, 'index', []);
+    $check('Início: a soma de hoje é a do dia inteiro, não só a dos lançamentos à vista', preg_match('#<span>Hoje</span><span class="num">' . MENOS . '280,00</span>#u', $htmlIni) === 1);
+});
+
 // ---- 9d. Mês fechado não muda (B-01): lançar, editar, excluir, transferir, pagar e a compra cuja fatura é de mês fechado
 $emTransacao('mês fechado não muda', static function () use ($pdo, $check, $render, $catDia, $mesHoje, $hoje, $uid): void {
     $fechado = (string) $pdo->query("SELECT MAX(mes) FROM meses WHERE situacao = 'REAL'")->fetchColumn();

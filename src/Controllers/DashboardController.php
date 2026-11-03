@@ -107,13 +107,15 @@ final class DashboardController
             'painel'         => $painel,
             'sobra'          => $sobra,
             'ultimos'        => $ultimos,
+            // a soma de cada dia à vista é a do dia inteiro, mesmo quando só os últimos 6 lançamentos aparecem
+            'somasDia'       => $ultimos !== [] ? LancamentoModel::somasPorDia((string) min(array_column($ultimos, 'data')), (string) max(array_column($ultimos, 'data'))) : [],
             'avisos'         => $avisos,
             // as contas fixas de hoje ainda não pagas, com o botão Pago (só no dia de hoje: Pago lança com a data de hoje)
             'contasMes'      => $ehHoje ? ChecklistContas::fixasAPagar($hoje) : [],
             // as já pagas, com o carimbo; a barra "para onde vai o dinheiro" do mês da previsão; o guardado do mês
             'contasPagas'    => $ehHoje ? self::contasPagas($hoje) : [],
-            'destino'        => Destino::doMes(MotorFinanceiro::dados(), $linhaPrev, $mesCal),
-            'guardado'       => Destino::guardado(MotorFinanceiro::dados(), $mesRef),
+            'destino'        => Destino::doMes(MotorFinanceiro::dados(), $linhaPrev, $mesCal, $hoje),
+            'guardado'       => Destino::guardado(MotorFinanceiro::dados(), $mesRef, $hoje),
             'temLancamento'  => (bool) Database::connection()->query('SELECT 1 FROM lancamentos LIMIT 1')->fetchColumn(),
             'v2'             => MotorFinanceiro::v2(),
         ], 'inicio');

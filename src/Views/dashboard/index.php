@@ -8,7 +8,9 @@
  * Sem nenhum lançamento e sem dinheiro previsto, a tela diz para que serve e oferece o primeiro lançamento.
  * Variáveis: $hoje, $mesRef, $mesCal, $estadoRef, $reserva, $conta, $contas (só com várias), $conf, $conferirAberto,
  * $conferirErro, $painel, $sobra (Sobra), $resposta (DashboardController::resposta), $mesPrevisao, $ultimos, $avisos,
- * $contasMes (a pagar), $contasPagas, $destino (Destino::doMes), $guardado, $temLancamento, $roteiro.
+ * $contasMes (a pagar), $contasPagas, $destino (Destino::doMes), $guardado, $temLancamento, $roteiro, $somasDia (a soma
+ * do dia inteiro de cada dia à vista). O lançamento agendado (depois de hoje) aparece em cinza, com "agendado", como no
+ * Extrato, e fica fora do "Gastou" e do "Já saiu" até o dia dele.
  */
 use Financeiro\Services\Destino;
 use Financeiro\View;
@@ -105,7 +107,8 @@ $nomeDia = static function (string $data) use ($hoje, $diasSem): string {
     }
     $ds = $diasSem[(int) date('w', (int) strtotime($data))];
     $ds = mb_strtoupper(mb_substr($ds, 0, 1)) . mb_substr($ds, 1);
-    return t('{dia_semana}, {dia}', ['dia_semana' => explode('-', $ds)[0], 'dia' => (int) substr($data, 8, 2)]);
+    $rotulo = t('{dia_semana}, {dia}', ['dia_semana' => explode('-', $ds)[0], 'dia' => (int) substr($data, 8, 2)]);
+    return $data > $hoje ? t('{data} (agendado)', ['data' => $rotulo]) : $rotulo;
 };
 $entra = static fn(array $r): bool => (int) $r['sinal'] > 0;
 
@@ -241,11 +244,9 @@ $vazio = !$temLancamento && ($destino === null || $destino['total'] < 0.005);
                     </div>
                 <?php else: ?>
                     <?php foreach ($porDia as $data => $linhas):
-                        $somaDia = 0.0;
-                        foreach ($linhas as $r) {
-                            $somaDia += $entra($r) ? (float) $r['valor'] : -(float) $r['valor'];
-                        } ?>
-                        <p class="razao-dia"><span><?= e($nomeDia((string) $data)) ?></span><span class="num"><?= e(($somaDia > 0.004 ? '+' : '') . num($somaDia)) ?></span></p>
+                        $agendado = (string) $data > $hoje;
+                        $somaDia = (float) ($somasDia[(string) $data] ?? 0.0); ?>
+                        <p class="razao-dia"><span><?= e($nomeDia((string) $data)) ?></span><span class="num<?= $agendado ? ' v-previsto' : '' ?>"><?= e(($somaDia > 0.004 ? '+' : ($somaDia < -0.004 ? MENOS : '')) . num(abs($somaDia))) ?></span></p>
                         <ul>
                             <?php foreach ($linhas as $r):
                                 $cat = ['nome' => $r['categoria_nome'], 'apelido' => $r['apelido']];
@@ -253,8 +254,10 @@ $vazio = !$temLancamento && ($destino === null || $destino['total'] < 0.005);
                                 <li>
                                     <a class="linha-lista" href="/lancamentos/<?= (int) $r['id'] ?>/editar?volta=%2F">
                                         <?= iconeCategoria((int) $r['categoria_id'], (string) $r['categoria_nome'], (string) ($r['grupo'] ?? ''), 20, 'linha-ic') ?>
-                                        <span class="linha-nome"><b><?= e($desc !== '' ? $desc : nomeCurto($cat)) ?></b><small><?= e(nomeCurto($cat)) ?></small></span>
-                                        <?= valor((float) $r['valor'], $entra($r) ? 'entrada' : 'saida', ['centavos' => false]) ?>
+                                        <span class="linha-nome"><b><?= e($desc !== '' ? $desc : nomeCurto($cat)) ?></b><small><?= e(nomeCurto($cat)) ?><?= $agendado ? ' · ' . e(t('agendado')) : '' ?></small></span>
+                                        <?= $agendado
+                                            ? '<span class="num v-previsto">' . ($entra($r) ? '+' : MENOS) . e(num((float) $r['valor'])) . '</span>'
+                                            : valor((float) $r['valor'], $entra($r) ? 'entrada' : 'saida', ['centavos' => false]) ?>
                                     </a>
                                 </li>
                             <?php endforeach; ?>

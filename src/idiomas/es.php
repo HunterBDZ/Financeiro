@@ -2361,4 +2361,5 @@ return [
     'Já existe uma conta fixa com esse nome.' => 'Ya existe una cuenta fija con ese nombre.',
     'Digite o valor da conta por mês.' => 'Escriba el valor de la cuenta por mes.',
     'sem valor' => 'sin valor',
+    'mais {valor} agendado' => 'más {valor} programado',
 ];
