@@ -1175,8 +1175,14 @@ $passoComecar = static function (int $passo) use ($hoje): string {
     \Financeiro\View::renderAuth('comecar/index', ['passo' => $passo, 'total' => 4, 'hoje' => $hoje, 'inicio' => $hoje, 'contas' => [['id' => 1, 'nome' => 'Luz']], 'usos' => [], 'erro' => null]);
     return (string) ob_get_clean();
 };
-$check('começar: o 3º passo pergunta o que usa, e a parcela só com empréstimo', str_contains($passoComecar(3), 'name="usa_cartao"') && str_contains($passoComecar(3), 'cm-grupo cm-so-emp') && !str_contains($passoComecar(3), 'salário'));
+$check('começar: o 3º passo pergunta o que usa, e a parcela só com empréstimo', str_contains($passoComecar(3), 'name="usa_cartao"') && str_contains($passoComecar(3), 'com-grupo com-so-emp') && !str_contains($passoComecar(3), 'salário'));
 $check('começar: o 4º passo pede as contas fixas', str_contains($passoComecar(4), 'name="valor[1]"') && !str_contains($passoComecar(4), 'name="usa_cartao"'));
+$check('começar: o 4º passo deixa adicionar outra conta fixa e não mostra a regra interna do início',
+    str_contains($passoComecar(4), 'name="nova_nome[]"') && str_contains($passoComecar(4), 'data-com-mais')
+    && preg_match('~antes do dia \d~', $passoComecar(4) . $passoComecar(2)) === 0);
+$check('começar: a prévia do mês fica ao lado da pergunta, e a sobra só aparece com o saldo informado',
+    str_contains($passoComecar(1), 'data-previa') && str_contains($passoComecar(1), 'a responder')
+    && preg_match('~data-previa-total><span class="com-falta">~', $passoComecar(1)) === 1);
 ob_start();
 (new \Financeiro\Controllers\AjudaController())->conexao();
 $htmlCon = (string) ob_get_clean();
@@ -1462,7 +1468,7 @@ SiteIcone::remover();
 $pdo->rollBack();
 $check('ícone: arquivo que não é imagem é recusado', LinkProduto::fotoValida('<?php echo 1;') === null);
 $imagensApp = array_values(array_diff(scandir(__DIR__ . '/../public/assets/img') ?: [], ['.', '..']));
-$check('ícone: nenhuma imagem individual no código, só as do app', $imagensApp === ['categorias.svg', 'icone-180.png', 'icone-32.png', 'icone-64.png', 'linhas-cartao.svg', 'linhas-fundo.svg', 'marca.svg'], implode(', ', $imagensApp));
+$check('ícone: nenhuma imagem individual no código, só as do app', $imagensApp === ['categorias.svg', 'icone-180.png', 'icone-32.png', 'icone-64.png', 'linhas-cartao.svg', 'marca.svg'], implode(', ', $imagensApp));
 
 // ---- 3g. relatório: o PDF
 $docT = new Documento('Título ação', 'pt-BR', '20261122153000');

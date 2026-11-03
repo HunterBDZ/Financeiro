@@ -18,11 +18,12 @@ const RELOGIO = process.env.FIN_RELOGIO ?? '2026-11-22 15:30:00';
 
 /**
  * Cria a pasta e o banco de demonstração, sobe o php -S e espera a tela de login responder.
- * porta: a preferida; ocupada ou 0, o sistema escolhe uma livre.
+ * porta: a preferida; ocupada ou 0, o sistema escolhe uma livre. demo: false sobe uma instalação nova, sem conta
+ * (a tela de criar conta e o começo guiado).
  * log() é a saída do php -S; logDoApp(), o log de erros do app (avisos do PHP e falhas registradas).
  * @returns {Promise<{url: string, pasta: string, log: () => string, logDoApp: () => string, parar: () => Promise<void>}>}
  */
-export async function subirServidor({ porta = 0 } = {}) {
+export async function subirServidor({ porta = 0, demo = true } = {}) {
     const pasta = await mkdtemp(path.join(os.tmpdir(), 'financeiro-navegador-'));
     const env = { ...process.env, FIN_DADOS: pasta, FIN_RELOGIO: RELOGIO };
     const arqLog = path.join(pasta, 'php-s.log');
@@ -36,7 +37,7 @@ export async function subirServidor({ porta = 0 } = {}) {
     const log = () => ler(arqLog);
     const logDoApp = () => ler(path.join(pasta, 'log', 'financeiro.log'));
     try {
-        await rodar(['database/instalar.php', '--demo'], env);
+        await rodar(demo ? ['database/instalar.php', '--demo'] : ['database/instalar.php'], env);
         // entre achar a porta livre e o PHP ocupá-la, outro programa pode chegar antes: tenta de novo
         for (let tentativa = 1; ; tentativa++) {
             const livre = await portaLivre(tentativa === 1 ? porta : 0);
@@ -114,7 +115,7 @@ async function esperarPronto(url, proc, log) {
         }
         try {
             const r = await fetch(url + '/login', { redirect: 'manual' });
-            if (r.status === 200) {
+            if (r.status === 200 || (r.status >= 300 && r.status < 400)) {    // sem conta, o login leva a criar a conta
                 return;
             }
         } catch {

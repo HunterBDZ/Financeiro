@@ -18,6 +18,8 @@ use Financeiro\View;
 /**
  * A primeira configuração, no site: moeda, fuso, início e saldos, renda, o que a pessoa usa e contas fixas. Só o 1º
  * passo é obrigatório. Num início no meio do mês, o que venceu antes dele não entra na previsão daquele mês.
+ * Ao lado das perguntas, a prévia do mês se monta com o que já foi respondido (previa()); no fim, a chegada mostra o
+ * primeiro "Dá para gastar", com a mesma conta do Início (DashboardController::resposta).
  */
 final class ComecarController
 {
@@ -27,6 +29,10 @@ final class ComecarController
     {
         Auth::requireLogin();
         if (AjusteModel::configurado()) {
+            if (isset($_GET['pronto'])) {
+                View::renderAuth('comecar/pronto', ['chegada' => self::chegada(), 'emprestimo' => AjusteModel::usa('usa_emprestimo')]);
+                return;
+            }
             redirecionar('/', 302);
         }
         $passo = max(1, min(self::PASSOS, (int) ($_GET['passo'] ?? 1)));
@@ -40,6 +46,7 @@ final class ComecarController
             'usos' => is_array($_SESSION['comecar_usos'] ?? null) ? $_SESSION['comecar_usos'] : [],
             'moeda' => Site::moeda(), 'fuso' => Site::fuso(), 'fusoEscolhido' => Site::fusoGravado(),
             'erro' => self::erro(),
+            'previa' => self::previa(),
         ]);
     }
 
@@ -118,6 +125,38 @@ final class ComecarController
     {
         $valores = (array) ($_POST['valor'] ?? []);
         $dias = (array) ($_POST['dia'] ?? []);
+        // "adicionar outra conta fixa": cada linha nova com nome vira uma categoria de conta fixa (grupo Fixos),
+        // e o valor e o dia seguem o caminho das outras. Confere tudo antes de criar qualquer uma.
+        $novas = [];
+        $nomesNovos = (array) ($_POST['nova_nome'] ?? []);
+        foreach ($nomesNovos as $i => $bruto) {
+            $nome = trim((string) preg_replace('/[\x00-\x1F\x7F]+/', ' ', is_string($bruto) ? $bruto : ''));
+            if ($nome === '') {
+                continue;
+            }
+            $existente = CategoriaModel::porNome($nome);
+            if (mb_strlen($nome) > 100 || ($existente !== null && ($existente['grupo'] ?? '') !== 'Fixos')) {
+                self::voltarComErro(4, t('Já existe uma categoria chamada {nome}.', ['nome' => $nome]));
+            }
+            $valorNovo = (array) ($_POST['nova_valor'] ?? []);
+            $diaNovo = (array) ($_POST['nova_dia'] ?? []);
+            $novas[] = ['nome' => $nome, 'id' => $existente !== null ? (int) $existente['id'] : null,
+                'valor' => is_string($valorNovo[$i] ?? null) ? $valorNovo[$i] : '', 'dia' => is_string($diaNovo[$i] ?? null) ? $diaNovo[$i] : ''];
+        }
+        foreach ($novas as $n) {
+            $bruto = trim($n['valor']);
+            if (($bruto !== '' && (parseMoedaBr($bruto) ?? -1) < 0) || self::dia($n['dia']) === false) {
+                self::voltarComErro(4, t('Confira os valores: use números como 1.200,50.'));
+            }
+        }
+        foreach ($novas as $n) {
+            $id = $n['id'] ?? CategoriaModel::criar($n['nome'], 'saida', true, null, true);
+            if ($id === null) {
+                continue;
+            }
+            $valores[$id] = $n['valor'];
+            $dias[$id] = $n['dia'];
+        }
         $validas = array_column(self::contasFixas(), null, 'id');
         foreach ($valores as $id => $bruto) {
             $id = (int) $id;
@@ -163,12 +202,76 @@ final class ComecarController
         }
         AjusteModel::setValor('configurado', 1.0);
         unset($_SESSION['comecar_usos']);
-        if (AjusteModel::usa('usa_emprestimo')) {
-            flash('success', t('Tudo pronto. Agora informe os dados do empréstimo. Os primeiros passos estão no Início.'));
-            redirecionar('/emprestimo?dados=1#emp-dados', 303);
+        // a chegada: o mês montado e o primeiro "Dá para gastar"; de lá, o Início (ou os dados do empréstimo)
+        redirecionar('/comecar?pronto=1', 303);
+    }
+
+    /**
+     * A prévia do mês ao lado das perguntas, com o que já foi respondido: o saldo do início, a renda e as contas
+     * fixas do primeiro mês. Linha que venceu antes do início vem com 'antes' = true: o valor já está no saldo e
+     * não entra na conta. Antes do 1º passo, só o mês.
+     * @return array{mes:string, diaIni:int, saldo:?float, renda:?array{valor:float, antes:bool}, contas:list<array{id:int, nome:string, valor:float, dia:?int, antes:bool}>, usos:array<string,bool>}
+     */
+    private static function previa(): array
+    {
+        $inicio = AjusteModel::dataInicio();
+        $feito = MesModel::primeiro() !== null && $inicio !== null;
+        $mes = substr($inicio ?? Relogio::hoje(), 0, 7) . '-01';
+        $meses = array_column(MesModel::todos(), 'mes');
+        $seguinte = $meses[array_search($mes, $meses, true) + 1] ?? $mes;     // o valor "de todo mês", sem o corte do início
+        // valor no 1º mês; zero lá com valor no seguinte = venceu antes do início, já está no saldo
+        $linha = static function (int $cat) use ($mes, $seguinte): array {
+            $noMes = PrevisaoModel::valor($cat, $mes);
+            $todoMes = PrevisaoModel::valor($cat, $seguinte);
+            return ['valor' => $noMes > 0 ? $noMes : $todoMes, 'antes' => $noMes <= 0 && $todoMes > 0];
+        };
+        $salario = CategoriaModel::porChave(MotorFinanceiro::CAT_SALARIO);
+        $contas = [];
+        if ($feito) {
+            foreach (self::contasFixas() as $c) {
+                $l = $linha($c['id']);
+                $rec = ContaRecorrenteModel::daCategoria($c['id']);
+                $contas[] = $c + $l + ['dia' => $rec !== null ? (int) $rec['dia_vencimento'] : null];
+            }
         }
-        flash('success', t('Tudo pronto. Os primeiros passos estão no Início.'));
-        redirecionar('/', 303);
+        return [
+            'mes' => $mes,
+            'diaIni' => (int) substr($inicio ?? Relogio::hoje(), 8, 2),
+            'saldo' => $feito ? AjusteModel::valor('saldo_ini') : null,
+            'renda' => $feito && $salario !== null ? $linha((int) $salario['id']) : null,
+            'contas' => $contas,
+            'usos' => ['cartao' => AjusteModel::usa('usa_cartao'), 'emprestimo' => AjusteModel::usa('usa_emprestimo')],
+        ];
+    }
+
+    /**
+     * O primeiro "Dá para gastar", com a conta do Início: a previsão do fim do mês menos a reserva (e, com o
+     * empréstimo sendo adiantado, a previsão sem o adiantamento).
+     * @return ?array{tipo:string, valor:float, adianta:float, mes:string, reserva:float, fim:float}
+     */
+    private static function chegada(): ?array
+    {
+        $hoje = Relogio::hoje();
+        $plano = MotorFinanceiro::calcularPlano();
+        if ($plano === []) {
+            return null;
+        }
+        $mes = MesModel::referencia($hoje);
+        if (!isset($plano[$mes])) {
+            $mes = (string) array_key_last($plano);
+        }
+        $linha = $plano[$mes];
+        if ($linha['situacao'] === 'REAL') {
+            return null;
+        }
+        $fim = (float) $linha['fica_na_conta'];
+        $semAdiantar = $fim;
+        if (AjusteModel::usa('usa_emprestimo') && (int) round(AjusteModel::valor('objetivo', 1.0)) !== 3) {
+            $semAdiantar = (float) (MotorFinanceiro::calcular(MotorFinanceiro::dados(), ['objetivo' => 3, 'hoje' => $hoje])[$mes]['fica_na_conta'] ?? $fim);
+        }
+        $reserva = AjusteModel::valor('reserva_minima');
+        $r = DashboardController::resposta($fim, $semAdiantar, $reserva);
+        return $r === null ? null : $r + ['mes' => $mes, 'reserva' => max(0.0, $reserva), 'fim' => $fim];
     }
 
     /** Mesmo valor em todos os meses; no 1º, zero se a data dele já passou quando o plano começou. */
