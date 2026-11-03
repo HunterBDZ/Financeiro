@@ -397,8 +397,8 @@ if ($mesMeta === null) {
     try {
         (new MesController())->index();
         $html = (string) ob_get_clean();
-        $check('meta pinta a barra no mês', str_contains($html, 'Acima da meta') && str_contains($html, 'fora-meta'),
-            'sem "Acima da meta" no HTML');
+        $check('meta pinta a barra no mês', str_contains($html, '>passou ') && str_contains($html, 'fora-meta') && str_contains($html, 'meta-barra passou'),
+            'sem "passou" no HTML');
     } catch (\Throwable $e) {
         ob_end_clean();
         $check('meta pinta a barra no mês', false, get_class($e) . ': ' . $e->getMessage());
@@ -549,7 +549,8 @@ $check('último mês: linhas editáveis + seletor de meses, sem "meses seguintes
 $html = $render(MesController::class, 'index', ['mes' => $prevMeses[0]]);
 $check('Mês aberto: editável com "também nos meses seguintes"', str_contains($html, 'action="/mes/previsao"') && str_contains($html, 'name="propagar"'));
 $html = $render(MesController::class, 'index', ['mes' => $realMes]);
-$check('Mês fechado: só leitura', str_contains($html, 'mes-ros') && !str_contains($html, 'action="/mes/previsao"'));
+$check('Mês fechado: só leitura, com o planejado e a diferença', str_contains($html, 'class="livro mes-livro is-fechado"') && str_contains($html, '>Diferença<')
+    && !str_contains($html, 'action="/mes/previsao"'));
 $check('anual: cada mês leva à aba Mês', str_contains($render(FuturoController::class, 'index', []), 'class="btn-link fu-abrir" href="/mes?mes='));
 $check('meta: cada categoria abre o editor com o mês e até quando', str_contains($render(MetaController::class, 'index', []), 'name="ate"'));
 
@@ -677,8 +678,9 @@ if (count($prevMeses) < 5 || $realUlt === null || $catDia === 0) {
         MotorFinanceiro::limparCache();
         $check('metas: editar um mês fechado grava a meta dele', $lote !== null && $linhaCrua($catDia, $realUlt) === $nova && $valorEm($catDia, $realUlt) === $nova);
         $htmlR = $render(MesController::class, 'index', ['mes' => $realUlt]);
-        $check('metas: o Mês fechado mostra a nova meta e a situação', str_contains($htmlR, e(t('meta {valor}', ['valor' => num($nova)])))
-            && ($real <= $nova || str_contains($htmlR, 'Acima da meta')), num($nova));
+        preg_match('#<tr id="cat-' . $catDia . '".*?</tr>#s', $htmlR, $mR);
+        $check('metas: o Mês fechado mostra a nova meta e a situação', str_contains($mR[0] ?? '', MENOS . num($nova))
+            && ($real <= $nova || str_contains($mR[0] ?? '', e(t('passou {valor}', ['valor' => num($real - $nova)])))), num($nova));
         $rel = RelatorioDados::mensal($realUlt);
         $planejado = null;
         foreach ($rel['categorias']['linhas'] ?? [] as $lR) {
@@ -1156,10 +1158,17 @@ $htmlFe = $render(MesController::class, 'fecharForm', []);
 $check('fechar: "Aplicar" vem desligado', preg_match('#name="aplicar" value="1"(?! checked)#', $htmlFe) === 1);
 // dia 22, faltam 8 dias; no último dia, nenhum
 $faltamFe = (int) date('t', strtotime($hoje)) - (int) date('j', strtotime($hoje));
-$check('fechar: abre com a frase e confirma, citando os dias se ainda faltam', str_contains($htmlFe, 'fe-intro')
-    && str_contains($htmlFe, 'data-confirm="' . match ($faltamFe) { 0 => 'Fechar ' . monthLabel($mesHoje) . '?', 1 => 'Ainda falta 1 dia', default => "Ainda faltam {$faltamFe} dias" }), (string) $faltamFe);
+// antes do último dia, o botão fica desligado e diz o motivo; no último dia, liga e pede confirmação
+$check('fechar: abre com a frase; antes do fim do mês o botão fica desligado com o motivo, depois confirma', str_contains($htmlFe, 'fe-intro')
+    && str_contains($htmlFe, 'data-confirm="Fechar ' . monthLabel($mesHoje) . '?')
+    && ($faltamFe === 0
+        ? preg_match('#<button type="submit" class="btn btn-principal fe-botao" data-fechar>#', $htmlFe) === 1
+        : str_contains($htmlFe, 'disabled aria-describedby="fe-quando-t"') && str_contains($htmlFe, $faltamFe === 1 ? 'Ainda falta 1 dia' : "Ainda faltam {$faltamFe} dias")), (string) $faltamFe);
 $htmlMesCal = $render(MesController::class, 'index', ['mes' => $mesHoje]);
-$check('Mês: fechar à vista, fora do menu "…"', str_contains($htmlMesCal, 'class="mes-fechar-link"') && !str_contains($htmlMesCal, 'class="menu-item" href="/mes/fechar'));
+$check('Mês: Fechar é um botão à vista, fora do menu "…"; antes do último dia, desligado e com o motivo', !str_contains($htmlMesCal, 'class="menu-item" href="/mes/fechar')
+    && ($faltamFe === 0
+        ? str_contains($htmlMesCal, 'class="btn btn-principal" href="/mes/fechar?mes=' . $mesHoje . '" data-fechar')
+        : str_contains($htmlMesCal, 'aria-disabled="true" aria-describedby="mes-fechar-quando" data-fechar') && !str_contains($htmlMesCal, 'href="/mes/fechar?mes=' . $mesHoje . '"')));
 $emTransacao('início com o mês fechado antes do fim', static function () use ($mesHoje, $render, $check): void {
     MesModel::setSituacao($mesHoje, 'REAL');
     MotorFinanceiro::limparCache();
@@ -2612,9 +2621,9 @@ if ($catFatDb !== null && ($sitAtualT[$mesAtualT] ?? '') === 'PREVISAO') {
         $sem = MotorFinanceiro::calcular(array_replace($d, ['fatura' => ['cat' => null, 'vence' => 0, 'faturas' => []]]))[$mesAtualT];
         $check('fatura: no plano, a paga no mês anterior não entra de novo no mês do vencimento', abs($sem['sai'] - $com['sai'] - 800.0) < 0.01, json_encode([$sem['sai'], $com['sai']]));
         $html = $render(MesController::class, 'index', ['mes' => $mesAtualT]);
-        preg_match('#id="cat-' . $catFatDb . '".*?</summary>#s', $html, $mL);
-        $check('fatura: a linha do Mês diz quando foi paga e não pesa no mês', str_contains($mL[0] ?? '', 'mes-status-pago')
-            && str_contains($mL[0] ?? '', 'Pago em ' . diaMes($fimAnterior)) && !str_contains($mL[0] ?? '', 'Venc'), substr($mL[0] ?? '', -300));
+        preg_match('#<tr id="cat-' . $catFatDb . '".*?</tr>#s', $html, $mL);
+        $check('fatura: a linha do Mês diz quando foi paga (o carimbo) e não pesa no mês', str_contains($mL[0] ?? '', 'mes-status-pago')
+            && str_contains($mL[0] ?? '', 'pago ' . diaMes($fimAnterior)) && !str_contains($mL[0] ?? '', 'venc'), substr($mL[0] ?? '', -300));
     });
 
     $emTransacao('valor final', static function () use ($pdo, $check, $mesAtualT, $uid, $render): void {
@@ -2636,8 +2645,8 @@ if ($catFatDb !== null && ($sitAtualT[$mesAtualT] ?? '') === 'PREVISAO') {
         LancamentoModel::criar(\Financeiro\Relogio::hoje(), 'Entrada teste', $catE, 900.0, $uid);
         MotorFinanceiro::limparCache();
         $html = $render(MesController::class, 'index', ['mes' => $mesAtualT]);
-        preg_match('#<details class="mes-linha mes-ed" id="cat-' . $catC . '".*?</details>#s', $html, $mC);
-        preg_match('#<details class="mes-linha mes-ed" id="cat-' . $catE . '".*?</details>#s', $html, $mE);
+        preg_match('#<tr id="cat-' . $catC . '".*?</tr>#s', $html, $mC);
+        preg_match('#<tr id="cat-' . $catE . '".*?</tr>#s', $html, $mE);
         $check('valor final: conta e entrada que vieram menos dizem quanto veio e perguntam se foi o valor final',
             str_contains($mC[0] ?? '', 'Veio 150,00 de 180,00 previstos') && str_contains($mC[0] ?? '', 'value="final"') && str_contains($mC[0] ?? '', 'Ainda falta pagar')
             && str_contains($mE[0] ?? '', 'Veio 900,00 de 1.000,00 previstos') && str_contains($mE[0] ?? '', 'Ainda falta receber'));
@@ -2794,11 +2803,14 @@ if (($sitT['2026-11-01'] ?? '') !== 'PREVISAO' || ($sitT['2026-12-01'] ?? '') !=
         $pdo->prepare('DELETE FROM lancamentos WHERE categoria_id = ? AND data >= ?')->execute([$catAtT, $mesH]);
         MotorFinanceiro::limparCache();
         $ini = $render(DashboardController::class, 'index', []);
-        $pSaldo = strpos($ini, 'id="saldo-t"');
-        $pFaixa = strpos($ini, 'data-atencao');
-        $pResumo = strpos($ini, 'id="dash-rec-t"');
-        $check('atenção: no Início, a conta atrasada aparece na faixa, logo abaixo do saldo', $pFaixa !== false && $pSaldo !== false && $pResumo !== false && $pSaldo < $pFaixa && $pFaixa < $pResumo
-            && str_contains($ini, 'data-aviso="conta_atrasada"') && str_contains($ini, 'href="/lancar?categoria=' . $catAtT . '&amp;') && !str_contains($ini, 'dash-alerta'));
+        preg_match('#<section id="contas-mes".*?</section>#s', $ini, $mCm);
+        $check('atenção: no Início, a conta fixa atrasada fica só nas contas do mês, com o Pagar, e não repete em "Precisa de atenção"',
+            !str_contains($ini, 'data-aviso="conta_atrasada"') && str_contains($mCm[0] ?? '', 'href="/lancar?categoria=' . $catAtT . '&amp;')
+            && str_contains($mCm[0] ?? '', 'name="categoria_id" value="' . $catAtT . '"') && str_contains($mCm[0] ?? '', 'venceu dia 2'));
+        $avIni = \Financeiro\Services\Atencao::avisos(Relogio::hoje(), DashboardController::conferenciaAtual(Relogio::hoje()));
+        $outros = array_filter($avIni, static fn(array $a): bool => !in_array($a['tipo'], ['conta_atrasada', 'conta_vence'], true));
+        $check('atenção: os outros avisos continuam na faixa, logo abaixo da resposta', $outros === [] || (str_contains($ini, 'data-atencao')
+            && strpos($ini, 'id="ini-resposta-t"') < strpos($ini, 'data-atencao') && strpos($ini, 'data-atencao') < strpos($ini, 'id="ini-contas-t"')));
         $lista = $render(DashboardController::class, 'atencao', []);
         $check('atenção: a lista mostra todos os avisos', str_contains($lista, 'data-aviso="conta_atrasada"') && substr_count($lista, 'data-aviso=') === count(\Financeiro\Services\Atencao::avisos(Relogio::hoje(), DashboardController::conferenciaAtual(Relogio::hoje()))));
     });
@@ -2850,14 +2862,16 @@ if (MotorFinanceiro::linhaDoMes($mesSb) === null || $catSb === 0) {
         $mesV = $acha($mesH);
         $fe = $acha($render(MesController::class, 'fecharForm', ['mes' => $mesSb]));
         $rl = RelatorioDados::mensal($mesSb);
-        $check('sobra: Início mostra a sobra até hoje (com o resgate: balanço é balanço) com o nome dela',
-            in_array([$hojeSb['base'], num($hojeSb['sobra'])], $ini, true), json_encode([$ini, $hojeSb]));
-        $check('sobra: Fechar mostra a mesma sobra até hoje', in_array([$hojeSb['base'], num($hojeSb['sobra'])], $fe, true), json_encode($fe));
+        $iniH = $render(DashboardController::class, 'index', []);
+        $check('sobra: o Início mostra o que entrou e o gasto até hoje, da mesma conta',
+            str_contains($iniH, 'data-entrou>' . valor($hojeSb['renda'], 'entrada')) && str_contains($iniH, 'data-gasto>' . valor($hojeSb['saidas'], 'saida')), json_encode($hojeSb));
+        $sinalSb = ($hojeSb['sobra'] > 0.004 ? '+' : '') . num($hojeSb['sobra']);
+        $check('sobra: Fechar termina a escada no balanço até hoje (com o resgate: balanço é balanço)', in_array([$hojeSb['base'], $sinalSb], $fe, true), json_encode($fe));
         $linhaSb = MotorFinanceiro::linhaDoMes($mesSb);
-        $check('Mês: o resumo termina no fim do mês, o mesmo número da previsão do plano', str_contains($mesH, 'data-fim-mes>' . num((float) $linhaSb['fica_na_conta']) . '<'));
+        $check('Mês: o livro termina no fim do mês, o mesmo número da previsão do plano', str_contains($mesH, 'data-previsao-fim="' . number_format((float) $linhaSb['fica_na_conta'], 2, '.', '') . '"')
+            && str_contains($mesH, 'data-livro-fim="' . number_format((float) $linhaSb['fica_na_conta'], 2, '.', '') . '"'));
         $check('Mês: o saldo do mês anterior é uma linha das entradas e entra no total', str_contains($mesH, 'data-saldo-anterior')
             && str_contains($mesH, num((float) $linhaSb['sobrou_mes_anterior'])));
-        $check('sobra: as listas do Mês somam as saídas do resumo', str_contains($mesH, '<span class="card-acao num neg">' . num($prevSb['saidas']) . '</span>'));
         $check('sobra: o Relatório usa as mesmas', $rl !== null && ($rl['encerrado']
             ? abs($rl['sobrou'] - $prevSb['sobra']) < 0.005
             : abs($rl['sobras'][0]['sobra'] - $hojeSb['sobra']) < 0.005 && abs($rl['sobras'][1]['sobra'] - $prevSb['sobra']) < 0.005));
@@ -2865,7 +2879,7 @@ if (MotorFinanceiro::linhaDoMes($mesSb) === null || $catSb === 0) {
     });
 }
 $check('ajuda: a resposta dos números diz as bases', str_contains(implode(' ', array_column(array_merge(...array_column(\Financeiro\Ajuda::grupos(), 'itens')), 'resposta')), 'A sobra até hoje é o que entrou menos o que saiu até agora'));
-$check('centavos: dinheiro com centavos no Mês e no Início', !preg_match('/class="mes-val num[^"]*">\d{1,3}(\.\d{3})*</', $render(MesController::class, 'index', [])));
+$check('centavos: dinheiro com centavos no Mês e no Início', !preg_match('/class="num[^"]*">' . MENOS . '?\+?\d{1,3}(\.\d{3})*<(?!span class="cent")/', $render(MesController::class, 'index', []) . $render(DashboardController::class, 'index', [])));
 
 // a frase do saldo: (previsão com o plano, sem adiantar, reserva)
 $fr = static fn(?float $p, ?float $s, float $r): ?array => DashboardController::resposta($p, $s, $r);
@@ -2876,7 +2890,7 @@ $check('frase: o fim do mês igual à reserva porque a sobra adianta o emprésti
 $check('frase: o empréstimo leva só parte da folga', $fr(2000.0, 4000.0, 1500.0) === ['tipo' => 'gastar', 'valor' => 2500.0, 'adianta' => 2000.0]);
 $check('frase: sem previsão, sem frase', $fr(null, null, 1500.0) === null);
 $htmlFr = $render(DashboardController::class, 'index', []);
-$check('frase: o cartão do saldo tem uma frase e o resto em "Ver detalhes"', !str_contains($htmlFr, 'data-previsao-fim') || (str_contains($htmlFr, 'data-saldo-frase=') && preg_match('/<details class="saldo-det">\s*<summary>Ver detalhes<\/summary>.*data-previsao-fim/s', $htmlFr) === 1));
+$check('frase: o topo do Início é só o rótulo, o número e uma linha de apoio', preg_match('#<div class="painel ini-painel" data-resposta="\w+">\s*<h2 class="rot-resposta"[^>]*>[^<]+<a class="dica"[^>]*>\?</a></h2>\s*<p class="resposta-num">.*?</p>\s*(<p class="por-dia">.*?</p>\s*)?<div class="ini-destino"#s', $htmlFr) === 1);
 
 // o campo da categoria: a lista inteira, agrupada, num <select> (sem JS) e no combobox do lancar.js
 LancarForm::limparCache();
@@ -3478,13 +3492,14 @@ $emTransacao('barra com o valor do mês', static function () use ($pdo, $check, 
     PrevisaoModel::setValor($catZ, $mesB, 0.0);
     MotorFinanceiro::limparCache();
     $html = $render(MesController::class, 'index', ['mes' => $mesB]);
-    preg_match('#id="cat-' . $catB . '".*?</details>#s', $html, $mB);
-    preg_match('#id="cat-' . $catZ . '".*?</details>#s', $html, $mZ);
-    $check('Mês: com valor próprio e nada gasto, "Abaixo da meta"', str_contains($mB[0] ?? '', 'Abaixo da meta'), substr($mB[0] ?? '', 0, 400));
+    preg_match('#<tr id="cat-' . $catB . '".*?</tr>#s', $html, $mB);
+    preg_match('#<tr id="cat-' . $catZ . '".*?</tr>#s', $html, $mZ);
+    $check('Mês: com valor próprio e nada gasto, falta o valor do mês inteiro', str_contains($mB[0] ?? '', 'data-meta="800.00"') && str_contains($mB[0] ?? '', 'falta 800,00'), substr($mB[0] ?? '', 0, 400));
     LancamentoModel::criar(\Financeiro\Relogio::hoje(), 'teste barra', $catB, 750.0, (int) $pdo->query('SELECT MIN(id) FROM usuarios')->fetchColumn());
     MotorFinanceiro::limparCache();
-    preg_match('#id="cat-' . $catB . '".*?</details>#s', $render(MesController::class, 'index', ['mes' => $mesB]), $mB2);
-    $check('Mês: 750 de 800 (o valor do mês, não a meta de 1.000) fica "Na meta"', str_contains($mB2[0] ?? '', 'Na meta'), substr($mB2[0] ?? '', 0, 400));
+    preg_match('#<tr id="cat-' . $catB . '".*?</tr>#s', $render(MesController::class, 'index', ['mes' => $mesB]), $mB2);
+    $check('Mês: 750 de 800 (o valor do mês, não a meta de 1.000): falta 50, com a barra quase cheia', str_contains($mB2[0] ?? '', 'falta 50,00')
+        && str_contains($mB2[0] ?? '', '--p:0.938'), substr($mB2[0] ?? '', 0, 400));
     $check('Mês: sem previsão no mês e sem gasto, a categoria sai da lista e fica em "Incluir"', ($mZ[0] ?? '') === ''
         && preg_match('#<details class="mes-incluir".*?value="' . $catZ . '"#s', $html) === 1);
 });
@@ -3522,13 +3537,46 @@ foreach (MotorFinanceiro::calcularPlano() as $mP => $lP) {
 }
 $check('Mês: começou com + sobra − adiantamento automático = termina com, em todo mês do plano', $desvioPonte === [], implode(' | ', array_slice($desvioPonte, 0, 3)));
 
+// ---- a barra "para onde vai o dinheiro do mês" (Início e Mês) e o livro do Mês: as partes somam o total
+$dDest = MotorFinanceiro::dados();
+$desvioDest = $desvioLivro = [];
+foreach (MotorFinanceiro::calcularPlano() as $mP => $lP) {
+    $x = \Financeiro\Services\Destino::doMes($dDest, $lP, \Financeiro\Relogio::mes());
+    if ($x !== null) {
+        $soma = $x['saiu'] + $x['contas'] + $x['metas'] + $x['gastar'] + $x['reserva'] - $x['falta'];
+        if (abs($soma - $x['total']) > 0.005 || abs($x['livre'] - (float) $lP['fica_na_conta'] - (float) $lP['amortizacao_auto']) > 0.01 || min($x) < -0.004 && $x['livre'] >= 0) {
+            $desvioDest[] = $mP . ': ' . json_encode($x);
+        }
+    }
+    $hL = $render(MesController::class, 'index', ['mes' => $mP]);
+    if (!preg_match('/data-livro-fim="(-?[\d.]+)"/', $hL, $mLv) || abs((float) $mLv[1] - (float) $lP['fica_na_conta']) > 0.01) {
+        $desvioLivro[] = $mP . ': ' . ($mLv[1] ?? '?') . ' ≠ ' . round((float) $lP['fica_na_conta'], 2);
+    }
+}
+$check('destino: já saiu, contas a pagar, metas que faltam, dá para gastar e reserva somam o dinheiro do mês, em todo mês aberto', $desvioDest === [], implode(' | ', array_slice($desvioDest, 0, 2)));
+$check('Mês: as linhas do livro (entradas, contas, dia a dia, guardado e empréstimo) fecham no fim do mês do plano, em todo mês', $desvioLivro === [], implode(' | ', array_slice($desvioLivro, 0, 3)));
+$xHoje = \Financeiro\Services\Destino::doMes($dDest, MotorFinanceiro::calcularPlano()[\Financeiro\Relogio::mes()], \Financeiro\Relogio::mes());
+$hIniD = $render(DashboardController::class, 'index', []);
+$check('destino: no Início, "Dá para gastar" da barra é o número grande do topo', $xHoje === null || ($xHoje['gastar'] < 0.005 && !str_contains($hIniD, 'data-resposta="gastar"'))
+    || (str_contains($hIniD, 'data-gastar="' . number_format($xHoje['gastar'], 2, '.', '') . '"')
+        && preg_match('#<p class="resposta-num">' . preg_quote(valor($xHoje['gastar'], 'neutro', ['moeda' => true]), '#') . '</p>#', $hIniD) === 1));
+// o Fechar: a escada das entradas e gastos até o balanço soma o que ela lista (antes, a poupança e o investimento ficavam fora)
+$hFeP = $render(MesController::class, 'fecharForm', []);
+$lerV = static fn(string $t): float => (float) str_replace([MENOS, '+', '.', ','], ['-', '', '', '.'], html_entity_decode(strip_tags($t)));
+if (preg_match('#<table class="livro fe-ponte">.*?<tbody>(.*?)</tbody>.*?data-sobra="\w+">([^<]+)<#s', $hFeP, $mP2)) {
+    preg_match_all('#<td class="c-real"[^>]*>([^<]+)</td>#', $mP2[1], $vs);
+    $check('fechar: o balanço é a soma da escada que a tela lista', count($vs[1]) >= 1 && abs(array_sum(array_map($lerV, $vs[1])) - $lerV($mP2[2])) < 0.005, json_encode([$vs[1], $mP2[2]]));
+} else {
+    $check('fechar: o balanço é a soma da escada que a tela lista', false, 'escada não achada');
+}
+
 // ---- empréstimo consignado: o Salário aparece líquido no Mês, sem aviso solto; a escolha fica na aba Empréstimo
 $mesC = \Financeiro\Relogio::mes();
 $linhaC = MotorFinanceiro::linhaDoMes($mesC);
 $catSal = (int) $pdo->query("SELECT id FROM categorias WHERE nome = 'Salário'")->fetchColumn();
 if ($linhaC !== null && $linhaC['situacao'] !== 'REAL' && (float) $linhaC['parcela_descontada'] > 0.004 && $catSal > 0) {
     $htmlC = $render(MesController::class, 'index', ['mes' => $mesC]);
-    preg_match('#id="cat-' . $catSal . '".*?</details>#s', $htmlC, $mS);
+    preg_match('#<tr id="cat-' . $catSal . '".*?</tr>#s', $htmlC, $mS);
     $brutoC = (float) (MotorFinanceiro::dados()['prev'][$mesC][$catSal] ?? 0.0);
     $liqC = num(max(0.0, $brutoC - (float) $linhaC['parcela_descontada']));
     $check('consignado: o Salário aparece líquido no Mês', str_contains($mS[0] ?? '', $liqC) && !str_contains($mS[0] ?? '', num($brutoC)), $liqC . ' / ' . num($brutoC));

@@ -240,50 +240,7 @@ details.mes-ed:target > summary { animation: mes-realce 1.6s ease-out 1; }   /* 
 .meta-contas-fixas > .mes-incluir { margin-top: 10px; }
 .meta-nova-btn { align-self: flex-start; min-height: var(--tap); }
 
-/* ---------------------------------------------------------------- 4. fechar mês */
-
-.fe { width: 100%; max-width: 860px; }
-.fe-topo { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
-.fe-volta {
-    display: inline-grid; place-items: center; flex: none;
-    width: var(--tap); height: var(--tap); border-radius: 50%;
-    background: var(--card); color: var(--text); border: 1px solid var(--line); box-shadow: var(--sombra);
-}
-.fe-volta:hover { background: var(--card-2); }
-.fe-volta-seta { transform: rotate(180deg); }
-.fe-form, .fe-blocos { display: flex; flex-direction: column; gap: 14px; }
-.fe-h { margin-bottom: 12px; font-size: 16px; font-weight: 750; }
-.fe-grade { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 12px; }
-.fe-num { display: flex; flex-direction: column; gap: 4px; min-width: 0; font-family: var(--fn); font-size: 24px; font-weight: 600; letter-spacing: -0.03em; line-height: 1.1; }
-.fe-num > span { font-family: var(--f); font-size: 13px; font-weight: 650; letter-spacing: 0; color: var(--text-2); }
-.fe-num.pos { color: var(--pos); }
-.fe-num.neg { color: var(--neg); }
-.fe-grade > .fe-conta { grid-column: 1 / -1; }
-.fe-grade + .aviso { margin-top: 14px; }
-/* da sobra ao balanço: uma escada curta, com os nomes da do Relatório */
-dl.fe-ponte { display: grid; gap: 2px; max-width: 440px; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 14px; }
-dl.fe-ponte > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 30px; }
-dl.fe-ponte dt { color: var(--text-2); font-weight: 650; white-space: normal; }
-dl.fe-ponte dd { color: var(--text); font-weight: 750; }
-dl.fe-ponte > div:first-child dt { color: var(--text); }
-dl.fe-ponte > .fe-ponte-fim { margin-top: 2px; padding-top: 4px; border-top: 1px solid var(--line); }
-.fe-ponte-parcela { margin-top: 6px; color: var(--text-2); font-size: 12.5px; font-weight: 600; white-space: normal; }
-.fe-ponte + .aviso, .fe-ponte-parcela + .aviso { margin-top: 14px; }
-.fe-nada { color: var(--text-2); }
-.fe-intro { color: var(--text-2); font-size: 14px; line-height: 1.45; }
-.fe-desvios > li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: 2px 12px; min-height: 44px; padding: 10px 0; }
-.fe-desvios > li + li { border-top: 1px solid var(--line); }
-.fe-dv-nome { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
-.fe-dv-dif { grid-column: 1 / -1; font-size: 13px; font-weight: 650; white-space: normal; }
-#banco .campo { margin-bottom: 12px; }
-#banco .aviso { margin-top: 12px; }
-.fe-previa { display: flex; flex-direction: column; gap: 4px; white-space: normal; }
-.fe-aplicar { display: flex; flex-direction: row-reverse; align-items: center; justify-content: space-between; gap: 14px; margin-top: 14px; cursor: pointer; }
-.fe-aplicar > span { display: flex; flex-direction: column; gap: 2px; font-weight: 700; }
-.fe-aplicar-nota { font-weight: 500; color: var(--text-2); line-height: 1.45; }
-.fe-botao.btn { flex-direction: column; gap: 4px; min-height: 60px; padding: 10px 20px; border-radius: 16px; font-size: 16px; }
-.fe-faltam { font-size: 13px; font-weight: 600; opacity: .7; }
-.fe-reabrir { margin: 0; }
+/* ---------------------------------------------------------------- 4. fechar mês: na seção 9 */
 
 /* ---------------------------------------------------------------- 5. anual */
 
@@ -769,3 +726,135 @@ details.dobra > summary:has(.aj-estado)::after { margin-left: 0; }
 .aj-conta-tipo > legend { width: 100%; margin-bottom: 6px; padding: 0; color: var(--text-2); font-size: 13px; font-weight: 650; }
 .aj-conta-tipo .chip-r > span { flex-direction: row; gap: 6px; }
 .fe-bloco .conf-contas { margin: 10px 0 14px; }
+
+/* ---------------------------------------------------------------- 9. o Mês e o Fechar do redesenho */
+/* A grade da base (style.css); o painel com a resposta, o Fechar e a barra; o livro-razão (.livro) com a edição
+   do previsto na própria linha, num painel que flutua. As regras antigas de .mes-* acima ficam para as Metas. */
+
+.grade.mes, .grade.fe { display: block; }
+.mes-menu > summary { width: 36px; height: 36px; }
+
+/* o painel: a resposta à esquerda, o Fechar à direita */
+.mes-painel-l1 { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--e-5); }
+.mes-acao { display: flex; flex-direction: column; align-items: flex-start; gap: var(--e-2); }
+.mes-acao small { color: var(--tinta-3); font-size: var(--t-meta); line-height: var(--lh-meta); }
+.mes-destino { margin-top: var(--e-6); padding-top: var(--e-5); border-top: 1px solid var(--fio); }
+
+/* o livro-razão */
+.mes-livro .mes-nome { flex: 1 1 auto; min-width: 0; overflow: visible; white-space: normal; font-weight: 400; }
+.mes-livro .situacao { width: 280px; }
+.mes-livro .c-prev { position: relative; }
+.mes-livro .fraco { padding-right: var(--e-2); }
+.mes-cel { display: none; }
+.mes-livro tr[data-adiantar] .mes-nome, .mes-livro tr[data-adiantar] .c-prev { color: var(--tinta-2); }
+
+/* o previsto que se edita: o número sublinhado em tracejado (a previsão) abre o painel na linha */
+.mes-livro details.mes-ed { display: inline-block; margin: 0; padding: 0; background: none; border-radius: 0; }
+.mes-livro details.mes-ed > summary {
+    display: inline-flex; align-items: center; min-height: 36px; margin-right: calc(-1 * var(--e-2)); padding: 0 var(--e-2);
+    border-radius: var(--raio-controle); list-style: none; cursor: pointer;
+    transition: background-color var(--rapido) var(--curva);
+}
+.mes-livro details.mes-ed > summary::-webkit-details-marker { display: none; }
+.mes-livro details.mes-ed > summary::after { display: none; }
+.mes-livro details.mes-ed > summary > .num { text-decoration: underline dashed var(--fio-forte); text-decoration-thickness: 1px; text-underline-offset: 5px; }
+.mes-livro details.mes-ed > summary:hover, .mes-livro details.mes-ed[open] > summary { background: var(--realce); }
+.mes-livro details.mes-ed > summary:hover > .num { text-decoration-color: var(--tinta-2); }
+.mes-ed-painel {
+    position: absolute; z-index: 30; top: calc(100% - 4px); right: 0;
+    width: 380px; max-width: calc(100vw - 32px); padding: var(--e-4);
+    text-align: left; white-space: normal;
+    background: var(--superficie); border: 1px solid var(--fio); border-radius: var(--raio-painel); box-shadow: var(--sombra-flutua);
+    --campo: var(--superficie);
+}
+details.mes-ed[open] > .mes-ed-painel { animation: menu-abre var(--entra) var(--curva); }
+.mes-ed-painel .mes-form { padding: 0; gap: var(--e-3); }
+.mes-ed-painel .mes-final { margin: 0 0 var(--e-4); padding: 0 0 var(--e-4); border-radius: 0; background: none; box-shadow: none; border-bottom: 1px solid var(--fio); }
+.mes-ed-painel .mes-final-acoes > .btn { background: var(--superficie); box-shadow: inset 0 0 0 1px var(--fio-forte); }
+.mes-ed-painel .mes-final-acoes > .btn:hover { background: var(--realce); }
+.mes-form-campo > span, .mes-form-info, .mes-final-nota { color: var(--tinta-2); font-size: var(--t-rotulo); line-height: var(--lh-rotulo); font-weight: 400; }
+.mes-livro .mes-form-campo > input, .mes-incluir .mes-form-campo > input { min-height: 40px; text-align: right; font: 400 var(--t-corpo)/1 var(--f-num); letter-spacing: 0; }
+.mes-livro .mes-salvar.btn, .mes-incluir .mes-salvar.btn { min-height: 40px; padding: 0 var(--e-4); border-radius: var(--raio-controle); font-size: var(--t-rotulo); }
+.mes-livro .mes-prop, .mes-incluir .mes-prop { font-weight: 400; font-size: var(--t-rotulo); min-height: var(--tap); }
+.mes-livro .mes-form-acoes > .btn-link:not(.mes-tirar) { padding: 0 var(--e-1); border-radius: 0; background: none; box-shadow: none; }
+.mes-livro .mes-tirar { color: var(--saida); }
+.mes-livro .mes-form-acoes > .btn-link { white-space: nowrap; }
+
+/* a situação: o carimbo, o vencimento com o Pagar, a meta com a barra fina */
+.mes-livro .mes-status { gap: 0; font-weight: 400; font-size: var(--t-rotulo); color: var(--tinta-2); }
+.mes-livro .mes-status::before { display: none; }
+.mes-livro .mes-status-pago { color: var(--tinta-2); }
+.mes-livro .mes-status.atencao { color: var(--atencao); }
+.mes-livro .mes-status.alerta { color: var(--alerta); }
+.mes-livro .mes-status-parcial { white-space: normal; }
+.mes-situ { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--e-2) var(--e-3); }
+.mes-pagar { margin: 0; }
+.mes-meta { gap: var(--e-3); }
+.mes-meta .mes-status { white-space: nowrap; }
+.mes-dif { font-size: var(--t-rotulo); color: var(--tinta-2); }
+.mes-dif.alerta { color: var(--alerta); }
+.mes-dif.atencao { color: var(--atencao); }
+.mes-dif.v-entrada { color: var(--entrada); }
+.mes-livro .link { font-size: var(--t-rotulo); }
+
+/* o mês fechado: a conta somada, com o fio duplo em cima e o fio de fechamento embaixo */
+.mes-livro.is-fechado tfoot tr.total-final td { border-bottom: 2px solid var(--tinta); }
+.mes-painel.is-fechado .rot-resposta { color: var(--tinta); }
+
+/* incluir uma categoria no mês */
+.mes-incluir { margin-top: var(--e-4); }
+.mes-incluir > summary {
+    display: inline-flex; align-items: center; gap: var(--e-2); min-height: var(--tap); padding: 0; border-radius: 0;
+    background: none; color: var(--azul); font-size: var(--t-rotulo); font-weight: 600; list-style: none; cursor: pointer;
+}
+.mes-incluir > summary::-webkit-details-marker { display: none; }
+.mes-incluir > summary:hover, .mes-incluir[open] > summary { background: none; color: var(--azul); text-decoration: underline; text-underline-offset: 3px; }
+.mes-incluir > .mes-form { max-width: 480px; margin-top: var(--e-2); padding: var(--e-4); border-radius: var(--raio-painel); background: var(--superficie); box-shadow: inset 0 0 0 1px var(--fio); }
+
+@media (max-width: 1023px) {
+    .mes-livro tbody tr:not(.grupo) { position: relative; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "nome real" "prev situ"; row-gap: 2px; }
+    .mes-livro tbody td:first-child { grid-area: nome; }
+    .mes-livro tbody td.c-real { grid-area: real; }
+    .mes-livro tbody td.c-prev { display: block; grid-area: prev; position: static; padding-left: 32px; text-align: left; color: var(--tinta-3); font-size: var(--t-meta); line-height: var(--lh-meta); }
+    .mes-livro tbody td.situacao { grid-area: situ; grid-column: auto; justify-self: end; padding: 0; text-align: right; }
+    .mes-livro tbody td.c-prev:empty, .mes-livro tbody td.c-real:empty { display: block; }
+    .mes-cel { display: inline; }
+    .mes-livro details.mes-ed > summary { min-height: var(--tap); margin-left: calc(-1 * var(--e-2)); }
+    .mes-ed-painel { left: 0; right: 0; width: auto; max-width: none; top: 100%; }
+    .mes-livro:not(.is-fechado) tfoot td.c-real, .mes-livro.is-fechado tfoot td.c-prev { display: none; }
+    .mes-livro.is-fechado tfoot td.c-real { text-align: right; }
+    .mes-livro tfoot tr.total-final td.situacao { grid-column: 1 / -1; }
+    .mes-livro.is-fechado tfoot tr.total-final { border-bottom: 2px solid var(--tinta); padding-bottom: var(--e-3); }
+    .mes-livro.is-fechado tfoot tr.total-final td { border-bottom: 0; }
+    .mes-acao { width: 100%; }
+}
+@media (min-width: 1024px) {
+    .mes-destino { margin-top: var(--e-7); padding-top: 0; border-top: 0; }
+    .mes-acao { align-items: flex-end; text-align: right; }
+}
+
+/* o Fechar: as faixas da grade, a escada até o balanço como um livro curto e o botão no fim */
+.grade.fe { max-width: none; }
+.fe-volta-seta { transform: scaleX(-1); }
+.fe-bloco .secao-cab { margin-bottom: var(--e-4); }
+.fe-intro, .fe-nada, .fe-bloqueado { color: var(--tinta-2); font-size: var(--t-rotulo); line-height: var(--lh-rotulo); }
+.fe-intro { margin-bottom: var(--e-4); }
+.fe-ponte { max-width: 520px; margin-top: var(--e-5); }
+.fe-ponte td { height: 40px; }
+.fe-ponte tfoot tr.total-final td { height: 56px; font: 400 var(--t-titulo)/var(--lh-titulo) var(--f-num); }
+.fe-ponte tfoot tr.total-final td:first-child { font: 400 var(--t-corpo)/var(--lh-corpo) var(--f-num); }
+.fe-aviso { margin-top: var(--e-4); font-size: var(--t-rotulo); line-height: var(--lh-rotulo); }
+.fe-desvios .linha-lista { grid-template-columns: minmax(0, 1fr) auto; }
+.fe-dv-dif { font-size: var(--t-rotulo); white-space: normal; text-align: right; }
+.fe-banco { display: flex; flex-direction: column; gap: var(--e-4); max-width: 480px; }
+.fe-aplicar { display: flex; flex-direction: row-reverse; align-items: center; justify-content: space-between; gap: var(--e-4); max-width: 520px; margin-top: var(--e-5); cursor: pointer; }
+.fe-aplicar > span { display: flex; flex-direction: column; gap: 2px; font-weight: 600; }
+.fe-aplicar-nota { font-weight: 400; color: var(--tinta-2); font-size: var(--t-rotulo); line-height: var(--lh-rotulo); }
+.fe-fim { display: flex; flex-wrap: wrap; align-items: center; gap: var(--e-3) var(--e-5); }
+.fe-motivo { color: var(--tinta-2); font-size: var(--t-rotulo); line-height: var(--lh-rotulo); }
+.fe-reabrir { margin: 0; }
+@media (max-width: 1023px) {
+    .fe-ponte tr { grid-template-columns: minmax(0, 1fr) auto; }
+    .fe-ponte td.c-real { text-align: right; }
+    .fe-botao { width: 100%; }
+}

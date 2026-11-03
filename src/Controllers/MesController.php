@@ -12,6 +12,7 @@ use Financeiro\Models\ContaModel;
 use Financeiro\Relogio;
 use Financeiro\Services\CartaoFatura;
 use Financeiro\Services\ChecklistContas;
+use Financeiro\Services\Destino;
 use Financeiro\Services\MotorFinanceiro;
 use Financeiro\Services\PrevisaoEdicao;
 use Financeiro\Services\PrevisaoLote;
@@ -143,10 +144,12 @@ final class MesController
 
         // com a parcela descontada do salário (consignado), o Salário aparece líquido: é o que cai na conta. A previsão
         // guardada continua bruta, para o plano devolver o valor cheio quando o empréstimo acabar (ver salvarPrevisao)
-        if ($estado !== 'real' && $parcelaDescontada > 0.004) {
+        // no mês fechado, o planejado do Salário também é o líquido: o que se compara com o que caiu na conta
+        $parcelaPlanejada = $estado === 'real' ? self::parcelaDescontada($plano, $d, $mes) : $parcelaDescontada;
+        if ($parcelaPlanejada > 0.004) {
             foreach ($entradas as &$e) {
                 if (($cats[$e['id']]['chave'] ?? null) === MotorFinanceiro::CAT_SALARIO) {
-                    $e['prev'] = round(max(0.0, (float) $e['prev'] - $parcelaDescontada), 2);
+                    $e['prev'] = round(max(0.0, (float) $e['prev'] - $parcelaPlanejada), 2);
                 }
             }
             unset($e);
@@ -191,6 +194,10 @@ final class MesController
             'incluir' => $incluir, 'erroLinha' => $erroLinha,
             // o resumo do mês: a mesma linha do plano que dá a previsão do fim do mês
             'sobra' => Sobra::prevista($linha),
+            // o livro-razão: poupança, investimentos, crédito e empréstimo; a barra do dinheiro do mês; o fechamento
+            'movimentos' => Destino::movimentos($d, $linha),
+            'destino' => Destino::doMes($d, $linha, $mesCal),
+            'fechamento' => $editavel ? null : self::fechamento($mes),
         ], 'mes');
     }
 
@@ -401,16 +408,7 @@ final class MesController
         $linha = $plano[$mes];
         [$entrou, $saiu, $balanco] = MotorFinanceiro::balancoTotal($linha);
 
-        // Parcela deste mês, quando descontada do salário: o salário lançado (real) é o líquido, e a
-        // previsão do Salário é o bruto. Só a partir de ajustes.consignado_inicio (mesma regra do motor).
-        $chaves = array_keys($plano);
-        $pos = array_search($mes, $chaves, true);
-        $loanIni = $pos > 0 ? (float) $plano[$chaves[$pos - 1]]['falta_pagar'] : (float) ($d['loanIni'] ?? 0.0);
-        $iniParcela = MotorFinanceiro::mesInicioParcela($d['aj']);
-        $aParte = (int) round((float) ($d['aj']['parcela_modo'] ?? 1.0)) === 2;
-        $parcelaDescontada = (!$aParte && $loanIni > 0.01 && ($iniParcela === null || $mes >= $iniParcela))
-            ? round(min((float) ($d['aj']['parcela_mensal'] ?? 0.0), $loanIni + (float) $linha['juros']), 2)
-            : 0.0;
+        $parcelaDescontada = self::parcelaDescontada($plano, $d, $mes);
 
         // bloco 2: desvios (3 maiores |real − previsto| ≥ 10, só operacionais)
         $desvios = [];
@@ -663,6 +661,37 @@ final class MesController
     }
 
     /* ================================================================== internos */
+
+    /**
+     * A parcela do empréstimo descontada do salário num mês: o salário lançado (real) é o líquido, e a previsão do
+     * Salário é o bruto. Só a partir de ajustes.consignado_inicio (mesma regra do motor). 0 quando é paga à parte.
+     */
+    private static function parcelaDescontada(array $plano, array $d, string $mes): float
+    {
+        $chaves = array_keys($plano);
+        $pos = array_search($mes, $chaves, true);
+        $loanIni = $pos > 0 ? (float) $plano[$chaves[$pos - 1]]['falta_pagar'] : (float) ($d['loanIni'] ?? 0.0);
+        $iniParcela = MotorFinanceiro::mesInicioParcela($d['aj']);
+        $aParte = (int) round((float) ($d['aj']['parcela_modo'] ?? 1.0)) === 2;
+        return (!$aParte && $loanIni > 0.01 && ($iniParcela === null || $mes >= $iniParcela))
+            ? round(min((float) ($d['aj']['parcela_mensal'] ?? 0.0), $loanIni + (float) $plano[$mes]['juros']), 2)
+            : 0.0;
+    }
+
+    /**
+     * Quando o mês foi fechado e se o saldo do banco foi conferido dentro dele (o Fechar grava a conferência).
+     * @return array{data:?string, conferido:bool}
+     */
+    private static function fechamento(string $mes): array
+    {
+        $pdo = Database::connection();
+        $st = $pdo->prepare('SELECT fechado_em FROM meses WHERE mes = ?');
+        $st->execute([$mes]);
+        $quando = $st->fetchColumn();
+        $st = $pdo->prepare('SELECT 1 FROM saldo_conferencias WHERE data >= ? AND data <= ? LIMIT 1');
+        $st->execute([$mes, date('Y-m-t', strtotime($mes))]);
+        return ['data' => is_string($quando) && $quando !== '' ? substr($quando, 0, 10) : null, 'conferido' => (bool) $st->fetchColumn()];
+    }
 
     /** `1.200,00` · `159,90`: dinheiro sempre com centavos (docs/decisoes.md). */
     private static function valorCurto(float $v): string

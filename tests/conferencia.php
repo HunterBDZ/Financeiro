@@ -185,12 +185,12 @@ function conferencia(callable $check): void
 
     // ---- 3. as telas abrem sem erro nem aviso do PHP, com o bloco principal, em português, inglês e espanhol
     $telas = [
-        ['/',              DashboardController::class,     'index',      [],                  'saldo-v'],
+        ['/',              DashboardController::class,     'index',      [],                  'class="grade ini"'],
         ['/lancamentos',   LancamentosController::class,   'index',      [],                  'ex-main'],
         ['/lancar',        LancamentosController::class,   'lancarForm', [],                  'data-lf'],
         ['/meta',          MetaController::class,          'index',      [],                  'meta-listas'],
-        ['/mes',           MesController::class,           'index',      [],                  'mes-resumo'],
-        ['/mes/fechar',    MesController::class,           'fecharForm', [],                  'fe-topo'],
+        ['/mes',           MesController::class,           'index',      [],                  'mes-livro'],
+        ['/mes/fechar',    MesController::class,           'fecharForm', [],                  'class="grade fe"'],
         ['/futuro',        FuturoController::class,        'index',      [],                  'fu-meses'],
         ['/ajustes',       AjustesController::class,       'index',      [],                  'aj-titulo'],
         ['/investimentos', InvestimentosController::class, 'index',      [],                  'inv-total'],
@@ -250,11 +250,13 @@ function conferencia(callable $check): void
     $linhaPrev = MotorFinanceiro::linhaDoMes($mesPrev);
     if ($linhaPrev !== null && $linhaPrev['situacao'] !== 'REAL') {
         $valPrev = num((float) $linhaPrev['fica_na_conta']);
-        $tagPrev = 'data-previsao-fim>Previsão para o fim de ' . mesExtenso($mesPrev) . ': <b>' . $valPrev . '</b>';
-        $check('Início: previsão do fim do mês vem do mesmo plano do Anual', str_contains($htmlIni, $tagPrev) && str_contains($htmlAno, $valPrev));
+        // o dinheiro do mês da barra do Início: o que sobrou do mês anterior mais tudo o que entra, na mesma linha do plano
+        $totalPrev = (float) $linhaPrev['sobrou_mes_anterior'] + MotorFinanceiro::balancoTotal($linhaPrev)[0];
+        $check('Início: a barra do dinheiro do mês vem do mesmo plano do Simular', (abs($totalPrev) < 0.005 || str_contains($htmlIni, 'data-total="' . number_format($totalPrev, 2, '.', '') . '"'))
+            && str_contains($htmlAno, $valPrev));
         // com o mês atual já fechado, o Início olha para o próximo, e o Mês continua no atual
         if ($mesPrev === $mesCal) {
-            $check('Mês: previsão do fim do mês igual à do Início', str_contains($htmlMes, $tagPrev));
+            $check('Mês: o fim do mês é a previsão do plano', str_contains($htmlMes, 'data-previsao-fim="' . number_format((float) $linhaPrev['fica_na_conta'], 2, '.', '') . '"'));
         }
     }
 
