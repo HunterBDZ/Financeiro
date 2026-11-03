@@ -87,6 +87,7 @@ final class LancamentosController
             'modo'       => $b['modo'],
             'periodo'    => $b['periodo'],
             'rotuloPeriodo' => $b['rotulo'],
+            'ondePeriodo' => $b['onde'],
             'valores'    => $b['valores'],
             'erroValor'  => $b['erroValor'],
             'params'     => $params,
@@ -173,7 +174,7 @@ final class LancamentosController
     /**
      * Os filtros do extrato, lidos da URL, os mesmos para a tela e para a planilha:
      * mes; periodo ('' o mês, ano, tudo, datas com de/ate); categoria (cat ou f); quem; q; min e max (valor); ordem.
-     * @return array{mes:string, meses:array, modo:string, periodo:?array{de:?string,ate:?string}, rotulo:string,
+     * @return array{mes:string, meses:array, modo:string, periodo:?array{de:?string,ate:?string}, rotulo:string, onde:string,
      *   usuarios:array, f:string, quem:int, categoria:?array, q:string, ordem:string,
      *   valores:array{min:string,max:string}, erroValor:?string, filtro:array, filtrado:bool, params:array}
      */
@@ -226,7 +227,15 @@ final class LancamentosController
             'tudo'  => t('Todos os meses'),
             'datas' => $de !== null && $ate !== null ? t('De {de} a {ate}', ['de' => diaMesAno($de), 'ate' => diaMesAno($ate)])
                 : ($de !== null ? t('Desde {de}', ['de' => diaMesAno($de)]) : ($ate !== null ? t('Até {ate}', ['ate' => diaMesAno($ate)]) : t('Todos os meses'))),
-            default => mb_convert_case(mesAno($mes), MB_CASE_TITLE),
+            default => mb_strtoupper(mb_substr(mesAno($mes), 0, 1)) . mb_substr(mesAno($mes), 1),
+        };
+        // o mesmo período no meio da frase ("Nada encontrado com esses filtros em novembro de 2026.")
+        $onde = match ($modo) {
+            'ano'   => t('em {ano}', ['ano' => substr($mes, 0, 4)]),
+            'tudo'  => t('em todos os meses'),
+            'datas' => $de !== null && $ate !== null ? t('de {de} a {ate}', ['de' => diaMesAno($de), 'ate' => diaMesAno($ate)])
+                : ($de !== null ? t('desde {de}', ['de' => diaMesAno($de)]) : ($ate !== null ? t('até {ate}', ['ate' => diaMesAno($ate)]) : t('em todos os meses'))),
+            default => t('em {mes}', ['mes' => mesAno($mes)]),
         };
 
         // valor mínimo e máximo, sem sinal; o que não dá para ler é avisado e fica de fora
@@ -238,7 +247,7 @@ final class LancamentosController
                 continue;
             }
             $v = parseMoedaBr($txt);
-            if ($v === null) {
+            if ($v === null || $v < 0) {                    // valor negativo também: o filtro é sem sinal
                 $erroValor = t('Digite o valor como 45 ou 45,90.');
                 $valores[$k] = '';
                 continue;
@@ -266,7 +275,7 @@ final class LancamentosController
         ], static fn($v) => $v !== '');
 
         return [
-            'mes' => $mes, 'meses' => $meses, 'modo' => $modo, 'periodo' => $periodo, 'rotulo' => $rotulo,
+            'mes' => $mes, 'meses' => $meses, 'modo' => $modo, 'periodo' => $periodo, 'rotulo' => $rotulo, 'onde' => $onde,
             'usuarios' => $usuarios, 'f' => $f, 'quem' => $quem, 'categoria' => $categoria, 'q' => $q, 'ordem' => $ordem,
             'valores' => $valores, 'erroValor' => $erroValor, 'filtro' => $filtro, 'contas' => $contas, 'conta' => $conta,
             'filtrado' => $f !== '' || $quem > 0 || $cat > 0 || $conta !== null || $q !== '' || $modo !== '' || $limites !== [],

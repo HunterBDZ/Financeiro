@@ -2370,4 +2370,12 @@ return [
     'O valor máximo é {valor}.' => 'El valor máximo es {valor}.',
     'Use vírgula para os centavos: {exemplo}.' => 'Use coma para los centavos: {exemplo}.',
     'Use vírgula só para os centavos: {mil} ou {cent}.' => 'Use coma solo para los centavos: {mil} o {cent}.',
+    'em {ano}' => 'en {ano}',
+    'em todos os meses' => 'en todos los meses',
+    'de {de} a {ate}' => 'del {de} al {ate}',
+    'desde {de}' => 'desde el {de}',
+    'até {ate}' => 'hasta el {ate}',
+    'em {mes}' => 'en {mes}',
+    'Nada com “{q}” {onde}.' => 'Nada con “{q}” {onde}.',
+    'Nada encontrado com esses filtros {onde}.' => 'No se encontró nada con estos filtros {onde}.',
 ];

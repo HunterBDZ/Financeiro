@@ -2370,4 +2370,12 @@ return [
     'O valor máximo é {valor}.' => 'The maximum amount is {valor}.',
     'Use vírgula para os centavos: {exemplo}.' => 'Use a period for cents: {exemplo}.',
     'Use vírgula só para os centavos: {mil} ou {cent}.' => 'Use a period only for cents: {mil} or {cent}.',
+    'em {ano}' => 'in {ano}',
+    'em todos os meses' => 'in all months',
+    'de {de} a {ate}' => 'from {de} to {ate}',
+    'desde {de}' => 'since {de}',
+    'até {ate}' => 'until {ate}',
+    'em {mes}' => 'in {mes}',
+    'Nada com “{q}” {onde}.' => 'Nothing with “{q}” {onde}.',
+    'Nada encontrado com esses filtros {onde}.' => 'Nothing found with these filters {onde}.',
 ];

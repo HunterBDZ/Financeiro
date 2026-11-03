@@ -2,7 +2,7 @@
 /**
  * Extrato: o livro-razão do período, de largura total. Variáveis: $mes, $meses, $situacao, $estado, $hoje, $usuarios,
  * $f, $quem, $categoria (?array), $categorias (array), $q, $modo ('' = o mês; ano, tudo, datas), $periodo (?de/ate),
- * $rotuloPeriodo, $valores (min/max como digitados), $erroValor, $params (filtros ativos, com mes), $limite,
+ * $rotuloPeriodo, $ondePeriodo (o período no meio da frase: "em novembro de 2026"), $valores (min/max como digitados), $erroValor, $params (filtros ativos, com mes), $limite,
  * $linhas, $totais, $filtrado, $renda (?float, só sem filtro), $urlAtual, $urlPlanilha,
  * $form (não usado aqui: o Lançar é o diálogo do layout), $contasMes (ChecklistContas::fixasAPagar).
  * Com mais de uma conta: $contas (todas, para o filtro), $conta (a filtrada, ou null), $transferencias (as do período,
@@ -256,12 +256,12 @@ $colunas = 4;
         <?php if ($linhas === [] && $transferencias === []): ?>
             <div class="vazio ext-vazio">
                 <?php if ($q !== ''): ?>
-                    <p class="titulo"><?= e($modo === '' ? t('Nada com “{q}” em {mes}.', ['q' => $q, 'mes' => mesExtenso($mes)]) : t('Nada com “{q}” em {periodo}.', ['q' => $q, 'periodo' => $rotuloPeriodo])) ?></p>
+                    <p class="titulo"><?= e($modo === '' ? t('Nada com “{q}” em {mes}.', ['q' => $q, 'mes' => mesExtenso($mes)]) : t('Nada com “{q}” {onde}.', ['q' => $q, 'onde' => $ondePeriodo])) ?></p>
                     <?php if ($modo !== 'tudo'): ?>
                         <a class="btn btn-contorno" href="<?= e($url(['periodo' => 'tudo', 'de' => '', 'ate' => ''])) ?>"><?= svgIcon('search', 16) ?><?= e(t('Buscar em todos os meses')) ?></a>
                     <?php endif; ?>
                 <?php elseif ($modo !== '' || $valores['min'] !== '' || $valores['max'] !== '' || $quem > 0 || $conta !== null): ?>
-                    <p class="titulo"><?= e(t('Nada encontrado com esses filtros em {periodo}.', ['periodo' => $rotuloPeriodo])) ?></p>
+                    <p class="titulo"><?= e(t('Nada encontrado com esses filtros {onde}.', ['onde' => $ondePeriodo])) ?></p>
                     <a class="btn-link" href="<?= e($url(['f' => '', 'cat' => '', 'conta' => '', 'q' => '', 'min' => '', 'max' => '', 'quem' => '', 'periodo' => '', 'de' => '', 'ate' => ''])) ?>"><?= e(t('Limpar filtros')) ?></a>
                 <?php elseif ($categoria !== null || $f !== ''): ?>
                     <p class="titulo"><?= e($categoria !== null ? t('Nada de {categoria} em {mes}.', ['mes' => mesExtenso($mes), 'categoria' => nomeCurto($categoria)]) : t('Nada nesse grupo em {mes}.', ['mes' => mesExtenso($mes)])) ?></p>

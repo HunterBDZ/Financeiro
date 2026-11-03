@@ -1631,6 +1631,12 @@ $check('valor: vírgula e ponto trocados dizem como escrever', motivoValor('1,50
     && motivoValor('1.5') === 'Use vírgula para os centavos: 1,50.' && motivoValor('45') === null && motivoValor('abc') === null
     && ($validarL->invoke(null, ['valor' => '1.5', 'categoria_id' => '1'])[0] ?? '') === 'Use vírgula para os centavos: 1,50.');
 
+// ---- 9k. Extrato: o mês no meio da frase em minúscula, e o filtro de valor negativo recusado (B-11)
+$htmlExtF = $render(LancamentosController::class, 'index', ['mes' => $mesHoje, 'min' => '999999']);
+$htmlExtN = $render(LancamentosController::class, 'index', ['mes' => $mesHoje, 'max' => '-5']);
+$check('extrato: "em novembro de 2026" no meio da frase', str_contains($htmlExtF, 'Nada encontrado com esses filtros em ' . mesAno($mesHoje) . '.') && !str_contains($htmlExtF, ' De ' . substr($mesHoje, 0, 4)));
+$check('extrato: valor negativo no filtro é recusado', str_contains($htmlExtN, 'Digite o valor como 45 ou 45,90.') && !str_contains($htmlExtN, 'name="max" value="-5"'));
+
 // ---- 9d. Mês fechado não muda (B-01): lançar, editar, excluir, transferir, pagar e a compra cuja fatura é de mês fechado
 $emTransacao('mês fechado não muda', static function () use ($pdo, $check, $render, $catDia, $mesHoje, $hoje, $uid): void {
     $fechado = (string) $pdo->query("SELECT MAX(mes) FROM meses WHERE situacao = 'REAL'")->fetchColumn();
