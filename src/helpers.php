@@ -122,6 +122,44 @@ function moneyCompact(float $v): string
 }
 
 /**
+ * Um valor para a tela, em HTML: o número com os centavos menores (`.cent`) e a classe pela regra de cor do app.
+ *   'auto'     o que já aconteceu, pelo sinal: negativo saiu (vermelho, "−"), positivo entrou (verde, "+"), zero neutro
+ *   'saida'    já saiu: vermelho com "−", seja qual for o sinal de $v
+ *   'entrada'  já entrou: verde com "+", seja qual for o sinal de $v
+ *   'previsto' ainda não aconteceu: --tinta-2, sem cor; só o "−" quando $v é negativo
+ *   'neutro'   tinta cheia; só o "−" quando $v é negativo (saldos, totais)
+ * $opc: 'moeda' => true põe o símbolo (só no número-resposta); 'classe' => classes a mais; 'centavos' => false
+ * deixa os centavos no tamanho do número. Ex.: valor(-408.98, 'auto') =
+ * `<span class="num v-saida">−408<span class="cent">,98</span></span>`.
+ */
+function valor(float $v, string $tipo = 'neutro', array $opc = []): string
+{
+    [$neg, $abs] = _centavos($v);
+    [$sinal, $classe] = match ($tipo) {
+        'auto'     => $abs === 0.0 ? ['', ''] : ($neg ? [MENOS, 'v-saida'] : ['+', 'v-entrada']),
+        'saida'    => $abs === 0.0 ? ['', ''] : [MENOS, 'v-saida'],
+        'entrada'  => $abs === 0.0 ? ['', ''] : ['+', 'v-entrada'],
+        'previsto' => [$neg ? MENOS : '', 'v-previsto'],
+        default    => [$neg ? MENOS : '', ''],
+    };
+    $texto = _numero($abs, 2);
+    $dec = sepDecimal();
+    $corte = strrpos($texto, $dec);
+    $numero = ($opc['centavos'] ?? true) && $corte !== false
+        ? e(substr($texto, 0, $corte)) . '<span class="cent">' . e(substr($texto, $corte)) . '</span>'
+        : e($texto);
+    $moeda = !empty($opc['moeda']) ? '<span class="moeda">' . e(moedaSimbolo()) . '</span>' : '';
+    $classes = implode(' ', array_filter(['num', $classe, (string) ($opc['classe'] ?? '')], static fn(string $c): bool => $c !== ''));
+    return '<span class="' . e($classes) . '">' . $sinal . $moeda . $numero . '</span>';
+}
+
+/** O carimbo "pago" (a assinatura do app), com o dia: `pago 22/11`. $entra = true anima a entrada (logo depois de pagar). */
+function carimbo(string $data, bool $entra = false): string
+{
+    return '<span class="carimbo' . ($entra ? ' entra' : '') . '">' . svgIcon('check', 12) . e(t('pago {data}', ['data' => diaMes($data)])) . '</span>';
+}
+
+/**
  * Lê um valor em reais digitado no formato brasileiro. Aceita "1500", "1.500,00",
  * "1500,00", "20.000,0000" (Ajustes usa 4 casas), "R$ 1.500,00" e o texto de money().
  * Sinal de menos no início: "-" (hífen), "−" (U+2212) ou "–" (U+2013); NBSP é ignorado.
@@ -521,6 +559,7 @@ function svgIcon(string $name, int $size = 14, string $class = ''): string
 {
     static $icons = [
         // navegação
+        'marca'    => '<path d="M6 17v-5"/><path d="M12 17V7"/><path d="M18 17V9"/>',
         'ajuda'    => '<circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.4a2.5 2.5 0 1 1 3.7 2.2c-.8.5-1.3 1-1.3 1.9"/><path d="M12 16.6h.01"/>',
         'home'     => '<path d="M3.5 10.2 12 3.5l8.5 6.7"/><path d="M5.5 8.8V19a1.5 1.5 0 0 0 1.5 1.5h3.2v-5.2h3.6v5.2H17a1.5 1.5 0 0 0 1.5-1.5V8.8"/>',
         'list'     => '<path d="M9 6.5h11"/><path d="M9 12h11"/><path d="M9 17.5h11"/><circle cx="4.5" cy="6.5" r=".9" fill="currentColor"/><circle cx="4.5" cy="12" r=".9" fill="currentColor"/><circle cx="4.5" cy="17.5" r=".9" fill="currentColor"/>',
@@ -585,9 +624,9 @@ function renderErro(int $codigo, string $titulo, string $mensagem): never
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#f4f5f7" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0a0b0f" media="(prefers-color-scheme: dark)">
-<title><?= e((string) $codigo) ?> · financeiro</title>
+<meta name="theme-color" content="#F6F8FB" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0A1020" media="(prefers-color-scheme: dark)">
+<title><?= e((string) $codigo) ?> · MyMonetto</title>
 <?= \Financeiro\SiteIcone::tags() ?><link rel="preload" href="/assets/fonts/manrope-var-latin.woff2" as="font" type="font/woff2" crossorigin>
 <script src="<?= e(asset('/assets/js/theme.js')) ?>"></script>
 <link rel="stylesheet" href="<?= e(asset($css)) ?>">

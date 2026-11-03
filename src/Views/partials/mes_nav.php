@@ -34,11 +34,6 @@ $proximo  = $i !== false && $i < count($lista) - 1 ? $lista[$i + 1] : null;
 $estado   = estadoMes($mes, $situacoes[$mes] ?? 'PREVISAO', $hoje);
 $extenso  = mb_convert_case(mesExtenso($mes), MB_CASE_TITLE);
 $ano      = substr($mes, 0, 4);
-
-$porAno = [];
-foreach ($lista as $k) {
-    $porAno[substr($k, 0, 4)][] = $k;
-}
 ?>
 <nav class="mes-nav" aria-label="<?= e(t('mês')) ?>">
     <?php if ($anterior !== null): ?>
@@ -52,29 +47,7 @@ foreach ($lista as $k) {
             <span class="mes-nav-t" aria-hidden="true"><?= e($extenso) ?> <span class="mes-nav-ano num"><?= e($ano) ?></span></span>
             <?= svgIcon('chevron', 18, 'mes-picker-seta') ?>
         </summary>
-        <div class="menu-painel mes-picker-painel">
-            <?php foreach ($porAno as $a => $ks): ?>
-                <p class="mes-picker-ano num"><?= e($a) ?></p>
-                <ol class="mes-picker-grade">
-                    <?php foreach ($ks as $k):
-                        $est = estadoMes($k, $situacoes[$k], $hoje);
-                        $atual = $k === $mes; ?>
-                        <li><a class="mes-picker-m estado-<?= e($est) ?><?= $atual ? ' is-on' : '' ?>" href="<?= e($href . $k . $sufixo) ?>"<?= $atual ? ' aria-current="page"' : '' ?>>
-                            <span><?= e(mesCurto($k)) ?></span><i class="ponto-estado" aria-hidden="true"></i><span class="sr-only"> <?= e(t('de {ano}, {estado}', ['ano' => $a, 'estado' => mb_strtolower(estadoLabel($est))])) ?></span>
-                        </a></li>
-                    <?php endforeach; ?>
-                </ol>
-            <?php endforeach; ?>
-            <p class="mes-picker-leg" aria-hidden="true">
-                <span class="leg-real"><i class="ponto-estado"></i><?= e(t('Fechado')) ?></span>
-                <span class="leg-aberto"><i class="ponto-estado"></i><?= e(t('Aberto')) ?></span>
-                <span class="leg-previsto"><i class="ponto-estado"></i><?= e(t('Previsto')) ?></span>
-            </p>
-            <?php if ($anual): ?>
-                <a class="mes-picker-anual" href="/relatorio"><?= svgIcon('relatorio', 18) ?><span><?= e(t('Relatório')) ?></span><?= svgIcon('chevron', 16) ?></a>
-                <a class="mes-picker-anual" href="/futuro"><?= svgIcon('trend', 18) ?><span><?= e(t('Simular uma mudança')) ?></span><?= svgIcon('chevron', 16) ?></a>
-            <?php endif; ?>
-        </div>
+        <?php \Financeiro\View::partial('partials/_mes_painel', ['mes' => $mes, 'lista' => $lista, 'situacoes' => $situacoes, 'hoje' => $hoje, 'href' => $href, 'sufixo' => $sufixo, 'anual' => $anual]); ?>
     </details>
     <span class="estado estado-<?= e($estado) ?>"><?= e(estadoLabel($estado)) ?></span>
     <?php if ($proximo !== null): ?>

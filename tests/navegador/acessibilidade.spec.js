@@ -1,7 +1,7 @@
 // Acessibilidade básica: a varredura do axe nas telas principais, nos temas Claro e Escuro. Só reprova o que o axe
 // classifica como grave (serious) ou crítico (critical). Roda só no Chromium (playwright.config.js).
 import AxeBuilder from '@axe-core/playwright';
-import { test, expect, escolherTema, contaSemPagamento, TELAS } from './fixtures.js';
+import { test, expect, escolherTema, contaSemPagamento, TELAS, TELAS_AJUSTES } from './fixtures.js';
 
 // Violações reais que o app ainda tem: [regra do axe, elemento]. As varreduras das telas ignoram só esse elemento
 // nessa regra, para pegar qualquer violação nova. Se aparecer uma, ponha aqui e crie um teste "esperado falhar".
@@ -24,6 +24,11 @@ async function graves(page, regras = null) {
         .map(([v, alvos]) => `${v.id} (${v.impact}): ${alvos.join(', ')}`);
 }
 
+/** Espera o painel terminar de entrar: no meio da animação a opacidade ainda não é 1, e o axe mede o contraste errado. */
+async function fimDaAnimacao(page, seletor) {
+    await page.locator(seletor).evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)));
+}
+
 for (const tema of ['claro', 'escuro']) {
     test.describe(`tema ${tema}`, () => {
         test.beforeEach(async ({ page, baseURL }) => {
@@ -33,7 +38,7 @@ for (const tema of ['claro', 'escuro']) {
             await escolherTema(page, baseURL, 'auto');
         });
 
-        for (const [nome, caminho] of TELAS) {
+        for (const [nome, caminho] of [...TELAS, ...TELAS_AJUSTES]) {
             test(nome, async ({ page }) => {
                 await page.goto(caminho);
                 expect(await graves(page)).toEqual([]);
@@ -82,19 +87,30 @@ for (const tema of ['claro', 'escuro']) {
         test.describe('no celular', () => {
             test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
 
-            test('Início, com a barra de baixo e o menu aberto', async ({ page }) => {
+            test('Início, com a barra de baixo e o Mais aberto', async ({ page }) => {
                 await page.goto('/');
                 expect(await graves(page)).toEqual([]);
-                await page.getByRole('banner').getByText('Menu', { exact: true }).click();
-                await expect(page.getByRole('banner').getByRole('link', { name: 'Ajustes' })).toBeVisible();
+                const barra = page.getByRole('navigation', { name: 'principal' });
+                await barra.getByText('Mais', { exact: true }).click();
+                await expect(barra.getByRole('link', { name: 'Ajustes' })).toBeVisible();
+                await fimDaAnimacao(page, '.tab-mais > .menu-painel');
                 expect(await graves(page)).toEqual([]);
             });
 
-            test('menu do botão Menu no modo organizar', async ({ page }) => {
+            test('o Mais no modo organizar', async ({ page }) => {
                 await page.goto('/');
-                await page.getByRole('banner').getByText('Menu', { exact: true }).click();
-                await page.getByRole('banner').getByRole('button', { name: 'Organizar menu' }).click();
-                await expect(page.getByRole('banner').getByRole('button', { name: 'Pronto' })).toBeVisible();
+                const barra = page.getByRole('navigation', { name: 'principal' });
+                await barra.getByText('Mais', { exact: true }).click();
+                await barra.getByRole('button', { name: 'Organizar menu' }).click();
+                await expect(barra.getByRole('button', { name: 'Pronto' })).toBeVisible();
+                await fimDaAnimacao(page, '.tab-mais > .menu-painel');
+                expect(await graves(page)).toEqual([]);
+            });
+
+            test('Temas, com uma paleta em experiência', async ({ page }) => {
+                await page.goto('/temas');
+                await page.getByRole('group', { name: 'Azulejo' }).getByRole('button', { name: 'Escuro' }).click();
+                await expect(page.getByRole('status').filter({ hasText: 'Azulejo, escuro' })).toBeVisible();
                 expect(await graves(page)).toEqual([]);
             });
         });

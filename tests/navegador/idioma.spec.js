@@ -9,7 +9,7 @@ test('troca para inglês e volta para português', async ({ page }) => {
     await expect(page.locator('html')).toHaveAttribute('lang', 'en');
     await expect(page.getByRole('status').filter({ hasText: 'Language saved.' })).toBeVisible();
     const menu = page.getByRole('navigation', { name: 'main' });
-    await expect(menu.getByRole('link')).toHaveText(['Home', 'Activity', 'Month', 'Card', 'Report', 'Simulate', 'Loan', 'Investments', 'Wishlist', 'Themes', 'Goals', 'Help', 'Settings']);
+    await expect(menu.getByRole('link')).toHaveText(['Home', 'Activity', 'Month', 'Card', 'Goals', 'Report', 'Simulate', 'Loan', 'Investments', 'Wishlist', 'Settings']);
 
     await page.getByRole('form', { name: 'Language' }).getByRole('button', { name: 'Português' }).click();
     await expect(page.locator('html')).toHaveAttribute('lang', 'pt-BR');

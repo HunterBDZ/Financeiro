@@ -2,9 +2,10 @@
 /**
  * Layout. Variáveis: $content, $pageTitle, $active (inicio|extrato|meta|mes|cartao|relatorio|emprestimo|wishlist|temas|ajustes),
  * $semDialogoLancar (true = não renderiza o <dialog id="lancar">).
- * Computador: menu lateral (marca, Lançar, abas na ordem da conta, Claro/Escuro, quem está e sair).
- * Celular: barra de cima (marca, sol/lua, botão Menu) e barra flutuante embaixo com o "+" no
- * meio de 4 abas (Início, Extrato, +, Mês, Cartão). O resto das abas fica no botão Menu, junto com a conta.
+ * Computador: menu lateral (a marca, Lançar com a tecla N, as abas na ordem da conta em 3 grupos e a pessoa no pé).
+ * Celular: sem barra de cima; a barra de baixo tem Início, Extrato, o "+", Mês e Mais. O Mais abre as outras abas,
+ * na ordem da conta, e o Sair. O tema (claro, escuro ou automático) fica em Ajustes > Temas.
+ * O conteúdo vai em <main class="conteudo">: as telas novas usam a grade (.grade, .faixa-grade) e o topo (partials/topo).
  * CSS/JS dos pacotes entram só se o arquivo existir (D19): nenhum 404 durante o build.
  */
 use Financeiro\Auth;
@@ -16,8 +17,10 @@ use Financeiro\Temas;
 use Financeiro\View;
 
 $activePage = (string) ($active ?? '');
+// Temas e Ajuda abrem por Ajustes: lá, a aba acesa é a de Ajustes
+$acesa = in_array($activePage, ['temas', 'ajuda'], true) ? 'ajustes' : $activePage;
 
-// chave => [href, rótulo, ícone], na ordem padrão (Menu::abas); a barra de baixo segue essa ordem (o "+" entra depois da 2ª)
+// chave => [href, rótulo, ícone], na ordem padrão (Menu::abas)
 $abas = Menu::abas();
 
 // recursos opcionais: a aba do que a pessoa não usa fica escondida, mas guarda o lugar na ordem da conta
@@ -29,10 +32,11 @@ if (!$usaCartao) {
 if (!$usaEmprestimo) {
     unset($abas['emprestimo']);
 }
-// a ordem que a pessoa escolheu (modo organizar, menu.js): vale no menu lateral e na lista do botão Menu
+// a ordem que a pessoa escolheu (modo organizar, menu.js): vale no menu lateral e na lista do Mais
 $ordemMenu = array_values(array_filter(Menu::daConta(Auth::id()), static fn(string $c): bool => isset($abas[$c])));
-// lista do botão Menu (celular): o que não fica na barra de baixo, e o Relatório sempre
-$doBotaoMenu = array_values(array_diff($ordemMenu, ['inicio', 'extrato', 'mes', 'cartao']));
+// a barra de baixo do celular é fixa: Início, Extrato, +, Mês e Mais. O Mais tem o resto, na ordem da conta
+$naBarra = ['inicio', 'extrato', 'mes'];
+$doBotaoMenu = array_values(array_diff($ordemMenu, $naBarra));
 $csrfMenu = e(csrfToken());
 // o que o menu.js precisa: o token, a ordem padrão daquela lista e o lugar do aviso para leitor de tela
 $organizar = static function (array $chaves) use ($abas, $csrfMenu): string {
@@ -60,43 +64,39 @@ $comDialogo = empty($semDialogoLancar)
     && class_exists(\Financeiro\Services\LancarForm::class)
     && is_file(__DIR__ . '/../lancamentos/_form.php');
 
-// classe + aria-current da aba ativa
-$aba = static function (string $chave) use ($activePage): string {
-    return $activePage === $chave ? ' is-active' : '';
+// classe + aria-current da aba ativa (aria-current só na página que é ela mesma)
+$aba = static function (string $chave) use ($acesa): string {
+    return $acesa === $chave ? ' is-active' : '';
 };
 $atual = static function (string $chave) use ($activePage): string {
     return $activePage === $chave ? ' aria-current="page"' : '';
 };
-// barra do celular: Início, Extrato, +, Mês, Cartão. Com cartão, o Relatório abre pelo menu e quem fica acesa nele é a do Mês; sem cartão, ele toma o lugar
-$barra = array_diff_key($abas, ($usaCartao ? ['relatorio' => true] : []) + ['simular' => true, 'meta' => true, 'emprestimo' => true, 'investimentos' => true, 'wishlist' => true, 'temas' => true, 'ajuda' => true, 'ajustes' => true]);
-$acesaNaBarra = $usaCartao && $activePage === 'relatorio' ? 'mes' : $activePage;
+$barra = array_intersect_key($abas, array_flip($naBarra));
+// com o Relatório aberto, quem fica acesa na barra é a do Mês (ele abre pelo seletor de meses do Mês)
+$acesaNaBarra = $activePage === 'relatorio' ? 'mes' : $acesa;
+$maisAceso = in_array($acesaNaBarra, $doBotaoMenu, true);
 // o tema da conta vem no HTML: nada de piscar, e vale em qualquer aparelho. Null = automático (theme.js)
 $temaConta = Temas::doUsuario();
 $dadosTema = $temaConta !== null ? Temas::todos()[$temaConta] : null;
-$csrfTema = e(csrfToken());
-// o atalho claro/escuro vai para o outro lado do tema escolhido; tema sem o outro lado mostra o nome dele e leva à tela Temas
-$ladosTema = Temas::lados($temaConta);
-$dadosAtalho = '';
-if ($ladosTema !== null) {
-    $todosTemas = Temas::todos();
-    $dadosAtalho = ' data-tema-csrf="' . $csrfTema . '" data-lado-claro="' . e($ladosTema[0]) . '" data-lado-escuro="' . e($ladosTema[1])
-        . '" data-bg-claro="' . e((string) $todosTemas[$ladosTema[0]]['bg']) . '" data-bg-escuro="' . e((string) $todosTemas[$ladosTema[1]]['bg']) . '"';
-}
-$marca = '<span class="marca"><img src="' . e(SiteIcone::url()) . '" alt="" width="96" height="96"></span>';
+$modoTema = $dadosTema !== null ? (string) $dadosTema['modo'] : 'auto';
+// a marca: o sinal, ou a imagem enviada em Ajustes
+$marca = SiteIcone::personalizado() !== null
+    ? '<span class="marca-sinal is-imagem"><img src="' . e(SiteIcone::url()) . '" alt="" width="28" height="28"></span>'
+    : '<span class="marca-sinal">' . svgIcon('marca', 18) . '</span>';
 ?>
 <!doctype html>
-<html lang="<?= e(Idioma::html()) ?>"<?= $dadosTema !== null ? ' data-theme="' . e((string) $dadosTema['modo']) . '" data-tema="' . e((string) $temaConta) . '"' : '' ?>>
+<html lang="<?= e(Idioma::html()) ?>"<?= $dadosTema !== null ? ($modoTema !== 'auto' ? ' data-theme="' . e($modoTema) . '"' : '') . ' data-tema="' . e((string) $temaConta) . '"' : ' data-tema-auto' ?>>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
-<?php if ($dadosTema !== null): ?>
+<?php if ($dadosTema !== null && $modoTema !== 'auto'): ?>
 <meta name="theme-color" content="<?= e((string) $dadosTema['bg']) ?>">
 <?php else: ?>
-<meta name="theme-color" content="#f4f5f7" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0a0b0f" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="<?= e((string) ($dadosTema['bg'] ?? Temas::FUNDO_CLARO)) ?>" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="<?= e((string) ($dadosTema['bgEscuro'] ?? Temas::FUNDO_ESCURO)) ?>" media="(prefers-color-scheme: dark)">
 <?php endif; ?>
 <meta name="format-detection" content="telephone=no">
-<title><?= e($pageTitle ?? 'financeiro') ?></title>
+<title><?= e($pageTitle ?? 'MyMonetto') ?></title>
 <?= SiteIcone::tags() ?><link rel="preload" href="/assets/fonts/manrope-var-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/assets/fonts/sora-var-latin.woff2" as="font" type="font/woff2" crossorigin>
 <script src="<?= e(asset('/assets/js/theme.js')) ?>"></script>
@@ -112,32 +112,22 @@ $marca = '<span class="marca"><img src="' . e(SiteIcone::url()) . '" alt="" widt
 <a class="pular" href="#conteudo"><?= e(t('Pular para o conteúdo')) ?></a>
 
 <aside class="lateral" aria-label="<?= e(t('menu')) ?>">
-    <a class="lat-marca" href="/"><?= $marca ?><b translate="no">financeiro</b></a>
-    <a class="lat-lancar" href="<?= e($hrefLancar) ?>" data-lancar><?= svgIcon('plus', 18) ?><?= e(t('Lançar')) ?></a>
+    <a class="lat-marca" href="/"><?= $marca ?><b translate="no">MyMonetto</b></a>
+    <a class="lat-lancar btn btn-principal" href="<?= e($hrefLancar) ?>" data-lancar aria-keyshortcuts="n"><span><?= e(t('Lançar')) ?></span><kbd aria-hidden="true">N</kbd></a>
     <div class="org"<?= $organizar($ordemMenu) ?>>
         <?php View::partial('layout/_organizar', ['parte' => 'barra']); ?>
         <nav class="lat-nav" aria-label="<?= e(t('principal')) ?>">
             <ul class="org-lista" data-org-lista>
                 <?php foreach ($ordemMenu as $chave): [$href, $rotulo, $icone] = $abas[$chave]; ?>
-                    <li class="org-i" data-aba="<?= e($chave) ?>"><a class="lat-i<?= $aba($chave) ?>" href="<?= e($href) ?>"<?= $atual($chave) ?>><?= svgIcon($icone, 20) ?><span><?= e($rotulo) ?></span></a></li>
+                    <li class="org-i" data-aba="<?= e($chave) ?>" data-grupo="<?= (int) (Menu::GRUPOS[$chave] ?? 2) ?>"><a class="lat-i<?= $aba($chave) ?>" href="<?= e($href) ?>"<?= $atual($chave) ?>><?= svgIcon($icone, 18) ?><span><?= e($rotulo) ?></span></a></li>
                 <?php endforeach; ?>
             </ul>
         </nav>
         <?php View::partial('layout/_organizar', ['parte' => 'abrir']); ?>
     </div>
     <div class="lat-fim">
-        <?php if ($ladosTema !== null): ?>
-            <div class="tema-seg" role="group" aria-label="<?= e(t('tema')) ?>"<?= $dadosAtalho ?>>
-                <button type="button" class="t-claro" data-tema="light"><?= svgIcon('sun', 16) ?><?= e(t('Claro')) ?></button>
-                <button type="button" class="t-escuro" data-tema="dark"><?= svgIcon('moon', 16) ?><?= e(t('Escuro')) ?></button>
-            </div>
-        <?php else: ?>
-            <?php // i18n: t('Terminal') t('Âmbar') t('Portátil') t('Janela 95') t('Papel') t('Caramelo') t('Calçadão') t('Azulejo') t('Tropical') t('Cordel') t('Festa Junina') t('Daltônico')
-            $nomeTema = (string) $dadosTema['nome']; ?>
-            <a class="tema-atual" href="/temas"><?= svgIcon('paleta', 16) ?><span><?= e(t($nomeTema)) ?></span><?= svgIcon('chevron', 14) ?></a>
-        <?php endif; ?>
         <div class="lat-user">
-            <span class="avatar"><?= e($inicial) ?></span>
+            <span class="avatar" aria-hidden="true"><?= e($inicial) ?></span>
             <b><?= e((string) ($nome ?? '')) ?></b>
             <form method="post" action="/logout">
                 <?= csrfField() ?>
@@ -146,30 +136,6 @@ $marca = '<span class="marca"><img src="' . e(SiteIcone::url()) . '" alt="" widt
         </div>
     </div>
 </aside>
-
-<header class="topbar">
-    <a class="topbar-marca" href="/"><?= $marca ?><b translate="no">financeiro</b></a>
-    <?php if ($ladosTema !== null): ?><button type="button" class="ic" data-theme-toggle<?= $dadosAtalho ?> aria-label="<?= e(t('trocar tema')) ?>"><?= svgIcon('sun', 19, 'so-escuro') ?><?= svgIcon('moon', 19, 'so-claro') ?></button><?php else: ?><a class="ic" href="/temas" aria-label="<?= e(t('Temas')) ?>"><?= svgIcon('paleta', 19) ?></a><?php endif; ?>
-    <details class="menu menu-geral">
-        <summary class="menu-botao<?= in_array($activePage, ['ajuda', 'ajustes', 'simular', 'meta', 'emprestimo', 'investimentos', 'wishlist', 'temas'], true) ? ' is-active' : '' ?>"><?= svgIcon('menu', 19) ?><span><?= e(t('Menu')) ?></span></summary>
-        <div class="menu-painel">
-            <?php if ($nome): ?><div class="menu-quem"><?= e($nome) ?></div><?php endif; ?>
-            <div class="org org-celular"<?= $organizar($doBotaoMenu) ?>>
-                <?php View::partial('layout/_organizar', ['parte' => 'barra']); ?>
-                <ul class="org-lista" data-org-lista>
-                    <?php foreach ($doBotaoMenu as $chave): [$href, $rotulo, $icone] = $abas[$chave]; ?>
-                        <li class="org-i" data-aba="<?= e($chave) ?>"><a class="menu-item<?= $aba($chave) ?>" href="<?= e($href) ?>"<?= $atual($chave) ?>><?= svgIcon($icone, 18) ?><?= e($rotulo) ?></a></li>
-                    <?php endforeach; ?>
-                </ul>
-                <?php View::partial('layout/_organizar', ['parte' => 'abrir']); ?>
-            </div>
-            <form method="post" action="/logout">
-                <?= csrfField() ?>
-                <button type="submit" class="menu-item"><?= svgIcon('logout', 18) ?><?= e(t('Sair')) ?></button>
-            </form>
-        </div>
-    </details>
-</header>
 
 <?php if (is_array($flash) && ($flash['message'] ?? '') !== ''): ?>
 <div class="toast toast-<?= e($flashTipo) ?>" role="<?= $flashTipo === 'error' ? 'alert' : 'status' ?>" data-toast>
@@ -189,17 +155,36 @@ $marca = '<span class="marca"><img src="' . e(SiteIcone::url()) . '" alt="" widt
 </div>
 <?php endif; ?>
 
-<main class="page" id="conteudo">
+<main class="conteudo" id="conteudo">
 <?= $content ?>
 </main>
 
 <nav class="tabbar" aria-label="<?= e(t('principal')) ?>">
     <?php $i = 0; foreach ($barra as $chave => [$href, $rotulo, $icone]): ?>
         <?php if ($i++ === 2): ?>
-            <a class="tab-add" href="<?= e($hrefLancar) ?>" data-lancar aria-label="<?= e(t('lançar')) ?>"><?= svgIcon('plus', 24) ?></a>
+            <a class="tab-add" href="<?= e($hrefLancar) ?>" data-lancar aria-label="<?= e(t('lançar')) ?>"><?= svgIcon('plus', 22) ?></a>
         <?php endif; ?>
-        <a class="tab<?= $acesaNaBarra === $chave ? ' is-active' : '' ?>" href="<?= e($href) ?>"<?= $atual($chave) ?>><?= svgIcon($icone, 21) ?><span><?= e($rotulo) ?></span></a>
+        <a class="tab<?= $acesaNaBarra === $chave ? ' is-active' : '' ?>" href="<?= e($href) ?>"<?= $atual($chave) ?>><?= svgIcon($icone, 20) ?><span><?= e($rotulo) ?></span></a>
     <?php endforeach; ?>
+    <details class="menu menu-geral tab-mais">
+        <summary class="tab menu-botao<?= $maisAceso ? ' is-active' : '' ?>"><?= svgIcon('more', 20) ?><span><?= e(t('Mais')) ?></span></summary>
+        <div class="menu-painel">
+            <?php if ($nome): ?><div class="menu-quem"><?= e($nome) ?></div><?php endif; ?>
+            <div class="org org-celular"<?= $organizar($doBotaoMenu) ?>>
+                <?php View::partial('layout/_organizar', ['parte' => 'barra']); ?>
+                <ul class="org-lista" data-org-lista>
+                    <?php foreach ($doBotaoMenu as $chave): [$href, $rotulo, $icone] = $abas[$chave]; ?>
+                        <li class="org-i" data-aba="<?= e($chave) ?>"><a class="menu-item<?= $aba($chave) ?>" href="<?= e($href) ?>"<?= $atual($chave) ?>><?= svgIcon($icone, 18) ?><?= e($rotulo) ?></a></li>
+                    <?php endforeach; ?>
+                </ul>
+                <?php View::partial('layout/_organizar', ['parte' => 'abrir']); ?>
+            </div>
+            <form method="post" action="/logout">
+                <?= csrfField() ?>
+                <button type="submit" class="menu-item"><?= svgIcon('logout', 18) ?><?= e(t('Sair')) ?></button>
+            </form>
+        </div>
+    </details>
 </nav>
 
 <?php if ($comDialogo): ?>

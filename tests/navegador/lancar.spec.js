@@ -101,7 +101,8 @@ test.describe('no celular', () => {
         await page.goto('/');
         const barra = page.getByRole('navigation', { name: 'principal' });
         const itens = barra.getByRole('link');
-        await expect(itens).toHaveCount(5);
+        await expect(itens).toHaveCount(4);                 // Início, Extrato, o +, Mês; o Mais é um botão que abre o resto
+        await expect(barra.getByText('Mais', { exact: true })).toBeVisible();
         const mais = itens.nth(2);
         await expect(mais).toHaveAccessibleName('lançar');
         const caixa = await mais.boundingBox();

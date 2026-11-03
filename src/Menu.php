@@ -10,11 +10,22 @@ use Financeiro\Models\UsuarioModel;
  * - Chave que saiu do app é ignorada. Aba nova, ou que não está na lista, entra no fim, na ordem padrão entre elas.
  * - Aba escondida por Ajustes (cartão, empréstimo) continua na lista e guarda o lugar: ao voltar, volta onde estava.
  * - O "+ Lançar" fica sempre no topo e não entra aqui. A barra de baixo do celular é fixa.
+ * - Temas e Ajuda não são abas: Temas abre por Ajustes, e a Ajuda pelo "?" das telas e por Ajustes.
  */
 final class Menu
 {
     /** A ordem padrão. A chave é a mesma de $active no layout. */
-    public const CHAVES = ['inicio', 'extrato', 'mes', 'cartao', 'relatorio', 'simular', 'emprestimo', 'investimentos', 'wishlist', 'temas', 'meta', 'ajuda', 'ajustes'];
+    public const CHAVES = ['inicio', 'extrato', 'mes', 'cartao', 'meta', 'relatorio', 'simular', 'emprestimo', 'investimentos', 'wishlist', 'ajustes'];
+
+    /**
+     * O grupo de cada aba no menu lateral: o dia a dia, planejar e o resto. Os grupos se separam por espaço, sem
+     * título; na ordem da pessoa, o espaço aparece onde o grupo muda.
+     */
+    public const GRUPOS = [
+        'inicio' => 0, 'extrato' => 0, 'mes' => 0, 'cartao' => 0,
+        'meta' => 1, 'relatorio' => 1, 'simular' => 1,
+        'emprestimo' => 2, 'investimentos' => 2, 'wishlist' => 2, 'ajustes' => 2,
+    ];
 
     /** @return array<string, array{0:string, 1:string, 2:string}> chave => [href, rótulo, ícone], na ordem padrão */
     public static function abas(): array
@@ -24,14 +35,12 @@ final class Menu
             'extrato' => ['/lancamentos', t('Extrato'), 'list'],
             'mes'     => ['/mes', t('Mês'), 'calendar'],
             'cartao'  => ['/cartao', t('Cartão'), 'cartao'],
+            'meta'    => ['/meta', t('Metas'), 'target'],
             'relatorio' => ['/relatorio', t('Relatório'), 'relatorio'],
             'simular' => ['/futuro', t('Simular'), 'trend'],
             'emprestimo' => ['/emprestimo', t('Empréstimo'), 'emprestimo'],
             'investimentos' => ['/investimentos', t('Investimentos'), 'invest'],
             'wishlist' => ['/wishlist', t('Wishlist'), 'gift'],
-            'temas'   => ['/temas', t('Temas'), 'paleta'],
-            'meta'    => ['/meta', t('Metas'), 'target'],
-            'ajuda'   => ['/ajuda', t('Ajuda'), 'ajuda'],
             'ajustes' => ['/ajustes', t('Ajustes'), 'settings'],
         ];
     }

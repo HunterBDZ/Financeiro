@@ -199,7 +199,7 @@ function conferencia(callable $check): void
         ['/wishlist',      WishlistController::class,      'index',      [],                  'wl-topo'],
         ['/relatorio',     RelatorioController::class,     'index',      [],                  'rl-topo'],
         ['/relatorio',     RelatorioController::class,     'index',      ['tipo' => 'anual'], 'rl-topo'],
-        ['/temas',         TemaController::class,          'index',      [],                  'tms-topo'],
+        ['/temas',         TemaController::class,          'index',      [],                  'tm-modos'],
         ['/ajuda',         AjudaController::class,         'index',      [],                  'aj-titulo'],
     ];
     foreach ($telas as [$caminho, $cls, $metodo, $get, $marcador]) {

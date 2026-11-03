@@ -213,7 +213,7 @@ $formConta = static function (?array $c) use ($csrf, $erroConta, $tiposD, $inici
     <section class="ajs-sec" aria-labelledby="ajs-g-aparencia">
         <h2 class="ajs-sec-t" id="ajs-g-aparencia"><?= e(t('Aparência e idioma')) ?></h2>
         <div class="ajs-lista">
-            <?php $ir('/temas', 'paleta', t('Temas'), $temaConta !== null ? t((string) Temas::todos()[$temaConta]['nome']) : t('Automático')); ?>
+            <?php $ir('/temas', 'paleta', t('Temas'), Temas::nome($temaConta)); ?>
 
             <details class="ajs-item" id="idioma"<?= $aberto('idioma') ?>>
                 <summary class="ajs-linha"><?= $linha('globo', t('Idioma'), Idioma::LISTA[Idioma::atual()]['nome']) ?></summary>
@@ -289,7 +289,7 @@ $formConta = static function (?array $c) use ($csrf, $erroConta, $tiposD, $inici
                 <summary class="ajs-linha"><?= $linha('escudo', t('Verificação em duas etapas'), '', '<span class="aj-estado' . ($duasLigada ? ' is-on' : '') . '">' . e($duasLigada ? t('Ligada') : t('Desligada')) . '</span>') ?></summary>
                 <div class="ajs-corpo">
                 <?php if ($duasLigada): ?>
-                    <p class="aj-ajuda"><?= e(t('Ao entrar, depois da senha, o Financeiro pede o código do app autenticador. Os aparelhos lembrados continuam entrando direto.')) ?></p>
+                    <p class="aj-ajuda"><?= e(t('Ao entrar, depois da senha, o MyMonetto pede o código do app autenticador. Os aparelhos lembrados continuam entrando direto.')) ?></p>
                     <p class="aj-ajuda"><?= e(tn(\Financeiro\DuasEtapas::codigosRestantes((int) \Financeiro\Auth::id()), 'Resta 1 código de recuperação.', 'Restam {n} códigos de recuperação.')) ?></p>
                     <form class="aj-form" method="post" action="/ajustes/duas-etapas/desligar">
                         <?= $csrf ?>
@@ -300,7 +300,7 @@ $formConta = static function (?array $c) use ($csrf, $erroConta, $tiposD, $inici
                         <button type="submit" class="btn btn-ghost aj-salvar"><?= e(t('Desligar')) ?></button>
                     </form>
                 <?php else: ?>
-                    <p class="aj-ajuda"><?= e(t('Protege a conta mesmo se alguém descobrir a senha: ao entrar, o Financeiro pede também um código de 6 dígitos que muda a cada 30 segundos.')) ?></p>
+                    <p class="aj-ajuda"><?= e(t('Protege a conta mesmo se alguém descobrir a senha: ao entrar, o MyMonetto pede também um código de 6 dígitos que muda a cada 30 segundos.')) ?></p>
                     <p class="aj-ajuda"><?= e(t('O código aparece num app autenticador, que você instala no celular. Há vários gratuitos: procure por “autenticador” na loja de apps do celular.')) ?></p>
                     <?php if (\Financeiro\DuasEtapas::disponivel()): ?>
                         <a class="btn btn-primary aj-salvar" href="/ajustes/duas-etapas"><?= e(t('Ligar')) ?></a>
@@ -367,6 +367,7 @@ $formConta = static function (?array $c) use ($csrf, $erroConta, $tiposD, $inici
             <?php endif; ?>
             <?php // a AGPL pede que quem usa pela rede ache o código: quem modificar o app troca o arquivo REPOSITORIO ?>
             <?php $ir('https://github.com/' . \Financeiro\Atualizacao::repositorio(), 'codigo', t('Código-fonte'), '', true); ?>
+            <?php $ir('/ajuda', 'ajuda', t('Ajuda')); ?>
             <?php $ir('/privacidade', 'lock', t('Privacidade')); ?>
         </div>
     </section>

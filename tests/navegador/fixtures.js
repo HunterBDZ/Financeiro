@@ -8,21 +8,23 @@ export { expect };
 export const LOGIN = 'ana';
 export const SENHA = 'demo1234';
 
-// as telas do menu, na ordem do menu lateral: [rótulo, endereço]
+// as telas do menu, na ordem do menu lateral: [rótulo, endereço]. Temas e Ajuda abrem por Ajustes (TELAS_AJUSTES)
 export const TELAS = [
     ['Início', '/'],
     ['Extrato', '/lancamentos'],
     ['Mês', '/mes'],
     ['Cartão', '/cartao'],
+    ['Metas', '/meta'],
     ['Relatório', '/relatorio'],
     ['Simular', '/futuro'],
     ['Empréstimo', '/emprestimo'],
     ['Investimentos', '/investimentos'],
     ['Wishlist', '/wishlist'],
-    ['Temas', '/temas'],
-    ['Metas', '/meta'],
-    ['Ajuda', '/ajuda'],
     ['Ajustes', '/ajustes'],
+];
+export const TELAS_AJUSTES = [
+    ['Temas', '/temas'],
+    ['Ajuda', '/ajuda'],
 ];
 
 export const test = base.extend({
@@ -82,7 +84,7 @@ export async function token(request, url) {
     return m[1];
 }
 
-/** Grava o tema da conta (id de Temas::todos(), ou 'auto') como o atalho claro/escuro faz. */
+/** Grava o tema da conta (id de Temas::todos(), ou 'auto'), sem passar pela tela Temas. */
 export async function escolherTema(page, baseURL, tema) {
     const r = await page.request.post(baseURL + '/temas', {
         form: { csrf_token: await token(page.request, baseURL + '/ajuda'), tema, silencioso: '1' },

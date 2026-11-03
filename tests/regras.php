@@ -318,7 +318,11 @@ $semEmp = MotorFinanceiro::calcularPlano();
 $check('sem empréstimo: nenhuma dívida nem parcela no plano', max(array_map(static fn($l) => abs($l['falta_pagar']) + $l['parcela_descontada'] + $l['parcela_parte'], $semEmp)) < 0.01);
 $check('sem empréstimo: a aba sai do menu', !str_contains($pagina(MetaController::class, 'index', '/meta'), 'href="/emprestimo"'));
 AjusteModel::setValor('usa_cartao', 0.0);
-$check('sem cartão: a aba sai e o Relatório vai para a barra', (static function (string $h): bool { return !str_contains($h, 'href="/cartao"') && str_contains($h, 'class="tab" href="/relatorio"'); })($pagina(MetaController::class, 'index', '/meta')));
+$check('sem cartão: a aba sai do menu e do Mais, e a barra do celular não muda', (static function (string $h): bool {
+    preg_match('#<nav class="tabbar".*?<details#s', $h, $b);
+    preg_match_all('#href="([^"?]+)#', $b[0] ?? '', $hb);
+    return !str_contains($h, 'href="/cartao"') && $hb[1] === ['/', '/lancamentos', '/lancar', '/mes'];
+})($pagina(MetaController::class, 'index', '/meta')));
 $pdo->rollBack();
 MotorFinanceiro::limparCache();
 
@@ -1031,15 +1035,16 @@ for ($cV = 0; $cV < 4096; $cV += 37) {
 $check('visual do cartão: qualquer cor própria fica com texto legível (AA)', $fracosP === [], implode(' | ', array_slice($fracosP, 0, 5)));
 
 $htmlBar = $render(MesController::class, 'index', []);
-preg_match('#<nav class="tabbar".*?</nav>#s', $htmlBar, $mB);
-$check('barra do celular: Início, Extrato, +, Mês, Cartão; Metas e Relatório no botão Menu', str_contains($mB[0] ?? '', 'href="/cartao"')
-    && !str_contains($mB[0] ?? '', 'href="/meta"') && str_contains($htmlBar, 'class="menu-item" href="/meta"') && str_contains($htmlBar, 'class="lat-i" href="/cartao"'));
+preg_match('#<nav class="tabbar".*?<details#s', $htmlBar, $mB);
+$check('barra do celular: Início, Extrato, +, Mês e Mais; Cartão, Metas e Relatório no Mais', !str_contains($mB[0] ?? '', 'href="/cartao"')
+    && !str_contains($mB[0] ?? '', 'href="/meta"') && str_contains($htmlBar, 'class="menu-item" href="/meta"') && str_contains($htmlBar, 'class="menu-item" href="/cartao"')
+    && str_contains($htmlBar, 'class="lat-i" href="/cartao"') && str_contains($htmlBar, '<span>Mais</span>'));
 
 // ---- 16. aba Empréstimo: a tela, os dados e o adiantamento
 $antesEmp = (int) $pdo->query('SELECT COUNT(*) FROM lancamentos')->fetchColumn();
 $htmlEmp = $render(EmprestimoController::class, 'index', []);
 $check('empréstimo: a aba abre, com o menu do M e fora da barra', str_contains($htmlEmp, '<h1>Empréstimo</h1>') && str_contains($htmlEmp, 'class="menu-item is-active" href="/emprestimo"')
-    && !preg_match('#<nav class="tabbar".*?href="/emprestimo".*?</nav>#s', $htmlEmp));
+    && !preg_match('#<nav class="tabbar"(?:(?!<details).)*?href="/emprestimo"#s', $htmlEmp));
 $htmlErro = $render(EmprestimoController::class, 'index', ['valor' => '12a', 'parcial' => '1']);
 $check('empréstimo: valor inválido diz como corrigir', str_contains($htmlErro, 'Valor inválido') && !str_contains($htmlEmp, 'Empréstimo quitado'));
 $check('empréstimo: o pedaço do resultado vem sem o layout', !str_contains($htmlErro, '<html'));
@@ -1123,7 +1128,7 @@ try {
     WishlistModel::excluir($itemEur);
     WishlistModel::mover($a, 'primeiro');
     $check('wishlist: a aba abre, com o 1º em destaque, previsão e fora da barra', str_contains($htmlW, '<h1>Wishlist</h1>') && str_contains($htmlW, 'wl-vitrine') && str_contains($htmlW, 'Quando comprar')
-        && str_contains($htmlW, 'class="menu-item is-active" href="/wishlist"') && !preg_match('#<nav class="tabbar".*?href="/wishlist".*?</nav>#s', $htmlW));
+        && str_contains($htmlW, 'class="menu-item is-active" href="/wishlist"') && !preg_match('#<nav class="tabbar"(?:(?!<details).)*?href="/wishlist"#s', $htmlW));
     $check('wishlist: texto da loja é escapado', str_contains($htmlW, '&lt;b&gt;Item A&lt;/b&gt;') && !str_contains($htmlW, '<b>Item A</b>'));
     $check('wishlist: foto não vem como link externo', !preg_match('#<img[^>]+src="https?://#', $htmlW));
     $check('wishlist: a previsão parcial vem sem layout', !str_contains($render(WishlistController::class, 'index', ['parcial' => '1', 'parcelas' => '3']), '<html'));
@@ -1602,25 +1607,27 @@ $emTransacao('editar categoria', static function () use ($check, $pdo, $uid, $ho
     $check('editar: o motor continua achando as categorias dele', MotorFinanceiro::dados()['esp']['guard'] === (int) $guardar['id']);
 });
 
-// ---- 12. barra do celular: o "+" no meio de 4 abas; o Anual abre pelo seletor de meses do Mês
+// ---- 12. barra do celular: o "+" no meio, entre Início e Extrato e Mês e Mais; o Anual abre pelo seletor de meses do Mês
 $htmlMes = $render(MesController::class, 'index', []);
-preg_match('#<nav class="tabbar".*?</nav>#s', $htmlMes, $m);
+preg_match('#<nav class="tabbar".*?<details#s', $htmlMes, $m);
 $barra = $m[0] ?? '';
 preg_match_all('#<a class="(tab[^" ]*)#', $barra, $itens);
-$check('barra do celular: 2 abas, o +, 2 abas (sem o Relatório)', $itens[1] === ['tab', 'tab', 'tab-add', 'tab', 'tab']
-    && !str_contains($barra, 'href="/relatorio"') && str_contains($htmlMes, 'class="lat-i" href="/relatorio"'), implode(',', $itens[1]));
+$check('barra do celular: 2 abas, o +, o Mês e o Mais (sem o Relatório)', $itens[1] === ['tab', 'tab', 'tab-add', 'tab']
+    && str_contains($htmlMes, '<details class="menu menu-geral tab-mais">') && !str_contains($barra, 'href="/relatorio"') && str_contains($htmlMes, 'class="lat-i" href="/relatorio"'), implode(',', $itens[1]));
 $check('seletor de meses do Mês leva ao Relatório e ao simulador; o do Extrato não', str_contains($htmlMes, 'class="mes-picker-anual" href="/relatorio"') && str_contains($htmlMes, 'class="mes-picker-anual" href="/futuro"')
     && !str_contains($htmlEx, 'mes-picker-anual'));
-$check('botão Menu (celular), sem o círculo da inicial, leva ao Relatório e ao Simular; a aba Anual saiu', str_contains($htmlMes, 'class="menu-botao"') && str_contains($htmlMes, 'class="menu-item" href="/relatorio"')
+$check('botão Mais (celular), sem o círculo da inicial, leva ao Relatório e ao Simular; a aba Anual saiu', str_contains($htmlMes, 'class="tab menu-botao"') && str_contains($htmlMes, 'class="menu-item" href="/relatorio"')
     && str_contains($htmlMes, 'class="menu-item" href="/futuro"') && !str_contains($htmlMes, 'menu-avatar') && !str_contains($htmlMes, '>Anual<'));
 $htmlFuAtivo = $render(FuturoController::class, 'index', []);
-$check('Simular: fica aceso ele mesmo, no menu lateral e no botão Menu', str_contains($htmlFuAtivo, 'class="lat-i is-active" href="/futuro"') && str_contains($htmlFuAtivo, 'class="menu-item is-active" href="/futuro"')
-    && str_contains($htmlFuAtivo, 'class="menu-botao is-active"') && !str_contains($htmlFuAtivo, 'class="tab is-active"') && !str_contains($htmlFuAtivo, 'class="lat-i is-active" href="/relatorio"'));
+$check('Simular: fica aceso ele mesmo, no menu lateral e no Mais', str_contains($htmlFuAtivo, 'class="lat-i is-active" href="/futuro"') && str_contains($htmlFuAtivo, 'class="menu-item is-active" href="/futuro"')
+    && str_contains($htmlFuAtivo, 'class="tab menu-botao is-active"') && !str_contains($htmlFuAtivo, 'class="tab is-active"') && !str_contains($htmlFuAtivo, 'class="lat-i is-active" href="/relatorio"'));
 
 // ---- 12b. ordem do menu: cada conta organiza as abas; o servidor aplica, ignora chave estranha e põe aba nova no fim
 $check('menu: sem ordem guardada, a padrão', Menu::ordenar(null) === Menu::CHAVES && Menu::ordenar(Menu::ler('isto não é JSON')) === Menu::CHAVES && Menu::ler('{"a":1}') === null);
 $check('menu: a ordem guardada vale, e o que falta segue na ordem padrão', Menu::ordenar(['meta', 'ajustes'])
-    === ['meta', 'ajustes', 'inicio', 'extrato', 'mes', 'cartao', 'relatorio', 'simular', 'emprestimo', 'investimentos', 'wishlist', 'temas', 'ajuda']);
+    === ['meta', 'ajustes', 'inicio', 'extrato', 'mes', 'cartao', 'relatorio', 'simular', 'emprestimo', 'investimentos', 'wishlist']);
+$check('menu: a ordem padrão vem em 3 grupos seguidos, e Temas e Ajuda saíram (abrem por Ajustes)', array_values(array_map(static fn(string $c): int => Menu::GRUPOS[$c], Menu::CHAVES)) === [0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 2]
+    && array_keys(Menu::abas()) === Menu::CHAVES && Menu::ordenar(['temas', 'ajuda', 'meta'])[0] === 'meta');
 $check('menu: chave desconhecida ou repetida é ignorada', Menu::ordenar(['xyz', 'meta', 7, 'meta', null, 'inicio']) === array_merge(['meta', 'inicio'], array_values(array_diff(Menu::CHAVES, ['meta', 'inicio']))));
 $semNovas = array_reverse(array_values(array_diff(Menu::CHAVES, ['investimentos', 'wishlist'])));
 $check('menu: aba nova (fora da lista guardada) entra no fim, na ordem padrão', Menu::ordenar($semNovas) === [...$semNovas, 'investimentos', 'wishlist']);
@@ -1639,12 +1646,12 @@ try {
     UsuarioModel::salvarMenuOrdem($uid, json_encode(['meta', 'ajustes', 'xyz', 'cartao']));
     $htmlMenu = $render(MetaController::class, 'index', []);
     $lat = $ordemDe($htmlMenu, '<aside class="lateral"');
-    $cel = $ordemDe($htmlMenu, '<details class="menu menu-geral">');
-    preg_match('#<nav class="tabbar".*?</nav>#s', $htmlMenu, $mb);
+    $cel = $ordemDe($htmlMenu, '<details class="menu menu-geral tab-mais">');
+    preg_match('#<nav class="tabbar".*?<details#s', $htmlMenu, $mb);
     preg_match_all('#href="([^"?]+)#', $mb[0] ?? '', $hb);
     $check('menu: a página aplica a ordem da conta no menu lateral e no botão Menu, sem a chave estranha', array_slice($lat, 0, 5) === ['meta', 'ajustes', 'cartao', 'inicio', 'extrato']
-        && count($lat) === count(Menu::CHAVES) && !in_array('xyz', $lat, true) && array_slice($cel, 0, 3) === ['meta', 'ajustes', 'relatorio'] && !in_array('cartao', $cel, true), implode(',', $lat) . ' | ' . implode(',', $cel));
-    $check('menu: o Lançar fica no topo e a barra de baixo não muda', strpos($htmlMenu, 'class="lat-lancar"') < strpos($htmlMenu, 'data-org-lista') && $hb[1] === ['/', '/lancamentos', '/lancar', '/mes', '/cartao'], implode(',', $hb[1]));
+        && count($lat) === count(Menu::CHAVES) && !in_array('xyz', $lat, true) && array_slice($cel, 0, 4) === ['meta', 'ajustes', 'cartao', 'relatorio'] && !in_array('inicio', $cel, true), implode(',', $lat) . ' | ' . implode(',', $cel));
+    $check('menu: o Lançar fica no topo e a barra de baixo não muda', strpos($htmlMenu, 'class="lat-lancar btn btn-principal"') < strpos($htmlMenu, 'data-org-lista') && $hb[1] === ['/', '/lancamentos', '/lancar', '/mes'], implode(',', $hb[1]));
     $pdo->beginTransaction();
     AjusteModel::setValor('usa_cartao', 0.0);
     $semCartao = $ordemDe($render(MetaController::class, 'index', []), '<aside class="lateral"');
@@ -1654,9 +1661,9 @@ try {
     // o POST: só a lista à vista vem do navegador; as outras guardam o lugar
     $postarMenu = static fn(array $post): int => MenuController::gravar($uid, $post);
     UsuarioModel::salvarMenuOrdem($uid, null);
-    $cod = $postarMenu(['ordem' => ['ajustes', 'relatorio', 'simular', 'emprestimo', 'investimentos', 'wishlist', 'temas', 'meta', 'ajuda']]);
+    $cod = $postarMenu(['ordem' => ['ajustes', 'relatorio', 'simular', 'emprestimo', 'investimentos', 'wishlist', 'meta']]);
     $check('menu: POST com o token grava; as abas que não estavam na lista ficam no lugar', $cod === 204
-        && Menu::daConta($uid) === ['inicio', 'extrato', 'mes', 'cartao', 'ajustes', 'relatorio', 'simular', 'emprestimo', 'investimentos', 'wishlist', 'temas', 'meta', 'ajuda'], $cod . ' ' . implode(',', Menu::daConta($uid)));
+        && Menu::daConta($uid) === ['inicio', 'extrato', 'mes', 'cartao', 'ajustes', 'relatorio', 'simular', 'emprestimo', 'investimentos', 'wishlist', 'meta'], $cod . ' ' . implode(',', Menu::daConta($uid)));
     $gravada = UsuarioModel::menuOrdem($uid);
     $cod = $postarMenu(['ordem' => ['ajustes', 'xyz']]);
     $check('menu: POST com chave desconhecida é recusado e nada muda', $cod === 422 && UsuarioModel::menuOrdem($uid) === $gravada);
@@ -1919,42 +1926,83 @@ $cssTemas = (string) file_get_contents(__DIR__ . '/../public/assets/css/temas.cs
 $ruins = [];
 $semCss = [];
 foreach (Temas::todos() as $idT => $t) {
-    foreach ([['text', 'bg'], ['text', 'card'], ['text2', 'card'], ['on', 'acc'], ['pos', 'card'], ['neg', 'card'], ['warn', 'card'], ['ct', 'cofre']] as [$fg, $fundo]) {
-        if ($contrasteT((string) $t[$fg], (string) $t[$fundo]) < 4.5) {
-            $ruins[] = "{$idT}: {$fg}/{$fundo}";
+    foreach (['claro', 'escuro'] as $ladoT) {
+        $c = $t[$ladoT];
+        foreach ([['tinta', 'fundo'], ['tinta', 'superficie'], ['tinta2', 'fundo'], ['tinta2', 'superficie'], ['azul', 'fundo'], ['sobre', 'azul'], ['entrada', 'superficie'], ['saida', 'superficie'], ['entrada', 'fundo'], ['saida', 'fundo']] as [$fg, $fundo]) {
+            if ($contrasteT((string) $c[$fg], (string) $c[$fundo]) < 4.5) {
+                $ruins[] = "{$idT} ({$ladoT}): {$fg}/{$fundo}";
+            }
         }
     }
-    if (!in_array($idT, ['claro', 'escuro'], true) && !str_contains($cssTemas, ':root[data-tema="' . $idT . '"]')) {
+    if ($t['paleta'] !== 'padrao' && !str_contains($cssTemas, ':root[data-tema="' . $idT . '"]')) {
         $semCss[] = $idT;
     }
 }
-$paresErrados = [];
-foreach (Temas::todos() as $idT => $dT) {
-    $lados = Temas::lados($idT);
-    if ($lados !== null && (Temas::todos()[$lados[0]]['modo'] !== 'light' || Temas::todos()[$lados[1]]['modo'] !== 'dark' || !in_array($idT, $lados, true) && $idT !== 'oled')) {
-        $paresErrados[] = $idT;
-    }
-}
-$check('temas: o atalho claro/escuro sempre leva a um tema de cada modo, e o tema atual é um deles', $paresErrados === [] && Temas::lados(null) === ['claro', 'escuro'], implode(', ', $paresErrados));
-$check('temas: tema de um modo só não tem atalho', Temas::lados('nord') === null && Temas::lados('caramelo') === null);
-$check('temas: há os 32, e cada um tem CSS', count(Temas::todos()) === 32 && $semCss === [], implode(', ', $semCss));
-$check('temas: todo tema passa no contraste', $ruins === [], implode(', ', $ruins));
+$paletasT = Temas::paletas();
+$casaT = array_keys(array_filter($paletasT, static fn(array $p): bool => $p['grupo'] === 'Da casa'));
+$check('temas: 7 da casa (Claro e Escuro, Calçadão, Azulejo e mais 3), cada paleta em claro, escuro e automático, e cada uma com CSS',
+    count($casaT) === 6 && in_array('calcadao', $casaT, true) && in_array('azulejo', $casaT, true) && $semCss === []
+    && count(array_filter($paletasT, static fn(array $p): bool => $p['ids']['light'] !== null && $p['ids']['dark'] !== null && ($p['ids']['auto'] !== null || $p['nome'] === 'Padrão'))) === count($paletasT)
+    && Temas::todos()['claro']['modo'] === 'light' && Temas::todos()['escuro']['modo'] === 'dark', implode(', ', $semCss));
+$check('temas: alto contraste e daltônico ficam no grupo Acessibilidade', array_keys(array_filter($paletasT, static fn(array $p): bool => $p['grupo'] === 'Acessibilidade')) === ['contraste', 'daltonico']);
+$check('temas: todo tema passa no contraste, nos dois lados', $ruins === [], implode(', ', $ruins));
+$check('temas: um tema só muda fundo, superfície, lateral, realce, fios, tintas e azul; a cor com função só muda na acessibilidade',
+    !preg_match('/--(?:f-ui|f-num|t-[a-z]+|e-\d|raio-[a-z]+|lat|linha|curva|seg-[a-z]+|sombra-[a-z]+):/', $cssTemas)
+    && !preg_match('/:root\[data-tema="(?:calcadao|azulejo|papel|ameixa|petroleo)[a-z]*"\][^{]*\{[^}]*--(?:entrada|saida|atencao|alerta):/', $cssTemas)
+    && str_contains($cssTemas, '--entrada:'));
+$check('temas: os lados da paleta e o nome para a pessoa', Temas::lados(null) === ['claro', 'escuro'] && Temas::lados('azulejoauto') === ['azulejo', 'azulejoescuro']
+    && Temas::lados('tema-que-saiu') === null && Temas::nome(null) === 'Automático' && Temas::nome('escuro') === 'Escuro' && Temas::nome('calcadaoescuro') === 'Calçadão, escuro');
 $pdo->beginTransaction();
 try {
     $uTema = (int) Auth::id();
     UsuarioModel::salvarTema($uTema, null);
     $htmlT0 = $render(TemaController::class, 'index', []);
-    $check('temas: a tela mostra os cartões e o automático marcado', substr_count($htmlT0, 'class="tm') >= 33 && str_contains($htmlT0, 'data-tm-auto') && !preg_match('/<html[^>]*data-tema=/', $htmlT0));
-    UsuarioModel::salvarTema($uTema, 'caramelo');
+    $check('temas: a tela mostra as paletas e o automático marcado', substr_count($htmlT0, 'class="tm-pal"') === count($paletasT) && str_contains($htmlT0, 'data-tm-auto')
+        && preg_match('/<button class="tm is-on"[^>]*data-tm-auto/', $htmlT0) === 1 && !preg_match('/<html[^>]*data-tema=/', $htmlT0) && str_contains($htmlT0, ' data-tema-auto'));
+    UsuarioModel::salvarTema($uTema, 'azulejo');
     $htmlT1 = $render(TemaController::class, 'index', []);
-    $check('temas: o tema da conta vem no HTML, sem piscar', str_contains($htmlT1, 'data-theme="light" data-tema="caramelo"') && str_contains($htmlT1, 'temas.css'));
-    $check('temas: tema de um modo só mostra o nome em vez de claro/escuro', !str_contains($htmlT1, 'data-theme-toggle') && !str_contains($htmlT1, 'class="tema-seg"') && str_contains($htmlT1, 'class="tema-atual" href="/temas"'));
-    $check('temas: fora da barra do celular e no menu', str_contains($htmlT1, 'href="/temas"') && !preg_match('#<nav class="tabbar".*?href="/temas".*?</nav>#s', $htmlT1));
-    UsuarioModel::salvarTema($uTema, 'tema-que-saiu');
-    $check('temas: um tema que saiu da lista vira automático', Temas::doUsuario() === null);
+    $check('temas: o tema da conta vem no HTML, sem piscar', str_contains($htmlT1, 'data-theme="light" data-tema="azulejo"') && str_contains($htmlT1, 'temas.css'));
+    UsuarioModel::salvarTema($uTema, 'papelauto');
+    $htmlT2 = $render(TemaController::class, 'index', []);
+    $check('temas: o automático de uma paleta só põe a paleta, e o lado segue o aparelho', preg_match('/<html[^>]*data-tema="papelauto"/', $htmlT2) === 1 && !preg_match('/<html[^>]*data-theme=/', $htmlT2)
+        && substr_count($htmlT2, 'name="theme-color"') === 2);
+    $check('temas: sem atalho de tema na casca, e Temas abre por Ajustes', !str_contains($htmlT1, 'data-theme-toggle') && !str_contains($htmlT1, 'class="tema-seg"')
+        && !preg_match('#<nav class="tabbar"(?:(?!<details).)*?href="/temas"#s', $htmlT1) && str_contains($render(AjustesController::class, 'index', []), 'href="/temas"'));
+    UsuarioModel::salvarTema($uTema, 'gruvd');
+    $check('temas: um tema que saiu da lista vira automático', Temas::doUsuario() === null && str_contains($render(TemaController::class, 'index', []), ' data-tema-auto'));
 } finally {
     $pdo->rollBack();
 }
+
+// ---- 18b. a base do redesenho: o valor pela regra de cor, o carimbo, a barra do dinheiro do mês e o topo
+$check('valor: o que já saiu é vermelho com "−", o que já entrou é verde com "+", com os centavos menores',
+    valor(-408.98, 'auto') === '<span class="num v-saida">' . MENOS . '408<span class="cent">,98</span></span>'
+    && valor(7710.10, 'auto') === '<span class="num v-entrada">+7.710<span class="cent">,10</span></span>'
+    && valor(408.98, 'saida') === valor(-408.98, 'auto') && valor(-5.0, 'entrada') === '<span class="num v-entrada">+5<span class="cent">,00</span></span>');
+$check('valor: o previsto fica sem cor; zero não ganha sinal nem cor; a moeda só quando pedida',
+    valor(-2350.0, 'previsto') === '<span class="num v-previsto">' . MENOS . '2.350<span class="cent">,00</span></span>'
+    && valor(0.0, 'auto') === '<span class="num">0<span class="cent">,00</span></span>' && valor(0.004, 'entrada') === valor(0.0, 'auto')
+    && valor(2398.66, 'neutro', ['moeda' => true, 'classe' => 'resposta-num']) === '<span class="num resposta-num"><span class="moeda">R$</span>2.398<span class="cent">,66</span></span>'
+    && valor(12.5, 'neutro', ['centavos' => false]) === '<span class="num">12,50</span>');
+$check('carimbo: "pago" com o dia', str_contains(carimbo('2026-11-22'), 'pago 22/11') && str_contains(carimbo('2026-11-22', true), 'class="carimbo entra"'));
+ob_start();
+\Financeiro\View::partial('partials/destino', ['titulo' => 'Para onde vai', 'segmentos' => [
+    ['rotulo' => 'Já saiu', 'valor' => 908.98, 'classe' => 's-saiu'],
+    ['rotulo' => 'Contas a pagar', 'valor' => 0.0, 'classe' => 's-contas'],
+    ['rotulo' => 'Dá para gastar', 'valor' => 2398.66, 'classe' => 's-gastar', 'destaque' => true],
+]]);
+$destinoT = (string) ob_get_clean();
+$check('destino: a barra tem um segmento por valor, a legenda tem todos e o leitor de tela ouve a conta',
+    substr_count($destinoT, 'style="--v:') === 2 && str_contains($destinoT, 'style="--v:908.98"') && substr_count($destinoT, '<li') === 3
+    && str_contains($destinoT, 'class="destaque"') && str_contains($destinoT, 'role="img" aria-label="De 3.307,64: já saiu 908,98; contas a pagar 0,00; dá para gastar 2.398,66."'));
+ob_start();
+\Financeiro\View::partial('partials/topo', ['mes' => '2026-11-01', 'meses' => [['mes' => '2026-10-01', 'situacao' => 'REAL'], ['mes' => '2026-11-01', 'situacao' => 'PREVISAO'], ['mes' => '2026-12-01', 'situacao' => 'PREVISAO']],
+    'href' => '/mes?mes=', 'apoio' => 'Domingo, dia 22 de 30']);
+$topoT = (string) ob_get_clean();
+$check('topo: o título é o mês, a linha de apoio embaixo e o seletor com as setas para os vizinhos',
+    str_contains($topoT, '<h1>Novembro de 2026</h1>') && str_contains($topoT, '<p class="topo-sub">Domingo, dia 22 de 30</p>')
+    && str_contains($topoT, 'href="/mes?mes=2026-10-01" rel="prev" aria-label="Outubro de 2026"') && str_contains($topoT, 'href="/mes?mes=2026-12-01" rel="next"')
+    && str_contains($topoT, 'class="mes-picker-m estado-') && !str_contains($topoT, 'Boa'));
 
 // ---- 18a. valor digitado: número sem separador é inteiro; o que é ambíguo é recusado, nunca adivinhado
 $valoresPt = ['45' => 45.0, '45,9' => 45.9, '45,90' => 45.9, '1.500' => 1500.0, '1.500,50' => 1500.5, '1,500' => null, '12.50' => null, 'R$ 7' => 7.0];

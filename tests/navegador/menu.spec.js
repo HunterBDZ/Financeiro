@@ -1,5 +1,5 @@
 // Organizar o menu: entrar no modo (botão ou segurar uma aba), arrastar com o mouse, mover pelo teclado, Esc sai,
-// a ordem fica na conta depois de recarregar e "Voltar à ordem padrão" desfaz. No celular, a lista do botão Menu.
+// a ordem fica na conta depois de recarregar e "Voltar à ordem padrão" desfaz. No celular, a lista do Mais.
 import { test, expect } from './fixtures.js';
 
 const ordem = (page, onde = '.lateral') => page.locator(`${onde} [data-org-lista] > li`).evaluateAll((l) => l.map((i) => i.dataset.aba));
@@ -46,7 +46,7 @@ test('arrastar com o mouse muda a ordem, e ela fica depois de recarregar', async
     await expect(page.locator('.lateral .org')).not.toHaveClass(/organizando/);
     await page.reload();
     expect(await ordem(page)).toEqual(nova);
-    // o celular segue a mesma ordem na lista do botão Menu
+    // o celular segue a mesma ordem na lista do Mais
     expect((await ordem(page, '.menu-geral'))[0]).toBe('relatorio');
     // fora do modo, a aba volta a navegar
     await lateral(page).getByRole('link', { name: 'Relatório' }).click();
@@ -105,11 +105,11 @@ test('segurar uma aba entra no modo sem abrir a aba', async ({ page }) => {
 test.describe('no celular', () => {
     test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
 
-    test('a lista do botão Menu também se organiza, e a barra de baixo não muda', async ({ page }) => {
+    test('a lista do Mais também se organiza, e a barra de baixo não muda', async ({ page }) => {
         await page.goto('/');
-        const barra = await page.locator('.tabbar a').evaluateAll((l) => l.map((a) => a.getAttribute('href').split('?')[0]));
-        const banner = page.getByRole('banner');
-        await banner.getByText('Menu', { exact: true }).click();
+        const barra = await page.locator('.tabbar > a').evaluateAll((l) => l.map((a) => a.getAttribute('href').split('?')[0]));
+        const banner = page.getByRole('navigation', { name: 'principal' });
+        await banner.getByText('Mais', { exact: true }).click();
         await banner.getByRole('button', { name: 'Organizar menu' }).click();
         await expect(page.locator('.menu-geral .org')).toHaveClass(/organizando/);
         const antes = await ordem(page, '.menu-geral');
@@ -126,6 +126,6 @@ test.describe('no celular', () => {
         const i = antes.indexOf('ajustes');
         expect(depois[i - 1]).toBe('ajustes');
         expect(depois[i]).toBe(antes[i - 1]);
-        expect(await page.locator('.tabbar a').evaluateAll((l) => l.map((a) => a.getAttribute('href').split('?')[0]))).toEqual(barra);
+        expect(await page.locator('.tabbar > a').evaluateAll((l) => l.map((a) => a.getAttribute('href').split('?')[0]))).toEqual(barra);
     });
 });
