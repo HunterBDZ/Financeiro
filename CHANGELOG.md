@@ -2,6 +2,10 @@
 
 Cada versão publicada é uma tag `vX.Y.Z` deste repositório. Pacotes atualizam em Ajustes, em Backup e atualização; servidores, com `sudo financeiro-atualizar`.
 
+## 1.14.1
+
+- Correção num teste do menu: no PHP de servidor ele falhava, e a atualização para a 1.14.0 parava no ensaio, sem mexer no site. Traz tudo o que a 1.14.0 trouxe.
+
 ## 1.14.0
 
 - **Metas com recorrência:** cada categoria tem um editor com o valor, "A partir de" (qualquer mês, inclusive fechado ou o atual) e "Até" (sem fim, só este mês ou até um mês escolhido), com Desfazer. "Sem fim" muda também os meses que tinham valor próprio, como novembro. Um seletor de meses no topo mostra o que vale em cada mês, e o mês com valor próprio aparece na linha ("só em novembro").

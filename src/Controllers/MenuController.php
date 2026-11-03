@@ -15,18 +15,21 @@ final class MenuController
     {
         Auth::requireLogin();
         csrfCheck();
-        $id = (int) Auth::id();
-        if (($_POST['padrao'] ?? '') === '1') {
+        http_response_code(self::gravar((int) Auth::id(), $_POST));
+    }
+
+    /** Grava o pedido e diz o código da resposta. À parte porque o PHP de linha de comando não lê o código depois da 1ª saída. */
+    public static function gravar(int $id, array $post): int
+    {
+        if (($post['padrao'] ?? '') === '1') {
             Menu::salvar($id, null);
-            http_response_code(204);
-            return;
+            return 204;
         }
-        $nova = Menu::validar($_POST['ordem'] ?? null);
+        $nova = Menu::validar($post['ordem'] ?? null);
         if ($nova === null) {
-            http_response_code(422);
-            return;
+            return 422;
         }
         Menu::salvar($id, Menu::mesclar(Menu::daConta($id), $nova));
-        http_response_code(204);
+        return 204;
     }
 }

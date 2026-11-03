@@ -1518,15 +1518,7 @@ try {
     $check('menu: aba escondida em Ajustes some do menu, mas a ordem das outras fica', array_slice($semCartao, 0, 3) === ['meta', 'ajustes', 'inicio'] && !in_array('cartao', $semCartao, true));
 
     // o POST: só a lista à vista vem do navegador; as outras guardam o lugar
-    $csrfAntes = $_SESSION['csrf_token'] ?? null;
-    $_SESSION['csrf_token'] = str_repeat('c', 64);
-    $postarMenu = static function (array $post): int {
-        $_POST = $post + ['csrf_token' => str_repeat('c', 64)];
-        http_response_code(200);
-        (new MenuController())->salvarOrdem();
-        $_POST = [];
-        return (int) http_response_code();
-    };
+    $postarMenu = static fn(array $post): int => MenuController::gravar($uid, $post);
     UsuarioModel::salvarMenuOrdem($uid, null);
     $cod = $postarMenu(['ordem' => ['ajustes', 'relatorio', 'simular', 'emprestimo', 'investimentos', 'wishlist', 'temas', 'meta', 'ajuda']]);
     $check('menu: POST com o token grava; as abas que não estavam na lista ficam no lugar', $cod === 204
@@ -1538,11 +1530,6 @@ try {
     $check('menu: voltar à ordem padrão apaga a escolha', $cod === 204 && UsuarioModel::menuOrdem($uid) === null);
     $postarMenu(['ordem' => Menu::CHAVES]);
     $check('menu: a ordem igual à padrão não fica guardada', UsuarioModel::menuOrdem($uid) === null);
-    if ($csrfAntes === null) {
-        unset($_SESSION['csrf_token']);
-    } else {
-        $_SESSION['csrf_token'] = $csrfAntes;
-    }
 
     // sem o token, a página de erro sai antes de gravar (ela encerra o processo, por isso roda num processo à parte)
     $filhoMenu = (string) getenv('FIN_REGRAS_PASTA') . '/menu-sem-token.php';
