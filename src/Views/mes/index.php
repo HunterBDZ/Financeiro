@@ -312,11 +312,13 @@ $incluirConta = static function () use ($incluir, $csrf, $mes, $mesLbl, $erroLin
     </details>
 <?php };
 
-$linhaLeitura = static function (array $l, float $v): void { ?>
+// mês fechado: o dia a dia mostra a situação diante da meta que valeu no mês (a previsão guardada ao fechar,
+// ou a que a aba Metas gravou depois)
+$linhaLeitura = static function (array $l, float $v, string $l2 = ''): void { ?>
     <li class="mes-ro">
         <?= iconeCategoria((int) $l['id'], (string) ($l['nome_completo'] ?? $l['nome']), (string) ($l['grupo'] ?? ''), 40, 'mes-ic') ?>
-        <span class="mes-nome"><?= e(in_array($l['grupo'] ?? '', ['Fixos', 'Cartao', 'Ano'], true) ? nomeCategoria($l['nome_completo']) : $l['nome']) ?></span>
-        <span class="num"><?= e(num($v)) ?></span>
+        <span class="mes-nome"><?= e(in_array($l['grupo'] ?? '', ['Fixos', 'Cartao', 'Ano'], true) ? nomeCategoria($l['nome_completo']) : $l['nome']) ?><?= $l2 ?></span>
+        <span class="num<?= $l2 !== '' && str_contains($l2, 'mes-status-venceu') ? ' fora-meta' : '' ?>"><?= e(num($v)) ?></span>
     </li>
 <?php };
 ?>
@@ -470,7 +472,7 @@ $linhaLeitura = static function (array $l, float $v): void { ?>
             <?php else: ?>
                 <ul class="mes-ros">
                     <?php foreach (array_merge($essContas, $naoEssContas) as $l) { $linhaLeitura($l, $valorConta($l)); } ?>
-                    <?php foreach (array_merge($diaEss, $diaNaoEss) as $l) { $linhaLeitura($l, $valorDia($l)); } ?>
+                    <?php foreach (array_merge($diaEss, $diaNaoEss) as $l) { $linhaLeitura($l, $valorDia($l), $metaBarra((float) $l['real'], $l['prev'] > 0.004 ? (float) $l['prev'] : null)); } ?>
                 </ul>
             <?php endif; ?>
         </section>

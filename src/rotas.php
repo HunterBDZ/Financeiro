@@ -58,7 +58,11 @@ $router->post('/categorias/{id}/icone', [CategoriaController::class, 'salvarIcon
 
 // ---- meta (metas de gasto por categoria)
 $router->get('/meta', [MetaController::class, 'index']);
-$router->post('/meta/salvar', [MetaController::class, 'salvar']);
+$router->post('/meta/editar', [MetaController::class, 'editar']);
+$router->post('/meta/contas', [MetaController::class, 'novaConta']);
+$router->post('/meta/contas/{id}/desativar', [MetaController::class, 'desativarConta']);
+$router->post('/meta/contas/{id}/reativar', [MetaController::class, 'reativarConta']);
+$router->post('/meta/contas/{id}', [MetaController::class, 'salvarConta']);
 
 // ---- mês e fechar mês
 $router->get('/mes', [MesController::class, 'index']);

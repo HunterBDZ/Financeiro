@@ -240,100 +240,33 @@
         }
     });
 
-    // ---- aba meta: "livre pra alocar" e barras recalculam enquanto se digita
-    function parseBR(s) { return FIN.ler(s); }
-    function fmtBR(n) { return FIN.num(n); }                 // dinheiro sempre com centavos (docs/decisoes.md)
+    // ---- aba Metas: o detalhe da barra (ao clicar) e o período do editor
     function clamp100(n) { return n < 0 ? 0 : (n > 100 ? 100 : n); }
-
-    function metaRecalc(pg) {
-        var renda = parseFloat(pg.getAttribute('data-renda')) || 0;
-        var gastoTotal = parseFloat(pg.getAttribute('data-gasto-total')) || 0;
-        var cats = pg.querySelectorAll('.meta-cat');
-        var totalMeta = 0, metaEss = 0, metaNao = 0, gastoEss = 0, gastoNao = 0, nEss = 0, nNao = 0, gastoComMeta = 0;
-        for (var i = 0; i < cats.length; i++) {
-            var cat = cats[i];
-            var input = cat.querySelector('input[name^="meta["]');
-            var meta = input ? parseBR(input.value) : 0;
-            var gasto = parseFloat(cat.getAttribute('data-gasto')) || 0;
-            var grp = cat.getAttribute('data-grupo');
-            if (grp === 'ess') { gastoEss += gasto; nEss++; } else { gastoNao += gasto; nNao++; }
-            var fill = cat.querySelector('.meta-pbar-fill');
-            var nums = cat.querySelector('[data-resumo]');
-            cat.classList.remove('is-ok', 'is-near', 'is-over', 'is-none');
-            if (meta > 0.004) {
-                var r = gasto / meta;
-                if (fill) { fill.style.setProperty('--pct', clamp100(r * 100) + '%'); }
-                cat.classList.add(r > 1.0001 ? 'is-over' : (r >= 0.8 ? 'is-near' : 'is-ok'));
-                var resto = meta - gasto;
-                if (nums) {
-                    nums.textContent = resto >= -0.004
-                        ? T('{gasto} de {meta}, restam {resto}', { gasto: fmtBR(gasto), meta: fmtBR(meta), resto: fmtBR(Math.max(0, resto)) })
-                        : T('{gasto} de {meta}, passou {resto}', { gasto: fmtBR(gasto), meta: fmtBR(meta), resto: fmtBR(-resto) });
-                }
-                totalMeta += meta;
-                gastoComMeta += gasto;
-                if (grp === 'ess') { metaEss += meta; } else { metaNao += meta; }
-            } else {
-                if (fill) { fill.style.setProperty('--pct', '0%'); }
-                cat.classList.add('is-none');
-                if (nums) { nums.textContent = gasto > 0.004 ? T('Gasto {valor}', { valor: fmtBR(gasto) }) : T('Defina a meta'); }
-            }
-        }
-
-        function setTxt(sel, txt) { var el = pg.querySelector(sel); if (el) { el.textContent = txt; } }
-        function sub(tag, attr, v) { var el = pg.querySelector('[data-grupo-card="' + tag + '"] [' + attr + ']'); if (el) { el.textContent = fmtBR(v); } }
-        sub('ess', 'data-grupo-meta', metaEss); sub('nao', 'data-grupo-meta', metaNao);
-        sub('ess', 'data-grupo-gasto', gastoEss); sub('nao', 'data-grupo-gasto', gastoNao);
-        var cardE = pg.querySelector('[data-grupo-card="ess"]'); if (cardE) { cardE.hidden = nEss === 0; }
-        var cardN = pg.querySelector('[data-grupo-card="nao"]'); if (cardN) { cardN.hidden = nNao === 0; }
-        var gastoSemMeta = Math.max(0, gastoTotal - gastoComMeta);
-        var emConta = renda - gastoTotal;                 // saldo real (não depende das metas)
-        var noVermelho = emConta < -0.004;
-        setTxt('[data-v-metas]', fmtBR(gastoComMeta));
-        setTxt('[data-v-metaalvo]', fmtBR(totalMeta));
-        setTxt('[data-v-gasto]', fmtBR(gastoSemMeta));
-        setTxt('[data-v-conta]', fmtBR(Math.abs(emConta)));
-        setTxt('[data-conta-lbl]', noVermelho ? T('No vermelho') : T('Resta para usar'));
-        var cbox = pg.querySelector('[data-conta-box]');
-        if (cbox) {
-            cbox.classList.remove('is-neg', 'is-pos');
-            cbox.classList.add(noVermelho ? 'is-neg' : 'is-pos');
-        }
-
-        var base = Math.max(renda, gastoTotal);
-        var segM = pg.querySelector('[data-seg-metas]');
-        if (base > 0.004 && renda > 0.004 && segM) {
-            segM.style.setProperty('--w', clamp100(gastoComMeta / base * 100) + '%');
-            var segG = pg.querySelector('[data-seg-gasto]');
-            var segC = pg.querySelector('[data-seg-conta]');
-            if (segG) { segG.style.setProperty('--w', clamp100(gastoSemMeta / base * 100) + '%'); }
-            if (segC) { segC.style.setProperty('--w', clamp100(Math.max(0, emConta) / base * 100) + '%'); }
-        }
-        var det = pg.querySelector('[data-aloc-det]');
-        if (det && !det.hidden) { metaAlocDet(pg); }
+    function escHtml(s) {
+        return String(s).replace(/[&<>"]/g, function (c) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+        });
     }
 
-    // detalhe da barra: subdivide o pedaço "gasto em metas" por categoria, em tons de tinta (ao clicar)
+    // detalhe da barra: subdivide o pedaço "gasto em metas" por categoria, em tons de tinta
     var META_PAL = ['var(--m1)', 'var(--m2)', 'var(--m3)', 'var(--m4)', 'var(--m5)', 'var(--m6)'];
     function metaAlocDet(pg) {
         var det = pg.querySelector('[data-aloc-det]');
         var segM = pg.querySelector('[data-seg-metas]');
         if (!det) { return; }
-        var cats = pg.querySelectorAll('.meta-cat');
+        var linhas = pg.querySelectorAll('.meta-cat[data-valor]');
         var rows = [], tot = 0;
-        for (var i = 0; i < cats.length; i++) {
-            var input = cats[i].querySelector('input[name^="meta["]');
-            var meta = input ? parseBR(input.value) : 0;
-            if (meta <= 0.004) { continue; }                       // só categorias com meta
-            var gasto = parseFloat(cats[i].getAttribute('data-gasto')) || 0;
-            if (gasto <= 0.004) { continue; }                      // só as que já têm gasto ocupam a barra
-            rows.push({ nome: (cats[i].querySelector('.meta-cat-nome') || {}).textContent || '', gasto: gasto });
+        for (var i = 0; i < linhas.length; i++) {
+            var valor = parseFloat(linhas[i].getAttribute('data-valor')) || 0;
+            var gasto = parseFloat(linhas[i].getAttribute('data-gasto')) || 0;
+            if (valor <= 0.004 || gasto <= 0.004) { continue; }   // só o que tem meta e já tem gasto ocupa a barra
+            rows.push({ nome: linhas[i].getAttribute('data-nome') || '', gasto: gasto });
             tot += gasto;
         }
         rows.sort(function (a, b) { return b.gasto - a.gasto; });
         if (rows.length === 0 || tot <= 0) {
             if (segM) { segM.innerHTML = ''; }
-            det.innerHTML = '<p class="aloc-det-vazio">' + T('Ainda não há gasto nas categorias com meta.') + '</p>';
+            det.innerHTML = '<p class="aloc-det-vazio">' + escHtml(T('Ainda não há gasto nas categorias com meta.')) + '</p>';
             return;
         }
         var segHtml = '', detHtml = '';
@@ -350,10 +283,6 @@
         if (segM) { segM.innerHTML = segHtml; }
         det.innerHTML = detHtml;
     }
-    function metaAlocLimpa(pg) {
-        var segM = pg.querySelector('[data-seg-metas]');
-        if (segM) { segM.innerHTML = ''; }
-    }
 
     document.addEventListener('click', function (ev) {
         var bar = ev.target instanceof Element ? ev.target.closest('[data-meta-aloc]') : null;
@@ -362,78 +291,33 @@
         var det = pg ? pg.querySelector('[data-aloc-det]') : null;
         if (!det) { return; }
         var mostrar = det.hidden;
-        if (mostrar) { metaAlocDet(pg); } else { metaAlocLimpa(pg); }
+        if (mostrar) {
+            metaAlocDet(pg);
+        } else {
+            var segM = pg.querySelector('[data-seg-metas]');
+            if (segM) { segM.innerHTML = ''; }
+        }
         det.hidden = !mostrar;
         bar.setAttribute('aria-expanded', mostrar ? 'true' : 'false');
     });
 
-    document.addEventListener('input', function (ev) {
-        var el = ev.target;
-        if (!(el instanceof Element) || !el.matches('input[name^="meta["]')) { return; }
-        var pg = el.closest('.meta-pg');
-        if (pg) { metaRecalc(pg); }
-    });
-
-    // ---- aba meta: escolher quais categorias entram (adicionar / tirar)
-    function escHtml(s) {
-        return String(s).replace(/[&<>"]/g, function (c) {
-            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
-        });
-    }
-    function tiraHidden(pg, id) {
-        var hs = pg.querySelectorAll('.meta-form input[type="hidden"][name="meta[' + id + ']"]');
-        for (var i = 0; i < hs.length; i++) { hs[i].parentNode.removeChild(hs[i]); }
-    }
-    function metaOpcaoDeVolta(pg, id, nome, grupo, gasto, icone) {
-        var sel = pg.querySelector('[data-meta-add]');
-        if (!sel) { return; }
-        var rotulo = grupo === 'ess' ? T('Essenciais') : T('Não essenciais');
-        var og = null, ogs = sel.querySelectorAll('optgroup');
-        for (var i = 0; i < ogs.length; i++) { if (ogs[i].label === rotulo) { og = ogs[i]; break; } }
-        if (!og) {
-            og = document.createElement('optgroup');
-            og.label = rotulo;
-            if (grupo === 'ess') { sel.insertBefore(og, sel.children[1] || null); } else { sel.appendChild(og); }
+    // "Até" só oferece meses depois de "A partir de" (o servidor recusa o contrário de qualquer jeito)
+    function metaPeriodo(desde) {
+        var form = desde.form;
+        var ate = form ? form.querySelector('[data-meta-ate]') : null;
+        if (!ate) { return; }
+        for (var i = 0; i < ate.options.length; i++) {
+            var o = ate.options[i];
+            if (/^\d{4}-\d{2}-01$/.test(o.value)) {
+                o.disabled = o.value <= desde.value;
+            }
         }
-        var opt = document.createElement('option');
-        opt.value = id; opt.textContent = nome;
-        opt.setAttribute('data-nome', nome);
-        opt.setAttribute('data-grupo', grupo);
-        opt.setAttribute('data-gasto', gasto);
-        if (icone) { opt.setAttribute('data-ic', icone); }
-        og.appendChild(opt);
-        sel.disabled = false;
-        var btn = pg.querySelector('.meta-add-btn'); if (btn) { btn.disabled = false; }
-        var first = sel.querySelector('option[value=""]');
-        if (first) { first.textContent = T('Escolher categoria…'); }
+        if (ate.selectedOptions && ate.selectedOptions[0] && ate.selectedOptions[0].disabled) { ate.value = ''; }
     }
-    function metaAdiciona(pg, opt) {
-        var id = opt.value;
-        var tpl = pg.querySelector('#meta-cat-tpl');
-        if (!id || !tpl) { return; }
-        var grupo = opt.getAttribute('data-grupo') === 'ess' ? 'ess' : 'nao';
-        var gasto = opt.getAttribute('data-gasto') || '0';
-        var nome = opt.getAttribute('data-nome') || opt.textContent || '';
-        tiraHidden(pg, id);
-        var html = tpl.innerHTML.replace(/__ID__/g, id).replace(/__GRUPO__/g, grupo)
-            .replace(/__GASTO__/g, gasto).replace(/__NOME__/g, escHtml(nome))
-            .replace('__ICONE__', opt.getAttribute('data-ic') || '');
-        var wrap = document.createElement('div');
-        wrap.innerHTML = html.trim();
-        var row = wrap.firstElementChild;
-        var lista = pg.querySelector('.meta-lista[data-lista="' + grupo + '"]');
-        if (!row || !lista) { return; }
-        lista.appendChild(row);
-        var og = opt.parentNode;
-        og.removeChild(opt);
-        if (og.tagName === 'OPTGROUP' && og.children.length === 0) { og.parentNode.removeChild(og); }
-        var sel = pg.querySelector('[data-meta-add]');
-        if (sel) { sel.value = ''; }
-        metaRecalc(pg);
-        var inp = row.querySelector('input'); if (inp) { inp.focus(); }
-    }
-
-
+    document.addEventListener('change', function (ev) {
+        var el = ev.target;
+        if (el instanceof Element && el.matches('[data-meta-desde]')) { metaPeriodo(el); }
+    });
     // ---- select[data-autosubmit]: muda e reenvia o form (ex.: ordenar o extrato)
     document.addEventListener('change', function (ev) {
         var el = ev.target;
@@ -442,46 +326,6 @@
         if (!form) { return; }
         if (typeof form.requestSubmit === 'function') { form.requestSubmit(); } else { form.submit(); }
     });
-
-    document.addEventListener('click', function (ev) {
-        var btn = ev.target instanceof Element ? ev.target.closest('[data-meta-rm]') : null;
-        if (!btn) { return; }
-        var pg = btn.closest('.meta-pg');
-        var row = btn.closest('.meta-cat');
-        if (!pg || !row) { return; }
-        var inp = row.querySelector('input[name^="meta["]');
-        var m = inp ? inp.name.match(/meta\[(\d+)\]/) : null;
-        var id = m ? m[1] : null;
-        var nome = (row.querySelector('.meta-cat-nome') || {}).textContent || '';
-        var grupo = row.getAttribute('data-grupo') === 'ess' ? 'ess' : 'nao';
-        var gasto = row.getAttribute('data-gasto') || '0';
-        var ic = row.querySelector('.ci');
-        var icone = ic ? ic.outerHTML : '';
-        if (id) {
-            tiraHidden(pg, id);
-            var form = pg.querySelector('.meta-form');
-            if (form) {
-                var h = document.createElement('input');
-                h.type = 'hidden'; h.name = 'meta[' + id + ']'; h.value = '';
-                form.appendChild(h);
-            }
-        }
-        row.parentNode.removeChild(row);
-        if (id) { metaOpcaoDeVolta(pg, id, nome, grupo, gasto, icone); }
-        metaRecalc(pg);
-    });
-
-    function metaAddSetup(pg) {
-        var form = pg.querySelector('[data-meta-add-form]');
-        if (!form) { return; }
-        // com JS, o botão adiciona na hora (sem recarregar); sem JS, o form manda ?add= e a página volta com ela
-        form.addEventListener('submit', function (ev) {
-            ev.preventDefault();
-            var sel = form.querySelector('select[data-meta-add]');
-            var opt = sel ? sel.options[sel.selectedIndex] : null;
-            if (opt && opt.value) { metaAdiciona(pg, opt); } else if (sel) { sel.focus(); }
-        });
-    }
 
     // ---- Ajuda: o "?" abre a resposta; a busca esconde o que não tem as palavras
     (function () {
@@ -576,8 +420,6 @@
     // ---- ao carregar
     function iniciar() {
         syncTodosQuando();
-        var pg = document.querySelector('.meta-pg');
-        if (pg) { metaRecalc(pg); metaAddSetup(pg); }
         // foco automático: no computador, ou num campo com erro (no celular abriria o teclado sozinho)
         var autofocus = document.querySelector('[data-autofocus]');
         var fino = window.matchMedia && window.matchMedia('(pointer: fine)').matches;

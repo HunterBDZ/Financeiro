@@ -837,8 +837,7 @@ a.lista-i:hover { background: var(--sel); }
 .aj-pessoa > summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; }
 
 /* links curtos no meio de uma frase: 44px de toque, sem mudar a altura da linha */
-.meta-previsao a, .emp-plano a, .wl-resposta a, .wl-resposta-2 a, .wl-sem-valor a, .wl-ver-anual, .aj-link { display: inline-block; padding-block: 13px; margin-block: -13px; }
-.meta-previsao a { padding-inline: 9px; margin-inline: -9px; }
+.emp-plano a, .wl-resposta a, .wl-resposta-2 a, .wl-sem-valor a, .wl-ver-anual, .aj-link { display: inline-block; padding-block: 13px; margin-block: -13px; }
 .wl-loja { padding-block: 10px; margin-block: -10px; }
 
 /* extrato: o tipo em palavras ao lado do símbolo */

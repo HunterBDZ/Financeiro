@@ -155,6 +155,7 @@ use Financeiro\Services\LancarForm;
 use Financeiro\Services\MotorFinanceiro;
 use Financeiro\Services\PrevisaoEdicao;
 use Financeiro\Services\PrevisaoLote;
+use Financeiro\Services\MetaRecorrencia;
 
 $ok = 0;
 $falhas = 0;
@@ -538,7 +539,7 @@ $check('Mês aberto: editável com "também nos meses seguintes"', str_contains(
 $html = $render(MesController::class, 'index', ['mes' => $realMes]);
 $check('Mês fechado: só leitura', str_contains($html, 'mes-ros') && !str_contains($html, 'action="/mes/previsao"'));
 $check('anual: cada mês leva à aba Mês', str_contains($render(FuturoController::class, 'index', []), 'class="btn-link fu-abrir" href="/mes?mes='));
-$check('meta: explica que a meta é a previsão de todo mês', str_contains($render(MetaController::class, 'index', []), 'meta-previsao'));
+$check('meta: cada categoria abre o editor com o mês e até quando', str_contains($render(MetaController::class, 'index', []), 'name="ate"'));
 
 // ---- 10. fechar congela as metas do mês; mês fechado não segue a meta; reabrir descongela
 $mC = $prevMeses[0];
@@ -565,6 +566,154 @@ $emTransacao('congelar ao fechar', static function () use ($pdo, $check, $catDia
     MotorFinanceiro::limparCache();
     $check('mês fechado sem linha: a meta não vale', PrevisaoModel::valor($catDia, $mC) == 0.0);
 });
+
+// ---- 10b. Metas com recorrência: valor a partir de um mês, até quando, também em mês fechado; tudo num lote com desfazer
+$realUlt = null;
+foreach (MesModel::todos() as $m) {
+    if ($m['situacao'] === 'REAL') {
+        $realUlt = (string) $m['mes'];
+    }
+}
+if (count($prevMeses) < 5 || $realUlt === null || $catDia === 0) {
+    $check('metas com recorrência', false, 'a demonstração ficou sem 5 meses em PREVISAO, sem mês fechado ou sem categoria de dia a dia');
+} else {
+    [$mA, $mB, $mC2, $mD, $mE] = array_slice($prevMeses, 0, 5);   // nov, dez, jan, fev, mar
+    $gravarPlano = static function (array $plano) use ($uid): ?string {
+        return PrevisaoLote::gravar('propagar', $plano['celulas'], $uid, null, true, $plano['meta']);
+    };
+    $valorEm = static fn(int $c, string $m): float => round(PrevisaoModel::valor($c, $m), 2);
+    // a meta 1.500 e os valores próprios de novembro (800) e dezembro (1.200), como o dono tinha
+    $preparar = static function () use ($pdo, $catDia, $mA, $mB): void {
+        $pdo->prepare('DELETE FROM previsao WHERE categoria_id = :c AND mes > :m')->execute(['c' => $catDia, 'm' => $mA]);
+        MetaModel::definir($catDia, 1500.0);
+        PrevisaoModel::setValor($catDia, $mA, 800.0);
+        PrevisaoModel::setValor($catDia, $mB, 1200.0);
+        MotorFinanceiro::limparCache();
+    };
+
+    $emTransacao('metas: sem fim a partir de novembro', static function () use ($check, $catDia, $mA, $mB, $mC2, $uid, $preparar, $gravarPlano, $valorEm, $linhaCrua): void {
+        $preparar();
+        $lote = $gravarPlano(MetaRecorrencia::plano(MotorFinanceiro::dados(), $catDia, 1000.0, $mA, null));
+        MotorFinanceiro::limparCache();
+        $check('metas: novembro com valor próprio e "sem fim a partir de novembro" muda novembro', $lote !== null
+            && $valorEm($catDia, $mA) === 1000.0 && $linhaCrua($catDia, $mA) === null);
+        $check('metas: sem fim vira a meta e apaga os valores próprios dos meses seguintes', $valorEm($catDia, $mB) === 1000.0
+            && $valorEm($catDia, $mC2) === 1000.0 && abs((float) MetaModel::valor($catDia) - 1000.0) < 0.001);
+        $r = PrevisaoLote::desfazer((string) $lote, $uid);
+        MotorFinanceiro::limparCache();
+        $check('metas: desfazer volta tudo, a meta junto', $r['restauradas'] === $r['total'] && $r['total'] === 3
+            && $valorEm($catDia, $mA) === 800.0 && $valorEm($catDia, $mB) === 1200.0 && $valorEm($catDia, $mC2) === 1500.0
+            && abs((float) MetaModel::valor($catDia) - 1500.0) < 0.001, json_encode($r));
+        $check('metas: o desfazer não deixa a meta antiga guardada', \Financeiro\Models\AjusteModel::valor(PrevisaoLote::CHAVE_META . $lote, -1.0) === -1.0);
+    });
+
+    $emTransacao('metas: os meses antes não mudam', static function () use ($check, $pdo, $catDia, $mA, $mB, $mC2, $mD, $uid, $gravarPlano, $valorEm, $linhaCrua): void {
+        $pdo->prepare('DELETE FROM previsao WHERE categoria_id = :c AND mes >= :m')->execute(['c' => $catDia, 'm' => $mA]);
+        MetaModel::definir($catDia, 1500.0);
+        PrevisaoModel::setValor($catDia, $mB, 1200.0);
+        MotorFinanceiro::limparCache();
+        $antesA = $valorEm($catDia, $mA);
+        $lote = $gravarPlano(MetaRecorrencia::plano(MotorFinanceiro::dados(), $catDia, 1000.0, $mC2, null));
+        MotorFinanceiro::limparCache();
+        $check('metas: sem fim a partir de janeiro não muda novembro nem dezembro', $antesA === 1500.0 && $valorEm($catDia, $mA) === $antesA
+            && $valorEm($catDia, $mB) === 1200.0 && $valorEm($catDia, $mC2) === 1000.0 && $valorEm($catDia, $mD) === 1000.0);
+        $check('metas: o mês antes que seguia a meta guarda o valor de antes', $linhaCrua($catDia, $mA) === 1500.0);
+        PrevisaoLote::desfazer((string) $lote, $uid);
+        MotorFinanceiro::limparCache();
+        $check('metas: desfazer devolve novembro à meta', $linhaCrua($catDia, $mA) === null && $valorEm($catDia, $mA) === 1500.0 && $valorEm($catDia, $mD) === 1500.0);
+    });
+
+    $emTransacao('metas: só este mês e intervalo', static function () use ($check, $catDia, $mA, $mB, $mC2, $mD, $mE, $uid, $preparar, $gravarPlano, $valorEm, $linhaCrua): void {
+        $preparar();
+        $lote = $gravarPlano(MetaRecorrencia::plano(MotorFinanceiro::dados(), $catDia, 700.0, $mC2, $mC2));
+        MotorFinanceiro::limparCache();
+        $check('metas: "só este mês" muda só janeiro e não mexe na meta', $valorEm($catDia, $mC2) === 700.0 && $valorEm($catDia, $mB) === 1200.0
+            && $valorEm($catDia, $mD) === 1500.0 && abs((float) MetaModel::valor($catDia) - 1500.0) < 0.001);
+        PrevisaoLote::desfazer((string) $lote, $uid);
+        $gravarPlano(MetaRecorrencia::plano(MotorFinanceiro::dados(), $catDia, 600.0, $mB, $mD));
+        MotorFinanceiro::limparCache();
+        $check('metas: intervalo de dezembro a fevereiro', $valorEm($catDia, $mB) === 600.0 && $valorEm($catDia, $mC2) === 600.0 && $valorEm($catDia, $mD) === 600.0
+            && $valorEm($catDia, $mA) === 800.0 && $valorEm($catDia, $mE) === 1500.0);
+        $gravarPlano(MetaRecorrencia::plano(MotorFinanceiro::dados(), $catDia, 1500.0, $mB, $mB));
+        $gravarPlano(MetaRecorrencia::plano(MotorFinanceiro::dados(), $catDia, null, $mC2, $mC2));
+        MotorFinanceiro::limparCache();
+        $check('metas: no intervalo, o valor da meta volta a seguir a meta e "sem meta" deixa zero', $linhaCrua($catDia, $mB) === null
+            && $valorEm($catDia, $mB) === 1500.0 && $linhaCrua($catDia, $mC2) === 0.0);
+    });
+
+    $erroPlano = static function (callable $f): string {
+        try {
+            $f();
+        } catch (\InvalidArgumentException $e) {
+            return $e->getMessage();
+        }
+        return '';
+    };
+    $dR = MotorFinanceiro::dados();
+    $check('metas: recusa o fim antes do começo, mês que não existe e categoria que não é gasto',
+        $erroPlano(static fn() => MetaRecorrencia::plano($dR, $catDia, 1.0, $mB, $mA)) !== ''
+        && $erroPlano(static fn() => MetaRecorrencia::plano($dR, $catDia, 1.0, '1990-01-01', null)) !== ''
+        && $erroPlano(static fn() => MetaRecorrencia::plano($dR, $catMov, 1.0, $mA, null)) === 'Escolha uma categoria.');
+
+    $emTransacao('metas: mês fechado', static function () use ($check, $pdo, $catDia, $realUlt, $uid, $gravarPlano, $valorEm, $linhaCrua, $render): void {
+        // o mês já estava fechado antes da mudança (com o relógio parado, a hora do fechamento seria a mesma)
+        $pdo->prepare("UPDATE meses SET fechado_em = '2026-11-01 08:00:00' WHERE mes = :m")->execute(['m' => $realUlt]);
+        $antes = $linhaCrua($catDia, $realUlt);
+        $real = round((float) (MotorFinanceiro::dados()['real'][$realUlt][$catDia] ?? 0.0), 2);
+        $nova = max(1.0, round($real / 2, 2));                    // abaixo do gasto: acima da meta
+        $lote = $gravarPlano(MetaRecorrencia::plano(MotorFinanceiro::dados(), $catDia, $nova, $realUlt, $realUlt));
+        MotorFinanceiro::limparCache();
+        $check('metas: editar um mês fechado grava a meta dele', $lote !== null && $linhaCrua($catDia, $realUlt) === $nova && $valorEm($catDia, $realUlt) === $nova);
+        $htmlR = $render(MesController::class, 'index', ['mes' => $realUlt]);
+        $check('metas: o Mês fechado mostra a nova meta e a situação', str_contains($htmlR, e(t('meta {valor}', ['valor' => num($nova)])))
+            && ($real <= $nova || str_contains($htmlR, 'Acima da meta')), num($nova));
+        $rel = RelatorioDados::mensal($realUlt);
+        $planejado = null;
+        foreach ($rel['categorias']['linhas'] ?? [] as $lR) {
+            if ((int) $lR['id'] === $catDia) {
+                $planejado = (float) $lR['planejado'];
+            }
+        }
+        $check('metas: o Relatório do mês fechado usa a nova meta', $planejado !== null && abs($planejado - $nova) < 0.001);
+        $r = PrevisaoLote::desfazer((string) $lote, $uid);
+        MotorFinanceiro::limparCache();
+        $check('metas: desfazer devolve o mês fechado', $r['restauradas'] === 1 && $linhaCrua($catDia, $realUlt) === $antes);
+        // mês fechado depois da mudança: o fechamento guardou o que valia, e o desfazer não mexe nele
+        $mAberto = (string) $pdo->query("SELECT MIN(mes) FROM meses WHERE situacao = 'PREVISAO'")->fetchColumn();
+        $l2 = $gravarPlano(MetaRecorrencia::plano(MotorFinanceiro::dados(), $catDia, 321.0, $mAberto, $mAberto));
+        $pdo->prepare("UPDATE meses SET situacao = 'REAL', fechado_em = '2027-06-01 08:00:00' WHERE mes = :m")->execute(['m' => $mAberto]);
+        $r2 = PrevisaoLote::desfazer((string) $l2, $uid);
+        $check('metas: mês fechado depois da mudança não volta no desfazer', $r2['restauradas'] === 0 && $linhaCrua($catDia, $mAberto) === 321.0);
+    });
+
+    $emTransacao('metas: a tela', static function () use ($check, $pdo, $catDia, $mA, $mB, $render, $preparar): void {
+        $preparar();
+        $html = $render(MetaController::class, 'index', ['mes' => $mB]);
+        $c = (string) (preg_match('#<details class="mes-linha mes-ed meta-cat[^"]*" id="c' . $catDia . '".*?</details>#s', $html, $mm) ? $mm[0] : '');
+        $check('metas: o seletor de meses e o valor que vale no mês escolhido', str_contains($html, 'data-mes-picker') && str_contains($html, 'href="/meta?mes=' . $mA . '"')
+            && str_contains($c, num(1200.0)) && str_contains($c, 'só em dezembro · meta ' . num(1500.0)));
+        $check('metas: o editor tem valor, a partir de e até', str_contains($c, 'action="/meta/editar"') && str_contains($c, 'name="desde"')
+            && str_contains($c, '<option value="' . $mB . '" selected') && str_contains($c, 'Sem fim') && str_contains($c, 'Só este mês'));
+        $check('metas: sem texto solto de aviso', !str_contains($html, 'meta-previsao') && !str_contains($html, 'Mude só ele na tela'));
+        $check('metas: as contas fixas ficam em Metas', str_contains($html, 'id="contas-fixas"') && str_contains($html, 'action="/meta/contas"')
+            && preg_match('#action="/meta/contas/\d+"#', $html) === 1 && preg_match('#action="/meta/contas/\d+/desativar"#', $html) === 1);
+    });
+
+    // conta fixa com valor em todo mês e sem meta (como a primeira configuração grava): sem fim a partir de dezembro
+    $catConta = (int) $pdo->query("SELECT r.categoria_id FROM contas_recorrentes r JOIN categorias c ON c.id = r.categoria_id WHERE r.ativo = 1 AND c.grupo = 'Fixos' ORDER BY c.id LIMIT 1")->fetchColumn();
+    $emTransacao('metas: conta fixa', static function () use ($check, $catConta, $mA, $mB, $mE, $uid, $gravarPlano, $valorEm): void {
+        MetaModel::remover($catConta);
+        MotorFinanceiro::limparCache();
+        $antesA = $valorEm($catConta, $mA);
+        $lote = $gravarPlano(MetaRecorrencia::plano(MotorFinanceiro::dados(), $catConta, $antesA + 100, $mB, null));
+        MotorFinanceiro::limparCache();
+        $check('metas: conta fixa muda de dezembro em diante, novembro fica', $catConta > 0 && $lote !== null && $valorEm($catConta, $mA) === $antesA
+            && $valorEm($catConta, $mB) === $antesA + 100 && $valorEm($catConta, $mE) === $antesA + 100);
+        PrevisaoLote::desfazer((string) $lote, $uid);
+        MotorFinanceiro::limparCache();
+        $check('metas: desfazer devolve a conta fixa', $valorEm($catConta, $mB) === $antesA && MetaModel::valor($catConta) === null);
+    });
+}
 
 // ---- 11. extrato, ajustes e lançar
 $htmlEx = $render(LancamentosController::class, 'index', []);
