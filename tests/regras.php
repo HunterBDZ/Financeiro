@@ -3780,6 +3780,13 @@ $check('C-07 cartão: a lista e os atalhos do lançar marcam as categorias de co
     && preg_match('#<option value="' . (int) CartaoModel::categoriaFatura() . '"(?![^>]*data-lf-cartao)[^>]*>#', $htmlC07) === 1
     && preg_match('#<option value="' . $catGasto . '"[^>]*data-lf-cartao#', $htmlC07) === 1 && str_contains($htmlC07, 'data-value="' . $catGasto . '" data-lf-cartao'));
 
+// C-08: as parcelas pagas contam o mês de referência, e pagas + faltam = o contrato
+$htmlC08 = $render(EmprestimoController::class, 'index', []);
+preg_match('#(\d+) de (\d+) pagas#', $htmlC08, $mPag);
+preg_match('#Faltam (\d+) parcelas#', $htmlC08, $mFal);
+$check('C-08 empréstimo: "3 de 72 pagas", com a parcela do mês de referência entre as pagas', isset($mPag[2], $mFal[1])
+    && (int) $mPag[2] === (int) round(AjusteModel::valor('n_parcelas')) && (int) $mPag[1] + (int) $mFal[1] === (int) $mPag[2], json_encode([$mPag, $mFal]));
+
 // C-12: OFX com lançamentos ilegíveis avisa quantos ficaram de fora
 $ofxRuim = "OFXHEADER:100\n<OFX><BANKTRANLIST>"
     . "<STMTTRN><DTPOSTED>20261110<TRNAMT>-10.00<FITID>1<NAME>BOM</STMTTRN>"

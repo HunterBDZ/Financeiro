@@ -131,6 +131,7 @@ As regras do app e o porquê de cada uma. Para instalar e operar, veja o [manual
 - **Parcela:** `parcela_modo` 1 = descontada do salário, 2 = paga à parte. Nos dois casos, a conta e a dívida dão o mesmo resultado. À parte, o salário não diminui, e no mês fechado vale a categoria "Parcela do empréstimo".
 - **Validação própria:** `parseMoedaBr` descarta letras, então a tela confere o campo antes de chamá-la.
 - **Limites do contrato:** juros de 0 a 15% ao mês, de 1 a 480 parcelas (40 anos), parcela maior que zero e valores positivos, cada um com a frase dele (`AjustesController::erroDoCampo`). Acima disso, não é um empréstimo de casa, e o cálculo dava números sem sentido.
+- **Parcelas pagas:** contam da 1ª parcela até o mês de referência, com ele. O topo diz "Falta pagar no fim de {mês}", e o plano já desconta a parcela desse mês; então pagas + faltam = o contrato ("3 de 72 pagas", faltam 69).
 
 ## Cartão
 

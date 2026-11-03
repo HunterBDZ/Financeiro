@@ -17,11 +17,12 @@ $informado = $sit['informado'];
 $difContrato = $feitos === [] && $sit['contrato'] !== null && $sit['quita'] !== null && !$sit['quitado'] && $sit['quita'] !== $sit['contrato'];
 
 // a linha do tempo: da 1ª parcela (se informada) até o fim das parcelas; o que já foi pago em tinta cheia, o que falta
-// claro. As parcelas pagas contam do início até o mês de referência; as que faltam vêm do cálculo ($sit['restantes'])
+// claro. As parcelas pagas contam do início até o mês de referência, com ele: o "Falta pagar no fim de {mês}" já
+// desconta a parcela desse mês, como o plano. As que faltam, depois dele, vêm do cálculo ($sit['restantes'])
 $iniInt = (int) round((float) ($aj['consignado_inicio']['valor'] ?? 0));
 $iniMes = $iniInt > 0 ? sprintf('%04d-%02d-01', intdiv($iniInt, 100), $iniInt % 100) : null;
 $restantes = $sit['restantes'] !== null ? (int) $sit['restantes'] : null;
-$pagas = $iniMes !== null && $iniMes <= $sit['ref'] ? AnualResumo::mesesEntre($iniMes, $sit['ref']) : 0;
+$pagas = $iniMes !== null && $iniMes <= $sit['ref'] ? AnualResumo::mesesEntre($iniMes, $sit['ref']) + 1 : 0;
 $total = $restantes !== null ? $pagas + $restantes : 0;
 $pct = static fn(int $n): string => $total > 0 ? number_format(max(0, min(100, $n / $total * 100)), 2, '.', '') : '0';
 $plano = !$sit['quitado'] && $sit['quitaPlano'] !== null && $sit['quita'] !== null && $sit['quitaPlano'] < $sit['quita'] ? (string) $sit['quitaPlano'] : null;
