@@ -151,6 +151,7 @@ use Financeiro\Services\WishlistPrevisao;
 use Financeiro\Models\WishlistModel;
 use Financeiro\Services\AnualResumo;
 use Financeiro\Services\CartaoFatura;
+use Financeiro\Services\ChecklistContas;
 use Financeiro\Services\LancarForm;
 use Financeiro\Services\MotorFinanceiro;
 use Financeiro\Services\PrevisaoEdicao;
@@ -994,6 +995,85 @@ try {
     $pdo->rollBack();
     MotorFinanceiro::limparCache();
 }
+
+// ---- 9c. Contas do mês: o botão Pago das contas fixas, no Início e no Extrato
+$catPago = (int) $pdo->query("SELECT id FROM categorias WHERE grupo = 'Fixos' AND ativo = 1 ORDER BY id LIMIT 1")->fetchColumn();
+$emTransacao('contas do mês: Pago', static function () use ($pdo, $check, $render, $catPago, $catDia, $mesHoje, $hoje, $uid): void {
+    $noMes = static function (int $cat) use ($pdo, $mesHoje): array {
+        $st = $pdo->prepare('SELECT id, data, valor FROM lancamentos WHERE categoria_id = ? AND data >= ? AND data <= ?');
+        $st->execute([$cat, $mesHoje, date('Y-m-t', strtotime($mesHoje))]);
+        return $st->fetchAll(PDO::FETCH_ASSOC);
+    };
+    $naLista = static function (int $cat): ?array {
+        MotorFinanceiro::limparCache();
+        foreach (ChecklistContas::fixasAPagar() as $c) {
+            if ($c['categoria_id'] === $cat) {
+                return $c;
+            }
+        }
+        return null;
+    };
+    // o selo da conta no Mês (pago, venceu…): o Mês e as Contas do mês nunca discordam
+    $seloMes = static function (int $cat) use ($render, $mesHoje): string {
+        MotorFinanceiro::limparCache();
+        $html = $render(MesController::class, 'index', ['mes' => $mesHoje]);
+        return preg_match('/id="cat-' . $cat . '".*?mes-status-(\w+)/s', $html, $m) ? $m[1] : '';
+    };
+    // uma conta fixa sem nada lançado no mês, com previsão e vencimento no dia 5 (vencida no dia 22 e no dia 30)
+    $pdo->prepare('DELETE FROM lancamentos WHERE categoria_id = ? AND data >= ?')->execute([$catPago, $mesHoje]);
+    PrevisaoModel::setValor($catPago, $mesHoje, 321.09);
+    ContaRecorrenteModel::upsert($catPago, 5);
+    $item = $naLista($catPago);
+    $check('contas do mês: a conta fixa sem pagamento aparece, com o previsto e o vencimento',
+        $item !== null && abs($item['previsto'] - 321.09) < 0.001 && $item['vencimento'] === substr($mesHoje, 0, 8) . '05' && $item['atrasado'], json_encode($item));
+    $check('contas do mês: no Mês, a mesma conta está como não paga', $seloMes($catPago) === 'venceu');
+    $recorrentes = [];
+    foreach (ChecklistContas::statusPorMes($mesHoje) as $st) {
+        if ($st['grupo'] === 'Fixos' && in_array($st['status'], ['pendente', 'atrasado'], true)) {
+            $recorrentes[] = $st['categoria_id'];
+        }
+    }
+    $daLista = array_column(array_filter(ChecklistContas::fixasAPagar(), static fn(array $c): bool => $c['vencimento'] !== null), 'categoria_id');
+    sort($recorrentes);
+    sort($daLista);
+    $check('contas do mês: as mesmas contas que o Mês diz que faltam pagar', $daLista === $recorrentes, json_encode([$daLista, $recorrentes]));
+    MotorFinanceiro::limparCache();
+    $htmlIni = $render(DashboardController::class, 'index', []);
+    MotorFinanceiro::limparCache();
+    $htmlExt = $render(LancamentosController::class, 'index', ['mes' => $mesHoje]);
+    $botao = 'name="categoria_id" value="' . $catPago . '"';
+    $check('contas do mês: no Início e no Extrato, com o botão Pago e o outro valor', str_contains($htmlIni, 'id="contas-mes"') && str_contains($htmlExt, 'id="contas-mes"')
+        && str_contains($htmlIni, $botao) && str_contains($htmlExt, $botao) && str_contains($htmlIni, 'action="/lancamentos/pago"')
+        && str_contains($htmlIni, 'data-categoria="' . $catPago . '"') && str_contains($htmlIni, 'venceu dia 5'));
+    MotorFinanceiro::limparCache();
+    $check('contas do mês: o Extrato com filtro não mostra o bloco', !str_contains($render(LancamentosController::class, 'index', ['mes' => $mesHoje, 'q' => 'x']), 'id="contas-mes"'));
+
+    $r = LancamentosController::pagarConta($catPago, $uid);
+    $lanc = $noMes($catPago);
+    $check('Pago: lança o valor previsto na data de hoje', $r['erro'] === null && count($lanc) === 1 && $lanc[0]['data'] === $hoje
+        && abs((float) $lanc[0]['valor'] - 321.09) < 0.001 && (int) $lanc[0]['id'] === $r['id'], json_encode([$r['erro'], $lanc]));
+    $r2 = LancamentosController::pagarConta($catPago, $uid);
+    $check('Pago: o segundo clique não lança de novo', $r2['erro'] !== null && count($noMes($catPago)) === 1);
+    $check('Pago: a conta paga sai da lista', $naLista($catPago) === null);
+    $check('Pago: no Mês, a conta aparece paga', $seloMes($catPago) === 'pago');
+    LancamentoModel::excluir($r['id']);
+    $check('Pago: desfazer apaga o lançamento e a conta volta à lista', $noMes($catPago) === [] && $naLista($catPago) !== null);
+
+    // só conta fixa ativa, com previsão no mês e nada lançado
+    $antesDia = count($noMes($catDia));
+    $check('Pago: categoria que não é conta fixa é recusada', LancamentosController::pagarConta($catDia, $uid)['erro'] !== null && count($noMes($catDia)) === $antesDia);
+    PrevisaoModel::setValor($catPago, $mesHoje, 0.0);
+    MotorFinanceiro::limparCache();
+    $check('Pago: conta sem valor previsto no mês é recusada', LancamentosController::pagarConta($catPago, $uid)['erro'] !== null && $noMes($catPago) === []);
+    PrevisaoModel::setValor($catPago, $mesHoje, 321.09);
+    $pdo->prepare('UPDATE categorias SET ativo = 0 WHERE id = ?')->execute([$catPago]);
+    MotorFinanceiro::limparCache();
+    $check('Pago: conta arquivada é recusada', LancamentosController::pagarConta($catPago, $uid)['erro'] !== null && $noMes($catPago) === []);
+    $pdo->prepare('UPDATE categorias SET ativo = 1 WHERE id = ?')->execute([$catPago]);
+    $pdo->prepare('INSERT INTO lancamentos (data, descricao, categoria_id, valor, usuario_id) VALUES (?, ?, ?, 100, ?)')->execute([$hoje, 'parte', $catPago, $uid]);
+    MotorFinanceiro::limparCache();
+    $check('Pago: conta com parte já paga fica de fora (o Mês pergunta se foi o valor final)', $naLista($catPago) === null && LancamentosController::pagarConta($catPago, $uid)['erro'] !== null && count($noMes($catPago)) === 1);
+});
 
 // ==== no último dia do mês, só a primeira parte, mais a conferência do site sobre a demonstração
 if ($borda) {
@@ -2093,22 +2173,21 @@ $check('frase: sem previsão, sem frase', $fr(null, null, 1500.0) === null);
 $htmlFr = $render(DashboardController::class, 'index', []);
 $check('frase: o cartão do saldo tem uma frase e o resto em "Ver detalhes"', !str_contains($htmlFr, 'data-previsao-fim') || (str_contains($htmlFr, 'data-saldo-frase=') && preg_match('/<details class="saldo-det">\s*<summary>Ver detalhes<\/summary>.*data-previsao-fim/s', $htmlFr) === 1));
 
-// categoria em um toque
+// o campo da categoria: a lista inteira, agrupada, num <select> (sem JS) e no combobox do lancar.js
 LancarForm::limparCache();
 $lf = LancarForm::dados();
-$tipo = static function (int $id) use ($pdo): int {
-    $c = $pdo->query('SELECT sinal, operacional FROM categorias WHERE id = ' . $id)->fetch();
-    return (int) $c['operacional'] === 0 ? 2 : ((int) $c['sinal'] === 1 ? 1 : 0);
-};
-$tiposRap = array_map(static fn(array $c): int => $tipo((int) $c['id']), $lf['rapidas']);
-$check('categorias: de 1 a 8 botões, gastos antes de entradas', $lf['rapidas'] !== [] && count($lf['rapidas']) <= LancarForm::RAPIDAS && $tiposRap === (static function (array $a): array { sort($a); return $a; })($tiposRap), json_encode($tiposRap));
-$chavesLf = array_keys($lf['outras']);
-$check('categorias: a lista completa começa pelos gastos', array_search('entradas', $chavesLf, true) === false || array_search('entradas', $chavesLf, true) > 0);
+$chavesLf = array_keys($lf['grupos']);
+$check('categorias: a lista começa pelos gastos', array_search('entradas', $chavesLf, true) === false || array_search('entradas', $chavesLf, true) > 0);
 $htmlLf = $render(LancamentosController::class, 'lancarForm', []);
-$check('categorias: botões de rádio com ícone, "Mais…" com a lista e a busca, sem o select',
-    substr_count($htmlLf, 'data-lf-rapida') === count($lf['rapidas']) && str_contains($htmlLf, 'data-lf-mais') && str_contains($htmlLf, 'data-lf-busca hidden')
-    && str_contains($htmlLf, '<fieldset class="lf-cats" aria-labelledby=') && str_contains($htmlLf, 'class="lf-chip-c"><span class="ci') && !str_contains($htmlLf, '<select name="categoria_id"'));
-$poucoUsada = (int) $pdo->query("SELECT id FROM categorias WHERE ativo = 1 AND operacional = 1 AND sinal = -1 ORDER BY ordem DESC, id DESC LIMIT 1")->fetchColumn();
+$nCats = (int) $pdo->query('SELECT COUNT(*) FROM categorias WHERE ativo = 1')->fetchColumn();
+$check('categorias: um campo só, com a lista inteira, sem os botões das mais usadas',
+    str_contains($htmlLf, '<select id="pg-cat" name="categoria_id"') && substr_count($htmlLf, 'role="option"') === $nCats
+    && preg_match('/role="combobox"[^>]*aria-expanded="false"[^>]*aria-controls="pg-cat-lista"/', $htmlLf) === 1
+    && str_contains($htmlLf, 'role="listbox"') && str_contains($htmlLf, 'class="lf-combo-op" role="option"')
+    && !str_contains($htmlLf, 'lf-chip') && !str_contains($htmlLf, 'data-lf-mais') && !str_contains($htmlLf, 'type="radio" name="categoria_id"'));
+$check('categorias: a lista tem os grupos e o ícone de cada uma', substr_count($htmlLf, 'class="lf-combo-g" role="group" aria-label="') === count($lf['grupos'])
+    && preg_match('/role="option"[^>]*>\s*<span class="ci/', $htmlLf) === 1);
+$poucoUsada = (int) $pdo->query("SELECT id FROM categorias WHERE ativo = 1 AND operacional = 1 AND sinal = -1 AND grupo <> 'Dia a dia' ORDER BY ordem DESC, id DESC LIMIT 1")->fetchColumn();
 if ($poucoUsada > 0) {
     $emTransacao('categorias: as mais usadas', static function () use ($pdo, $check, $poucoUsada, $uid): void {
         $ins = $pdo->prepare('INSERT INTO lancamentos (data, descricao, categoria_id, valor, usuario_id) VALUES (?, ?, ?, 1, ?)');
@@ -2116,8 +2195,16 @@ if ($poucoUsada > 0) {
             $ins->execute([\Financeiro\Relogio::hoje(), 'teste freq', $poucoUsada, $uid]);
         }
         LancarForm::limparCache();
-        $ids = array_map(static fn(array $c): int => (int) $c['id'], LancarForm::dados()['rapidas']);
-        $check('categorias: a mais usada vira botão, primeiro entre os gastos', ($ids[0] ?? 0) === $poucoUsada, json_encode($ids));
+        // no grupo dela, a mais usada vem logo depois do dia a dia
+        $primeira = null;
+        foreach (LancarForm::dados()['grupos'] as $itens) {
+            foreach ($itens as $c) {
+                if ($c['grupo'] !== 'Dia a dia' && in_array($poucoUsada, array_column($itens, 'id'), true)) {
+                    $primeira ??= (int) $c['id'];
+                }
+            }
+        }
+        $check('categorias: a mais usada sobe na lista do grupo', $primeira === $poucoUsada, (string) $primeira);
     });
     LancarForm::limparCache();
 }

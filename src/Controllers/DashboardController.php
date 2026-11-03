@@ -9,6 +9,7 @@ use Financeiro\Models\LancamentoModel;
 use Financeiro\Models\MesModel;
 use Financeiro\Models\SaldoConferenciaModel;
 use Financeiro\Relogio;
+use Financeiro\Services\ChecklistContas;
 use Financeiro\Services\GastosMensais;
 use Financeiro\Services\MotorFinanceiro;
 use Financeiro\Services\Sobra;
@@ -104,6 +105,8 @@ final class DashboardController
             'sobra'          => $sobra,
             'ultimos'        => $ultimos,
             'alertas'        => $alertas,
+            // as contas fixas de hoje ainda não pagas, com o botão Pago (só no dia de hoje: Pago lança com a data de hoje)
+            'contas'         => $ehHoje ? ChecklistContas::fixasAPagar($hoje) : [],
             'v2'             => MotorFinanceiro::v2(),
         ], 'inicio');
     }

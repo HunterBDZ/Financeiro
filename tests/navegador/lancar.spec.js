@@ -28,6 +28,54 @@ test.describe('no computador', () => {
         await expect(linha).toHaveCount(0);
     });
 
+    test('a categoria é um campo só: abre a lista ao clicar, filtra ao digitar e escolhe pelo teclado', async ({ page }) => {
+        await page.goto('/');
+        await page.keyboard.press('n');
+        const dialogo = page.getByRole('dialog', { name: 'lançar' });
+        const campo = dialogo.getByRole('combobox', { name: 'Categoria' });
+        const lista = dialogo.getByRole('listbox', { name: 'Categoria' });
+        await expect(dialogo.locator('.lf-chip, [data-lf-mais]')).toHaveCount(0);   // sem os botões das mais usadas
+        await expect(lista).toBeHidden();
+
+        // clicar abre a lista inteira, agrupada, com ícone em cada opção
+        await campo.click();
+        await expect(campo).toHaveAttribute('aria-expanded', 'true');
+        const todas = await lista.getByRole('option').count();
+        expect(todas).toBeGreaterThan(8);
+        await expect(lista.getByRole('group', { name: 'essenciais', exact: true })).toBeVisible();
+        await expect(lista.getByRole('option').first().locator('.ci')).toBeVisible();
+
+        // digitar filtra, sem acento e sem caixa; as setas andam pela lista
+        await campo.pressSequentially('FARMA');
+        await expect(lista.getByRole('option')).not.toHaveCount(todas);
+        await expect(lista.getByRole('option').first()).toContainText('Farmácia');
+        await campo.fill('');
+        await campo.pressSequentially('a');
+        const visiveis = lista.getByRole('option');
+        await expect(campo).toHaveAttribute('aria-activedescendant', await visiveis.nth(0).getAttribute('id'));
+        await campo.press('ArrowDown');
+        await campo.press('ArrowDown');
+        await expect(campo).toHaveAttribute('aria-activedescendant', await visiveis.nth(2).getAttribute('id'));
+        await campo.press('ArrowUp');
+        await expect(campo).toHaveAttribute('aria-activedescendant', await visiveis.nth(1).getAttribute('id'));
+
+        // Esc fecha só a lista, não o diálogo, e volta ao que estava escolhido (nada)
+        await campo.press('Escape');
+        await expect(campo).toHaveAttribute('aria-expanded', 'false');
+        await expect(dialogo).toBeVisible();
+        await expect(campo).toHaveValue('');
+
+        // Enter escolhe a opção em destaque e não envia o lançamento
+        await campo.pressSequentially('merc');
+        await campo.press('Enter');
+        await expect(campo).toHaveValue('Mercado');
+        await expect(campo).toHaveAttribute('aria-expanded', 'false');
+        await expect(dialogo).toBeVisible();
+        const escolhida = dialogo.locator('[role="option"][aria-selected="true"]');   // a lista fechada some da árvore de acessibilidade
+        await expect(escolhida).toHaveText('Mercado');
+        await expect(dialogo.locator('select[name="categoria_id"]')).toHaveValue(await escolhida.getAttribute('data-value'));
+    });
+
     test('o diálogo de lançar abre pelo menu e pela tecla n, e fecha', async ({ page }) => {
         await page.goto('/');
         const dialogo = page.getByRole('dialog', { name: 'lançar' });

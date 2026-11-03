@@ -1,7 +1,7 @@
 /* ==========================================================================
-   lancar.css — Lançar (folha e página), Extrato e Entrar. Prefixos .lf-*, .ex-*, .lg-*.
-   Lançar: a pergunta "Quanto foi?", o valor grande no centro, as categorias mais usadas em
-   pílulas e os campos arredondados. Todo campo tem 16 px ou mais (o iOS não amplia a tela).
+   lancar.css — Lançar (folha e página), Extrato, Entrar e as Contas do mês. Prefixos .lf-*, .ex-*, .lg-*, .cm-*.
+   Lançar: a pergunta "Quanto foi?", o valor grande no centro, a categoria numa lista com busca
+   e os campos arredondados. Todo campo tem 16 px ou mais (o iOS não amplia a tela).
    ========================================================================== */
 
 /* ---------------------------------------------------------------- lançar */
@@ -32,48 +32,44 @@
 .lf-valor-in.input-grande:hover, .lf-valor-in.input-grande:focus-visible { box-shadow: none; background: transparent; }
 .lf-valor:focus-within { box-shadow: inset 0 -2px 0 var(--acc); }
 
-/* categoria em um toque: as mais usadas em botões (rádios), o resto em "Mais…", com busca */
+/* categoria: sem JS, o <select>; com JS, a caixa que abre a lista ao clicar e filtra ao digitar (combobox) */
 .lf-rot { color: var(--text-2); font-size: 13px; font-weight: 650; margin: 4px 0 -4px; }
-.lf-cats { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-.lf-chips { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }   /* duas fileiras de 4, em qualquer largura */
-.lf-chip { position: relative; display: flex; min-width: 0; cursor: pointer; }
-.lf-chip > input, .lf-op > input { position: absolute; top: 0; left: 0; width: 1px; height: 1px; margin: 0; opacity: 0; pointer-events: none; }
-.lf-chip-c {
-    display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 4px;
-    width: 100%; min-height: 76px; padding: 8px 4px 7px; border-radius: 14px;
-    background: var(--campo, var(--card-2)); box-shadow: inset 0 0 0 1px var(--line);
-    transition: background-color .12s ease-out, box-shadow .12s ease-out;
+.lf-cat { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.lf-cat-sel[hidden], .lf-combo[hidden], .lf-combo-lista[hidden], .lf-combo-g[hidden], .lf-combo-op[hidden], .lf-combo-vazio[hidden] { display: none; }
+.lf-combo {
+    position: relative; display: flex; align-items: center; gap: 8px; min-height: 52px; padding-left: 12px; border-radius: 14px;
+    background: var(--campo, var(--card-2)); box-shadow: inset 0 0 0 1px var(--line); cursor: text;
 }
-.lf-chip-n { max-width: 100%; color: var(--text); font-size: 12.5px; font-weight: 650; line-height: 1.2; text-align: center; overflow-wrap: anywhere; hyphens: manual;
-             display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.lf-chip:hover > .lf-chip-c { box-shadow: inset 0 0 0 1px var(--line-2); }
-.lf-chip > input:checked + .lf-chip-c { background: var(--card); box-shadow: inset 0 0 0 2px var(--text); }
-.lf-chip > input:checked + .lf-chip-c .lf-chip-n { font-weight: 800; }
-.lf-chip > input:focus-visible + .lf-chip-c { outline: 2px solid var(--foco); outline-offset: 2px; }
-.lf-mais { border-radius: 14px; background: var(--campo, var(--card-2)); box-shadow: inset 0 0 0 1px var(--line); }
-.lf-mais > summary {
-    display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 14px; border-radius: 14px; list-style: none; font-weight: 700;
+.lf-combo:hover { box-shadow: inset 0 0 0 1px var(--line-2); }
+.lf-combo:focus-within { background: var(--card); box-shadow: inset 0 0 0 2px var(--text); }
+.lf-combo-ic { display: inline-flex; flex: none; }
+.lf-combo-ic:empty { display: none; }
+.lf-combo-in.lf-combo-in {
+    flex: 1 1 auto; min-width: 0; min-height: 50px; padding: 0 40px 0 0;
+    background: transparent; box-shadow: none; border-radius: 0; font-weight: 700;
 }
-.lf-mais > summary::after {
-    content: ""; flex: none; width: 8px; height: 8px; margin-right: 2px;
-    border-right: 2px solid var(--text-3); border-bottom: 2px solid var(--text-3);
-    transform: rotate(45deg) translateY(-3px); transition: transform .2s cubic-bezier(.16, 1, .3, 1);
+.lf-combo-in.lf-combo-in:hover, .lf-combo-in.lf-combo-in:focus-visible { background: transparent; box-shadow: none; outline: 0; }
+.lf-combo-seta {
+    position: absolute; right: 18px; top: 50%; width: 8px; height: 8px; margin-top: -6px; pointer-events: none;
+    border-right: 2px solid var(--text-3); border-bottom: 2px solid var(--text-3); transform: rotate(45deg);
+    transition: transform .2s cubic-bezier(.16, 1, .3, 1);
 }
-.lf-mais[open] > summary::after { transform: rotate(-135deg) translateY(-1px); }
-.lf-mais-rot { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
-.lf-mais-rot > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lf-mais-dica { margin-left: auto; color: var(--text-2); font-size: 13px; font-weight: 600; white-space: nowrap; }
-.lf-mais.is-sel > summary { box-shadow: inset 0 0 0 2px var(--text); background: var(--card); }
-.lf-mais.is-sel .lf-mais-dica { display: none; }
-.lf-mais-painel { display: flex; flex-direction: column; gap: 2px; max-height: min(360px, 52dvh); overflow-y: auto; overscroll-behavior: contain; padding: 0 8px 10px; }
-.lf-busca { position: sticky; top: 0; z-index: 1; margin: 2px 0 6px; background: var(--card) !important; }
-.lf-mais-vazio { padding: 8px 6px; color: var(--text-2); font-size: 14px; }
-.lf-mais-g[hidden], .lf-op[hidden], .lf-busca[hidden] { display: none; }
-.lf-mais-gt { margin: 8px 6px 2px; color: var(--text-3); font-size: 12.5px; font-weight: 750; }
-.lf-op { position: relative; display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 4px 8px; border-radius: 12px; cursor: pointer; font-weight: 650; }
-.lf-op:hover { background: var(--sel); }
-.lf-op:has(input:checked) { background: var(--card); box-shadow: inset 0 0 0 2px var(--text); font-weight: 800; }
-.lf-op:has(input:focus-visible) { outline: 2px solid var(--foco); outline-offset: -2px; }
+.lf-combo:has(> [aria-expanded="true"]) > .lf-combo-seta { transform: translateY(4px) rotate(-135deg); }
+.lf-combo-lista {
+    display: flex; flex-direction: column; gap: 2px; max-height: min(320px, 46dvh); overflow-y: auto; overscroll-behavior: contain;
+    padding: 4px 6px 8px; border-radius: 14px; background: var(--card); box-shadow: inset 0 0 0 1px var(--line-2);
+}
+.lf-combo-gt { margin: 8px 8px 2px; color: var(--text-3); font-size: 12.5px; font-weight: 750; }
+.lf-combo-gt::first-letter { text-transform: uppercase; }
+.lf-combo-op { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 4px 8px; border-radius: 12px; cursor: pointer; font-weight: 650; }
+.lf-combo-op:hover { background: var(--sel); }
+.lf-combo-op.is-ativo { background: var(--card-2); box-shadow: inset 0 0 0 2px var(--foco); }
+.lf-combo-op[aria-selected="true"] { font-weight: 800; }
+.lf-combo-op[aria-selected="true"]::after {
+    content: ""; flex: none; width: 6px; height: 11px; margin: -3px 6px 0 auto;
+    border-right: 2px solid var(--text); border-bottom: 2px solid var(--text); transform: rotate(45deg);
+}
+.lf-combo-vazio { padding: 4px 6px; color: var(--text-2); font-size: 14px; }
 .lf-rot-linha { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 -12px; }
 .lf-rot-linha > .lf-rot { margin: 0; }
 .lf-criar-cat { display: inline-flex; align-items: center; min-height: var(--tap); color: var(--text-2); font-size: 13px; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
@@ -326,7 +322,38 @@
 .ic-form { display: flex; flex-direction: column; gap: 16px; padding: 16px; border-radius: var(--r); background: var(--card); border: 1px solid var(--line); box-shadow: var(--sombra); --campo: var(--card-2); }
 .ic-salvar { position: sticky; bottom: calc(86px + env(safe-area-inset-bottom, 0px)); box-shadow: 0 12px 30px -12px rgba(0, 0, 0, .45); }
 @media (min-width: 1024px) { .ic-salvar { bottom: 20px; } }
-.lf-mais-gt::first-letter { text-transform: uppercase; }
-/* na coluna do extrato (estreita), o nome do botão cabe inteiro */
-.ex-col .lf-chip-c { padding-inline: 2px; }
-.ex-col .lf-chip-n { font-size: 12px; }
+
+/* ---------------------------------------------------------------- contas do mês (Início e Extrato) */
+/* as contas fixas ainda não pagas: o nome abre o Lançar (outro valor), o Pago lança o previsto */
+.cm .card-head { margin-bottom: 2px; }
+.cm-lista { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px 18px; }
+.cm-i { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; min-height: 56px; }
+.cm-outro {
+    display: flex; align-items: center; gap: 10px; min-width: 0; min-height: var(--tap);
+    margin-left: -8px; padding: 4px 8px; border-radius: 12px; color: inherit; text-decoration: none;
+    transition: background-color .12s ease-out;
+}
+.cm-outro:hover { background: var(--sel); }
+.cm-ic { flex: none; }
+.cm-n { display: flex; flex-direction: column; gap: 1px; flex: 1 1 auto; min-width: 0; }
+.cm-l1 { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; min-width: 0; }
+.cm-l1 > b, .cm-n > small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cm-l1 > b { min-width: 0; font-weight: 700; }
+.cm-n > small { color: var(--text-2); font-size: 12.5px; font-weight: 600; }
+.cm-outro-t { text-decoration: underline; text-underline-offset: 2px; }
+.cm-outro:hover .cm-outro-t { color: var(--text); }
+.is-vencida .cm-vence { color: var(--warn); font-weight: 750; }
+.cm-v { flex: none; font-weight: 750; }
+.cm-f { margin: 0; }
+.cm-pago { min-width: 76px; }
+.cm-mais > summary { display: inline-flex; align-items: center; gap: 6px; min-height: var(--tap); color: var(--text-2); font-size: 14px; font-weight: 700; list-style: none; cursor: pointer; }
+.cm-mais > summary::after {
+    content: ""; width: 7px; height: 7px; margin-left: 2px;
+    border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
+    transform: rotate(45deg) translateY(-2px); transition: transform .2s ease-out;
+}
+.cm-mais[open] > summary::after { transform: rotate(-135deg) translateY(-1px); }
+.cm-mais > summary:hover { color: var(--text); }
+@media (min-width: 1024px) {
+    .cm-lista { grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
+}
