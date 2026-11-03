@@ -12,8 +12,11 @@
     var escolhido = null;
 
     function aplicar(theme, tema) {
-        if (theme) { raiz.setAttribute('data-theme', theme); } else { raiz.removeAttribute('data-theme'); }
-        if (tema) { raiz.setAttribute('data-tema', tema); } else { raiz.removeAttribute('data-tema'); }
+        function troca() {
+            if (theme) { raiz.setAttribute('data-theme', theme); } else { raiz.removeAttribute('data-theme'); }
+            if (tema) { raiz.setAttribute('data-tema', tema); } else { raiz.removeAttribute('data-tema'); }
+        }
+        if (window.MOV) { window.MOV.tema(troca); } else { troca(); }   // a tela inteira numa transição só (movimento.js)
     }
     function marcar(botao) {
         document.querySelectorAll('.tm.is-prev').forEach(function (b) { b.classList.remove('is-prev'); });

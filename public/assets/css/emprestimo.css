@@ -109,6 +109,5 @@ details.emp-anos > summary { font-weight: 400; }
     .emp-fins { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (min-width: 1024px) {
-    .emp-trilho { height: 32px; }
     .emp-cols { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); column-gap: var(--e-8); align-items: start; }
 }

@@ -27,13 +27,16 @@
         var lado = novo === 'light' ? 'claro' : 'escuro';
         var id = (comToken && comToken.getAttribute('data-lado-' + lado)) || lado;
         var cor = (comToken && comToken.getAttribute('data-bg-' + lado)) || (novo === 'light' ? '#F6F8FB' : '#0A1020');
-        root.setAttribute('data-theme', novo);
-        root.setAttribute('data-tema', id);
+        function aplicar() {
+            root.setAttribute('data-theme', novo);
+            root.setAttribute('data-tema', id);
+            marcarTema();
+        }
+        if (window.MOV) { window.MOV.tema(aplicar); } else { aplicar(); }   // a troca de tema numa transição só
         try { localStorage.setItem('tema', id + ':' + novo); } catch (e) {}
         document.querySelectorAll('meta[name="theme-color"]').forEach(function (meta) {
             meta.setAttribute('content', cor);
         });
-        marcarTema();
         if (comToken && window.fetch) {
             var corpo = new FormData();
             corpo.append('csrf_token', comToken.getAttribute('data-tema-csrf'));
@@ -368,7 +371,9 @@
         esperaOriginal.set(botao, botao.innerHTML);
         botao.setAttribute('aria-busy', 'true');
         botao.setAttribute('aria-disabled', 'true');
+        var circ = botao.querySelector('.circ');   // o círculo do Pagar fica, e se preenche (movimento.js)
         botao.textContent = texto;
+        if (circ) { botao.insertBefore(circ, botao.firstChild); }
     }
     function esperaDesliga(botao) {
         if (!botao || !esperaOriginal.has(botao)) { return; }

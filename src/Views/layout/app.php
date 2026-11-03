@@ -45,7 +45,7 @@ $organizar = static function (array $chaves) use ($abas, $csrfMenu): string {
 
 $publico = __DIR__ . '/../../../public';
 $existe  = static fn(string $p): bool => is_file($publico . $p);
-$estilos = array_filter(['/assets/css/style.css', '/assets/css/inicio.css', '/assets/css/lancar.css', '/assets/css/extrato.css', '/assets/css/mes.css', '/assets/css/metas.css', '/assets/css/simular.css', '/assets/css/investimentos.css', '/assets/css/relatorio.css', '/assets/css/cartao.css', '/assets/css/emprestimo.css', '/assets/css/wishlist.css', '/assets/css/importar.css', '/assets/css/ajustes.css', '/assets/css/menu.css', '/assets/css/icones.css', '/assets/css/temas.css'], $existe);
+$estilos = array_filter(['/assets/css/style.css', '/assets/css/inicio.css', '/assets/css/lancar.css', '/assets/css/extrato.css', '/assets/css/mes.css', '/assets/css/metas.css', '/assets/css/simular.css', '/assets/css/investimentos.css', '/assets/css/relatorio.css', '/assets/css/cartao.css', '/assets/css/emprestimo.css', '/assets/css/wishlist.css', '/assets/css/importar.css', '/assets/css/ajustes.css', '/assets/css/menu.css', '/assets/css/icones.css', '/assets/css/movimento.css', '/assets/css/temas.css'], $existe);
 $scripts = array_filter(['/assets/js/app.js', '/assets/js/lancar.js', '/assets/js/extrato.js', '/assets/js/mes.js', '/assets/js/metas.js', '/assets/js/cartao.js', '/assets/js/emprestimo.js', '/assets/js/wishlist.js', '/assets/js/importar.js', '/assets/js/temas.js', '/assets/js/relatorio.js', '/assets/js/fuso.js', '/assets/js/menu.js'], $existe);
 
 $uri     = (string) ($_SERVER['REQUEST_URI'] ?? '/');
@@ -100,6 +100,10 @@ $marca = SiteIcone::personalizado() !== null
 <?= SiteIcone::tags() ?><link rel="preload" href="/assets/fonts/manrope-var-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/assets/fonts/sora-var-latin.woff2" as="font" type="font/woff2" crossorigin>
 <script src="<?= e(asset('/assets/js/theme.js')) ?>"></script>
+<?php /* o movimento: carrega antes do corpo para pegar a troca de página (pageswap/pagereveal); a 1ª pintura espera a
+barra de baixo, o fim do conteúdo, para a troca de aba mostrar a página nova inteira */ ?>
+<script src="<?= e(asset('/assets/js/movimento.js')) ?>"></script>
+<link rel="expect" href="#barra-baixo" blocking="render">
 <?php if (Idioma::atual() !== Idioma::PADRAO): ?>
 <script src="<?= e(asset('/assets/js/i18n-' . Idioma::atual() . '.js')) ?>"></script>
 <?php endif; ?>
@@ -119,7 +123,7 @@ $marca = SiteIcone::personalizado() !== null
         <nav class="lat-nav" aria-label="<?= e(t('principal')) ?>">
             <ul class="org-lista" data-org-lista>
                 <?php foreach ($ordemMenu as $chave): [$href, $rotulo, $icone] = $abas[$chave]; ?>
-                    <li class="org-i" data-aba="<?= e($chave) ?>" data-grupo="<?= (int) (Menu::GRUPOS[$chave] ?? 2) ?>"><a class="lat-i<?= $aba($chave) ?>" href="<?= e($href) ?>"<?= $atual($chave) ?>><?= svgIcon($icone, 18) ?><span><?= e($rotulo) ?></span></a></li>
+                    <li class="org-i" data-aba="<?= e($chave) ?>" data-grupo="<?= (int) (Menu::GRUPOS[$chave] ?? 2) ?>"><a class="lat-i<?= $aba($chave) ?>" href="<?= e($href) ?>"<?= $atual($chave) ?>><?php if ($acesa === $chave): ?><span class="lat-realce" aria-hidden="true"></span><?php endif; ?><?= svgIcon($icone, 18) ?><span><?= e($rotulo) ?></span></a></li>
                 <?php endforeach; ?>
             </ul>
         </nav>
@@ -159,7 +163,7 @@ $marca = SiteIcone::personalizado() !== null
 <?= $content ?>
 </main>
 
-<nav class="tabbar" aria-label="<?= e(t('principal')) ?>">
+<nav class="tabbar" id="barra-baixo" aria-label="<?= e(t('principal')) ?>">
     <?php $i = 0; foreach ($barra as $chave => [$href, $rotulo, $icone]): ?>
         <?php if ($i++ === 2): ?>
             <a class="tab-add" href="<?= e($hrefLancar) ?>" data-lancar aria-label="<?= e(t('lançar')) ?>"><?= svgIcon('plus', 22) ?></a>

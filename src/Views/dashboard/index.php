@@ -144,7 +144,7 @@ $vazio = !$temLancamento && ($destino === null || $destino['total'] < 0.005);
             <p class="resposta-num"><?= $numero ?></p>
             <?php if ($apoioResposta !== ''): ?><p class="por-dia"><?= $apoioResposta ?></p><?php endif; ?>
             <?php if ($destino !== null && $destino['total'] >= 0.005): ?>
-                <div class="ini-destino" data-destino data-total="<?= e(number_format($destino['total'], 2, '.', '')) ?>" data-gastar="<?= e(number_format($destino['gastar'], 2, '.', '')) ?>">
+                <div class="ini-destino" data-destino data-mov-barra="ini-<?= e($mesPrevisao) ?>" data-mov-dia="<?= e($hoje) ?>" data-total="<?= e(number_format($destino['total'], 2, '.', '')) ?>" data-gastar="<?= e(number_format($destino['gastar'], 2, '.', '')) ?>">
                     <?php View::partial('partials/destino', [
                         'titulo' => t('Para onde vai o dinheiro de {mes}', ['mes' => mesExtenso($mesPrevisao)]),
                         'segmentos' => Destino::segmentos($destino), 'total' => $destino['total'], 'nivel' => 'h3',
@@ -161,7 +161,7 @@ $vazio = !$temLancamento && ($destino === null || $destino['total'] < 0.005);
         <dl class="numeros ini-numeros">
             <div>
                 <dt><?= e(t('Em conta hoje')) ?> <button type="button" class="ini-olho" data-ocultar aria-pressed="false" aria-label="<?= e(t('esconder valores')) ?>"><?= svgIcon('eye', 16, 'olho-aberto') ?><?= svgIcon('eye-off', 16, 'olho-fechado') ?></button></dt>
-                <dd><?= valor($conta, 'neutro', ['classe' => $conta < -0.004 ? 'alerta' : '']) ?>
+                <dd data-mov-conta="em-conta" data-mov-valor="<?= e(number_format($conta, 2, '.', '')) ?>"><?= valor($conta, 'neutro', ['classe' => $conta < -0.004 ? 'alerta' : '']) ?>
                     <?php if ($conta < -0.004): ?><span class="nota alerta"><?= e(t('no vermelho')) ?></span><?php elseif ($reserva > 0.004 && $conta < $reserva - 0.004): ?><span class="nota atencao"><?= e(t('abaixo da reserva')) ?></span><?php endif; ?>
                     <?php if ($contas !== []): ?>
                         <details class="ini-contas">
@@ -218,7 +218,7 @@ $vazio = !$temLancamento && ($destino === null || $destino['total'] < 0.005);
                         </li>
                     <?php endforeach; ?>
                     <?php foreach ($contasPagas as $c): ?>
-                        <li class="linha-lista com-acao ini-conta is-paga">
+                        <li class="linha-lista com-acao ini-conta is-paga" data-mov-pago="<?= (int) $c['categoria_id'] ?>">
                             <?= iconeCategoria((int) $c['categoria_id'], (string) $c['nome'], (string) $c['grupo'], 20, 'linha-ic') ?>
                             <span class="linha-nome"><b><?= e(nomeCurto($c)) ?></b></span>
                             <?= valor((float) $c['pago'], 'saida', ['centavos' => false]) ?>

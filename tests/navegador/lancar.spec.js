@@ -138,8 +138,18 @@ test.describe('no computador', () => {
         await expect(dialogo.getByText('Em quantas vezes?')).toBeVisible();
         await abas.getByText('Conta', { exact: true }).click();
         await expect(dialogo.getByText('Em quantas vezes?')).toBeHidden();
-        const sublinhado = await abas.locator('label:has(input:checked)').evaluate((el) => getComputedStyle(el).boxShadow);
-        expect(sublinhado).toContain('inset');
+        // o sublinhado azul da aba escolhida é um traço só (::after), que desliza de uma aba para a outra (movimento.js)
+        const sublinhado = await abas.locator('label:has(input:checked)').evaluate((el) => {
+            const d = getComputedStyle(el, '::after');
+            const prova = document.createElement('i');
+            prova.style.backgroundColor = 'var(--azul)';
+            el.append(prova);
+            const azul = getComputedStyle(prova).backgroundColor;
+            prova.remove();
+            return { altura: d.height, cor: d.backgroundColor, azul };
+        });
+        expect(sublinhado.altura).toBe('2px');
+        expect(sublinhado.cor).toBe(sublinhado.azul);
 
         await dialogo.getByRole('textbox', { name: 'valor' }).fill('');
         await dialogo.getByRole('textbox', { name: 'valor' }).pressSequentially('19');

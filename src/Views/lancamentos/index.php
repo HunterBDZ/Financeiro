@@ -279,7 +279,7 @@ $colunas = 4;
                 <?php endif; ?>
             </div>
         <?php else: ?>
-            <table class="ext-tabela">
+            <table class="ext-tabela" data-mov-lista="extrato">
                 <caption class="sr-only"><?= e(t('Lançamentos de {periodo}', ['periodo' => $periodoTxt])) ?></caption>
                 <thead>
                     <tr>
@@ -303,7 +303,7 @@ $colunas = 4;
                                 $para = (int) $r['para_conta_id'];
                                 $sinalT = $conta === null ? '' : ($conta['id'] === $para ? '+' : MENOS);
                                 $quandoT = $agrupado ? '' : diaMes($r['data']); ?>
-                                <tr class="ext-linha ext-transf">
+                                <tr class="ext-linha ext-transf" data-mov-linha="t<?= (int) $r['id'] ?>">
                                     <td class="ext-c-desc">
                                         <span class="ext-ic ext-transf-ic" aria-hidden="true">↔</span>
                                         <a href="/transferencias/<?= (int) $r['id'] ?>/editar?volta=<?= e($voltaEnc) ?>"><?= e(trim((string) $r['descricao']) !== '' ? (string) $r['descricao'] : t('Transferência')) ?></a>
@@ -320,7 +320,7 @@ $colunas = 4;
                             $rot = $desc !== '' ? $desc : nomeCurto($cat);
                             $contaNome = $nomeContaDe[(int) $r['conta_id']] ?? '';
                             ?>
-                            <tr class="ext-linha"<?= $i === $limite - 60 && $i > 0 ? ' id="ex-r' . $i . '"' : '' ?>>
+                            <tr class="ext-linha" data-mov-linha="<?= (int) $r['id'] ?>"<?= $i === $limite - 60 && $i > 0 ? ' id="ex-r' . $i . '"' : '' ?>>
                                 <td class="ext-c-desc">
                                     <?= iconeCategoria((int) $r['categoria_id'], (string) $r['categoria_nome'], (string) $r['grupo'], 20, 'ext-ic') ?>
                                     <a href="/lancamentos/<?= (int) $r['id'] ?>/editar?volta=<?= e($voltaEnc) ?>"><?= e($rot) ?></a>

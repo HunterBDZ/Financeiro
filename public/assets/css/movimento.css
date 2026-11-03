@@ -1,0 +1,178 @@
+/* Hallmark · checked: 2026-11-03 · genre: modern-minimal · shape: app shell · scope: app · built: o movimento do MyMonetto (movimento.md) · v1 */
+/* ==========================================================================
+   movimento.css — o movimento do app (design-nov/redesenho/movimento.md): os tokens, a troca de aba e de mês com
+   View Transitions entre páginas, e as interações que o CSS faz sozinho. O resto (a contagem dos números, a primeira
+   visita do dia, o sentido do mês, o "Pagar") fica no movimento.js.
+   O caráter é calmo: curto, sem mola, só transform e opacity. O conteúdo nunca depende do movimento para aparecer:
+   sem JavaScript, sem suporte do navegador (Firefox troca de página na hora) ou com "reduzir movimento", a tela já
+   está completa e igual.
+   ========================================================================== */
+
+/* ---------------------------------------------------------------- 1. tokens */
+:root {
+    --mov-micro: 120ms;     /* toque, hover, foco (o anel de foco não anima) */
+    --mov-curto: 220ms;     /* menus, abas, linhas que entram, troca de aba */
+    --mov-longo: 380ms;     /* diálogo, o momento da tela */
+    --mov-saida: .65;       /* a saída dura 65% da entrada */
+    --mov-sai-curto: calc(var(--mov-curto) * var(--mov-saida));    /* 143ms */
+    --mov-sai-longo: calc(var(--mov-longo) * var(--mov-saida));    /* 247ms */
+    --curva-entra: cubic-bezier(.22, 1, .36, 1);   /* chegar: desacelera */
+    --curva-sai: cubic-bezier(.4, 0, 1, 1);        /* sair: acelera, rápido */
+    --curva-move: cubic-bezier(.65, 0, .35, 1);    /* algo que viaja à vista (o realce da aba) */
+    /* os nomes de antes passam a ser os novos: o que já existe fica, com a curva nova */
+    --curva: var(--curva-entra);
+    --rapido: var(--mov-micro);
+    --entra: var(--mov-curto);
+}
+
+/* ---------------------------------------------------------------- 2. entre abas: View Transitions entre páginas */
+@view-transition { navigation: auto; }
+
+/* o chão fica parado: a lateral, a lista dela e a barra de baixo */
+.lateral { view-transition-name: lateral; }
+.lat-nav { view-transition-name: lat-nav; }
+.tabbar { view-transition-name: tabbar; }
+/* o realce da aba ativa: uma peça só, que desliza da aba antiga para a nova, por baixo dos nomes */
+.lat-i { position: relative; isolation: isolate; }
+.lat-i.is-active { background: none; }
+.lat-realce { position: absolute; inset: 0; z-index: -1; border-radius: inherit; background: var(--realce); view-transition-name: lat-realce; }
+.organizando .lat-realce { display: none; }
+/* o título troca por esmaecimento; o conteúdo some rápido e o novo sobe; o painel do mês é o mesmo lugar */
+.topo h1 { view-transition-name: titulo; }
+.conteudo { view-transition-name: conteudo; }
+:is(.ini-painel, .mes-painel) { view-transition-name: painel-mes; }
+
+::view-transition-group(*) { animation-duration: var(--mov-curto); animation-timing-function: var(--curva-entra); }
+::view-transition-old(root), ::view-transition-new(root) { animation: none; }
+::view-transition-group(lateral), ::view-transition-group(lat-nav), ::view-transition-group(tabbar) { animation: none; }
+::view-transition-old(lateral), ::view-transition-old(lat-nav), ::view-transition-old(tabbar) { animation: none; opacity: 0; }
+::view-transition-new(lateral), ::view-transition-new(lat-nav), ::view-transition-new(tabbar) { animation: none; }
+/* a ordem das camadas: a lateral, o realce e os nomes por cima de tudo o que se mexe */
+::view-transition-group(lateral) { z-index: 3; }
+::view-transition-group(lat-realce) { z-index: 4; animation-timing-function: var(--curva-move); }
+::view-transition-group(lat-nav) { z-index: 5; }
+::view-transition-group(tabbar) { z-index: 5; }
+::view-transition-old(lat-realce), ::view-transition-new(lat-realce) { animation: none; }
+::view-transition-old(lat-realce):only-child { animation: mov-some var(--mov-sai-curto) var(--curva-sai) both; }
+::view-transition-new(lat-realce):only-child { animation: mov-aparece var(--mov-curto) var(--curva-entra) both; }
+/* o título no tamanho dele, sem esticar */
+::view-transition-old(titulo), ::view-transition-new(titulo) { inline-size: auto; block-size: auto; }
+::view-transition-group(conteudo) { animation: none; }
+::view-transition-old(conteudo) { animation: mov-some var(--mov-sai-curto) var(--curva-sai) both; }
+::view-transition-new(conteudo) { animation: mov-sobe var(--mov-curto) var(--curva-entra) both; }
+/* o painel do mês: entre Início e Mês fica no lugar e só o de dentro troca; nas outras abas sai e entra com o conteúdo */
+::view-transition-group(painel-mes) { animation-timing-function: var(--curva-move); }
+::view-transition-old(painel-mes), ::view-transition-new(painel-mes) { block-size: auto; }
+::view-transition-old(painel-mes):only-child { animation: mov-some var(--mov-sai-curto) var(--curva-sai) both; }
+::view-transition-new(painel-mes):only-child { animation: mov-sobe var(--mov-curto) var(--curva-entra) both; }
+
+/* trocar de mês (as setas, o seletor, o voltar do navegador): o conteúdo desliza no sentido do tempo. O mês seguinte
+   entra pela direita; o anterior, pela esquerda. O painel e o título vão junto (movimento.js marca o tipo) */
+html:active-view-transition-type(mes-prox, mes-ant) :is(.ini-painel, .mes-painel) { view-transition-name: none; }
+html:active-view-transition-type(mes-prox)::view-transition-old(conteudo),
+html:active-view-transition-type(mes-prox)::view-transition-old(titulo) { animation: mov-sai-esq var(--mov-sai-curto) var(--curva-sai) both; }
+html:active-view-transition-type(mes-prox)::view-transition-new(conteudo),
+html:active-view-transition-type(mes-prox)::view-transition-new(titulo) { animation: mov-entra-dir var(--mov-curto) var(--curva-entra) both; }
+html:active-view-transition-type(mes-ant)::view-transition-old(conteudo),
+html:active-view-transition-type(mes-ant)::view-transition-old(titulo) { animation: mov-sai-dir var(--mov-sai-curto) var(--curva-sai) both; }
+html:active-view-transition-type(mes-ant)::view-transition-new(conteudo),
+html:active-view-transition-type(mes-ant)::view-transition-new(titulo) { animation: mov-entra-esq var(--mov-curto) var(--curva-entra) both; }
+/* a mesma aba com outro filtro (busca, período, mês ↔ ano): a lista troca por esmaecimento, sem subir */
+html:active-view-transition-type(troca)::view-transition-new(conteudo) { animation: mov-aparece var(--mov-curto) var(--curva-entra) both; }
+
+/* trocar o tema: a tela inteira numa transição só (movimento.js põe .vt-tema durante a troca) */
+html.vt-tema :is(.lateral, .lat-nav, .lat-realce, .tabbar, .topo h1, .conteudo, .ini-painel, .mes-painel) { view-transition-name: none; }
+html.vt-tema::view-transition-old(root) { animation: mov-some var(--mov-curto) var(--curva-move) both; }
+html.vt-tema::view-transition-new(root) { animation: mov-aparece var(--mov-curto) var(--curva-move) both; }
+
+@keyframes mov-some { to { opacity: 0; } }
+@keyframes mov-aparece { from { opacity: 0; } }
+@keyframes mov-sobe { from { opacity: 0; transform: translateY(8px); } }
+@keyframes mov-sai-esq { to { opacity: 0; transform: translateX(-24px); } }
+@keyframes mov-sai-dir { to { opacity: 0; transform: translateX(24px); } }
+@keyframes mov-entra-dir { from { opacity: 0; transform: translateX(24px); } }
+@keyframes mov-entra-esq { from { opacity: 0; transform: translateX(-24px); } }
+
+/* ---------------------------------------------------------------- 3. em todas as abas */
+
+/* o aviso: sobe 8px e aparece; fica 6s (para com o mouse em cima ou com o foco) e sai rápido. O erro fica até fechar */
+.toast, .toast:has(.toast-acao) {
+    animation: toast-entra var(--mov-curto) var(--curva-entra) both, toast-sai var(--mov-sai-curto) var(--curva-sai) 6s forwards;
+}
+.toast-error { animation: toast-entra var(--mov-curto) var(--curva-entra) both; }
+.toast:hover, .toast:focus-within { animation-play-state: paused; }
+
+/* o erro no campo: treme uma vez, 4px */
+:where(input, select, textarea)[aria-invalid="true"] { animation: mov-treme var(--mov-curto) var(--curva-move) 1; }
+@keyframes mov-treme {
+    25% { transform: translateX(-4px); }
+    50% { transform: translateX(4px); }
+    75% { transform: translateX(-2px); }
+}
+
+/* abrir um item de Ajustes ou o editor de uma meta: as linhas da grade de 0fr a 1fr (não a altura) e o conteúdo
+   esmaece; fecha em 65% do tempo. Sem ::details-content (Firefox), abre na hora */
+@supports selector(::details-content) {
+    details:is(.ajs-item, .mt-linha)::details-content {
+        display: grid; grid-template-rows: 0fr; opacity: 0;
+        transition: grid-template-rows var(--mov-sai-curto) var(--curva-sai), opacity var(--mov-sai-curto) var(--curva-sai),
+            content-visibility var(--mov-sai-curto) allow-discrete;
+    }
+    details:is(.ajs-item, .mt-linha)[open]::details-content {
+        grid-template-rows: 1fr; opacity: 1;
+        transition-duration: var(--mov-curto); transition-timing-function: var(--curva-entra);
+    }
+    details.ajs-item > .ajs-corpo, details.mt-linha > .mt-ed { min-height: 0; overflow: clip; overflow-clip-margin: 4px; }
+}
+
+/* ---------------------------------------------------------------- 4. por aba */
+
+/* Início e Mês: o "Pagar" preenche o círculo enquanto lança; os segmentos da barra mudam com scaleX (movimento.js) */
+.btn-pagar .circ { transition: background-color var(--mov-micro) var(--curva-entra); }
+.btn-pagar.is-pagando .circ { background: currentColor; }
+.barra > span { transform-origin: left center; }
+
+/* Mês: voltou do salvar (#cat-…): o valor novo pisca num fundo azul que some em 600ms */
+.mes-livro tr:target > td.c-prev summary { animation: mov-pisca 600ms var(--curva-sai) 1; }
+@keyframes mov-pisca { from { background-color: var(--azul-fundo); } }
+
+/* Lançar: o diálogo cresce de 0,96 a 1 a partir de onde foi aberto (movimento.js põe a origem) e o fundo escurece
+   junto; fecha em 65% do tempo. Sem @starting-style, abre na hora */
+dialog.sheet {
+    transform-origin: var(--origem, 50% 100%);
+    opacity: 0; transform: scale(.96);
+    transition: opacity var(--mov-sai-longo) var(--curva-sai), transform var(--mov-sai-longo) var(--curva-sai),
+        overlay var(--mov-sai-longo) allow-discrete, display var(--mov-sai-longo) allow-discrete;
+}
+dialog.sheet:not([open]) { pointer-events: none; }
+dialog.sheet[open] { animation: none; opacity: 1; transform: none; transition-duration: var(--mov-longo); transition-timing-function: var(--curva-entra); }
+@starting-style { dialog.sheet[open] { opacity: 0; transform: scale(.96); } }
+dialog.sheet::backdrop {
+    opacity: 0;
+    transition: opacity var(--mov-sai-longo) var(--curva-sai), overlay var(--mov-sai-longo) allow-discrete, display var(--mov-sai-longo) allow-discrete;
+}
+dialog.sheet[open]::backdrop { opacity: 1; transition-duration: var(--mov-longo); transition-timing-function: var(--curva-entra); }
+@starting-style { dialog.sheet[open]::backdrop { opacity: 0; } }
+
+/* Lançar: Conta e Cartão em abas; o traço azul é uma peça que desliza para a aba escolhida (movimento.js) */
+.lf .ct-pagou label:has(input:checked) { box-shadow: none; }
+.lf .ct-pagou label:has(input:checked)::after {
+    content: ""; position: absolute; inset: auto 0 0; height: 2px; background: var(--azul); transform-origin: left center;
+}
+
+/* Cartão: trocar o estilo pinta o cartão como uma tinta nova */
+.ct-plastico[data-visual], .ct-vis-mini[data-visual] { transition: background-color var(--mov-longo) var(--curva-entra), color var(--mov-longo) var(--curva-entra), box-shadow var(--mov-longo) var(--curva-entra); }
+
+/* Extrato: o lançamento novo nasce no lugar com um fundo azul que some (movimento.js põe a classe) */
+.ext-linha.mov-novo > * { animation: mov-pisca 1.2s var(--curva-sai) 1; }
+
+/* ---------------------------------------------------------------- 5. reduzir movimento */
+/* todo deslocamento vira um esmaecimento curto ou nada, e o estado final aparece igual */
+@media (prefers-reduced-motion: reduce) {
+    @view-transition { navigation: none; }
+    .toast, .toast:has(.toast-acao) { animation: none; }
+    :where(input, select, textarea)[aria-invalid="true"] { animation: none; }
+    dialog.sheet, dialog.sheet[open] { transform: none; transition-property: opacity, overlay, display; transition-duration: 150ms; }
+    @starting-style { dialog.sheet[open] { transform: none; } }
+    details:is(.ajs-item, .mt-linha)::details-content { transition: none; }
+}

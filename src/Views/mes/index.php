@@ -231,7 +231,7 @@ $situDia = static function (array $l) use ($estado): string {
 
 /* ---------------------------------------------------------------- linhas */
 $linhaConta = static function (array $l) use ($fechado, $valorConta, $celulaPrev, $realTxt, $prevTxt, $situConta, $diferenca, $nomeCel): void { ?>
-    <tr id="cat-<?= (int) $l['id'] ?>"<?= !empty($l['do_cartao']) ? ' class="mes-do-cartao"' : '' ?>>
+    <tr id="cat-<?= (int) $l['id'] ?>" data-mov-pago="<?= (int) $l['id'] ?>"<?= !empty($l['do_cartao']) ? ' class="mes-do-cartao"' : '' ?>>
         <?= $nomeCel($l, nomeCategoria($l['nome_completo'])) ?>
         <?php if ($fechado): ?>
             <td class="c-prev"><span class="mes-cel"><?= e(t('planejado')) ?> </span><?= $prevTxt((float) $l['prev'], true) ?></td>
@@ -288,8 +288,9 @@ $linhaMov = static function (array $m) use ($fechado, $estado, $prevTxt, $realTx
     </tr>
 <?php };
 
-$grupo = static function (string $nome, float $total, bool $saida): void { ?>
-    <tr class="grupo"><th colspan="4" scope="colgroup"><?= e($nome) ?> <span class="num"><?= e(($saida && $total > 0.004 ? MENOS : '') . num(abs($total))) ?></span></th></tr>
+// o total do grupo conta até o novo quando uma ação o muda (movimento.js): a chave é o mês e o grupo
+$grupo = static function (string $nome, float $total, bool $saida, string $chave) use ($mes): void { ?>
+    <tr class="grupo"><th colspan="4" scope="colgroup"><?= e($nome) ?> <span class="num" data-mov-conta="<?= e('grupo-' . $chave . '-' . $mes) ?>" data-mov-valor="<?= e(number_format(abs($total), 2, '.', '')) ?>"><?= e(($saida && $total > 0.004 ? MENOS : '') . num(abs($total))) ?></span></th></tr>
 <?php };
 
 // "+ incluir": categorias sem previsão neste mês
@@ -397,7 +398,7 @@ $fechaJa = $podeFechar && ($mes < $mesCal || (string) $hoje >= $fimMesData);
             <div class="mes-painel-l1">
                 <div>
                     <h2 class="rot-resposta" id="mes-resposta-t"><?= e($fechado ? t('{mes} fechou com', ['mes' => $mesTit]) : t('{mes} fecha com', ['mes' => $mesTit])) ?></h2>
-                    <p class="resposta-num" data-previsao-fim="<?= e(number_format($fimMes, 2, '.', '')) ?>"><?= valor($fimMes, 'neutro', ['moeda' => true, 'classe' => $fimMes < -0.004 ? 'alerta' : '']) ?></p>
+                    <p class="resposta-num" data-previsao-fim="<?= e(number_format($fimMes, 2, '.', '')) ?>" data-mov-conta="<?= e('fecha-' . $mes) ?>" data-mov-valor="<?= e(number_format($fimMes, 2, '.', '')) ?>"><?= valor($fimMes, 'neutro', ['moeda' => true, 'classe' => $fimMes < -0.004 ? 'alerta' : '']) ?></p>
                     <?php if ($apoioFim !== ''): ?><p class="por-dia"><?= $apoioFim ?></p><?php endif; ?>
                 </div>
                 <?php if ($podeFechar): ?>
@@ -412,7 +413,7 @@ $fechaJa = $podeFechar && ($mes < $mesCal || (string) $hoje >= $fimMesData);
                 <?php endif; ?>
             </div>
             <?php if ($destino !== null && $destino['total'] >= 0.005): ?>
-                <div class="mes-destino" data-destino data-total="<?= e(number_format($destino['total'], 2, '.', '')) ?>">
+                <div class="mes-destino" data-destino data-mov-barra="<?= e('mes-' . $mes) ?>" data-total="<?= e(number_format($destino['total'], 2, '.', '')) ?>">
                     <?php View::partial('partials/destino', [
                         'titulo' => t('Para onde vai o dinheiro de {mes}', ['mes' => $mesNome]),
                         'segmentos' => Destino::segmentos($destino), 'total' => $destino['total'], 'nivel' => 'h3',
@@ -434,7 +435,7 @@ $fechaJa = $podeFechar && ($mes < $mesCal || (string) $hoje >= $fimMesData);
                 </tr>
             </thead>
             <tbody>
-                <?php $grupo(t('Entradas'), $totEntradas, false); ?>
+                <?php $grupo(t('Entradas'), $totEntradas, false, 'entradas'); ?>
                 <tr data-saldo-anterior>
                     <td><span class="cat"><?= iconeCategoria(0, 'Guardar na poupança', 'Poupanca', 20) ?><span class="mes-nome"><?= e(t('Saldo de {mes}', ['mes' => mesExtenso(date('Y-m-01', strtotime($mes . ' -1 month')))])) ?></span></span></td>
                     <td class="c-prev"><span class="mes-cel"><?= e($fechado ? t('planejado') : t('previsto')) ?> </span><?= valor($inicioMes, 'previsto', ['centavos' => false]) ?></td>
@@ -445,17 +446,17 @@ $fechaJa = $podeFechar && ($mes < $mesCal || (string) $hoje >= $fimMesData);
                 <?php foreach ($movEntra as $m) { $linhaMov($m); } ?>
 
                 <?php if ($contas !== []): ?>
-                    <?php $grupo(t('Contas fixas'), $totContas, true); ?>
+                    <?php $grupo(t('Contas fixas'), $totContas, true, 'contas'); ?>
                     <?php foreach ($contas as $l) { $linhaConta($l); } ?>
                 <?php endif; ?>
 
                 <?php if ($dia !== []): ?>
-                    <?php $grupo(t('Dia a dia'), $totDia, true); ?>
+                    <?php $grupo(t('Dia a dia'), $totDia, true, 'dia'); ?>
                     <?php foreach ($dia as $l) { $linhaDia($l); } ?>
                 <?php endif; ?>
 
                 <?php if ($movSai !== []): ?>
-                    <?php $grupo(t('Guardado e empréstimo'), $totGuardado, true); ?>
+                    <?php $grupo(t('Guardado e empréstimo'), $totGuardado, true, 'guardado'); ?>
                     <?php foreach ($movSai as $m) { $linhaMov($m); } ?>
                 <?php endif; ?>
             </tbody>
@@ -474,7 +475,7 @@ $fechaJa = $podeFechar && ($mes < $mesCal || (string) $hoje >= $fimMesData);
                 </tr>
                 <tr class="total-final">
                     <td><?= e(t('Fim do mês')) ?></td>
-                    <?= $celTot('<span data-fim-mes>' . valor($fimMes, 'neutro', ['classe' => $fimMes < -0.004 ? 'alerta' : '']) . '</span>') ?>
+                    <?= $celTot('<span data-fim-mes data-mov-conta="' . e('fim-' . $mes) . '" data-mov-valor="' . e(number_format($fimMes, 2, '.', '')) . '">' . valor($fimMes, 'neutro', ['classe' => $fimMes < -0.004 ? 'alerta' : '']) . '</span>') ?>
                     <td class="situacao"><small class="fraco"><?= e($fechado ? t('fechado, o que ficou na conta') : ($estado === 'previsto' ? t('previsto') : t('previsto, com o que falta'))) ?></small></td>
                 </tr>
             </tfoot>
