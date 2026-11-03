@@ -1,5 +1,5 @@
 /* ==========================================================================
-   lancar.css — Lançar (folha e página), Extrato, Entrar e as Contas do mês. Prefixos .lf-*, .ex-*, .lg-*, .cm-*.
+   lancar.css — Lançar (folha e página), Extrato e as Contas do mês. Prefixos .lf-*, .ex-*, .cm-*.
    Lançar: a pergunta "Quanto foi?", o valor grande no centro, a categoria numa lista com busca
    e os campos arredondados. Todo campo tem 16 px ou mais (o iOS não amplia a tela).
    ========================================================================== */
@@ -213,72 +213,7 @@
     .ex-busca-txt { display: inline; }
 }
 
-/* ---------------------------------------------------------------- entrar */
-.lg-body { position: relative; min-height: 100dvh; background: var(--bg); }
-.lg-body::before {                 /* linhas abstratas na página inteira */
-    content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none;
-    background: url('/assets/img/linhas-fundo.svg') center / cover no-repeat; opacity: .85;
-}
-:root[data-theme="light"] .lg-body::before { opacity: .55; }
-@media (prefers-color-scheme: light) { :root:not([data-theme]) .lg-body::before { opacity: .55; } }
-.lg {
-    position: relative; z-index: 1;
-    width: 100%; max-width: 460px; min-height: 100dvh; margin: 0 auto;
-    display: flex; flex-direction: column; gap: 22px;
-    padding: calc(20px + env(safe-area-inset-top, 0px)) max(18px, env(safe-area-inset-right, 0px)) 28px max(18px, env(safe-area-inset-left, 0px));
-}
-.lg-topo { display: flex; align-items: center; gap: 10px; }
-.lg-topo b { font-family: var(--fn); font-size: 18px; font-weight: 700; letter-spacing: -0.02em; }
-.lg-topo .ic { margin-left: auto; }
-.lg-esq { margin-top: auto; }
-.lg-titulo { font-family: var(--fn); font-size: 34px; font-weight: 600; line-height: 1.08; letter-spacing: -0.04em; }
-.lg-sub { margin-top: 10px; color: var(--text-2); font-size: 16px; }
-.lg-dir { display: flex; flex-direction: column; gap: 12px; }
-.lg-card {
-    position: relative; display: flex; flex-direction: column; gap: 10px;
-    margin-top: 90px; padding: 18px; border-radius: 22px;
-    background: var(--card); border: 1px solid var(--line); box-shadow: var(--sombra);
-    --campo: var(--card-2);
-}
-.lg-card-sem-espia { margin-top: 24px; }
-.lg-espia { position: absolute; right: 16px; bottom: calc(100% - 1px); width: 108px; height: auto; }   /* espia por cima do cartão */
-.lg-card-t { display: none; font-size: 18px; font-weight: 800; }
-.lg-campo { position: relative; display: block; }
-.lg-campo > svg { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-3); pointer-events: none; }
-.lg-campo > input { min-height: 52px; padding-left: 44px; }
-.lg-lembrar { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; padding: 0 2px; font-weight: 600; cursor: pointer; }
-.lg-card .btn { margin-top: 4px; min-height: 52px; border-radius: 14px; }
-.lg-cert { color: var(--text-2); font-size: 13px; padding: 0 4px; }
-.lg-cert > summary { min-height: 40px; display: flex; align-items: center; text-decoration: underline; text-underline-offset: 3px; }
-.lg-cert > p { margin-top: 4px; line-height: 1.5; }
-.lg-ajuda { display: flex; align-items: center; min-height: var(--tap); padding: 0 4px; color: var(--text-2); font-size: 13px; text-decoration: underline; text-underline-offset: 3px; }
-.lg-nota { margin: -2px 4px 0; color: var(--text-2); font-size: 13px; line-height: 1.45; }
-.lg-texto { display: flex; flex-direction: column; gap: 16px; max-width: 520px; }
-.lg-texto .lg-card { display: flex; flex-direction: column; gap: 14px; line-height: 1.5; }
-.lg-privacidade { max-width: 640px; }
-.lg-privacidade .titulo { font-size: 22px; font-weight: 800; }
-.lg-privacidade section { display: flex; flex-direction: column; gap: 6px; }
-.lg-privacidade h2 { font-size: 16px; font-weight: 800; }
-.lg-privacidade p, .lg-privacidade li { color: var(--text-2); }
-.lg-privacidade ul { display: flex; flex-direction: column; gap: 6px; margin: 0; padding-left: 20px; list-style: disc; }
-.lg-privacidade li::marker { color: var(--text-3); }
-.lg-links { display: flex; flex-wrap: wrap; gap: 0 18px; }
-.lg-links a { display: inline-flex; align-items: center; min-height: 44px; color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
-
-@media (min-width: 1024px) {
-    .lg {
-        max-width: 1200px; display: grid; grid-template-columns: minmax(0, 1fr) 440px; grid-template-rows: auto 1fr;
-        gap: 0 96px; padding: 36px 64px; align-items: center;
-    }
-    .lg-topo { grid-column: 1 / -1; }
-    .lg-esq { grid-column: 1; margin: 0; max-width: 540px; }
-    .lg-titulo { font-size: 56px; }
-    .lg-sub { font-size: 17px; }
-    .lg-dir { grid-column: 2; }
-    .lg-card { margin-top: 0; padding: 28px; }
-    .lg-card-t { display: block; }
-    .lg-espia { width: 120px; right: 24px; }
-}
+/* entrar, criar conta e o código: em entrar.css (as páginas de fora do app) */
 
 /* tela larga: o extrato vira tabela (descrição | categoria | valor e dia) */
 @media (min-width: 1600px) {
