@@ -2379,4 +2379,6 @@ return [
     'Nada com “{q}” {onde}.' => 'Nothing with “{q}” {onde}.',
     'Nada encontrado com esses filtros {onde}.' => 'Nothing found with these filters {onde}.',
     'Sua sessão venceu. Confira e salve.' => 'Your session expired. Check and save.',
+    '{conta} fica com {valor}. Transferir mesmo assim?' => '{conta} will be at {valor}. Transfer anyway?',
+    'Transferir mesmo assim' => 'Transfer anyway',
 ];

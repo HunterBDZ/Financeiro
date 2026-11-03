@@ -1637,6 +1637,22 @@ $htmlExtN = $render(LancamentosController::class, 'index', ['mes' => $mesHoje, '
 $check('extrato: "em novembro de 2026" no meio da frase', str_contains($htmlExtF, 'Nada encontrado com esses filtros em ' . mesAno($mesHoje) . '.') && !str_contains($htmlExtF, ' De ' . substr($mesHoje, 0, 4)));
 $check('extrato: valor negativo no filtro é recusado', str_contains($htmlExtN, 'Digite o valor como 45 ou 45,90.') && !str_contains($htmlExtN, 'name="max" value="-5"'));
 
+// ---- 9l. Transferência que deixa a conta negativa pede confirmação (B-14)
+$emTransacao('transferência negativa', static function () use ($pdo, $check, $hoje): void {
+    $c2 = ContaModel::salvar(null, 'Carteira B14', 'dinheiro', 0.0);
+    TransferenciaController::criarDe(['valor' => '400', 'de_conta' => '1', 'para_conta' => (string) $c2, 'data' => $hoje]);
+    $n = static fn(): int => (int) $pdo->query('SELECT COUNT(*) FROM transferencias')->fetchColumn();
+    $antes = $n();
+    $r = TransferenciaController::criarDe(['valor' => '5000', 'de_conta' => (string) $c2, 'para_conta' => '1', 'data' => $hoje]);
+    $check('transferência: deixar a conta negativa pede confirmação e não grava', ($r['negativo']['valor'] ?? null) === -4600.0 && $r['id'] === 0 && $n() === $antes, json_encode($r));
+    $r2 = TransferenciaController::criarDe(['valor' => '5000', 'de_conta' => (string) $c2, 'para_conta' => '1', 'data' => $hoje, 'confirmar_negativo' => '1']);
+    $check('transferência: confirmada, grava', $r2['erro'] === null && $r2['id'] > 0 && $n() === $antes + 1 && abs(ContaModel::saldo($c2, $hoje) + 4600) < 0.005);
+    $r3 = TransferenciaController::criarDe(['valor' => '100', 'de_conta' => '1', 'para_conta' => (string) $c2, 'data' => $hoje]);
+    $check('transferência: sem ficar negativa, grava direto', $r3['id'] > 0 && !isset($r3['negativo']));
+});
+ContaModel::limparCache();
+LancarForm::limparCache();
+
 // ---- 9d. Mês fechado não muda (B-01): lançar, editar, excluir, transferir, pagar e a compra cuja fatura é de mês fechado
 $emTransacao('mês fechado não muda', static function () use ($pdo, $check, $render, $catDia, $mesHoje, $hoje, $uid): void {
     $fechado = (string) $pdo->query("SELECT MAX(mes) FROM meses WHERE situacao = 'REAL'")->fetchColumn();

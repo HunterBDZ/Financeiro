@@ -15,14 +15,22 @@ use Financeiro\View;
 final class TransferenciaController
 {
     /**
-     * Valida e grava (campos do lançar: valor, data ou quando, de_conta, para_conta, descricao).
-     * @return array{erro:?string, id:int, aviso:string, data:string}
+     * Valida e grava (campos do lançar: valor, data ou quando, de_conta, para_conta, descricao). Se a conta de onde sai
+     * fica negativa (na data ou depois, com o que já está lançado), não grava sem confirmar_negativo=1: devolve
+     * `negativo` (a conta e com quanto fica), e o lançar pergunta. Não é proibido: a pessoa sabe se o banco deixa.
+     * @return array{erro:?string, id:int, aviso:string, data:string, negativo?:array{conta:string, valor:float}}
      */
     public static function criarDe(array $in): array
     {
         [$erro, $d] = self::validar($in);
         if ($erro !== null) {
             return ['erro' => $erro, 'id' => 0, 'aviso' => '', 'data' => ''];
+        }
+        if (($in['confirmar_negativo'] ?? '') !== '1') {
+            $fica = round(min(ContaModel::saldo($d['de']['id'], $d['data']), ContaModel::saldo($d['de']['id'], '9999-12-31')) - $d['valor'], 2);
+            if ($fica < -0.004) {
+                return ['erro' => null, 'id' => 0, 'aviso' => '', 'data' => $d['data'], 'negativo' => ['conta' => nomeConta($d['de']), 'valor' => $fica]];
+            }
         }
         MesModel::ensureExists(substr($d['data'], 0, 8) . '01');
         $id = TransferenciaModel::criar($d['data'], $d['de']['id'], $d['para']['id'], $d['valor'], $d['descricao'], (int) Auth::id());

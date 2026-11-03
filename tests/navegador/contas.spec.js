@@ -96,3 +96,27 @@ test('transfere para uma conta nova e paga a fatura escolhendo o cartão', async
     await expect(page.locator('.ext-saldo-conta')).toContainText('45,00');
     expect(srv.logDoApp(), 'avisos ou erros do PHP').toBe('');
 });
+
+// transferência que deixa a conta negativa pede confirmação; confirmada, grava (B-14)
+test('transferir mais do que a conta tem pede confirmação', async ({ page, context }) => {
+    await entrar(context.request, srv.url);
+    const ir = (caminho) => page.goto(srv.url + caminho);
+    await ir('/ajustes?aberto=carteira#carteira');
+    const contas = page.locator('#carteira');
+    await contas.getByText('Nova conta').click();
+    const nova = contas.locator('.aj-cd-nova form');
+    await nova.getByLabel('Nome').fill('Bolso');
+    await nova.getByText('Dinheiro vivo').click();
+    await nova.getByRole('button', { name: 'Criar conta' }).click();
+    await expect(page.getByRole('status').filter({ hasText: 'Conta criada' })).toBeVisible();
+
+    await ir('/lancar?volta=%2Flancamentos');
+    await page.getByText('↔ Transferir').click();
+    await page.getByRole('textbox', { name: 'valor' }).pressSequentially('5000');
+    await page.getByRole('combobox', { name: /^De/ }).selectOption({ label: 'Bolso' });
+    await page.getByRole('combobox', { name: /^Para/ }).selectOption({ index: 0 });
+    await page.getByRole('button', { name: 'Transferir', exact: true }).click();
+    await expect(page.getByRole('main').getByRole('status')).toContainText('Bolso fica com −R$');
+    await page.getByRole('button', { name: 'Transferir mesmo assim' }).click();
+    await expect(page.getByRole('status').filter({ hasText: 'Transferência' })).toContainText('5.000,00');
+});

@@ -36,6 +36,8 @@ $erroDe = match ($erro) {
 $erroCampo = static fn(string $campo): ?string => $erroDe === $campo ? $erro : null;
 $erroGeral = $erroDe === null ? $erro : null;
 $dup  = isset($a['duplicado']) && is_array($a['duplicado']) ? $a['duplicado'] : null;
+// a transferência que deixaria a conta negativa: pergunta antes de gravar (não é proibida)
+$negativo = isset($a['negativo']) && is_array($a['negativo']) ? $a['negativo'] : null;
 // o lançamento de um mês fechado abre só para ler: o aviso diz como mudar, e Salvar fica desligado
 $fechado = $editar && is_string($fechado ?? null) ? $fechado : null;
 
@@ -281,6 +283,9 @@ $transferir = !$editar && $contasF !== [] && ($a['modo'] ?? '') === 'transferir'
     <?php if ($erroGeral !== null): ?>
         <div class="aviso aviso-error lf-aviso" role="alert"><?= e($erroGeral) ?></div>
     <?php endif; ?>
+    <?php if ($negativo !== null): ?>
+        <div class="aviso aviso-warn lf-aviso" role="status"><?= e(t('{conta} fica com {valor}. Transferir mesmo assim?', ['conta' => (string) ($negativo['conta'] ?? ''), 'valor' => money((float) ($negativo['valor'] ?? 0))])) ?></div>
+    <?php endif; ?>
     <?php if ($dup !== null): ?>
         <div class="aviso aviso-warn lf-aviso" role="status"><?= e(t('Já existe um lançamento igual: {descricao}, de {quem}, em {data}. Quer registrar outro?', ['quem' => (string) ($dup['quem'] ?? ''), 'data' => diaMes((string) ($dup['data'] ?? '')), 'descricao' => nomeCategoria((string) ($dup['descricao'] ?? ''))])) ?></div>
     <?php endif; ?>
@@ -289,11 +294,12 @@ $transferir = !$editar && $contasF !== [] && ($a['modo'] ?? '') === 'transferir'
     <?php endif; ?>
     <div class="aviso aviso-error lf-aviso" role="alert" data-lf-erro hidden></div>
 
-    <button type="submit" class="btn btn-principal btn-block lf-enviar" data-lf-enviar<?= $fechado !== null ? ' disabled' : '' ?> data-ct-rot="<?= $cartao !== null ? e(t('Lançar no cartão')) : '' ?>"<?= !$editar && $contasF !== [] ? ' data-transf-rot="' . e(t('Transferir')) . '"' : '' ?>><?= e($transferir ? t('Transferir') : (str_starts_with($pagou, 'cartao') ? t('Lançar no cartão') : $botao)) ?></button>
+    <button type="submit" class="btn btn-principal btn-block lf-enviar" data-lf-enviar<?= $fechado !== null ? ' disabled' : '' ?> data-ct-rot="<?= $cartao !== null ? e(t('Lançar no cartão')) : '' ?>"<?= !$editar && $contasF !== [] ? ' data-transf-rot="' . e($negativo !== null ? t('Transferir mesmo assim') : t('Transferir')) . '"' : '' ?>><?= e($transferir ? ($negativo !== null ? t('Transferir mesmo assim') : t('Transferir')) : (str_starts_with($pagou, 'cartao') ? t('Lançar no cartão') : $botao)) ?></button>
 
     <?= csrfField() ?>
     <input type="hidden" name="volta" value="<?= e($volta) ?>" data-lf-volta>
     <?php if (!$editar): ?>
         <input type="hidden" name="confirmar_dup" value="<?= $dup !== null ? '1' : '' ?>" data-lf-dup>
+        <input type="hidden" name="confirmar_negativo" value="<?= $negativo !== null ? '1' : '' ?>">
     <?php endif; ?>
 </form>

@@ -369,8 +369,9 @@ final class LancamentosController
     private static function transferir(string $volta): never
     {
         $r = TransferenciaController::criarDe($_POST);
-        if ($r['erro'] !== null) {
-            $_SESSION['lanc_antigo'] = self::antigoDe($_POST) + ['erro' => $r['erro']];
+        if ($r['erro'] !== null || isset($r['negativo'])) {
+            // erro, ou a conta ficaria negativa: volta ao lançar preenchido, com o erro ou a pergunta
+            $_SESSION['lanc_antigo'] = self::antigoDe($_POST) + ($r['erro'] !== null ? ['erro' => $r['erro']] : ['negativo' => $r['negativo']]);
             redirecionar('/lancar?volta=' . rawurlencode($volta !== '' ? $volta : '/'), 303);
         }
         $destino = $volta !== '' ? $volta : '/lancamentos?mes=' . substr($r['data'], 0, 8) . '01';
