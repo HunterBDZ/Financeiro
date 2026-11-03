@@ -37,15 +37,13 @@ $conversao = static function (array $i) use ($taxas): string {
     return t('{valor}, cotação de {data}', ['valor' => '≈' . NBSP . money((float) $i['valor_site']), 'data' => diaMes(Cotacao::dataDe((string) $i['moeda'], $taxas))]);
 };
 $preco = static fn(array $i): string => $i['valor'] !== null ? Cotacao::formatar((float) $i['valor'], (string) $i['moeda']) : t('Sem valor');
-$total = array_sum(array_map(static fn(array $i): float => (float) $i['valor_site'], $itens));
-$algumFora = array_filter($itens, static fn(array $i): bool => $i['moeda'] !== Site::moeda() && $i['valor'] !== null) !== [];
 $n = count($itens);
 $primeiro = $itens[0] ?? null;
 $resto = array_slice($itens, 1);
 $abrirNovo = $itens === [] || !empty($form);
 ?>
 <div class="grade wl">
-    <?php \Financeiro\View::partial('partials/topo', ['titulo' => t('Wishlist'), 'apoio' => $n > 0 ? tn($n, '1 item', '{n} itens') . ($total > 0 ? ', ' . ($algumFora ? '≈' . NBSP : '') . money($total) : '') : '']); ?>
+    <?php \Financeiro\View::partial('partials/topo', ['titulo' => t('Wishlist'), 'apoio' => \Financeiro\Controllers\WishlistController::resumo($itens)]); ?>
 
     <?php if ($itens === []): ?>
         <section class="faixa-grade wl-vazio" aria-labelledby="wl-vazio-t">

@@ -95,6 +95,12 @@ final class WishlistModel
         };
         array_splice($ids, $pos, 1);
         array_splice($ids, $alvo, 0, [$id]);
+        self::gravarOrdem($ids);
+    }
+
+    /** A lista nesta ordem, com as posições de 1 em diante. */
+    private static function gravarOrdem(array $ids): void
+    {
         $pdo = Database::connection();
         $abriu = !$pdo->inTransaction();
         if ($abriu) {
@@ -109,16 +115,43 @@ final class WishlistModel
         }
     }
 
+    /**
+     * O item que voltou para a lista (desfazer "comprei" ou "excluir") fica no lugar que tinha: a posição dele continua
+     * gravada, então ele entra antes do primeiro item que estava depois dele, e a lista é regravada de 1 em diante.
+     */
+    private static function voltarAoLugar(int $id): void
+    {
+        $st = Database::connection()->prepare('SELECT posicao FROM wishlist_itens WHERE id = ?');
+        $st->execute([$id]);
+        $pos = (int) $st->fetchColumn();
+        $ids = [];
+        $antes = 0;
+        $naLista = false;                           // a comprada que volta da lixeira fica nas compradas
+        foreach (self::ativos() as $i) {            // em ordem de posição
+            if ((int) $i['id'] === $id) {
+                $naLista = true;
+                continue;
+            }
+            $ids[] = (int) $i['id'];
+            $antes += (int) $i['posicao'] < $pos ? 1 : 0;
+        }
+        if (!$naLista) {
+            return;
+        }
+        array_splice($ids, $antes, 0, [$id]);
+        self::gravarOrdem($ids);
+    }
+
     public static function marcarComprado(int $id, string $data): void
     {
         Database::connection()->prepare('UPDATE wishlist_itens SET comprado_em = ? WHERE id = ?')->execute([$data, $id]);
     }
 
-    /** Volta para o fim da lista. */
+    /** Volta para a lista, no lugar que tinha. */
     public static function devolver(int $id): void
     {
-        Database::connection()->prepare('UPDATE wishlist_itens SET comprado_em = NULL, posicao = ? WHERE id = ?')
-            ->execute([self::proximaPosicao(), $id]);
+        Database::connection()->prepare('UPDATE wishlist_itens SET comprado_em = NULL WHERE id = ?')->execute([$id]);
+        self::voltarAoLugar($id);
     }
 
     public static function excluir(int $id): void
@@ -128,10 +161,11 @@ final class WishlistModel
         $pdo->exec('DELETE FROM wishlist_itens WHERE excluido_em < ' . Sql::agoraMais(-30, 'DAY'));
     }
 
+    /** A excluída volta para a lista, no lugar que tinha (a comprada volta para as compradas). */
     public static function restaurar(int $id): void
     {
-        Database::connection()->prepare('UPDATE wishlist_itens SET excluido_em = NULL, posicao = ? WHERE id = ?')
-            ->execute([self::proximaPosicao(), $id]);
+        Database::connection()->prepare('UPDATE wishlist_itens SET excluido_em = NULL WHERE id = ?')->execute([$id]);
+        self::voltarAoLugar($id);
     }
 
     private static function proximaPosicao(): int

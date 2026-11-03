@@ -159,7 +159,8 @@ As regras do app e o porquê de cada uma. Para instalar e operar, veja o [manual
 - **Foto:** a CSP só permite imagem local. A foto fica em `wishlist_fotos`, no banco, para entrar nos backups e na volta do atualizador. Sem a extensão GD, o servidor confere pelo conteúdo (JPEG, PNG ou WebP, até 3 MB), e o navegador reduz a foto escolhida. SVG é recusado. Sai por `/wishlist/{id}/foto`, só com login.
 - **Moedas (`Cotacao`):** o item guarda o valor na moeda escolhida, e a conversão é feita ao mostrar. A previsão e o "Comprei" usam o valor de hoje. A cotação é a comercial, guardada em `cotacoes` e renovada no máximo a cada 2 horas, com uma fonte reserva; se as duas falharem, vale a última guardada, com a data à vista. IOF e taxa do cartão não entram, e a tela avisa.
 - **Ordem:** por botões, sem arrastar: funciona igual no celular e no teclado (WCAG 2.5.7).
-- **Comprei e excluir:** têm desfazer. O item some de vez depois de 30 dias.
+- **Comprei e excluir:** têm desfazer, que devolve o item ao lugar dele na fila (a posição fica gravada). O item some de vez depois de 30 dias.
+- **Total do topo:** soma só os itens com valor na moeda do site e diz quantos ficaram de fora: "4 itens, ≈ R$ 7.539,90, 1 sem preço" (sem valor ou sem cotação agora).
 
 ## Investimentos
 

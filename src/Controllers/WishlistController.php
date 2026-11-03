@@ -51,6 +51,23 @@ final class WishlistController
         View::render('wishlist/index', $data, 'wishlist');
     }
 
+    /**
+     * O topo da lista: "4 itens, ≈ R$ 7.539,90, 1 sem preço". O total soma só o que tem valor na moeda do site
+     * (valor_site); o item sem valor ou sem cotação agora fica de fora, e a frase diz quantos.
+     */
+    public static function resumo(array $itens): string
+    {
+        $n = count($itens);
+        if ($n === 0) {
+            return '';
+        }
+        $total = array_sum(array_map(static fn(array $i): float => (float) $i['valor_site'], $itens));
+        $semPreco = count(array_filter($itens, static fn(array $i): bool => $i['valor_site'] === null));
+        $algumFora = array_filter($itens, static fn(array $i): bool => $i['moeda'] !== Site::moeda() && $i['valor'] !== null) !== [];
+        return tn($n, '1 item', '{n} itens') . ($total > 0 ? ', ' . ($algumFora ? '≈' . NBSP : '') . money($total) : '')
+            . ($semPreco > 0 ? ', ' . tn($semPreco, '1 sem preço', '{n} sem preço') : '');
+    }
+
     /** Acrescenta `valor_site` (null sem valor ou sem cotação). */
     private static function comReais(array $itens, array $taxas): array
     {

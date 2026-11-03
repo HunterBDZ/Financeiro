@@ -3796,6 +3796,28 @@ preg_match('#class="sim-serie" style="left:([\d.]+)%#', $htmlC09, $mSerie);
 $check('C-09 simular: valores enormes sem centavos na tabela e o rótulo "Dívida" fora da faixa do eixo', $largos !== [] && $comCentavos === []
     && (!str_contains($htmlC09, 'sim-serie') || (isset($mSerie[1]) && (float) $mSerie[1] >= 10.0)), json_encode([array_values($comCentavos), $mSerie[1] ?? null]));
 
+// C-10: desfazer "comprei" e "excluir" devolve o item ao lugar dele
+$emTransacao('C-10 wishlist: o lugar na fila', static function () use ($check, $uid): void {
+    $ids = [];
+    foreach (['um', 'dois', 'três', 'quatro'] as $nome) {
+        $ids[] = WishlistModel::criar('C10 ' . $nome, null, 10.0, $uid);
+    }
+    WishlistModel::mover($ids[3], 'primeiro');
+    $ordem = static fn(): array => array_values(array_filter(array_map(static fn(array $i): int => (int) $i['id'], WishlistModel::ativos()), static fn(int $i): bool => in_array($i, $ids, true)));
+    $antes = $ordem();
+    WishlistModel::marcarComprado($ids[1], '2026-11-22');
+    WishlistModel::devolver($ids[1]);
+    $depoisComprei = $ordem();
+    WishlistModel::excluir($ids[2]);
+    WishlistModel::restaurar($ids[2]);
+    $check('C-10 wishlist: desfazer "comprei" e "excluir" devolve o item ao lugar dele', $depoisComprei === $antes && $ordem() === $antes, json_encode([$antes, $depoisComprei, $ordem()]));
+});
+
+// C-11: o total da Wishlist soma só o que tem valor e diz quantos ficaram de fora
+$resumoW = WishlistController::resumo([['valor' => 100.0, 'moeda' => 'BRL', 'valor_site' => 100.0], ['valor' => 179.0, 'moeda' => 'USD', 'valor_site' => null],
+    ['valor' => null, 'moeda' => 'BRL', 'valor_site' => null], ['valor' => 50.5, 'moeda' => 'BRL', 'valor_site' => 50.5]]);
+$check('C-11 wishlist: "4 itens, ≈ R$ 150,50, 2 sem preço"', $resumoW === '4 itens, ≈' . NBSP . money(150.5) . ', 2 sem preço', $resumoW);
+
 // C-12: OFX com lançamentos ilegíveis avisa quantos ficaram de fora
 $ofxRuim = "OFXHEADER:100\n<OFX><BANKTRANLIST>"
     . "<STMTTRN><DTPOSTED>20261110<TRNAMT>-10.00<FITID>1<NAME>BOM</STMTTRN>"
