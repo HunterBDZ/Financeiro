@@ -128,9 +128,11 @@ $transferir = !$editar && $contasF !== [] && ($a['modo'] ?? '') === 'transferir'
     <?php if ($opcoes !== []): ?>
         <fieldset class="ct-pagou is-varias" data-ct-pagou>
             <legend class="lf-rot" data-pagou-rot data-gasto="<?= e(t('Pagou com')) ?>" data-entrada="<?= e(t('Recebeu em')) ?>"><?= e(t('Pagou com')) ?></legend>
+            <div class="lf-abas">
             <?php foreach ($opcoes as [$v, $o, $soGasto]): ?>
-                <label<?= $soGasto ? ' data-so-gasto' : '' ?>><input type="radio" name="pagou" value="<?= e($v) ?>"<?= $v === $pagou ? ' checked' : '' ?><?= $v === ($padraoV ?? null) ? ' data-lf-padrao' : '' ?>><?= $soGasto ? e($o['nome']) : ($o !== null ? '<span aria-hidden="true">' . e(\Financeiro\Models\ContaModel::TIPOS[$o['tipo']] ?? '') . '</span> ' . e(nomeConta($o)) : e(t('Conta'))) ?></label>
+                <label<?= $soGasto ? ' data-so-gasto' : '' ?> title="<?= e($soGasto ? $o['nome'] : ($o !== null ? nomeConta($o) : t('Conta'))) ?>"><input type="radio" name="pagou" value="<?= e($v) ?>"<?= $v === $pagou ? ' checked' : '' ?><?= $v === ($padraoV ?? null) ? ' data-lf-padrao' : '' ?>><?= $soGasto ? e($o['nome']) : ($o !== null ? '<span aria-hidden="true">' . e(\Financeiro\Models\ContaModel::TIPOS[$o['tipo']] ?? '') . '</span> ' . e(nomeConta($o)) : e(t('Conta'))) ?></label>
             <?php endforeach; ?>
+            </div>
         </fieldset>
     <?php elseif ($cartao !== null): ?>
         <fieldset class="ct-pagou" data-ct-pagou>

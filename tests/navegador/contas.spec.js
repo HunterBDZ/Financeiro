@@ -120,3 +120,15 @@ test('transferir mais do que a conta tem pede confirmação', async ({ page, con
     await page.getByRole('button', { name: 'Transferir mesmo assim' }).click();
     await expect(page.getByRole('status').filter({ hasText: 'Transferência' })).toContainText('5.000,00');
 });
+
+// no celular, as abas do "Pagou com" ficam numa linha, mesmo com duas contas e um cartão (B-16)
+test('celular: as abas do "Pagou com" cabem numa linha', async ({ page, context }) => {
+    await entrar(context.request, srv.url);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(srv.url + '/lancar?volta=%2F');
+    const abas = page.locator('[data-ct-pagou] label');
+    expect(await abas.count()).toBeGreaterThanOrEqual(3);
+    const topos = await abas.evaluateAll((ls) => ls.filter((l) => !l.hidden).map((l) => Math.round(l.getBoundingClientRect().top)));
+    expect(new Set(topos).size).toBe(1);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+});

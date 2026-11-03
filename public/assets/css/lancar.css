@@ -129,6 +129,11 @@
 .lf .ct-pagou label:has(input:checked) { background: none; color: var(--tinta); box-shadow: inset 0 -2px 0 var(--azul); }
 .lf .ct-pagou label:has(input:focus-visible) { outline: 2px solid var(--azul); outline-offset: 2px; border-radius: var(--raio-controle); }
 .lf .ct-pagou label[hidden] { display: none; }
+/* as abas ficam sempre numa linha: com muitas contas, cada nome encolhe e termina em "…" (o nome inteiro fica no title) */
+.lf .lf-abas { display: flex; flex-wrap: nowrap; gap: 0 var(--e-5); width: 100%; min-width: 0; }
+.lf .ct-pagou .lf-abas label { display: block; padding: 0 2px; text-align: left; flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: var(--tap); }
+.lf .ct-pagou .lf-abas label[hidden] { display: none; }
+@media (max-width: 599px) { .lf .lf-abas { gap: 0 var(--e-4); } }
 /* as vezes do cartão: escolha segmentada de contorno; a prévia é o único bloco em tom */
 .lf .ct-vezes label { min-height: 40px; border-radius: var(--raio-controle); background: var(--superficie); box-shadow: inset 0 0 0 1px var(--fio-forte); font-weight: 400; font-size: var(--t-rotulo); }
 .lf .ct-vezes label:has(input:checked) { background: var(--azul-fundo); color: var(--azul); box-shadow: inset 0 0 0 1.5px var(--azul); font-weight: 600; }
