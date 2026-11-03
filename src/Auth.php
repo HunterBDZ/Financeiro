@@ -254,6 +254,7 @@ final class Auth
         if (session_status() === PHP_SESSION_ACTIVE) {
             session_regenerate_id(true);
         }
+        unset($_SESSION['sessao_expirou']);
         $_SESSION['usuario_id']    = (int) $usuario['id'];
         $_SESSION['usuario_nome']  = (string) $usuario['nome'];
         $_SESSION['sessao_versao'] = (int) $usuario['sessao_versao'];
@@ -435,7 +436,7 @@ final class Auth
         }
         if (!self::$versaoOk) {
             // "sair de todos os aparelhos" (ou usuário apagado): esta sessão morreu
-            $_SESSION = [];
+            $_SESSION = ['sessao_expirou' => true];
             if (session_status() === PHP_SESSION_ACTIVE) {
                 session_regenerate_id(true);
             }
@@ -494,7 +495,11 @@ final class Auth
             self::exigirConfiguracao();
             return;
         }
-        $expirou = isset($_COOKIE[session_name()]);
+        // "a sessão expirou" só para quem tinha uma: a que passou de 8 h, a derrubada de outro aparelho ou a que o
+        // servidor já não conhece. Depois de sair, o /login deixa uma sessão vazia, e ela não conta.
+        $cookie = $_COOKIE[session_name()] ?? null;
+        $expirou = !empty($_SESSION['sessao_expirou']) || (is_string($cookie) && $cookie !== session_id());
+        unset($_SESSION['sessao_expirou']);
         if (in_array($_SERVER['REQUEST_METHOD'] ?? 'GET', ['GET', 'HEAD'], true)) {
             $_SESSION['next'] = $_SERVER['REQUEST_URI'] ?? '/';
         }
