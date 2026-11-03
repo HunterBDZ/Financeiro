@@ -9,34 +9,39 @@ use Financeiro\Database;
  */
 final class SaldoConferenciaModel
 {
-    /** A conferência do total mais recente (maior data; empate = a última registrada), ou null. */
-    public static function ultima(): ?array
+    /** A conferência do total mais recente (maior data; empate = a última registrada) entre $desde e $ate, ou null. */
+    public static function ultima(?string $ate = null, ?string $desde = null): ?array
     {
-        $pdo = Database::connection();
-        $stmt = $pdo->query(
+        $stmt = Database::connection()->prepare(
             'SELECT sc.id, sc.data, sc.saldo_informado, sc.criado_em, sc.conta_id, u.nome AS usuario_nome
              FROM saldo_conferencias sc
              JOIN usuarios u ON u.id = sc.usuario_id
-             WHERE sc.conta_id IS NULL
+             WHERE sc.conta_id IS NULL AND sc.data <= :ate AND sc.data >= :desde
              ORDER BY sc.data DESC, sc.id DESC
              LIMIT 1'
         );
+        $stmt->execute(['ate' => $ate ?? '9999-12-31', 'desde' => $desde ?? '0000-01-01']);
         return $stmt->fetch() ?: null;
     }
 
     /**
-     * A conferência mais recente de cada conta.
+     * A conferência mais recente de cada conta, entre $desde e $ate. Com $semConta, a do total (conta_id NULL, feita
+     * quando havia uma conta só) vale como a dessa conta: assim a conferência de antes continua à vista depois de
+     * criar a segunda conta (DashboardController::conferenciaAtual).
      * @return array<int, array> conta_id => conferência
      */
-    public static function ultimasPorConta(): array
+    public static function ultimasPorConta(?string $ate = null, ?string $desde = null, ?int $semConta = null): array
     {
         $out = [];
-        $rows = Database::connection()->query(
+        $st = Database::connection()->prepare(
             'SELECT sc.id, sc.data, sc.saldo_informado, sc.criado_em, sc.conta_id
-             FROM saldo_conferencias sc WHERE sc.conta_id IS NOT NULL ORDER BY sc.data DESC, sc.id DESC'
-        )->fetchAll();
-        foreach ($rows as $r) {
-            $out[(int) $r['conta_id']] ??= $r;
+             FROM saldo_conferencias sc WHERE (sc.conta_id IS NOT NULL OR :com = 1) AND sc.data <= :ate AND sc.data >= :desde
+             ORDER BY sc.data DESC, sc.id DESC'
+        );
+        $st->execute(['com' => $semConta !== null ? 1 : 0, 'ate' => $ate ?? '9999-12-31', 'desde' => $desde ?? '0000-01-01']);
+        foreach ($st->fetchAll() as $r) {
+            $conta = $r['conta_id'] !== null ? (int) $r['conta_id'] : (int) $semConta;
+            $out[$conta] ??= ['conta_id' => $conta] + $r;
         }
         return $out;
     }

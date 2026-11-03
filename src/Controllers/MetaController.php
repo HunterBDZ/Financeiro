@@ -45,12 +45,12 @@ final class MetaController
         // o mês escolhido: a renda (o que entrou mais o que veio do mês anterior) e o gasto de cada categoria
         $linhaMes   = GastosMensais::matriz()[$mes] ?? ['renda' => 0.0, 'cats' => []];
         $entradas   = (float) ($linhaMes['renda'] ?? 0.0);
-        $gastos     = $linhaMes['cats'] ?? [];
         // com o cartão: cada compra na categoria dela, pela data da compra (sem o cartão, é o mesmo que os lançamentos)
         $porCompra = GastoPorCategoria::ativo();
         $doMes     = $porCompra ? GastoPorCategoria::doMes($mes) : [];
         $semCat    = $porCompra ? GastoPorCategoria::semCategoria($mes) : null;
-        $gastoDe   = static fn(int $id): float => $porCompra ? max(0.0, (float) ($doMes[$id] ?? 0.0)) : (float) ($gastos[$id]['real'] ?? 0.0);
+        $gastosMes = self::gastosDoMes($mes);
+        $gastoDe   = static fn(int $id): float => $gastosMes[$id]['gasto'] ?? 0.0;
         $linhaPlano = MotorFinanceiro::linhaDoMes($mes);
         $sobra      = $linhaPlano !== null ? (float) ($linhaPlano['sobrou_mes_anterior'] ?? 0.0) : 0.0;
 
@@ -69,7 +69,7 @@ final class MetaController
                 continue;
             }
             $ehConta[$id] = true;
-            $contas[] = self::linha($d, $c, $mes, $gastoDe($id)) + [
+            $contas[] = self::linha($d, $c, $mes, $gastoDe($id), $gastosMes[$id]['cartao'] ?? false) + [
                 'conta' => (int) $r['id'], 'dia' => (int) $r['dia_vencimento'], 'do_cartao' => $id === $catFatura,
                 'nome' => $c['grupo'] === 'Cartao' ? nomeCategoria($c['nome']) : nomeCurto($c),
             ];
@@ -85,7 +85,7 @@ final class MetaController
             if (isset($ehConta[$id])) {
                 continue;
             }
-            $l = self::linha($d, $d['cats'][$id] ?? $c, $mes, $gastoDe($id)) + ['nome' => nomeCurto($c)];
+            $l = self::linha($d, $d['cats'][$id] ?? $c, $mes, $gastoDe($id), $gastosMes[$id]['cartao'] ?? false) + ['nome' => nomeCurto($c)];
             $l['aberta'] = $id === $add || (int) ($erro['cat'] ?? 0) === $id;
             $ehEss = (int) $c['essencial'] === 1;
             if ($l['padrao'] !== null || $l['valor'] > 0.004 || $l['aberta']) {
@@ -158,17 +158,38 @@ final class MetaController
     }
 
     /**
-     * Uma categoria no mês: o valor que vale nele, a meta de todo mês e se o mês tem valor próprio diferente dela.
-     * @return array{id:int, grupo:string, essencial:int, valor:float, padrao:?float, proprio:bool, gasto:float}
+     * O gasto de cada categoria de gasto no mês, como as Metas contam: com o cartão (GastoPorCategoria::ativo), cada
+     * compra na categoria dela, pela data da compra; sem ele, os lançamentos. `cartao` marca as categorias em que as
+     * compras no cartão mudam o número: o Mês e o Início contam a fatura e dão outro, então a tela diz "com o cartão".
+     * O "Precisa de atenção" e o aviso do Lançar usam esta mesma conta.
+     * @return array<int, array{gasto:float, cartao:bool}>
      */
-    private static function linha(array $d, array $c, string $mes, float $gasto): array
+    public static function gastosDoMes(string $mes, ?string $hoje = null): array
+    {
+        $cats = GastosMensais::matriz($hoje)[$mes]['cats'] ?? [];
+        $doMes = GastoPorCategoria::ativo() ? GastoPorCategoria::doMes($mes) : null;
+        $out = [];
+        foreach (array_keys($cats + ($doMes ?? [])) as $id) {
+            $conta = round((float) ($cats[$id]['real'] ?? 0.0), 2);
+            $gasto = $doMes !== null ? round(max(0.0, (float) ($doMes[$id] ?? 0.0)), 2) : $conta;
+            $out[(int) $id] = ['gasto' => $gasto, 'cartao' => abs($gasto - $conta) >= 0.005];
+        }
+        return $out;
+    }
+
+    /**
+     * Uma categoria no mês: o valor que vale nele, a meta de todo mês e se o mês tem valor próprio diferente dela.
+     * cartao = o gasto conta compras no cartão e difere do Mês (a linha diz "com o cartão").
+     * @return array{id:int, grupo:string, essencial:int, valor:float, padrao:?float, proprio:bool, gasto:float, cartao:bool}
+     */
+    private static function linha(array $d, array $c, string $mes, float $gasto, bool $cartao = false): array
     {
         $id = (int) $c['id'];
         $valor = round((float) ($d['prev'][$mes][$id] ?? 0.0), 2);
         $padrao = PrevisaoEdicao::meta($d, $id);
         return [
             'id' => $id, 'grupo' => (string) $c['grupo'], 'essencial' => (int) $c['essencial'],
-            'valor' => $valor, 'padrao' => $padrao, 'gasto' => round($gasto, 2),
+            'valor' => $valor, 'padrao' => $padrao, 'gasto' => round($gasto, 2), 'cartao' => $cartao,
             'proprio' => !empty($d['excecao'][$mes][$id]) && $padrao !== null && abs($valor - $padrao) >= 0.005,
         ];
     }
@@ -234,6 +255,10 @@ final class MetaController
             [$desde] = self::periodo();
             $valor = self::valorPost($bruto);
             $cat = self::categoriaDaConta($nome);
+            // conta nova pede o valor (sem ele, a linha só dizia "falta 0,00"); a Fatura do cartão vem do Cartão
+            if (($valor === null || $valor <= 0.004) && ($cat === null || !self::doCartao($cat))) {
+                throw new \InvalidArgumentException(t('Digite o valor da conta por mês.'));
+            }
         } catch (\InvalidArgumentException $e) {
             self::voltarComErro($volta, -1, $e->getMessage(), $bruto, ['nome' => $nome, 'dia' => (string) ($_POST['dia'] ?? '')]);
         }
@@ -497,7 +522,7 @@ final class MetaController
         $v = parseMoedaBr($bruto);
         if ($v === null || $v < 0 || $v > valorMaximo()) {
             // i18n: t('Digite um valor, por exemplo 1.200 ou 1.200,50.')
-            throw new \InvalidArgumentException(t(PrevisaoEdicao::ERRO_VALOR));
+            throw new \InvalidArgumentException(motivoValor($bruto) ?? t(PrevisaoEdicao::ERRO_VALOR));
         }
         return round($v, 2);
     }
@@ -526,15 +551,21 @@ final class MetaController
 
     /**
      * A categoria de uma conta nova pelo nome digitado: uma das que podem ser conta (pelo nome ou pelo nome que
-     * aparece na tela, que pode estar traduzido), ou null para criar. Nome de outra categoria qualquer recusa.
+     * aparece na tela, que pode estar traduzido), ou null para criar. Nome de outra categoria qualquer recusa, e o de
+     * uma conta fixa ativa também (sem acento e sem caixa): ela não é sobrescrita.
      * @throws \InvalidArgumentException
      */
     private static function categoriaDaConta(string $nome): ?int
     {
         $chave = mb_strtolower($nome);
+        $ativas = array_flip(array_map('intval', array_column(ContaRecorrenteModel::ativas(), 'categoria_id')));
         foreach (ContaRecorrenteModel::categoriasElegiveis() as $c) {
             foreach ([$c['nome'], nomeCategoria($c['nome']), nomeCurto($c)] as $n) {
                 if (mb_strtolower((string) $n) === $chave) {
+                    // a conta que já existe não é sobrescrita: muda-se pela linha dela, que mostra o que vale hoje
+                    if (isset($ativas[(int) $c['id']])) {
+                        throw new \InvalidArgumentException(t('Já existe uma conta fixa com esse nome.'));
+                    }
                     return (int) $c['id'];
                 }
             }

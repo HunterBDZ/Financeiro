@@ -1490,6 +1490,224 @@ $emTransacao('contas do mês: Pago', static function () use ($pdo, $check, $rend
     $check('Pago: conta com parte já paga fica de fora (o Mês pergunta se foi o valor final)', $naLista($catPago) === null && LancamentosController::pagarConta($catPago, $uid)['erro'] !== null && count($noMes($catPago)) === 1);
 });
 
+// ---- 9e. Fechar o mês só a partir do último dia (B-02): a tela e o POST usam MesModel::podeFechar
+$check('fechar: só a partir do último dia do mês, o mesmo dia que a tela mostra', MesModel::podeFechar($mesHoje, $hoje) === ($hoje === date('Y-m-t', strtotime($hoje)))
+    && MesModel::podeFechar(date('Y-m-01', strtotime($mesHoje . ' -1 month')), $hoje) && !MesModel::podeFechar(date('Y-m-01', strtotime($mesHoje . ' +1 month')), $hoje)
+    && MesModel::fechaAPartirDe($mesHoje) === date('Y-m-t', strtotime($mesHoje)));
+$htmlMesHoje = $render(MesController::class, 'index', ['mes' => $mesHoje]);
+$check('fechar: o botão do Mês segue a mesma regra', str_contains($htmlMesHoje, 'href="/mes/fechar?mes=' . $mesHoje . '"') === MesModel::podeFechar($mesHoje, $hoje));
+
+// ---- 9f. "Precisa de atenção" e Metas dizem o mesmo (B-03); onde o cartão muda o número, o rótulo diz (B-04)
+$emTransacao('atenção e metas', static function () use ($check, $render, $mesHoje, $hoje): void {
+    $passaram = static function () use ($render, $hoje): array {
+        MotorFinanceiro::limparCache();
+        preg_match_all('/<details class="mt-linha is-over" id="c(\d+)"/', $render(MetaController::class, 'index', []), $m);
+        $metas = array_map('intval', $m[1]);
+        $aten = [];
+        foreach (\Financeiro\Services\Atencao::avisos($hoje) as $a) {
+            if ($a['tipo'] === 'meta') {
+                $aten[] = (int) substr((string) $a['href'], strlen('/meta#c'));
+            }
+        }
+        sort($metas);
+        sort($aten);
+        return [$metas, $aten];
+    };
+    [$metas, $aten] = $passaram();
+    $check('atenção: as categorias acima da meta são as mesmas das Metas, com o cartão contado igual', $metas !== [] && $metas === $aten, json_encode([$metas, $aten]));
+    // a meta do mês (um valor só deste mês, como o editor de recorrência grava) vale nos dois
+    PrevisaoModel::setValor($metas[0], $mesHoje, 99999.0);
+    [$metas2, $aten2] = $passaram();
+    $check('atenção: a meta do mês vale, e o aviso some junto com o vermelho das Metas', !in_array($metas[0], $aten2, true) && $metas2 === $aten2, json_encode([$metas2, $aten2]));
+
+    // os números que contam o cartão dizem isso; o aviso do Lançar usa o número da tela para onde a pessoa volta
+    $g = MetaController::gastosDoMes($mesHoje);
+    $comCartao = array_keys(array_filter($g, static fn(array $x): bool => $x['cartao']));
+    $htmlM = $render(MetaController::class, 'index', []);
+    if (GastoPorCategoria::ativo() && $comCartao !== []) {
+        $cat = CategoriaModel::find($comCartao[0]);
+        PrevisaoModel::setValor($comCartao[0], $mesHoje, 99999.0);
+        MotorFinanceiro::limparCache();
+        $aviso = new \ReflectionMethod(LancamentosController::class, 'avisoLancado');
+        $naMeta = (string) $aviso->invoke(null, $cat, 10.0, $hoje, '/meta?mes=' . $mesHoje);
+        $noInicio = (string) $aviso->invoke(null, $cat, 10.0, $hoje, '/');
+        $check('metas: com o cartão, o gasto e o que falta dizem "com o cartão"', str_contains($htmlM, 'Gastou, com as compras no cartão') && str_contains($htmlM, 'Gasto<small class="mt-cartao">com o cartão</small>')
+            && preg_match('/id="c' . $comCartao[0] . '".*?<small class="mt-cartao">com o cartão<\/small><\/span>/s', $htmlM) === 1);
+        $check('lançar: o aviso usa o número da tela para onde volta', str_contains($naMeta, num(round(99999.0 - $g[$comCartao[0]]['gasto'], 2)) . ' da meta, com o cartão')
+            && str_contains($noInicio, num(round(99999.0 - LancamentoModel::somaPorCategoria($comCartao[0], $mesHoje), 2)) . ' da meta.'), $naMeta . ' | ' . $noInicio);
+    } else {
+        $check('metas: a demonstração tem compra no cartão contada nas Metas', false);
+    }
+});
+
+// ---- 9g. Conferência com o banco: com a segunda conta, a de antes continua no Início, igual ao Relatório (B-06)
+$emTransacao('conferência com várias contas', static function () use ($pdo, $check, $mesHoje, $hoje, $uid): void {
+    $pdo->exec('DELETE FROM saldo_conferencias');
+    $saldoP = ContaModel::saldo(ContaModel::PRINCIPAL, $hoje);
+    \Financeiro\Models\SaldoConferenciaModel::registrar($hoje, round($saldoP + 11.06, 2), $uid);     // a do total, com uma conta só
+    $antes = DashboardController::conferenciaAtual($hoje);
+    ContaModel::salvar(null, 'Carteira B06', 'dinheiro', 300.0);
+    MotorFinanceiro::limparCache();
+    $depois = DashboardController::conferenciaAtual($hoje);
+    $rel = (new \ReflectionMethod(RelatorioDados::class, 'conferencia'))->invoke(null, MotorFinanceiro::dados(), $mesHoje, $hoje);
+    $check('conferência: com a segunda conta, a de antes continua, como a da conta principal', $antes !== null && $depois !== null && $depois['data'] === $hoje
+        && abs($depois['dif'] - 11.06) < 0.005 && !$depois['bate'] && abs($antes['dif'] - $depois['dif']) < 0.005, json_encode([$antes, $depois]));
+    $check('conferência: o Relatório diz o mesmo que o Início', $rel['tipo'] === 'dif' && str_contains($rel['texto'], money(11.06)), json_encode($rel));
+    $check('conferência: e o "Precisa de atenção" também', in_array('conferencia', array_column(\Financeiro\Services\Atencao::avisos($hoje, $depois), 'tipo'), true));
+});
+ContaModel::limparCache();
+LancarForm::limparCache();
+
+// ---- 9h. Lançamento agendado no mês (B-07) e a soma do dia inteiro no Início (B-09)
+$emTransacao('agendado e soma do dia', static function () use ($pdo, $check, $render, $catDia, $mesHoje, $hoje, $uid): void {
+    $fecha = static function () use ($mesHoje, $hoje): array {
+        MotorFinanceiro::limparCache();
+        $linha = MotorFinanceiro::calcularPlano()[$mesHoje];
+        $s = \Financeiro\Services\Sobra::ateHoje($mesHoje);
+        $emConta = LancamentoModel::saldoCalculado(AjusteModel::valor('saldo_ini'), $hoje);
+        $destino = \Financeiro\Services\Destino::doMes(MotorFinanceiro::dados(), $linha, $mesHoje);
+        return ['saidas' => $s['saidas'], 'saiu' => $destino['saiu'], 'gastar' => $destino['gastar'],
+                'fecha' => abs($linha['sobrou_mes_anterior'] + $s['sobra'] - $emConta) < 0.005];
+    };
+    $antes = $fecha();
+    $check('agendado: as somas do Início fecham (em conta hoje = mês anterior + entrou − saiu)', $antes['fecha']);
+    if ($hoje < date('Y-m-t', strtotime($hoje))) {
+        $amanha = date('Y-m-d', strtotime($hoje . ' +1 day'));
+        LancamentoModel::criar($amanha, 'agendado teste', $catDia, 21.0, $uid);
+        $depois = $fecha();
+        $tot = LancamentoModel::totais($mesHoje, []);
+        $check('agendado: fica fora do Gastou e do Já saiu, e as somas continuam fechando', abs($depois['saidas'] - $antes['saidas']) < 0.005
+            && abs($depois['saiu'] - $antes['saiu']) < 0.005 && $depois['fecha'], json_encode([$antes, $depois]));
+        $check('agendado: o Extrato soma à parte', abs($tot['gasto_ag'] - 21.0) < 0.005);
+        $htmlIni = $render(DashboardController::class, 'index', []);
+        $check('agendado: no Início, com a marca, como no Extrato', str_contains($htmlIni, '(agendado)') && str_contains($htmlIni, '· agendado'));
+    }
+    // sete lançamentos hoje: o Início mostra 6, e a soma do dia é a dos sete
+    $pdo->prepare('DELETE FROM lancamentos WHERE data = ?')->execute([$hoje]);
+    for ($i = 1; $i <= 7; $i++) {
+        LancamentoModel::criar($hoje, 'dia ' . $i, $catDia, 10.0 * $i, $uid);
+    }
+    MotorFinanceiro::limparCache();
+    $htmlIni = $render(DashboardController::class, 'index', []);
+    $check('Início: a soma de hoje é a do dia inteiro, não só a dos lançamentos à vista', preg_match('#<span>Hoje</span><span class="num">' . MENOS . '280,00</span>#u', $htmlIni) === 1);
+});
+
+// ---- 9i. As contas fecham: categoria tirada do mês (B-08), a barra no vermelho (B-12), o "por dia" (B-19), o ordinal (B-18)
+$emTransacao('as contas fecham', static function () use ($pdo, $check, $render, $mesHoje, $hoje, $uid): void {
+    $comb = (int) $pdo->query("SELECT id FROM categorias WHERE nome = 'Combustível'")->fetchColumn();
+    PrevisaoModel::setValor($comb, $mesHoje, 0.0);                     // "Tirar deste mês", com gasto no mês
+    MotorFinanceiro::limparCache();
+    $htmlMes = $render(MesController::class, 'index', ['mes' => $mesHoje]);
+    $linhaMes = preg_match('#<tr id="cat-' . $comb . '".*?</tr>#s', $htmlMes, $m) ? $m[0] : '';
+    $htmlMeta = $render(MetaController::class, 'index', []);
+    $linhaMeta = preg_match('#id="c' . $comb . '".*?</summary>#s', $htmlMeta, $m) ? $m[0] : '';
+    $check('tirada do mês: o Mês diz "sem previsão", sem "passou"; as Metas, "sem meta", sem "falta 0,00"', $comb > 0 && str_contains($linhaMes, 'sem previsão')
+        && !str_contains($linhaMes, 'passou') && str_contains($linhaMeta, 'sem meta') && !str_contains($linhaMeta, 'falta ' . num(0)), $linhaMes . ' | ' . $linhaMeta);
+
+    // no vermelho, a legenda soma o total (a falta entra com "−")
+    $catLazer = (int) $pdo->query("SELECT id FROM categorias WHERE grupo = 'Dia a dia' AND essencial = 0 AND sinal = -1 AND ativo = 1 ORDER BY id LIMIT 1")->fetchColumn();
+    LancamentoModel::criar($hoje, 'estouro', $catLazer, 30000.0, $uid);
+    MotorFinanceiro::limparCache();
+    $d = \Financeiro\Services\Destino::doMes(MotorFinanceiro::dados(), MotorFinanceiro::calcularPlano()[$mesHoje], $mesHoje);
+    $segs = \Financeiro\Services\Destino::segmentos($d);
+    $check('no vermelho: a falta aparece na legenda, e as partes somam o total', $d['falta'] > 0
+        && abs(array_sum(array_column($segs, 'valor')) - $d['total']) < 0.01 && in_array(-$d['falta'], array_column($segs, 'valor'), true), json_encode([$d, $segs]));
+});
+$htmlIniD = $render(DashboardController::class, 'index', []);
+$diasT = (int) date('t', strtotime($hoje)) - (int) date('j', strtotime($hoje)) + 1;
+$check('por dia: conta hoje, e no último dia o valor é para hoje', $diasT > 1
+    ? str_contains($htmlIniD, 'nos ' . $diasT . ' dias que faltam, contando hoje') : str_contains($htmlIniD, 'Hoje é o último dia do mês:'));
+Idioma::usar('en');
+$check('inglês: o dia do mês é ordinal depois de "the"', t('Dá para gastar até dia {dia}', ['dia' => 30]) === 'You can spend until the 30th'
+    && implode(',', array_map('ordinalEn', [1, 2, 3, 4, 11, 12, 13, 21, 22, 23, 31])) === '1st,2nd,3rd,4th,11th,12th,13th,21st,22nd,23rd,31st'
+    && t('Cerca de {valor} por dia nos {n} dias que faltam, contando hoje.', ['valor' => 'x', 'n' => 9]) === 'About x a day for the 9 days left, counting today.');
+Idioma::usar('es');
+$check('espanhol: o dia continua "el día 30"', t('Dá para gastar até dia {dia}', ['dia' => 30]) === 'Puede gastar hasta el día 30');
+Idioma::usar('pt');
+
+// ---- 9j. Valor recusado diz por quê (B-10)
+$validarL = new \ReflectionMethod(LancamentosController::class, 'validar');
+$check('valor: acima do máximo diz o máximo', ($validarL->invoke(null, ['valor' => '999999999', 'categoria_id' => '1'])[0] ?? '') === 'O valor máximo é ' . money(valorMaximo()) . '.'
+    && (TransferenciaController::validar(['valor' => '999999999'])[0] ?? '') === 'O valor máximo é ' . money(valorMaximo()) . '.');
+$check('valor: vírgula e ponto trocados dizem como escrever', motivoValor('1,500') === 'Use vírgula só para os centavos: 1.500,00 ou 1,50.'
+    && motivoValor('1.5') === 'Use vírgula para os centavos: 1,50.' && motivoValor('45') === null && motivoValor('abc') === null
+    && ($validarL->invoke(null, ['valor' => '1.5', 'categoria_id' => '1'])[0] ?? '') === 'Use vírgula para os centavos: 1,50.');
+
+// ---- 9k. Extrato: o mês no meio da frase em minúscula, e o filtro de valor negativo recusado (B-11)
+$htmlExtF = $render(LancamentosController::class, 'index', ['mes' => $mesHoje, 'min' => '999999']);
+$htmlExtN = $render(LancamentosController::class, 'index', ['mes' => $mesHoje, 'max' => '-5']);
+$check('extrato: "em novembro de 2026" no meio da frase', str_contains($htmlExtF, 'Nada encontrado com esses filtros em ' . mesAno($mesHoje) . '.') && !str_contains($htmlExtF, ' De ' . substr($mesHoje, 0, 4)));
+$check('extrato: valor negativo no filtro é recusado', str_contains($htmlExtN, 'Digite o valor como 45 ou 45,90.') && !str_contains($htmlExtN, 'name="max" value="-5"'));
+
+// ---- 9l. Transferência que deixa a conta negativa pede confirmação (B-14)
+$emTransacao('transferência negativa', static function () use ($pdo, $check, $hoje): void {
+    $c2 = ContaModel::salvar(null, 'Carteira B14', 'dinheiro', 0.0);
+    TransferenciaController::criarDe(['valor' => '400', 'de_conta' => '1', 'para_conta' => (string) $c2, 'data' => $hoje]);
+    $n = static fn(): int => (int) $pdo->query('SELECT COUNT(*) FROM transferencias')->fetchColumn();
+    $antes = $n();
+    $r = TransferenciaController::criarDe(['valor' => '5000', 'de_conta' => (string) $c2, 'para_conta' => '1', 'data' => $hoje]);
+    $check('transferência: deixar a conta negativa pede confirmação e não grava', ($r['negativo']['valor'] ?? null) === -4600.0 && $r['id'] === 0 && $n() === $antes, json_encode($r));
+    $r2 = TransferenciaController::criarDe(['valor' => '5000', 'de_conta' => (string) $c2, 'para_conta' => '1', 'data' => $hoje, 'confirmar_negativo' => '1']);
+    $check('transferência: confirmada, grava', $r2['erro'] === null && $r2['id'] > 0 && $n() === $antes + 1 && abs(ContaModel::saldo($c2, $hoje) + 4600) < 0.005);
+    $r3 = TransferenciaController::criarDe(['valor' => '100', 'de_conta' => '1', 'para_conta' => (string) $c2, 'data' => $hoje]);
+    $check('transferência: sem ficar negativa, grava direto', $r3['id'] > 0 && !isset($r3['negativo']));
+});
+ContaModel::limparCache();
+LancarForm::limparCache();
+
+// ---- 9d. Mês fechado não muda (B-01): lançar, editar, excluir, transferir, pagar e a compra cuja fatura é de mês fechado
+$emTransacao('mês fechado não muda', static function () use ($pdo, $check, $render, $catDia, $mesHoje, $hoje, $uid): void {
+    $fechado = (string) $pdo->query("SELECT MAX(mes) FROM meses WHERE situacao = 'REAL'")->fetchColumn();
+    $diaFechado = substr($fechado, 0, 8) . '15';
+    $msg = LancamentosController::erroMesFechado($diaFechado);
+    $check('mês fechado: a mensagem diz o mês e como reabrir', $msg === mb_strtoupper(mb_substr(mesAno($fechado), 0, 1)) . mb_substr(mesAno($fechado), 1) . ' está fechado. Para mudar, reabra o mês no Mês.', (string) $msg);
+    $check('mês fechado: o mês de hoje está aberto', LancamentosController::erroMesFechado($hoje) === null);
+    $fimAntes = MotorFinanceiro::calcularPlano()[$fechado]['fica_na_conta'];
+
+    // transferência com data num mês fechado (com duas contas)
+    $c2 = ContaModel::salvar(null, 'Carteira teste', 'dinheiro', 300.0);
+    MotorFinanceiro::limparCache();
+    [$erroT] = TransferenciaController::validar(['valor' => '10', 'de_conta' => '1', 'para_conta' => (string) $c2, 'data' => $diaFechado]);
+    $check('mês fechado: transferência com data nele é recusada', $erroT === $msg, (string) $erroT);
+    [$erroT2] = TransferenciaController::validar(['valor' => '10', 'de_conta' => '1', 'para_conta' => (string) $c2, 'data' => $hoje]);
+    $check('mês fechado: transferência no mês aberto entra', $erroT2 === null, (string) $erroT2);
+
+    // a conta nova com saldo inicial: o saldo vale do 1º dia do mês aberto, e os meses fechados não mudam
+    $abre = date('Y-m-01', strtotime($fechado . ' +1 month'));
+    $c2Linha = ContaModel::achar($c2);
+    $plano = MotorFinanceiro::calcularPlano();
+    $check('mês fechado: o saldo inicial da conta nova conta a partir do 1º mês aberto', $c2Linha['saldo_desde'] === $abre
+        && abs($plano[$fechado]['fica_na_conta'] - $fimAntes) < 0.005 && abs($plano[$abre]['sobrou_mes_anterior'] - $fimAntes - 300) < 0.005,
+        json_encode([$c2Linha['saldo_desde'], $plano[$fechado]['fica_na_conta'], $fimAntes, $plano[$abre]['sobrou_mes_anterior']]));
+    $check('mês fechado: o saldo da conta nova só aparece dali em diante', abs(ContaModel::saldo($c2, $diaFechado)) < 0.005 && abs(ContaModel::saldo($c2, $hoje) - 300) < 0.005
+        && abs(LancamentoModel::saldoCalculado(AjusteModel::valor('saldo_ini'), $hoje) - array_sum(ContaModel::saldos($hoje))) < 0.005);
+
+    // compra no cartão: só a fatura conta (a data pode ser de um mês fechado)
+    $pdo->exec("INSERT INTO cartoes (nome, dia_fechamento, dia_vencimento) VALUES ('Cartão B01', 1, 10)");
+    $cartaoB = (int) $pdo->lastInsertId();
+    $catGastoB = (int) $pdo->query("SELECT id FROM categorias WHERE grupo = 'Dia a dia' AND sinal = -1 AND operacional = 1 AND ativo = 1 ORDER BY id DESC LIMIT 1")->fetchColumn();
+    $diaAntes = date('Y-m-d', strtotime($fechado . ' -1 month +10 day'));     // fecha no dia 1: cai na fatura do mês fechado
+    $r1 = CartaoController::criarCompraDe(['valor' => '60', 'categoria_id' => (string) $catGastoB, 'data' => $diaAntes, 'parcelas' => '1'], $hoje, $cartaoB);
+    $r2 = CartaoController::criarCompraDe(['valor' => '60', 'categoria_id' => (string) $catGastoB, 'data' => $diaFechado, 'parcelas' => '1'], $hoje, $cartaoB);
+    $check('mês fechado: compra no cartão cuja fatura é de mês fechado é recusada; com fatura num mês aberto, entra', $r1['erro'] !== null && str_contains($r1['erro'], 'fechado') && $r2['erro'] === null, json_encode([$r1['erro'], $r2['erro']]));
+
+    // adiantamento do empréstimo e Pagar
+    [$erroAd] = EmprestimoController::validarAdiantamento('100', $diaFechado, $hoje);
+    $check('mês fechado: adiantamento do empréstimo com data nele é recusado', $erroAd === $msg, (string) $erroAd);
+
+    // a tela: o Lançar sabe os meses fechados, e o editar de um lançamento fechado não tem Salvar nem Excluir
+    $check('mês fechado: o Lançar recebe os meses fechados com a mensagem', (LancarForm::dados()['fechados'][substr($fechado, 0, 7)] ?? null) === $msg);
+    $idF = (int) $pdo->query("SELECT id FROM lancamentos WHERE data >= '{$fechado}' AND data < '{$abre}' ORDER BY id LIMIT 1")->fetchColumn();
+    $_SERVER['REQUEST_URI'] = '/lancamentos/' . $idF . '/editar';
+    $_GET = [];
+    ob_start();
+    (new LancamentosController())->editForm((string) $idF);
+    $htmlEd = (string) ob_get_clean();
+    $check('mês fechado: o lançamento abre só para ler', str_contains($htmlEd, e($msg)) && !str_contains($htmlEd, '/excluir"') && preg_match('/data-lf-enviar disabled/', $htmlEd) === 1);
+});
+ContaModel::limparCache();
+LancarForm::limparCache();
+
 // ==== no último dia do mês, só a primeira parte, mais a conferência do site sobre a demonstração
 if ($borda) {
     conferencia($check);
@@ -3323,7 +3541,7 @@ if (Sql::sqlite()) {
         $colunas114 = array_column($v->query('PRAGMA table_info(cartoes)')->fetchAll(), 'name');
         $feitas = \Financeiro\Migrador::aplicar($v, \Financeiro\Migrador::pasta());
         $check('s0040: num site da 1.14, a 2.0 roda depois da s0004 e termina na s0040', count($da114) === 3 && end($colunas114) === 'visual'
-            && $feitas[0] === 's0001_contas.sql' && end($feitas) === 's0040_gatilho_cartoes.sql', json_encode([$da114, $feitas]));
+            && $feitas[0] === 's0001_contas.sql' && (int) array_search('s0040_gatilho_cartoes.sql', $feitas, true) > 0, json_encode([$da114, $feitas]));
         $novo = new \Financeiro\SqliteConexao($arqNovo);
         $novo->exec((string) file_get_contents(dirname(__DIR__) . '/database/schema.sqlite.sql'));
         $e114 = $estrutura($v);
@@ -3381,7 +3599,8 @@ if (Sql::sqlite()) {
         $id2 = ContaModel::salvar(null, 'Carteira teste', 'dinheiro', 150.0);
         MotorFinanceiro::limparCache();
         LancarForm::limparCache();
-        $check('contas: o saldo inicial do plano é a soma dos saldos iniciais', abs(AjusteModel::valor('saldo_ini') - $iniAntes - 150.0) < 0.001 && ContaModel::varias());
+        // com meses fechados, o saldo da conta nova entra no 1º mês aberto (aportes), fora de ajustes.saldo_ini
+        $check('contas: o saldo inicial do plano é a soma dos saldos iniciais', abs(AjusteModel::valor('saldo_ini') + array_sum(ContaModel::aportes()) - $iniAntes - 150.0) < 0.001 && ContaModel::varias());
         $planoAntes = MotorFinanceiro::calcularPlano();
         $r = TransferenciaController::criarDe(['valor' => '80,00', 'de_conta' => (string) ContaModel::PRINCIPAL, 'para_conta' => (string) $id2, 'quando' => 'hoje', 'descricao' => 'saque teste']);
         MotorFinanceiro::limparCache();
@@ -3428,7 +3647,7 @@ if (Sql::sqlite()) {
         MotorFinanceiro::limparCache();
         $check('conta arquivada: sai das telas; a soma das contas continua a do motor', !ContaModel::varias()
             && abs(array_sum(ContaModel::saldos($hoje)) - LancamentoModel::saldoCalculado(AjusteModel::valor('saldo_ini'), $hoje)) < 0.001
-            && abs(AjusteModel::valor('saldo_ini') - $iniAntes - 150.0) < 0.001);
+            && abs(AjusteModel::valor('saldo_ini') + array_sum(ContaModel::aportes()) - $iniAntes - 150.0) < 0.001);
     });
     $emTransacao('saldo do início com uma conta', static function () use ($check): void {
         $check('uma conta: o saldo do início digitado vai para a conta e para o plano', ContaModel::saldoInicialDaUnica(777.77)

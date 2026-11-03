@@ -121,12 +121,16 @@ final class Importacao
                     $r['motivo'] = t('Pagamento da fatura: não vira compra. Lance o pagamento na conta que pagou.');
                 } elseif ($l['data'] < '2015-01-01' || $l['data'] > $fimPlano) {
                     $r['motivo'] = t('A data fica fora dos meses do plano.');
+                } elseif (LancamentosController::erroMesFechado((string) $r['fatura']) !== null) {
+                    $r['motivo'] = t('A compra cai na fatura de {mes}, e esse mês está fechado. Para mudar, reabra o mês no Mês.', ['mes' => mesAno((string) $r['fatura'])]);
                 }
             } else {
                 $r['tipo'] = $r['valor'] > 0 ? 'entrada' : 'gasto';
                 $identidade = implode('|', ['conta', (int) $destino['id'], $l['data'], number_format($r['valor'], 2, '.', ''), self::normalizar($desc), $r['fitid']]);
                 if (LancamentosController::validarData($l['data']) !== null) {
                     $r['motivo'] = t('A data fica fora dos meses do plano.');
+                } elseif (($fechado = LancamentosController::erroMesFechado($l['data'])) !== null) {
+                    $r['motivo'] = $fechado;
                 }
             }
             $vistas[$identidade] = ($vistas[$identidade] ?? 0) + 1;

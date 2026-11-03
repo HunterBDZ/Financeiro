@@ -25,7 +25,8 @@ use Financeiro\View;
  * Lançar, extrato e editar.
  * Todo POST: requireLogin + csrfCheck; `volta` sempre por voltaSegura(); valor por parseMoedaBr()
  * (aceita -, − e –; grava abs()); data dentro de [primeiro dia de MesModel::primeiro(),
- * último dia de MesModel::ultimo()] (invariante 9) em store, update e desfazer.
+ * último dia de MesModel::ultimo()] (invariante 9) em store, update e desfazer. Mês fechado não muda: lançar, editar,
+ * excluir, desfazer e pagar num mês fechado são recusados (erroMesFechado), também para mover um lançamento até ele.
  */
 final class LancamentosController
 {
@@ -87,6 +88,7 @@ final class LancamentosController
             'modo'       => $b['modo'],
             'periodo'    => $b['periodo'],
             'rotuloPeriodo' => $b['rotulo'],
+            'ondePeriodo' => $b['onde'],
             'valores'    => $b['valores'],
             'erroValor'  => $b['erroValor'],
             'params'     => $params,
@@ -173,7 +175,7 @@ final class LancamentosController
     /**
      * Os filtros do extrato, lidos da URL, os mesmos para a tela e para a planilha:
      * mes; periodo ('' o mês, ano, tudo, datas com de/ate); categoria (cat ou f); quem; q; min e max (valor); ordem.
-     * @return array{mes:string, meses:array, modo:string, periodo:?array{de:?string,ate:?string}, rotulo:string,
+     * @return array{mes:string, meses:array, modo:string, periodo:?array{de:?string,ate:?string}, rotulo:string, onde:string,
      *   usuarios:array, f:string, quem:int, categoria:?array, q:string, ordem:string,
      *   valores:array{min:string,max:string}, erroValor:?string, filtro:array, filtrado:bool, params:array}
      */
@@ -226,7 +228,15 @@ final class LancamentosController
             'tudo'  => t('Todos os meses'),
             'datas' => $de !== null && $ate !== null ? t('De {de} a {ate}', ['de' => diaMesAno($de), 'ate' => diaMesAno($ate)])
                 : ($de !== null ? t('Desde {de}', ['de' => diaMesAno($de)]) : ($ate !== null ? t('Até {ate}', ['ate' => diaMesAno($ate)]) : t('Todos os meses'))),
-            default => mb_convert_case(mesAno($mes), MB_CASE_TITLE),
+            default => mb_strtoupper(mb_substr(mesAno($mes), 0, 1)) . mb_substr(mesAno($mes), 1),
+        };
+        // o mesmo período no meio da frase ("Nada encontrado com esses filtros em novembro de 2026.")
+        $onde = match ($modo) {
+            'ano'   => t('em {ano}', ['ano' => substr($mes, 0, 4)]),
+            'tudo'  => t('em todos os meses'),
+            'datas' => $de !== null && $ate !== null ? t('de {de} a {ate}', ['de' => diaMesAno($de), 'ate' => diaMesAno($ate)])
+                : ($de !== null ? t('desde {de}', ['de' => diaMesAno($de)]) : ($ate !== null ? t('até {ate}', ['ate' => diaMesAno($ate)]) : t('em todos os meses'))),
+            default => t('em {mes}', ['mes' => mesAno($mes)]),
         };
 
         // valor mínimo e máximo, sem sinal; o que não dá para ler é avisado e fica de fora
@@ -238,7 +248,7 @@ final class LancamentosController
                 continue;
             }
             $v = parseMoedaBr($txt);
-            if ($v === null) {
+            if ($v === null || $v < 0) {                    // valor negativo também: o filtro é sem sinal
                 $erroValor = t('Digite o valor como 45 ou 45,90.');
                 $valores[$k] = '';
                 continue;
@@ -266,7 +276,7 @@ final class LancamentosController
         ], static fn($v) => $v !== '');
 
         return [
-            'mes' => $mes, 'meses' => $meses, 'modo' => $modo, 'periodo' => $periodo, 'rotulo' => $rotulo,
+            'mes' => $mes, 'meses' => $meses, 'modo' => $modo, 'periodo' => $periodo, 'rotulo' => $rotulo, 'onde' => $onde,
             'usuarios' => $usuarios, 'f' => $f, 'quem' => $quem, 'categoria' => $categoria, 'q' => $q, 'ordem' => $ordem,
             'valores' => $valores, 'erroValor' => $erroValor, 'filtro' => $filtro, 'contas' => $contas, 'conta' => $conta,
             'filtrado' => $f !== '' || $quem > 0 || $cat > 0 || $conta !== null || $q !== '' || $modo !== '' || $limites !== [],
@@ -348,7 +358,7 @@ final class LancamentosController
         $id = LancamentoModel::criar($d['data'], $d['descricao'], $d['categoria_id'], $d['valor'], (int) Auth::id(), $d['conta_id']);
 
         $destino = $volta !== '' ? $volta : '/lancamentos?mes=' . substr($d['data'], 0, 8) . '01';
-        flash('success', self::avisoLancado($d['cat'], $d['valor'], $d['data']), [
+        flash('success', self::avisoLancado($d['cat'], $d['valor'], $d['data'], $destino), [
             'url'    => '/lancamentos/' . $id . '/excluir',
             'label'  => t('desfazer'),
             'campos' => ['volta' => $destino],
@@ -360,8 +370,9 @@ final class LancamentosController
     private static function transferir(string $volta): never
     {
         $r = TransferenciaController::criarDe($_POST);
-        if ($r['erro'] !== null) {
-            $_SESSION['lanc_antigo'] = self::antigoDe($_POST) + ['erro' => $r['erro']];
+        if ($r['erro'] !== null || isset($r['negativo'])) {
+            // erro, ou a conta ficaria negativa: volta ao lançar preenchido, com o erro ou a pergunta
+            $_SESSION['lanc_antigo'] = self::antigoDe($_POST) + ($r['erro'] !== null ? ['erro' => $r['erro']] : ['negativo' => $r['negativo']]);
             redirecionar('/lancar?volta=' . rawurlencode($volta !== '' ? $volta : '/'), 303);
         }
         $destino = $volta !== '' ? $volta : '/lancamentos?mes=' . substr($r['data'], 0, 8) . '01';
@@ -420,7 +431,7 @@ final class LancamentosController
                     $item = $c;
                 }
             }
-            $erro = $item === null ? t('A conta {nome} já foi paga ou não tem valor previsto neste mês.', ['nome' => nomeCurto($cat)]) : self::validarData($hoje);
+            $erro = $item === null ? t('A conta {nome} já foi paga ou não tem valor previsto neste mês.', ['nome' => nomeCurto($cat)]) : (self::validarData($hoje) ?? self::erroMesFechado($hoje));
             if ($erro !== null) {
                 if ($abriu) {
                     $pdo->rollBack();
@@ -454,12 +465,15 @@ final class LancamentosController
             renderErro(404, t('Lançamento não encontrado'), t('Pode ter sido excluído.'));
         }
         $volta = voltaSegura(self::get('volta'), '/lancamentos?mes=' . substr($l['data'], 0, 8) . '01');
+        $fechado = self::erroMesFechado((string) $l['data']);
 
         View::render('lancamentos/editar', [
             'pageTitle'  => t('editar · MyMonetto'),
             'lancamento' => $l,
             'volta'      => $volta,
+            'fechado'    => $fechado,
             'form'       => LancarForm::dados() + [
+                'fechado'    => $fechado,
                 'modo'       => 'editar',
                 'pref'       => 'ed',
                 'volta'      => $volta,
@@ -481,6 +495,7 @@ final class LancamentosController
         $volta = voltaSegura(self::post('volta'), '/lancamentos?mes=' . substr($l['data'], 0, 8) . '01');
 
         [$erro, $d] = self::validar($_POST, (int) $l['id']);
+        $erro = self::erroMesFechado((string) $l['data']) ?? $erro;     // nem sai de um mês fechado
         if ($erro !== null) {
             $_SESSION['lanc_antigo'] = self::antigoDe($_POST) + ['erro' => $erro, 'id' => (int) $l['id']];
             redirecionar('/lancamentos/' . (int) $l['id'] . '/editar?volta=' . rawurlencode($volta), 303);
@@ -506,6 +521,10 @@ final class LancamentosController
         }
         if (!$l) {
             flash('warn', t('Esse lançamento já tinha sido excluído.'));
+            redirecionar($volta);
+        }
+        if (($fechado = self::erroMesFechado((string) $l['data'])) !== null) {
+            flash('error', $fechado);
             redirecionar($volta);
         }
 
@@ -547,7 +566,7 @@ final class LancamentosController
 
         $linha = $d['linha'];
         $cat = CategoriaModel::find((int) $linha['categoria_id']);
-        $erroData = self::validarData((string) $linha['data']);
+        $erroData = self::validarData((string) $linha['data']) ?? self::erroMesFechado((string) $linha['data']);
         if ($cat === null || $erroData !== null) {
             flash('error', $erroData ?? t('Escolha uma categoria.'));
             redirecionar($volta);
@@ -585,6 +604,20 @@ final class LancamentosController
         return null;
     }
 
+    /**
+     * Mês fechado não muda: null se o mês da data está aberto; senão a mensagem ("Outubro de 2026 está fechado. Para
+     * mudar, reabra o mês no Mês."). Vale para lançar, editar (a data de antes e a nova), excluir, desfazer e pagar,
+     * para as transferências e, no cartão, para o mês da fatura em que a compra cai.
+     */
+    public static function erroMesFechado(string $data): ?string
+    {
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/D', $data) || MesModel::situacao(substr($data, 0, 8) . '01') !== 'REAL') {
+            return null;
+        }
+        $mes = mesAno(substr($data, 0, 8) . '01');
+        return t('{mes} está fechado. Para mudar, reabra o mês no Mês.', ['mes' => mb_strtoupper(mb_substr($mes, 0, 1)) . mb_substr($mes, 1)]);
+    }
+
     /** `quando` (hoje|ontem|outro + data) → Y-m-d. Sem `quando`, usa `data` se vier (clientes antigos). */
     public static function dataDoQuando(array $in, ?string $hoje = null): string
     {
@@ -607,7 +640,7 @@ final class LancamentosController
         $valor = parseMoedaBr(is_string($in['valor'] ?? null) ? $in['valor'] : null);
         $valor = $valor === null ? null : round(abs($valor), 2);     // "-50" / "−50" gravam 50 (o sinal vem da categoria)
         if ($valor === null || $valor <= 0 || $valor > valorMaximo()) {
-            return [t('Digite um valor.'), null];
+            return [motivoValor(is_string($in['valor'] ?? null) ? $in['valor'] : null) ?? t('Digite um valor.'), null];
         }
 
         $categoriaId = (int) (is_string($in['categoria_id'] ?? null) ? $in['categoria_id'] : 0);
@@ -617,7 +650,7 @@ final class LancamentosController
         }
 
         $data = self::dataDoQuando($in);
-        if (($erro = self::validarData($data)) !== null) {
+        if (($erro = self::validarData($data) ?? self::erroMesFechado($data)) !== null) {
             return [$erro, null];
         }
         // resgatar mais do que estava guardado deixaria a poupança (ou os investimentos) negativa
@@ -664,29 +697,41 @@ final class LancamentosController
     }
 
     /**
-     * Aviso depois de lançar: `Delivery −56,80 · Ainda dá para gastar 343,20 da meta.`; mês fechado:
-     * `Delivery −56,80 · set/26 fechado`; categoria sem previsão no mês: só `Salário +3.000,00`.
+     * Aviso depois de lançar: `Delivery −56,80 · Ainda dá para gastar 343,20 da meta.`; categoria sem previsão no mês:
+     * só `Salário +3.000,00`. O número é o da tela para onde a pessoa volta: nas Metas, o gasto como elas contam (com o
+     * cartão, pela data da compra, e a frase diz "com o cartão" quando isso muda o número); nas outras (Início, Mês,
+     * Extrato), o lançado na conta, como o Mês.
      */
-    private static function avisoLancado(array $cat, float $valor, string $data): string
+    private static function avisoLancado(array $cat, float $valor, string $data, string $destino = ''): string
     {
         $txt = self::valorTexto($cat, $valor, true);
         $mes = substr($data, 0, 8) . '01';
-        if (MesModel::situacao($mes) === 'REAL') {
-            return t('{texto} · {mes} já está fechado.', ['mes' => mesAno($mes), 'texto' => $txt]);
-        }
         if ((int) $cat['operacional'] === 1 && (int) $cat['sinal'] < 0) {
             $previsto = PrevisaoModel::valor((int) $cat['id'], $mes);
             if ($previsto > 0) {
-                $resta = round($previsto - LancamentoModel::somaPorCategoria((int) $cat['id'], $mes), 2);
+                $gasto = LancamentoModel::somaPorCategoria((int) $cat['id'], $mes);
+                $cartao = false;
+                if (preg_match('#^/meta(?:[?\#]|$)#', $destino)) {
+                    $m = MetaController::gastosDoMes($mes)[(int) $cat['id']] ?? null;
+                    $gasto = $m['gasto'] ?? $gasto;
+                    $cartao = $m['cartao'] ?? false;
+                }
+                $resta = round($previsto - $gasto, 2);
                 $nome = nomeCurto(['apelido' => $cat['apelido'] ?? null, 'nome' => $cat['nome'] ?? $cat['categoria_nome'] ?? '']);
+                $vars = ['valor' => num(abs($resta)), 'nome' => $nome, 'texto' => $txt];
                 if (MetaModel::valor((int) $cat['id']) !== null) {   // a previsão vem da meta; sem meta, é só uma estimativa
+                    if ($cartao) {
+                        return $resta < -0.004
+                            ? t('{texto} · Passou {valor} da meta de {nome}, com o cartão.', $vars)
+                            : t('{texto} · Ainda dá para gastar {valor} da meta, com o cartão.', $vars);
+                    }
                     return $resta < -0.004
-                        ? t('{texto} · Passou {valor} da meta de {nome}.', ['valor' => num(-$resta), 'nome' => $nome, 'texto' => $txt])
-                        : t('{texto} · Ainda dá para gastar {valor} da meta.', ['valor' => num($resta), 'texto' => $txt]);
+                        ? t('{texto} · Passou {valor} da meta de {nome}.', $vars)
+                        : t('{texto} · Ainda dá para gastar {valor} da meta.', $vars);
                 }
                 return $resta < -0.004
-                    ? t('{texto} · Passou {valor} do previsto para {nome}.', ['valor' => num(-$resta), 'nome' => $nome, 'texto' => $txt])
-                    : t('{texto} · Ainda restam {valor} do previsto.', ['valor' => num($resta), 'texto' => $txt]);
+                    ? t('{texto} · Passou {valor} do previsto para {nome}.', $vars)
+                    : t('{texto} · Ainda restam {valor} do previsto.', $vars);
             }
         }
         return $txt;
@@ -699,8 +744,20 @@ final class LancamentosController
     public static function sessaoRenovada(): never
     {
         $volta = voltaSegura(self::post('volta'), '/');
-        $_SESSION['lanc_antigo'] = self::antigoDe($_POST) + ['erro' => t('A sessão foi renovada. Confira os dados e lance de novo.')];
+        $_SESSION['lanc_antigo'] = self::antigoDe($_POST) + ['erro' => t('Sua sessão venceu. Confira e salve.')];
         redirecionar('/lancar?volta=' . rawurlencode($volta), 303);
+    }
+
+    /**
+     * POST /lancamentos sem sessão (ela venceu, ou os cookies foram apagados): Auth::requireLogin manda para a tela de
+     * entrar. O que foi digitado fica na sessão nova, e depois de entrar o Lançar volta preenchido, com o aviso.
+     * Nada é gravado: o token do formulário era da sessão que acabou.
+     */
+    public static function guardarSemSessao(): void
+    {
+        $volta = voltaSegura(self::post('volta'), '/');
+        $_SESSION['lanc_antigo'] = self::antigoDe($_POST) + ['erro' => t('Sua sessão venceu. Confira e salve.')];
+        $_SESSION['next'] = '/lancar?volta=' . rawurlencode($volta);
     }
 
     /** O que o usuário digitou, para a página voltar preenchida (erro ou duplicado). */

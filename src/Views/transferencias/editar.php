@@ -1,7 +1,8 @@
 <?php
 /**
  * Editar uma transferência entre contas: de, para, valor, dia e descrição. Excluir fica aqui, em vermelho.
- * Variáveis: $transf, $contas (as ativas e as da própria transferência), $erro, $volta.
+ * Num mês fechado, só para ler: o aviso diz como reabrir, Salvar fica desligado e Excluir some.
+ * Variáveis: $transf, $contas (as ativas e as da própria transferência), $erro, $volta, $fechado (mensagem ou null).
  */
 $tr = $transf;
 ?>
@@ -15,6 +16,7 @@ $tr = $transf;
         <?= csrfField() ?>
         <input type="hidden" name="volta" value="<?= e($volta) ?>">
         <?php if ($erro !== null): ?><p class="aviso aviso-error" role="alert"><?= e($erro) ?></p><?php endif; ?>
+        <?php if (($fechado ?? null) !== null): ?><p class="aviso aviso-warn" role="status"><?= e($fechado) ?> <a class="link" href="/mes?mes=<?= e(substr((string) $tr['data'], 0, 8) . '01') ?>"><?= e(t('Abrir o Mês')) ?></a></p><?php endif; ?>
         <div class="ct-2">
             <label><span><?= e(t('De')) ?></span>
                 <select name="de_conta">
@@ -30,10 +32,12 @@ $tr = $transf;
             <label><span><?= e(t('Dia')) ?></span><input type="date" name="data" required value="<?= e((string) $tr['data']) ?>"></label>
         </div>
         <label><span><?= e(t('Descrição (opcional)')) ?></span><input type="text" name="descricao" maxlength="255" value="<?= e((string) $tr['descricao']) ?>"></label>
-        <button class="btn btn-primary" type="submit"><?= e(t('Salvar')) ?></button>
+        <button class="btn btn-primary" type="submit"<?= ($fechado ?? null) !== null ? ' disabled' : '' ?>><?= e(t('Salvar')) ?></button>
     </form>
+    <?php if (($fechado ?? null) === null): ?>
     <form method="post" action="/transferencias/<?= (int) $tr['id'] ?>/excluir" class="ct-excluir" data-confirm="<?= e(t('Excluir esta transferência?')) ?>">
         <?= csrfField() ?><input type="hidden" name="volta" value="<?= e($volta) ?>">
         <button type="submit" class="btn-link-danger"><?= e(t('Excluir transferência')) ?></button>
     </form>
+    <?php endif; ?>
 </div>

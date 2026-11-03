@@ -561,6 +561,51 @@
         sincronizar();
     });
 
+    // mês fechado não muda: a data de um lançamento ou de uma transferência num mês fechado é avisada antes de enviar
+    // (data-lf-fechados: 'AAAA-MM' → a frase do servidor). A compra no cartão segue pela fatura, que só o servidor sabe
+    function noCartao(form) {
+        var p = form.querySelector('input[name="pagou"]:checked');
+        return !transferindo(form) && !!p && /^cartao/.test(p.value);
+    }
+    function mesFechado(form) {
+        var mapa;
+        try { mapa = JSON.parse(form.getAttribute('data-lf-fechados') || '{}'); } catch (e) { mapa = {}; }
+        var d = form.querySelector('input[name="data"]');
+        if (!d || noCartao(form)) { return null; }
+        return mapa[(d.value || '').slice(0, 7)] || null;
+    }
+    // o seletor de data mostra a regra: sem cartão, começa no 1º dia depois do último mês fechado
+    function limiteData(form) {
+        var d = form.querySelector('input[name="data"]');
+        if (!d || !form.hasAttribute('data-lf-fechados')) { return; }
+        if (!d.hasAttribute('data-lf-min')) { d.setAttribute('data-lf-min', d.min || ''); }
+        var ult = Object.keys(JSON.parse(form.getAttribute('data-lf-fechados') || '{}')).sort().pop();
+        var aberto = '';
+        if (ult) {
+            var a = +ult.slice(0, 4), m = +ult.slice(5, 7) + 1;
+            if (m > 12) { m = 1; a++; }
+            aberto = a + '-' + (m < 10 ? '0' : '') + m + '-01';
+        }
+        var base = d.getAttribute('data-lf-min');
+        d.min = !noCartao(form) && aberto > base ? aberto : base;
+    }
+    document.querySelectorAll('form[data-lf][data-lf-fechados]').forEach(limiteData);
+    document.addEventListener('change', function (ev) {
+        var el = ev.target;
+        if (!(el instanceof Element) || !el.form || !el.form.matches('form[data-lf][data-lf-fechados]') || !/^(data|pagou|modo)$/.test(el.getAttribute('name') || '')) {
+            return;
+        }
+        limiteData(el.form);
+        var msg = mesFechado(el.form);
+        var box = el.form.querySelector('[data-lf-erro]');
+        if (msg) {
+            mostrarErro(el.form, msg, 'data');
+        } else if (box && !box.hidden && box.hasAttribute('data-lf-fechado')) {
+            mostrarErro(el.form, '');
+        }
+        if (box) { box.toggleAttribute('data-lf-fechado', !!msg); }
+    });
+
     // antes de enviar: valor e categoria (o servidor valida tudo de novo); trava o duplo toque
     document.addEventListener('submit', function (ev) {
         var form = ev.target;
@@ -583,6 +628,10 @@
             erro = T('Escolha a categoria.');
             foco = campoCategoria(form);
             campo = 'categoria';
+        } else if (mesFechado(form)) {
+            erro = mesFechado(form);
+            foco = form.querySelector('input[name="data"]');
+            campo = 'data';
         }
         if (erro) {
             ev.preventDefault();

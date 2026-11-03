@@ -10,7 +10,8 @@
  * cartão, o formulário é o de sempre. Conta e Cartão aparecem como abas.
  * Acima do campo da categoria, as 3 usadas por último ($recentes) num toque (com JS). Numa conta fixa do mês, o valor
  * previsto que falta vem sugerido ($sugestoes): o lancar.js põe no campo ao escolher a conta, e sem JS ele já vem
- * preenchido quando a categoria chega pelo endereço. O erro aparece no próprio campo.
+ * preenchido quando a categoria chega pelo endereço. O erro aparece no próprio campo. Com meses fechados ($fechados),
+ * o lancar.js avisa antes de enviar uma data num deles; o servidor recusa do mesmo jeito.
  */
 $modo   = in_array($modo ?? '', ['dialog', 'pagina', 'editar'], true) ? $modo : 'dialog';
 $pref   = preg_replace('/[^a-z0-9]/', '', (string) ($pref ?? 'lf')) ?: 'lf';
@@ -29,11 +30,16 @@ $erroDe = match ($erro) {
     t('Digite um valor.') => 'valor',
     t('Escolha uma categoria.') => 'categoria',
     t('Descrição muito longa. Use até 255 letras.') => 'descricao',
+    motivoValor(is_string($a['valor'] ?? null) ? $a['valor'] : null) => 'valor',     // acima do máximo, vírgula e ponto
     default => null,
 };
 $erroCampo = static fn(string $campo): ?string => $erroDe === $campo ? $erro : null;
 $erroGeral = $erroDe === null ? $erro : null;
 $dup  = isset($a['duplicado']) && is_array($a['duplicado']) ? $a['duplicado'] : null;
+// a transferência que deixaria a conta negativa: pergunta antes de gravar (não é proibida)
+$negativo = isset($a['negativo']) && is_array($a['negativo']) ? $a['negativo'] : null;
+// o lançamento de um mês fechado abre só para ler: o aviso diz como mudar, e Salvar fica desligado
+$fechado = $editar && is_string($fechado ?? null) ? $fechado : null;
 
 $valorTxt = '';
 if (isset($a['valor']) && $a['valor'] !== '') {
@@ -97,7 +103,7 @@ if ($contasF !== [] || count($cartoesF) > 1) {
 $transferir = !$editar && $contasF !== [] && ($a['modo'] ?? '') === 'transferir';
 ?>
 <form class="lf lf--<?= e($modo) ?>" method="post" action="<?= e($acao) ?>" novalidate
-      data-lf data-lf-modo="<?= e($topo === false ? 'coluna' : $modo) ?>">
+      data-lf data-lf-modo="<?= e($topo === false ? 'coluna' : $modo) ?>"<?= !empty($fechados) && $fechado === null ? ' data-lf-fechados="' . e((string) json_encode($fechados, JSON_UNESCAPED_UNICODE)) . '"' : '' ?>>
     <?php if ($topo === false): ?>
         <h2 class="titulo lf-titulo-col"><?= e($titulo) ?></h2>
     <?php elseif ($modo === 'dialog'): ?>
@@ -122,9 +128,11 @@ $transferir = !$editar && $contasF !== [] && ($a['modo'] ?? '') === 'transferir'
     <?php if ($opcoes !== []): ?>
         <fieldset class="ct-pagou is-varias" data-ct-pagou>
             <legend class="lf-rot" data-pagou-rot data-gasto="<?= e(t('Pagou com')) ?>" data-entrada="<?= e(t('Recebeu em')) ?>"><?= e(t('Pagou com')) ?></legend>
+            <div class="lf-abas">
             <?php foreach ($opcoes as [$v, $o, $soGasto]): ?>
-                <label<?= $soGasto ? ' data-so-gasto' : '' ?>><input type="radio" name="pagou" value="<?= e($v) ?>"<?= $v === $pagou ? ' checked' : '' ?><?= $v === ($padraoV ?? null) ? ' data-lf-padrao' : '' ?>><?= $soGasto ? e($o['nome']) : ($o !== null ? '<span aria-hidden="true">' . e(\Financeiro\Models\ContaModel::TIPOS[$o['tipo']] ?? '') . '</span> ' . e(nomeConta($o)) : e(t('Conta'))) ?></label>
+                <label<?= $soGasto ? ' data-so-gasto' : '' ?> title="<?= e($soGasto ? $o['nome'] : ($o !== null ? nomeConta($o) : t('Conta'))) ?>"><input type="radio" name="pagou" value="<?= e($v) ?>"<?= $v === $pagou ? ' checked' : '' ?><?= $v === ($padraoV ?? null) ? ' data-lf-padrao' : '' ?>><?= $soGasto ? e($o['nome']) : ($o !== null ? '<span aria-hidden="true">' . e(\Financeiro\Models\ContaModel::TIPOS[$o['tipo']] ?? '') . '</span> ' . e(nomeConta($o)) : e(t('Conta'))) ?></label>
             <?php endforeach; ?>
+            </div>
         </fieldset>
     <?php elseif ($cartao !== null): ?>
         <fieldset class="ct-pagou" data-ct-pagou>
@@ -277,16 +285,23 @@ $transferir = !$editar && $contasF !== [] && ($a['modo'] ?? '') === 'transferir'
     <?php if ($erroGeral !== null): ?>
         <div class="aviso aviso-error lf-aviso" role="alert"><?= e($erroGeral) ?></div>
     <?php endif; ?>
+    <?php if ($negativo !== null): ?>
+        <div class="aviso aviso-warn lf-aviso" role="status"><?= e(t('{conta} fica com {valor}. Transferir mesmo assim?', ['conta' => (string) ($negativo['conta'] ?? ''), 'valor' => money((float) ($negativo['valor'] ?? 0))])) ?></div>
+    <?php endif; ?>
     <?php if ($dup !== null): ?>
         <div class="aviso aviso-warn lf-aviso" role="status"><?= e(t('Já existe um lançamento igual: {descricao}, de {quem}, em {data}. Quer registrar outro?', ['quem' => (string) ($dup['quem'] ?? ''), 'data' => diaMes((string) ($dup['data'] ?? '')), 'descricao' => nomeCategoria((string) ($dup['descricao'] ?? ''))])) ?></div>
     <?php endif; ?>
+    <?php if ($fechado !== null): ?>
+        <div class="aviso aviso-warn lf-aviso" role="status"><?= e($fechado) ?> <a class="link" href="/mes?mes=<?= e(substr((string) ($l['data'] ?? ''), 0, 8) . '01') ?>"><?= e(t('Abrir o Mês')) ?></a></div>
+    <?php endif; ?>
     <div class="aviso aviso-error lf-aviso" role="alert" data-lf-erro hidden></div>
 
-    <button type="submit" class="btn btn-principal btn-block lf-enviar" data-lf-enviar data-ct-rot="<?= $cartao !== null ? e(t('Lançar no cartão')) : '' ?>"<?= !$editar && $contasF !== [] ? ' data-transf-rot="' . e(t('Transferir')) . '"' : '' ?>><?= e($transferir ? t('Transferir') : (str_starts_with($pagou, 'cartao') ? t('Lançar no cartão') : $botao)) ?></button>
+    <button type="submit" class="btn btn-principal btn-block lf-enviar" data-lf-enviar<?= $fechado !== null ? ' disabled' : '' ?> data-ct-rot="<?= $cartao !== null ? e(t('Lançar no cartão')) : '' ?>"<?= !$editar && $contasF !== [] ? ' data-transf-rot="' . e($negativo !== null ? t('Transferir mesmo assim') : t('Transferir')) . '"' : '' ?>><?= e($transferir ? ($negativo !== null ? t('Transferir mesmo assim') : t('Transferir')) : (str_starts_with($pagou, 'cartao') ? t('Lançar no cartão') : $botao)) ?></button>
 
     <?= csrfField() ?>
     <input type="hidden" name="volta" value="<?= e($volta) ?>" data-lf-volta>
     <?php if (!$editar): ?>
         <input type="hidden" name="confirmar_dup" value="<?= $dup !== null ? '1' : '' ?>" data-lf-dup>
+        <input type="hidden" name="confirmar_negativo" value="<?= $negativo !== null ? '1' : '' ?>">
     <?php endif; ?>
 </form>

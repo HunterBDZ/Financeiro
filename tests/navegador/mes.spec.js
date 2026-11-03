@@ -1,6 +1,6 @@
 // O Mês do redesenho: o livro-razão com a edição do previsto na própria linha, a barra do dinheiro do mês, o Fechar como
 // botão de verdade e o mês fechado como outro estado. No relógio dos testes (22/11), novembro está aberto e outubro fechado.
-import { test, expect } from './fixtures.js';
+import { test, expect, token } from './fixtures.js';
 
 const lerNum = (t) => Number(t.replace(/[^\d,−-]/g, '').replace('−', '-').replace(/\./g, '').replace(',', '.'));
 
@@ -38,6 +38,14 @@ test('Fechar é um botão: antes do fim do mês, desligado e com o motivo', asyn
     await expect(fechar).toHaveAccessibleDescription('a partir de 30 de novembro');
     await expect(fechar).toBeDisabled();
     await expect(page.getByRole('link', { name: 'Fechar novembro' })).toHaveCount(0);
+});
+
+test('o servidor também só fecha o mês a partir do dia que a tela promete (B-02)', async ({ page, baseURL }) => {
+    const r = await page.request.post(baseURL + '/mes/fechar', { form: { csrf_token: await token(page.request, baseURL + '/ajuda'), mes: '2026-11-01' } });
+    expect(await r.text()).toContain('Dá para fechar novembro a partir de 30 de novembro.');
+    await page.goto('/mes');
+    await expect(page.getByRole('button', { name: 'Fechar novembro' })).toBeDisabled();   // continua aberto
+    await expect(page.locator('.topo-sub')).not.toContainText('Fechado');
 });
 
 test('o mês fechado é outro estado: planejado, realizado, diferença e o fio de fechamento', async ({ page }) => {

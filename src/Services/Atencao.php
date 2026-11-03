@@ -2,18 +2,19 @@
 namespace Financeiro\Services;
 
 use Financeiro\Controllers\CartaoController;
+use Financeiro\Controllers\MetaController;
 use Financeiro\Models\AjusteModel;
 use Financeiro\Models\CartaoModel;
 use Financeiro\Models\CategoriaModel;
+use Financeiro\Models\ContaRecorrenteModel;
 use Financeiro\Models\MesModel;
-use Financeiro\Models\MetaModel;
 use Financeiro\Relogio;
 
 /**
  * "Precisa de atenção", no Início: o que pede uma ação agora, do mais urgente para o menos. Nenhum número novo: cada
- * aviso vem do que o app já calcula (ChecklistContas, CartaoFatura::painel, as metas contra o gasto do mês, a
- * situação dos meses e a última conferência com o banco). Vencimento em dia que não é útil só atrasa depois do
- * próximo dia útil (DiaUtil), aqui como no Mês e no Cartão.
+ * aviso vem do que o app já calcula (ChecklistContas, CartaoFatura::painel, a meta do mês contra o gasto como as
+ * Metas contam (MetaController::gastosDoMes), a situação dos meses e a última conferência com o banco). Vencimento
+ * em dia que não é útil só atrasa depois do próximo dia útil (DiaUtil), aqui como no Mês e no Cartão.
  *
  * Ordem: contas e faturas atrasadas; as que vencem em até DIAS dias; mês anterior aberto depois do dia DIA_FECHAR;
  * fatura fechada que vence depois; conferência que não bateu; meta estourada. No mesmo nível, a data mais próxima.
@@ -92,23 +93,28 @@ final class Atencao
                 t('Conferir'), '/?conferir=1#conferir');
         }
 
-        // categoria que passou da meta no mês, a que passou mais primeiro
+        // categoria que passou da meta no mês, a que passou mais primeiro: a meta do mês (com as mudanças de
+        // recorrência) e o gasto como a tela Metas conta (com o cartão, pela data da compra), para dizer o mesmo que ela
         if (($meses[$mesCal] ?? '') === 'PREVISAO') {
-            $metas = MetaModel::todas();
-            $cats = GastosMensais::matriz($hoje === Relogio::hoje() ? null : $hoje)[$mesCal]['cats'] ?? [];
+            $prev = MotorFinanceiro::dados()['prev'][$mesCal] ?? [];
+            $gastos = MetaController::gastosDoMes($mesCal, $hoje === Relogio::hoje() ? null : $hoje);
+            // as contas fixas ficam de fora, como nas Metas (lá a conta paga a mais aparece "paga"); a fatura avisa pelo Cartão
+            $fora = array_flip(array_map('intval', array_column(ContaRecorrenteModel::ativas(), 'categoria_id')));
+            $fora[(int) CartaoModel::categoriaFatura()] = true;
             $passou = [];
             foreach (CategoriaModel::gastos() as $c) {
                 $id = (int) $c['id'];
-                $meta = $metas[$id] ?? 0.0;
-                $gasto = (float) ($cats[$id]['real'] ?? 0.0);
-                if ($meta > 0.004 && $gasto - $meta >= 0.005) {
-                    $passou[] = [$gasto - $meta, $c, $meta, $gasto];
+                $meta = round((float) ($prev[$id] ?? 0.0), 2);
+                $gasto = (float) ($gastos[$id]['gasto'] ?? 0.0);
+                if (!isset($fora[$id]) && $meta > 0.004 && $gasto - $meta >= 0.005) {
+                    $passou[] = [$gasto - $meta, $c, $meta, $gasto, $gastos[$id]['cartao'] ?? false];
                 }
             }
             usort($passou, static fn(array $a, array $b): int => $b[0] <=> $a[0]);
-            foreach ($passou as $k => [$excesso, $c, $meta, $gasto]) {
+            foreach ($passou as $k => [$excesso, $c, $meta, $gasto, $cartao]) {
+                $vars = ['gasto' => num($gasto), 'meta' => num($meta), 'resto' => num($excesso)];
                 $out[] = self::aviso('meta', 5, sprintf('%04d', $k), t('{categoria} passou da meta', ['categoria' => nomeCurto($c)]),
-                    t('{gasto} de {meta}, passou {resto}', ['gasto' => num($gasto), 'meta' => num($meta), 'resto' => num($excesso)]),
+                    $cartao ? t('{gasto} de {meta}, passou {resto}, com o cartão', $vars) : t('{gasto} de {meta}, passou {resto}', $vars),
                     t('Ver metas'), '/meta#c' . (int) $c['id']);
             }
         }

@@ -219,6 +219,10 @@ $situDia = static function (array $l) use ($estado): string {
     if ($ref === null || ($ref <= 0.004 && $gasto <= 0.004)) {
         return '';
     }
+    if ($ref <= 0.004) {
+        // tirada do mês (previsto zero) com gasto: o plano conta o gasto, mas não há meta para passar
+        return '<span class="mes-status mes-status-previsto fraco">' . e(t('sem previsão')) . '</span>';
+    }
     $passou = $gasto > $ref + 0.004;
     $frac = $ref > 0.004 ? min(1.0, $gasto / $ref) : 1.0;
     return '<span class="meta-linha mes-meta ' . ($passou ? 'fora-meta' : 'na-meta') . '" data-meta="' . e(number_format($ref, 2, '.', '')) . '">'
@@ -388,7 +392,7 @@ $apoioFim = match (true) {
 };
 // Fechar: um botão de verdade; antes do fim do mês, desligado e com o motivo
 $podeFechar = $menu['fechar'];
-$fechaJa = $podeFechar && ($mes < $mesCal || (string) $hoje >= $fimMesData);
+$fechaJa = $podeFechar && \Financeiro\Models\MesModel::podeFechar($mes, (string) $hoje);     // a mesma regra do POST
 ?>
 <div class="grade mes">
     <?php View::partial('partials/topo', ['mes' => $mes, 'meses' => $meses, 'href' => '/mes?mes=', 'hoje' => $hoje, 'anual' => true, 'apoio' => $apoio, 'acoes' => $acoesTopo]); ?>

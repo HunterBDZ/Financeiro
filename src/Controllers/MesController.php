@@ -281,7 +281,9 @@ final class MesController
                 flash('error', $e->getMessage());                // não há linha para reabrir com o erro
                 redirecionar('/mes?mes=' . $mes, 303);
             }
-            $_SESSION['mes_erro'] = ['mes' => $mes, 'cat' => $cat, 'msg' => $e->getMessage(), 'valor' => $bruto,
+            // o valor recusado diz por quê, quando dá (acima do máximo, vírgula e ponto trocados)
+            $msg = $e->getMessage() === t(PrevisaoEdicao::ERRO_VALOR) ? (motivoValor($bruto) ?? $e->getMessage()) : $e->getMessage();
+            $_SESSION['mes_erro'] = ['mes' => $mes, 'cat' => $cat, 'msg' => $msg, 'valor' => $bruto,
                 'propagar' => $propagar, 'ancora' => $incluindo ? 'incluir' : null];
             redirecionar($incluindo ? '/mes?mes=' . $mes . '#incluir' : $volta, 303);
         }
@@ -518,8 +520,10 @@ final class MesController
         if (self::situacaoEm($meses, $mes) === 'REAL') {
             redirecionar($volta, 303);                           // já fechado: nada a gravar
         }
-        if ($mes > substr($hoje, 0, 7) . '-01') {
-            flash('error', t('Esse mês ainda não começou. Ele pode ser fechado a partir do dia 1.'));
+        if (!MesModel::podeFechar($mes, $hoje)) {
+            // a mesma regra da tela: só a partir do último dia do mês
+            $fim = MesModel::fechaAPartirDe($mes);
+            flash('error', t('Dá para fechar {mes} a partir de {data}.', ['mes' => mesExtenso($mes), 'data' => t('{dia} de {mes}', ['dia' => (int) substr($fim, 8, 2), 'mes' => mesExtenso($mes)])]));
             redirecionar('/mes?mes=' . $mes, 303);
         }
 

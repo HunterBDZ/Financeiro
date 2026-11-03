@@ -233,16 +233,61 @@ function parseMoedaBr(?string $input, bool $dinheiro = true): ?float
     return ($neg && $v != 0.0) ? -$v : $v;
 }
 
+/**
+ * Por que um valor digitado não foi aceito, quando dá para dizer: acima do máximo ("O valor máximo é R$ 1.000.000,00."),
+ * o separador dos centavos trocado ("1.5" em português) ou o dos centavos usado como milhar ("1,500"). null = quem
+ * chama usa a frase dele ("Digite um valor.").
+ */
+function motivoValor(?string $bruto): ?string
+{
+    $s = trim(str_replace([NBSP, "\u{202F}", ' ', 'R$', moedaSimbolo()], '', (string) $bruto));
+    $v = parseMoedaBr($s);
+    if ($v !== null && abs($v) > valorMaximo()) {
+        return t('O valor máximo é {valor}.', ['valor' => money(valorMaximo())]);
+    }
+    if ($v !== null || $s === '') {
+        return null;
+    }
+    $dec = sepDecimal();
+    $outro = $dec === ',' ? '.' : ',';
+    if (preg_match('/^(\d+)' . preg_quote($outro, '/') . '(\d{1,2})$/', $s, $m)) {
+        // "1.5" ou "12.50": o ponto no lugar da vírgula (ou o contrário, em inglês)
+        return t('Use vírgula para os centavos: {exemplo}.', ['exemplo' => numInput((float) ($m[1] . '.' . $m[2]))]);
+    }
+    if (preg_match('/^\d{1,3}(' . preg_quote($dec, '/') . '\d{3})+$/', $s)) {
+        // "1,500": milhar ou centavos? Os dois jeitos de escrever
+        $mil = (float) str_replace($dec, '', $s);
+        $cent = (float) str_replace($dec, '.', substr($s, 0, (int) strrpos($s, $dec) + 3));
+        return t('Use vírgula só para os centavos: {mil} ou {cent}.', ['mil' => numInput($mil), 'cent' => numInput($cent)]);
+    }
+    return null;
+}
+
 /* ------------------------------------------------------------------ idioma */
 
 /** O texto em português traduzido para o idioma atual, com {nome} trocado por $vars. Sempre com literal: tools/idiomas/gerar.php lê daqui. */
 function t(string $texto, array $vars = []): string
 {
     $saida = \Financeiro\Idioma::traduzir($texto);
+    // em inglês, o dia do mês ({dia}, {fim}) depois de "the" é ordinal: "until the 30th", "today is the 22nd"
+    if (\Financeiro\Idioma::atual() === 'en' && str_contains($saida, 'the {')) {
+        foreach (array_intersect_key($vars, ['dia' => 1, 'fim' => 1]) as $k => $v) {
+            if ((is_int($v) || (is_string($v) && ctype_digit($v))) && (int) $v >= 1 && (int) $v <= 31) {
+                $saida = str_replace('the {' . $k . '}', 'the ' . ordinalEn((int) $v), $saida);
+            }
+        }
+    }
     foreach ($vars as $k => $v) {
         $saida = str_replace('{' . $k . '}', (string) $v, $saida);
     }
     return $saida;
+}
+
+/** `1st`, `2nd`, `3rd`, `4th`, `11th`, `21st`: o ordinal em inglês (o dia do mês). */
+function ordinalEn(int $n): string
+{
+    $fim = in_array($n % 100, [11, 12, 13], true) ? 'th' : (['th', 'st', 'nd', 'rd'][$n % 10] ?? 'th');
+    return $n . $fim;
 }
 
 /** Singular ou plural pela quantidade; {n} é a quantidade. */

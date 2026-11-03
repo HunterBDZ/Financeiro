@@ -2,7 +2,7 @@
 /**
  * Extrato: o livro-razão do período, de largura total. Variáveis: $mes, $meses, $situacao, $estado, $hoje, $usuarios,
  * $f, $quem, $categoria (?array), $categorias (array), $q, $modo ('' = o mês; ano, tudo, datas), $periodo (?de/ate),
- * $rotuloPeriodo, $valores (min/max como digitados), $erroValor, $params (filtros ativos, com mes), $limite,
+ * $rotuloPeriodo, $ondePeriodo (o período no meio da frase: "em novembro de 2026"), $valores (min/max como digitados), $erroValor, $params (filtros ativos, com mes), $limite,
  * $linhas, $totais, $filtrado, $renda (?float, só sem filtro), $urlAtual, $urlPlanilha,
  * $form (não usado aqui: o Lançar é o diálogo do layout), $contasMes (ChecklistContas::fixasAPagar).
  * Com mais de uma conta: $contas (todas, para o filtro), $conta (a filtrada, ou null), $transferencias (as do período,
@@ -97,7 +97,8 @@ if ($modo !== '') {
 $vencidas = array_values(array_filter($contasMes ?? [], static fn(array $c): bool => !empty($c['atrasado'])));
 
 // o valor de uma linha, pela regra de cor: saiu em vermelho com "−", entrou em verde com "+", movimentação neutra
-// com ⇄, agendado (depois de hoje) em cinza
+// com ⇄, agendado (depois de hoje) em cinza, e a soma do dia agendado também; o agendado fica fora do Entrou e do
+// Gastou, com a nota "mais X agendado"
 $valorLinha = static function (array $r) use ($hoje): string {
     $v = (float) $r['valor'];
     $mov = (int) $r['operacional'] !== 1;
@@ -136,8 +137,8 @@ $colunas = 4;
                 <?php if ($filtrado): ?>
                     <div><dt><?= e(t('Achados')) ?></dt><dd class="num"><?= e(num((int) $totais['n'], 0)) ?><span class="nota"><?= e(tn((int) $totais['n'], 'lançamento', 'lançamentos')) ?></span></dd></div>
                 <?php endif; ?>
-                <div><dt><?= e(t('Entrou')) ?></dt><dd data-ex-total="entrada"><?= valor((float) $totais['entrada'], 'entrada') ?></dd></div>
-                <div><dt><?= e(t('Gastou')) ?></dt><dd data-ex-total="gasto"><?= valor(-(float) $totais['gasto'], 'saida') ?></dd></div>
+                <div><dt><?= e(t('Entrou')) ?></dt><dd data-ex-total="entrada"><?= valor((float) $totais['entrada'], 'entrada') ?><?php if ((float) ($totais['entrada_ag'] ?? 0) > 0.004): ?><span class="nota"><?= e(t('mais {valor} agendado', ['valor' => num((float) $totais['entrada_ag'])])) ?></span><?php endif; ?></dd></div>
+                <div><dt><?= e(t('Gastou')) ?></dt><dd data-ex-total="gasto"><?= valor(-(float) $totais['gasto'], 'saida') ?><?php if ((float) ($totais['gasto_ag'] ?? 0) > 0.004): ?><span class="nota"><?= e(t('mais {valor} agendado', ['valor' => num((float) $totais['gasto_ag'])])) ?></span><?php endif; ?></dd></div>
                 <?php if ($temMov): ?>
                     <div><dt><?= e(t('Movimentações')) ?></dt><dd><span class="num ext-v-mov">⇄ <?= valor((float) $totais['mov']) ?></span><span class="nota"><?= e(t('guardado e empréstimo')) ?></span></dd></div>
                 <?php endif; ?>
@@ -255,12 +256,12 @@ $colunas = 4;
         <?php if ($linhas === [] && $transferencias === []): ?>
             <div class="vazio ext-vazio">
                 <?php if ($q !== ''): ?>
-                    <p class="titulo"><?= e($modo === '' ? t('Nada com “{q}” em {mes}.', ['q' => $q, 'mes' => mesExtenso($mes)]) : t('Nada com “{q}” em {periodo}.', ['q' => $q, 'periodo' => $rotuloPeriodo])) ?></p>
+                    <p class="titulo"><?= e($modo === '' ? t('Nada com “{q}” em {mes}.', ['q' => $q, 'mes' => mesExtenso($mes)]) : t('Nada com “{q}” {onde}.', ['q' => $q, 'onde' => $ondePeriodo])) ?></p>
                     <?php if ($modo !== 'tudo'): ?>
                         <a class="btn btn-contorno" href="<?= e($url(['periodo' => 'tudo', 'de' => '', 'ate' => ''])) ?>"><?= svgIcon('search', 16) ?><?= e(t('Buscar em todos os meses')) ?></a>
                     <?php endif; ?>
                 <?php elseif ($modo !== '' || $valores['min'] !== '' || $valores['max'] !== '' || $quem > 0 || $conta !== null): ?>
-                    <p class="titulo"><?= e(t('Nada encontrado com esses filtros em {periodo}.', ['periodo' => $rotuloPeriodo])) ?></p>
+                    <p class="titulo"><?= e(t('Nada encontrado com esses filtros {onde}.', ['onde' => $ondePeriodo])) ?></p>
                     <a class="btn-link" href="<?= e($url(['f' => '', 'cat' => '', 'conta' => '', 'q' => '', 'min' => '', 'max' => '', 'quem' => '', 'periodo' => '', 'de' => '', 'ate' => ''])) ?>"><?= e(t('Limpar filtros')) ?></a>
                 <?php elseif ($categoria !== null || $f !== ''): ?>
                     <p class="titulo"><?= e($categoria !== null ? t('Nada de {categoria} em {mes}.', ['mes' => mesExtenso($mes), 'categoria' => nomeCurto($categoria)]) : t('Nada nesse grupo em {mes}.', ['mes' => mesExtenso($mes)])) ?></p>
@@ -294,7 +295,9 @@ $colunas = 4;
                         <?php if ($agrupado): $sd = $somaDia($rows); ?>
                             <tr class="ext-dia">
                                 <th scope="rowgroup" colspan="<?= $colunas - 1 ?>"><?= e($rotuloDia((string) $data)) ?></th>
-                                <td class="ext-c-valor"><?php if (abs($sd) >= 0.005): ?><span class="sr-only"><?= e(t('soma do dia')) ?> </span><?= valor($sd, 'auto', ['centavos' => false, 'classe' => 'ext-soma']) ?><?php endif; ?></td>
+                                <td class="ext-c-valor"><?php if (abs($sd) >= 0.005): ?><span class="sr-only"><?= e(t('soma do dia')) ?> </span><?= (string) $data > $hoje
+                                    ? '<span class="num v-previsto ext-soma">' . ($sd > 0 ? '+' : MENOS) . e(num(abs($sd))) . '</span>'
+                                    : valor($sd, 'auto', ['centavos' => false, 'classe' => 'ext-soma']) ?><?php endif; ?></td>
                             </tr>
                         <?php endif; ?>
                         <?php foreach ($rows as $r): ?>

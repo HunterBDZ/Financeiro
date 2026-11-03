@@ -12,7 +12,8 @@
  *   ]]);
  * Variáveis: $segmentos (rótulo, valor >= 0, classe: s-saiu|s-contas|s-metas|s-gastar|s-reserva, destaque opcional);
  * $titulo (opcional); $total (opcional; sem ele, a soma); $nivel (opcional, 'h2' ou 'h3', o nível do título).
- * Segmento sem valor (zero ou negativo) não entra na barra, mas fica na legenda.
+ * Segmento sem valor (zero ou negativo) não entra na barra, mas fica na legenda; o negativo (a falta, quando o mês fecha
+ * no vermelho) aparece com "−" em vermelho, e a legenda soma o total.
  */
 $segmentos = array_values(array_filter((array) ($segmentos ?? []), 'is_array'));
 $titulo = (string) ($titulo ?? '');
@@ -20,7 +21,7 @@ $nivel = ($nivel ?? 'h2') === 'h3' ? 'h3' : 'h2';
 $total = isset($total) ? (float) $total : array_sum(array_map(static fn(array $s): float => max(0.0, (float) ($s['valor'] ?? 0)), $segmentos));
 $partes = [];
 foreach ($segmentos as $s) {
-    $partes[] = t('{nome} {valor}', ['nome' => mb_strtolower((string) ($s['rotulo'] ?? '')), 'valor' => num(max(0.0, (float) ($s['valor'] ?? 0)))]);
+    $partes[] = t('{nome} {valor}', ['nome' => mb_strtolower((string) ($s['rotulo'] ?? '')), 'valor' => num((float) ($s['valor'] ?? 0))]);
 }
 $descricao = t('De {total}: {partes}.', ['total' => num($total), 'partes' => implode('; ', $partes)]);
 ?>
@@ -39,7 +40,7 @@ $descricao = t('De {total}: {partes}.', ['total' => num($total), 'partes' => imp
     </div>
     <ul class="legenda">
         <?php foreach ($segmentos as $s): ?>
-            <li<?= !empty($s['destaque']) ? ' class="destaque"' : '' ?>><i class="<?= e((string) ($s['classe'] ?? '')) ?>" aria-hidden="true"></i><span class="rot"><?= e((string) ($s['rotulo'] ?? '')) ?></span><span class="val num"><?= e(num(max(0.0, (float) ($s['valor'] ?? 0)))) ?></span></li>
+            <li<?= !empty($s['destaque']) ? ' class="destaque"' : '' ?>><i class="<?= e((string) ($s['classe'] ?? '')) ?>" aria-hidden="true"></i><span class="rot"><?= e((string) ($s['rotulo'] ?? '')) ?></span><span class="val num<?= (float) ($s['valor'] ?? 0) < -0.004 ? ' alerta' : '' ?>"><?= e(num((float) ($s['valor'] ?? 0))) ?></span></li>
         <?php endforeach; ?>
     </ul>
 </div>

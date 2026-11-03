@@ -59,7 +59,7 @@ final class DashboardController
 
         // com mais de uma conta: o saldo de cada uma (o total continua o do plano) e a conferência de cada uma
         $contas = ContaModel::varias() ? self::contasHoje($hoje) : [];
-        $conf  = $contas !== [] ? self::conferenciaContas($contas, $hoje) : self::conferencia($saldoIni, $hoje);
+        $conf  = self::conferenciaAtual($hoje);
 
         // CONTA (invariante 4): fica_na_conta do mês do CALENDÁRIO quando ele está REAL;
         // senão, o saldo calculado pelos lançamentos até hoje.
@@ -107,13 +107,15 @@ final class DashboardController
             'painel'         => $painel,
             'sobra'          => $sobra,
             'ultimos'        => $ultimos,
+            // a soma de cada dia à vista é a do dia inteiro, mesmo quando só os últimos 6 lançamentos aparecem
+            'somasDia'       => $ultimos !== [] ? LancamentoModel::somasPorDia((string) min(array_column($ultimos, 'data')), (string) max(array_column($ultimos, 'data'))) : [],
             'avisos'         => $avisos,
             // as contas fixas de hoje ainda não pagas, com o botão Pago (só no dia de hoje: Pago lança com a data de hoje)
             'contasMes'      => $ehHoje ? ChecklistContas::fixasAPagar($hoje) : [],
             // as já pagas, com o carimbo; a barra "para onde vai o dinheiro" do mês da previsão; o guardado do mês
             'contasPagas'    => $ehHoje ? self::contasPagas($hoje) : [],
-            'destino'        => Destino::doMes(MotorFinanceiro::dados(), $linhaPrev, $mesCal),
-            'guardado'       => Destino::guardado(MotorFinanceiro::dados(), $mesRef),
+            'destino'        => Destino::doMes(MotorFinanceiro::dados(), $linhaPrev, $mesCal, $hoje),
+            'guardado'       => Destino::guardado(MotorFinanceiro::dados(), $mesRef, $hoje),
             'temLancamento'  => (bool) Database::connection()->query('SELECT 1 FROM lancamentos LIMIT 1')->fetchColumn(),
             'v2'             => MotorFinanceiro::v2(),
         ], 'inicio');
@@ -160,12 +162,17 @@ final class DashboardController
         ], 'inicio');
     }
 
-    /** A última conferência com o banco, como o Início mostra: a do total ou, com várias contas, a de cada uma. */
-    public static function conferenciaAtual(string $hoje): ?array
+    /**
+     * A última conferência com o banco até $hoje (e desde $desde), a mesma no Início, no "Precisa de atenção" e no
+     * Relatório: a do total ou, com várias contas, a de cada uma. A do total feita quando havia uma conta só vale
+     * como a da Conta principal, a conta que existia: criar a segunda conta não apaga a conferência de antes, e ela
+     * continua comparada só com o saldo daquela conta.
+     */
+    public static function conferenciaAtual(string $hoje, ?string $desde = null): ?array
     {
         return ContaModel::varias()
-            ? self::conferenciaContas(self::contasHoje($hoje), $hoje)
-            : self::conferencia(AjusteModel::valor('saldo_ini'), $hoje);
+            ? self::conferenciaContas(self::contasHoje($hoje), $hoje, $desde)
+            : self::conferencia(AjusteModel::valor('saldo_ini'), $hoje, $desde);
     }
 
     /** POST /conferir — saldo do banco numa data (hoje ou outro dia), com volta. */
@@ -287,9 +294,10 @@ final class DashboardController
      * A última conferência de cada conta ativa, juntas: a data é a mais recente, e bate se todas batem. Como
      * conferencia(), mas cada conta contra o saldo dela e o agendado dela.
      */
-    private static function conferenciaContas(array $contas, string $hoje): ?array
+    private static function conferenciaContas(array $contas, string $hoje, ?string $desde = null): ?array
     {
-        $ultimas = SaldoConferenciaModel::ultimasPorConta();
+        $principal = ContaModel::achar(ContaModel::PRINCIPAL) !== null ? ContaModel::PRINCIPAL : ContaModel::padrao();
+        $ultimas = SaldoConferenciaModel::ultimasPorConta($hoje, $desde, $principal);
         $por = [];
         foreach ($contas as $c) {
             $u = $ultimas[$c['id']] ?? null;
@@ -317,9 +325,9 @@ final class DashboardController
     /* ------------------------------------------------------------------ blocos */
 
     /** Última conferência com a diferença contra saldoCalculado(data) e o agendado (D10). */
-    private static function conferencia(float $saldoIni, string $hoje): ?array
+    private static function conferencia(float $saldoIni, string $hoje, ?string $desde = null): ?array
     {
-        $c = SaldoConferenciaModel::ultima();
+        $c = SaldoConferenciaModel::ultima($hoje, $desde);
         if ($c === null) {
             return null;
         }
