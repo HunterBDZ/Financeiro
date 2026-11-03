@@ -190,7 +190,7 @@ final class CartaoController
         $erro = match (true) {
             $fatura === null => t('Escolha a fatura.'),
             $valor === null || $valor <= 0 || $valor > valorMaximo() => t('Digite um valor.'),
-            default => LancamentosController::validarData($data),
+            default => LancamentosController::validarData($data) ?? LancamentosController::erroMesFechado($data),
         };
         if ($erro !== null) {
             flash('error', $erro);
@@ -220,6 +220,7 @@ final class CartaoController
         }
         $cartao = self::escolhido($cartoes, $cartaoId !== null ? (string) $cartaoId : null);
         [$erro, $d] = self::validarCompra($in, $cartao, $hoje);
+        $erro ??= self::erroFaturaFechada($d['cai']);
         if ($erro !== null) {
             return ['erro' => $erro, 'aviso' => '', 'id' => 0, 'cartao' => $cartao['id']];
         }
@@ -267,6 +268,11 @@ final class CartaoController
         if ($erro === null && $prim === null) {
             $erro = t('Escolha a fatura da 1ª parcela.');
         }
+        // o que muda alguma fatura (valor, vezes ou a 1ª fatura) não entra se ela é de um mês fechado; a categoria, a
+        // descrição e a data mudam sempre, porque não mexem no valor de nenhuma fatura
+        if ($erro === null && (abs((float) $c['valor_total'] - $d['valor']) >= 0.005 || (int) $c['parcelas'] !== $d['parcelas'] || (string) $c['primeira_fatura'] !== $prim)) {
+            $erro = self::erroFaturaFechada((string) $c['primeira_fatura']) ?? self::erroFaturaFechada((string) $prim);
+        }
         if ($erro !== null) {
             $_SESSION['cartao_erro'] = ['msg' => $erro];
             redirecionar('/cartao/compras/' . (int) $id . '/editar', 303);
@@ -289,6 +295,10 @@ final class CartaoController
         $c = CartaoModel::acharCompra((int) $id);
         if ($c === null) {
             flash('warn', t('Essa compra já tinha sido excluída.'));
+            redirecionar($volta);
+        }
+        if (($fechada = self::erroFaturaFechada((string) $c['primeira_fatura'])) !== null) {
+            flash('error', $fechada);
             redirecionar($volta);
         }
         CartaoModel::excluirCompra($c['id']);
@@ -314,6 +324,10 @@ final class CartaoController
             redirecionar($volta);
         }
         unset($_SESSION['cartao_desfazer']);
+        if (($fechada = self::erroFaturaFechada((string) $d['compra']['primeira_fatura'])) !== null) {
+            flash('error', $fechada);
+            redirecionar($volta);
+        }
         CartaoModel::restaurarCompra($d['compra']);
         CartaoFatura::sincronizarPlano((int) Auth::id());
         flash('success', t('Compra de volta · {descricao}', ['descricao' => nomeCategoria((string) $d['compra']['descricao'])]));
@@ -325,7 +339,7 @@ final class CartaoController
     /**
      * Campos do lançar (valor, categoria_id, data, descricao, parcelas ou parcelas_outro, parcela_atual, estorno).
      * O estorno (estorno=1) é o valor que volta para o cartão: negativo, em 1 parcela, na fatura da data dele.
-     * @return array{0:?string, 1:?array{valor:float,categoria_id:int,data:string,descricao:string,parcelas:int,primeira:string,cat:array,estorno:bool}}
+     * @return array{0:?string, 1:?array{valor:float,categoria_id:int,data:string,descricao:string,parcelas:int,primeira:string,cai:string,cat:array,estorno:bool}}
      */
     public static function validarCompra(array $in, array $cartao, string $hoje): array
     {
@@ -370,8 +384,23 @@ final class CartaoController
         if ($descricao === '') {
             $descricao = nomeCurtoBanco($cat);
         }
+        // cai = a fatura em que a compra cai: a da data; na compra antiga, a aberta (a da parcela atual)
+        $cai = $atual !== '' && (int) $atual > 1 ? CartaoFatura::faturaDe($hoje, $cartao['fecha'], $cartao['vence']) : $primeira;
         return [null, ['valor' => $estorno ? -$valor : $valor, 'categoria_id' => (int) $cat['id'], 'data' => $data, 'descricao' => $descricao,
-                       'parcelas' => $n, 'primeira' => $primeira, 'cat' => $cat, 'estorno' => $estorno]];
+                       'parcelas' => $n, 'primeira' => $primeira, 'cai' => $cai, 'cat' => $cat, 'estorno' => $estorno]];
+    }
+
+    /**
+     * Mês fechado não muda: a compra é recusada só quando a fatura em que ela cai (o mês em que é paga) é de um mês
+     * fechado. A data da compra pode ser de um mês fechado, se a fatura é de um mês aberto. Excluir, desfazer e mudar o
+     * valor olham a 1ª fatura, porque as parcelas dela em diante mudam.
+     */
+    private static function erroFaturaFechada(string $fatura): ?string
+    {
+        if (LancamentosController::erroMesFechado($fatura) === null) {
+            return null;
+        }
+        return t('A compra cai na fatura de {mes}, e esse mês está fechado. Para mudar, reabra o mês no Mês.', ['mes' => mesAno($fatura)]);
     }
 
     /** "Compra no cartão · Máquina de lavar · 10 × 320,00 · nov/26 a ago/27"; o estorno diz em que fatura volta. */

@@ -10,6 +10,7 @@ use Financeiro\View;
 /**
  * Transferências entre contas: o modo Transferir do lançar (LancamentosController::store chama criarDe), e editar,
  * excluir e desfazer, a partir do Extrato. Não são renda nem gasto: o plano e o total em conta não mudam.
+ * Mês fechado não muda: nenhuma delas entra, sai ou muda num mês fechado (LancamentosController::erroMesFechado).
  */
 final class TransferenciaController
 {
@@ -40,6 +41,7 @@ final class TransferenciaController
         unset($_SESSION['transf_erro']);
         View::render('transferencias/editar', [
             'pageTitle' => t('transferência · MyMonetto'), 'transf' => $t, 'erro' => is_string($erro) ? $erro : null,
+            'fechado' => LancamentosController::erroMesFechado((string) $t['data']),
             'contas' => self::contasPara($t), 'volta' => voltaSegura(is_string($_GET['volta'] ?? null) ? $_GET['volta'] : null, '/lancamentos?mes=' . substr((string) $t['data'], 0, 8) . '01'),
         ], 'extrato');
     }
@@ -55,6 +57,7 @@ final class TransferenciaController
         }
         $volta = voltaSegura(is_string($_POST['volta'] ?? null) ? $_POST['volta'] : null, '/lancamentos');
         [$erro, $d] = self::validar($_POST, $t);
+        $erro = LancamentosController::erroMesFechado((string) $t['data']) ?? $erro;     // nem sai de um mês fechado
         if ($erro !== null) {
             $_SESSION['transf_erro'] = $erro;
             redirecionar('/transferencias/' . (int) $id . '/editar?volta=' . rawurlencode($volta), 303);
@@ -79,6 +82,10 @@ final class TransferenciaController
             flash('warn', t('Essa transferência já tinha sido excluída.'));
             redirecionar($volta);
         }
+        if (($fechado = LancamentosController::erroMesFechado((string) $t['data'])) !== null) {
+            flash('error', $fechado);
+            redirecionar($volta);
+        }
         TransferenciaModel::excluir((int) $t['id']);
         $token = bin2hex(random_bytes(12));
         $_SESSION['transf_desfazer'] = ['token' => $token, 'linha' => $t];
@@ -101,6 +108,10 @@ final class TransferenciaController
             redirecionar($volta);
         }
         unset($_SESSION['transf_desfazer']);
+        if (($fechado = LancamentosController::erroMesFechado((string) $d['linha']['data'])) !== null) {
+            flash('error', $fechado);
+            redirecionar($volta);
+        }
         TransferenciaModel::restaurar($d['linha']);
         flash('success', t('Transferência de volta · {valor}', ['valor' => num((float) $d['linha']['valor'])]));
         redirecionar($volta);
@@ -131,7 +142,7 @@ final class TransferenciaController
             return [t('Escolha duas contas diferentes.'), null];
         }
         $data = LancamentosController::dataDoQuando($in);
-        if (($erro = LancamentosController::validarData($data)) !== null) {
+        if (($erro = LancamentosController::validarData($data) ?? LancamentosController::erroMesFechado($data)) !== null) {
             return [$erro, null];
         }
         $descricao = trim((string) preg_replace('/[\x00-\x1F\x7F]+/', ' ', $s('descricao')));

@@ -11,7 +11,7 @@ use Financeiro\Relogio;
 
 /**
  * Dados do formulário de lançar. O layout chama dados() em toda página
- * (o <dialog id="lancar">), então: no máximo 6 consultas (mais 2 por cartão e 3 com várias contas), todas
+ * (o <dialog id="lancar">), então: no máximo 7 consultas (mais 2 por cartão e 3 com várias contas), todas
  * limitadas, e cache por requisição.
  */
 final class LancarForm
@@ -21,7 +21,7 @@ final class LancarForm
     /**
      * @return array{
      *   grupos: array<string, list<array{id:int,nome:string,curto:string,grupo:string}>>,
-     *   descricoes: string[], hoje:string, ontem:string, data_min:string, data_max:string,
+     *   descricoes: string[], hoje:string, ontem:string, data_min:string, data_max:string, fechados: array<string, string>,
      *   cartao: ?array{id:int, nome:string, fecha:int, vence:int, aberta:string, serie:list<array{0:string,1:float}>},
      *   cartoes: list<array>, contas: list<array>, padrao: ?string, recentes: list<int>, sugestoes: array<int, float>
      * }
@@ -31,7 +31,9 @@ final class LancarForm
      * grupos = as categorias da lista do campo Categoria, por classe, gastos antes de entradas; em cada grupo,
      * o dia a dia primeiro, pela frequência do usuário logado nos últimos 90 dias, depois a da casa, depois
      * categorias.ordem. Cada uma traz entra (renda ou resgate): com várias contas, o "Pagou com" vira "Recebeu em".
-     * recentes = as 3 categorias que esta pessoa usou por último (o atalho de um toque acima do campo);
+     * fechados = ['AAAA-MM' => mensagem] dos meses fechados: o lancar.js avisa antes de enviar um lançamento ou uma
+ * transferência com data num deles (o servidor recusa do mesmo jeito); a compra no cartão segue pela fatura.
+ * recentes = as 3 categorias que esta pessoa usou por último (o atalho de um toque acima do campo);
      * sugestoes = [categoria => valor]: nas contas fixas do mês de hoje, o previsto que ainda falta pagar (o valor
      * que o campo sugere ao escolher a conta).
      */
@@ -124,6 +126,7 @@ final class LancarForm
             'ontem'      => date('Y-m-d', strtotime($hoje . ' -1 day')),
             'data_min'   => $lim['min'],
             'data_max'   => $lim['max'],
+            'fechados'   => self::fechados(),
         ];
     }
 
@@ -194,6 +197,16 @@ final class LancarForm
             if ($falta >= 0.005) {
                 $out[(int) $r['categoria_id']] = $falta;
             }
+        }
+        return $out;
+    }
+
+    /** 7) os meses fechados, cada um com a frase que o servidor diria (LancamentosController::erroMesFechado). */
+    private static function fechados(): array
+    {
+        $out = [];
+        foreach (Database::connection()->query("SELECT mes FROM meses WHERE situacao = 'REAL' ORDER BY mes")->fetchAll(\PDO::FETCH_COLUMN) as $mes) {
+            $out[substr((string) $mes, 0, 7)] = (string) \Financeiro\Controllers\LancamentosController::erroMesFechado((string) $mes);
         }
         return $out;
     }

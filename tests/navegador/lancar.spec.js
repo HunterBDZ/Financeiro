@@ -1,7 +1,7 @@
 // Lançar um gasto: no computador (o diálogo, também no Extrato) e no celular (o "+" da barra de baixo); as usadas
 // por último, o valor sugerido das contas fixas, o erro no campo, Conta e Cartão em abas e o aviso sem verde.
 // Cada teste usa valor e categoria só seus: lançamento igual no mesmo dia pede confirmação antes de entrar.
-import { test, expect, escolherCategoria, contaSemPagamento } from './fixtures.js';
+import { test, expect, escolherCategoria, contaSemPagamento, token } from './fixtures.js';
 
 test.describe('no computador', () => {
     test('lança 45 no Extrato, vê o aviso e desfaz', async ({ page }) => {
@@ -175,6 +175,47 @@ test.describe('no computador', () => {
         expect(cores.verde).toBe(false);
         await aviso.getByRole('button', { name: 'desfazer' }).click();
         await expect(page.getByRole('status').filter({ hasText: 'excluído' })).toContainText('19,00');
+    });
+
+    test('mês fechado: o Lançar avisa antes de enviar, e o servidor recusa lançar, editar e excluir nele (B-01)', async ({ page, baseURL }) => {
+        // na demonstração, outubro está fechado
+        const fechado = 'Outubro de 2026 está fechado. Para mudar, reabra o mês no Mês.';
+        await page.goto('/');
+        await page.keyboard.press('n');
+        const dialogo = page.getByRole('dialog', { name: 'lançar' });
+        const dia = dialogo.getByLabel('dia do lançamento');
+        await expect(dia).toHaveAttribute('min', '2026-11-01');        // o seletor de data começa no mês aberto
+        await dialogo.getByRole('textbox', { name: 'valor' }).fill('23');
+        await escolherCategoria(dialogo, 'Mercado');
+        await dia.fill('2026-10-15');
+        await dialogo.getByRole('button', { name: 'Lançar' }).click();
+        await expect(dialogo.locator('[data-lf-erro]')).toHaveText(fechado);
+        await expect(dialogo).toBeVisible();
+
+        // o POST direto também é recusado, e nada muda
+        const csrf = await token(page.request, baseURL + '/ajuda');
+        const r = await page.request.post(baseURL + '/lancamentos', { form: { csrf_token: csrf, valor: '23', categoria_id: '10', data: '2026-10-15', volta: '/' } });
+        expect(await r.text()).toContain(fechado);
+
+        // um lançamento de outubro abre só para ler, sem Salvar nem Excluir, e o servidor não deixa mudar nem excluir
+        await page.goto('/lancamentos?mes=2026-10-01');
+        const href = await page.locator('.ext-linha .ext-c-desc > a').first().getAttribute('href');
+        const id = href.match(/^\/lancamentos\/(\d+)\//)[1];
+        await page.goto(`/lancamentos/${id}/editar`);
+        await expect(page.getByRole('main').getByRole('status')).toContainText(fechado);
+        await expect(page.getByRole('main').getByRole('button', { name: 'Salvar' })).toBeDisabled();
+        await expect(page.getByRole('button', { name: 'Excluir lançamento' })).toHaveCount(0);
+        const ex = await page.request.post(`${baseURL}/lancamentos/${id}/excluir`, { form: { csrf_token: csrf, volta: '/lancamentos?mes=2026-10-01' } });
+        expect(await ex.text()).toContain(fechado);
+        await page.goto(`/lancamentos/${id}/editar`);
+        await expect(page.getByRole('main').getByRole('status')).toContainText(fechado);   // continua lá
+
+        // mover um lançamento de novembro para outubro também é recusado
+        await page.goto('/lancamentos');
+        const hrefNov = await page.locator('.ext-linha .ext-c-desc > a').first().getAttribute('href');
+        const idNov = hrefNov.match(/^\/lancamentos\/(\d+)\//)[1];
+        const ed = await page.request.post(`${baseURL}/lancamentos/${idNov}`, { form: { csrf_token: csrf, valor: '10', categoria_id: '10', data: '2026-10-20', volta: '/' } });
+        expect(await ed.text()).toContain(fechado);
     });
 
     test('o diálogo de lançar abre pelo menu e pela tecla n, e fecha', async ({ page }) => {

@@ -56,11 +56,12 @@ CREATE TABLE contas (
   ordem INTEGER NOT NULL DEFAULT 0,
   criado_em TEXT NOT NULL DEFAULT (agora_local()) CHECK (criado_em IS datetime(criado_em)),
   atualizado_em TEXT NOT NULL DEFAULT (agora_local()) CHECK (atualizado_em IS datetime(atualizado_em)),
+  saldo_inicial_em TEXT CHECK (saldo_inicial_em IS date(saldo_inicial_em)),
   UNIQUE (nome)
 ) STRICT;
 CREATE TRIGGER dec_contas_saldo_inicial_i AFTER INSERT ON contas WHEN NEW.saldo_inicial IS NOT dec_fix(NEW.saldo_inicial, 2) BEGIN UPDATE contas SET saldo_inicial = dec_fix(NEW.saldo_inicial, 2) WHERE rowid = NEW.rowid; END;
 CREATE TRIGGER dec_contas_saldo_inicial_u AFTER UPDATE OF saldo_inicial ON contas WHEN NEW.saldo_inicial IS NOT dec_fix(NEW.saldo_inicial, 2) BEGIN UPDATE contas SET saldo_inicial = dec_fix(NEW.saldo_inicial, 2) WHERE rowid = NEW.rowid; END;
-CREATE TRIGGER upd_contas AFTER UPDATE ON contas WHEN NEW.atualizado_em IS OLD.atualizado_em AND (NEW.nome IS NOT OLD.nome OR NEW.tipo IS NOT OLD.tipo OR NEW.saldo_inicial IS NOT OLD.saldo_inicial OR NEW.ativa IS NOT OLD.ativa OR NEW.ordem IS NOT OLD.ordem OR NEW.criado_em IS NOT OLD.criado_em) BEGIN UPDATE contas SET atualizado_em = agora_local() WHERE rowid = NEW.rowid; END;
+CREATE TRIGGER upd_contas AFTER UPDATE ON contas WHEN NEW.atualizado_em IS OLD.atualizado_em AND (NEW.nome IS NOT OLD.nome OR NEW.tipo IS NOT OLD.tipo OR NEW.saldo_inicial IS NOT OLD.saldo_inicial OR NEW.ativa IS NOT OLD.ativa OR NEW.ordem IS NOT OLD.ordem OR NEW.criado_em IS NOT OLD.criado_em OR NEW.saldo_inicial_em IS NOT OLD.saldo_inicial_em) BEGIN UPDATE contas SET atualizado_em = agora_local() WHERE rowid = NEW.rowid; END;
 
 CREATE TABLE cartoes (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

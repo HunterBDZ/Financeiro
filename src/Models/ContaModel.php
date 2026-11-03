@@ -11,6 +11,9 @@ use Financeiro\Database;
  * A soma de todas é o saldo do motor, porque as transferências se anulam e ajustes.saldo_ini é mantido igual à soma
  * dos saldos iniciais (sincronizarSaldoIni). Entram as arquivadas também: elas só arquivam zeradas, e os lançamentos
  * delas continuam no motor, então o saldo inicial delas tem de continuar na conta.
+ * Mês fechado não muda: a conta criada quando já há mês fechado tem o saldo inicial a partir do 1º dia do primeiro mês
+ * aberto (saldo_inicial_em). Ele fica fora de ajustes.saldo_ini e entra nesse dia: no motor, no começo do mês
+ * (aportes()); nos saldos por data, a partir dele (saldoInicialDatado()).
  */
 final class ContaModel
 {
@@ -70,7 +73,8 @@ final class ContaModel
         $tipo = isset(self::TIPOS[$tipo]) ? $tipo : 'outra';
         $dados = ['n' => $nome, 't' => $tipo, 's' => round($saldoInicial, 2)];
         if ($id === null) {
-            $pdo->prepare('INSERT INTO contas (nome, tipo, saldo_inicial, ordem) VALUES (:n, :t, :s, (SELECT COALESCE(MAX(ordem), 0) + 1 FROM contas))')->execute($dados);
+            $pdo->prepare('INSERT INTO contas (nome, tipo, saldo_inicial, ordem, saldo_inicial_em) VALUES (:n, :t, :s, (SELECT COALESCE(MAX(ordem), 0) + 1 FROM contas), :em)')
+                ->execute($dados + ['em' => self::primeiroDiaAberto()]);
             $id = (int) $pdo->lastInsertId();
         } else {
             $pdo->prepare('UPDATE contas SET nome = :n, tipo = :t, saldo_inicial = :s WHERE id = :id')->execute($dados + ['id' => $id]);
@@ -78,6 +82,35 @@ final class ContaModel
         self::limparCache();
         self::sincronizarSaldoIni();
         return $id;
+    }
+
+    /**
+     * Com algum mês fechado, o 1º dia do mês depois do último fechado: o saldo inicial de uma conta nova conta dali,
+     * para os meses fechados não mudarem. Sem mês fechado, null (desde o início do plano).
+     */
+    public static function primeiroDiaAberto(): ?string
+    {
+        $ult = Database::connection()->query("SELECT MAX(mes) FROM meses WHERE situacao = 'REAL'")->fetchColumn();
+        return $ult ? date('Y-m-01', strtotime((string) $ult . ' +1 month')) : null;
+    }
+
+    /** Os saldos iniciais com data (saldo_inicial_em), somados por mês: o motor os põe no começo de cada mês. @return array<string, float> */
+    public static function aportes(): array
+    {
+        $out = [];
+        foreach (Database::connection()->query('SELECT saldo_inicial_em AS d, saldo_inicial AS v FROM contas WHERE saldo_inicial_em IS NOT NULL') as $r) {
+            $mes = substr((string) $r['d'], 0, 8) . '01';
+            $out[$mes] = round(($out[$mes] ?? 0.0) + (float) $r['v'], 2);
+        }
+        return $out;
+    }
+
+    /** A soma dos saldos iniciais com data que já valem no fim do dia $ate (os sem data estão em ajustes.saldo_ini). */
+    public static function saldoInicialDatado(string $ate): float
+    {
+        $st = Database::connection()->prepare('SELECT COALESCE(SUM(saldo_inicial), 0) FROM contas WHERE saldo_inicial_em IS NOT NULL AND saldo_inicial_em <= :ate');
+        $st->execute(['ate' => $ate]);
+        return round((float) $st->fetchColumn(), 2);
     }
 
     /** O saldo inicial de uma conta, sem mexer no resto (o ponto de partida em Ajustes, com uma conta só). */
@@ -136,10 +169,10 @@ final class ContaModel
         return $st->fetchColumn() !== false;
     }
 
-    /** ajustes.saldo_ini = a soma dos saldos iniciais. O motor continua lendo só o ajuste. */
+    /** ajustes.saldo_ini = a soma dos saldos iniciais sem data. Os com data entram no motor como aportes(). */
     public static function sincronizarSaldoIni(): void
     {
-        $soma = (float) Database::connection()->query('SELECT COALESCE(SUM(saldo_inicial), 0) FROM contas')->fetchColumn();
+        $soma = (float) Database::connection()->query('SELECT COALESCE(SUM(saldo_inicial), 0) FROM contas WHERE saldo_inicial_em IS NULL')->fetchColumn();
         AjusteModel::setValor('saldo_ini', round($soma, 2));
     }
 
@@ -152,7 +185,7 @@ final class ContaModel
         $pdo = Database::connection();
         $out = [];
         foreach (self::todas() as $c) {
-            $out[$c['id']] = $c['saldo_inicial'];
+            $out[$c['id']] = $c['saldo_desde'] === null || $c['saldo_desde'] <= $ate ? $c['saldo_inicial'] : 0.0;
         }
         $st = $pdo->prepare(
             'SELECT l.conta_id, COALESCE(SUM(l.valor * c.sinal), 0) AS total
@@ -177,7 +210,7 @@ final class ContaModel
         return array_map(static fn(float $v): float => round($v, 2), $out);
     }
 
-    /** O saldo de uma conta no fim do dia $ate. */
+    /** O saldo de uma conta no fim do dia $ate (o saldo inicial com data só a partir dela). */
     public static function saldo(int $id, string $ate): float
     {
         return self::saldos($ate)[$id] ?? 0.0;
@@ -203,6 +236,7 @@ final class ContaModel
         return [
             'id' => (int) $r['id'], 'nome' => (string) $r['nome'], 'tipo' => (string) $r['tipo'],
             'saldo_inicial' => (float) $r['saldo_inicial'], 'ativa' => (int) $r['ativa'] === 1, 'ordem' => (int) $r['ordem'],
+            'saldo_desde' => $r['saldo_inicial_em'] !== null ? (string) $r['saldo_inicial_em'] : null,
         ];
     }
 }

@@ -24,7 +24,8 @@ use Financeiro\View;
  * Lançar, extrato e editar.
  * Todo POST: requireLogin + csrfCheck; `volta` sempre por voltaSegura(); valor por parseMoedaBr()
  * (aceita -, − e –; grava abs()); data dentro de [primeiro dia de MesModel::primeiro(),
- * último dia de MesModel::ultimo()] (invariante 9) em store, update e desfazer.
+ * último dia de MesModel::ultimo()] (invariante 9) em store, update e desfazer. Mês fechado não muda: lançar, editar,
+ * excluir, desfazer e pagar num mês fechado são recusados (erroMesFechado), também para mover um lançamento até ele.
  */
 final class LancamentosController
 {
@@ -419,7 +420,7 @@ final class LancamentosController
                     $item = $c;
                 }
             }
-            $erro = $item === null ? t('A conta {nome} já foi paga ou não tem valor previsto neste mês.', ['nome' => nomeCurto($cat)]) : self::validarData($hoje);
+            $erro = $item === null ? t('A conta {nome} já foi paga ou não tem valor previsto neste mês.', ['nome' => nomeCurto($cat)]) : (self::validarData($hoje) ?? self::erroMesFechado($hoje));
             if ($erro !== null) {
                 if ($abriu) {
                     $pdo->rollBack();
@@ -453,12 +454,15 @@ final class LancamentosController
             renderErro(404, t('Lançamento não encontrado'), t('Pode ter sido excluído.'));
         }
         $volta = voltaSegura(self::get('volta'), '/lancamentos?mes=' . substr($l['data'], 0, 8) . '01');
+        $fechado = self::erroMesFechado((string) $l['data']);
 
         View::render('lancamentos/editar', [
             'pageTitle'  => t('editar · MyMonetto'),
             'lancamento' => $l,
             'volta'      => $volta,
+            'fechado'    => $fechado,
             'form'       => LancarForm::dados() + [
+                'fechado'    => $fechado,
                 'modo'       => 'editar',
                 'pref'       => 'ed',
                 'volta'      => $volta,
@@ -480,6 +484,7 @@ final class LancamentosController
         $volta = voltaSegura(self::post('volta'), '/lancamentos?mes=' . substr($l['data'], 0, 8) . '01');
 
         [$erro, $d] = self::validar($_POST);
+        $erro = self::erroMesFechado((string) $l['data']) ?? $erro;     // nem sai de um mês fechado
         if ($erro !== null) {
             $_SESSION['lanc_antigo'] = self::antigoDe($_POST) + ['erro' => $erro, 'id' => (int) $l['id']];
             redirecionar('/lancamentos/' . (int) $l['id'] . '/editar?volta=' . rawurlencode($volta), 303);
@@ -505,6 +510,10 @@ final class LancamentosController
         }
         if (!$l) {
             flash('warn', t('Esse lançamento já tinha sido excluído.'));
+            redirecionar($volta);
+        }
+        if (($fechado = self::erroMesFechado((string) $l['data'])) !== null) {
+            flash('error', $fechado);
             redirecionar($volta);
         }
 
@@ -546,7 +555,7 @@ final class LancamentosController
 
         $linha = $d['linha'];
         $cat = CategoriaModel::find((int) $linha['categoria_id']);
-        $erroData = self::validarData((string) $linha['data']);
+        $erroData = self::validarData((string) $linha['data']) ?? self::erroMesFechado((string) $linha['data']);
         if ($cat === null || $erroData !== null) {
             flash('error', $erroData ?? t('Escolha uma categoria.'));
             redirecionar($volta);
@@ -584,6 +593,20 @@ final class LancamentosController
         return null;
     }
 
+    /**
+     * Mês fechado não muda: null se o mês da data está aberto; senão a mensagem ("Outubro de 2026 está fechado. Para
+     * mudar, reabra o mês no Mês."). Vale para lançar, editar (a data de antes e a nova), excluir, desfazer e pagar,
+     * para as transferências e, no cartão, para o mês da fatura em que a compra cai.
+     */
+    public static function erroMesFechado(string $data): ?string
+    {
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/D', $data) || MesModel::situacao(substr($data, 0, 8) . '01') !== 'REAL') {
+            return null;
+        }
+        $mes = mesAno(substr($data, 0, 8) . '01');
+        return t('{mes} está fechado. Para mudar, reabra o mês no Mês.', ['mes' => mb_strtoupper(mb_substr($mes, 0, 1)) . mb_substr($mes, 1)]);
+    }
+
     /** `quando` (hoje|ontem|outro + data) → Y-m-d. Sem `quando`, usa `data` se vier (clientes antigos). */
     public static function dataDoQuando(array $in, ?string $hoje = null): string
     {
@@ -616,7 +639,7 @@ final class LancamentosController
         }
 
         $data = self::dataDoQuando($in);
-        if (($erro = self::validarData($data)) !== null) {
+        if (($erro = self::validarData($data) ?? self::erroMesFechado($data)) !== null) {
             return [$erro, null];
         }
 

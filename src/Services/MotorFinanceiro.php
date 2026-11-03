@@ -73,7 +73,7 @@ final class MotorFinanceiro
      *   prev:array<string,array<int,float>>, excecao:array<string,array<int,true>>, metas:array<int,float>,
      *   real:array<string,array<int,float>>, n:array<string,array<int,int>>,
      *   ult:array<string,array<int,string>>, esp:array{cred:?int,amort:?int,guard:?int,resg:?int},
-     *   fatura:array{cat:?int, vence:int, faturas:array<string, array>}}
+     *   fatura:array{cat:?int, vence:int, faturas:array<string, array>}, aportes:array<string, float>}
      */
     public static function dados(): array
     {
@@ -151,6 +151,7 @@ final class MotorFinanceiro
             'prev' => $prev, 'excecao' => $excecao, 'metas' => $metas,
             'real' => $real, 'n' => $n, 'ult' => $ult, 'esp' => $esp,
             'fatura' => CartaoFatura::faturasPagas($prev, ($aj['usa_cartao'] ?? 1.0) >= 1.0),
+            'aportes' => ContaModel::aportes(),
         ];
     }
 
@@ -308,8 +309,11 @@ final class MotorFinanceiro
         $n = count($comp);
         $linhas = [];
 
+        $aportes = $dados['aportes'] ?? [];
         for ($i = 0; $i < $n; $i++) {
             $k = $comp[$i];
+            // o saldo inicial de uma conta criada com meses fechados entra no começo do 1º mês aberto (ContaModel)
+            $saldoIni += (float) ($aportes[$k['mes']] ?? 0.0);
             if ($informado !== null && $k['mes'] === $informado['mes']) {
                 $loanIni = $informado['valor'];
             }

@@ -1488,6 +1488,59 @@ $emTransacao('contas do mês: Pago', static function () use ($pdo, $check, $rend
     $check('Pago: conta com parte já paga fica de fora (o Mês pergunta se foi o valor final)', $naLista($catPago) === null && LancamentosController::pagarConta($catPago, $uid)['erro'] !== null && count($noMes($catPago)) === 1);
 });
 
+// ---- 9d. Mês fechado não muda (B-01): lançar, editar, excluir, transferir, pagar e a compra cuja fatura é de mês fechado
+$emTransacao('mês fechado não muda', static function () use ($pdo, $check, $render, $catDia, $mesHoje, $hoje, $uid): void {
+    $fechado = (string) $pdo->query("SELECT MAX(mes) FROM meses WHERE situacao = 'REAL'")->fetchColumn();
+    $diaFechado = substr($fechado, 0, 8) . '15';
+    $msg = LancamentosController::erroMesFechado($diaFechado);
+    $check('mês fechado: a mensagem diz o mês e como reabrir', $msg === mb_strtoupper(mb_substr(mesAno($fechado), 0, 1)) . mb_substr(mesAno($fechado), 1) . ' está fechado. Para mudar, reabra o mês no Mês.', (string) $msg);
+    $check('mês fechado: o mês de hoje está aberto', LancamentosController::erroMesFechado($hoje) === null);
+    $fimAntes = MotorFinanceiro::calcularPlano()[$fechado]['fica_na_conta'];
+
+    // transferência com data num mês fechado (com duas contas)
+    $c2 = ContaModel::salvar(null, 'Carteira teste', 'dinheiro', 300.0);
+    MotorFinanceiro::limparCache();
+    [$erroT] = TransferenciaController::validar(['valor' => '10', 'de_conta' => '1', 'para_conta' => (string) $c2, 'data' => $diaFechado]);
+    $check('mês fechado: transferência com data nele é recusada', $erroT === $msg, (string) $erroT);
+    [$erroT2] = TransferenciaController::validar(['valor' => '10', 'de_conta' => '1', 'para_conta' => (string) $c2, 'data' => $hoje]);
+    $check('mês fechado: transferência no mês aberto entra', $erroT2 === null, (string) $erroT2);
+
+    // a conta nova com saldo inicial: o saldo vale do 1º dia do mês aberto, e os meses fechados não mudam
+    $abre = date('Y-m-01', strtotime($fechado . ' +1 month'));
+    $c2Linha = ContaModel::achar($c2);
+    $plano = MotorFinanceiro::calcularPlano();
+    $check('mês fechado: o saldo inicial da conta nova conta a partir do 1º mês aberto', $c2Linha['saldo_desde'] === $abre
+        && abs($plano[$fechado]['fica_na_conta'] - $fimAntes) < 0.005 && abs($plano[$abre]['sobrou_mes_anterior'] - $fimAntes - 300) < 0.005,
+        json_encode([$c2Linha['saldo_desde'], $plano[$fechado]['fica_na_conta'], $fimAntes, $plano[$abre]['sobrou_mes_anterior']]));
+    $check('mês fechado: o saldo da conta nova só aparece dali em diante', abs(ContaModel::saldo($c2, $diaFechado)) < 0.005 && abs(ContaModel::saldo($c2, $hoje) - 300) < 0.005
+        && abs(LancamentoModel::saldoCalculado(AjusteModel::valor('saldo_ini'), $hoje) - array_sum(ContaModel::saldos($hoje))) < 0.005);
+
+    // compra no cartão: só a fatura conta (a data pode ser de um mês fechado)
+    $pdo->exec("INSERT INTO cartoes (nome, dia_fechamento, dia_vencimento) VALUES ('Cartão B01', 1, 10)");
+    $cartaoB = (int) $pdo->lastInsertId();
+    $catGastoB = (int) $pdo->query("SELECT id FROM categorias WHERE grupo = 'Dia a dia' AND sinal = -1 AND operacional = 1 AND ativo = 1 ORDER BY id DESC LIMIT 1")->fetchColumn();
+    $diaAntes = date('Y-m-d', strtotime($fechado . ' -1 month +10 day'));     // fecha no dia 1: cai na fatura do mês fechado
+    $r1 = CartaoController::criarCompraDe(['valor' => '60', 'categoria_id' => (string) $catGastoB, 'data' => $diaAntes, 'parcelas' => '1'], $hoje, $cartaoB);
+    $r2 = CartaoController::criarCompraDe(['valor' => '60', 'categoria_id' => (string) $catGastoB, 'data' => $diaFechado, 'parcelas' => '1'], $hoje, $cartaoB);
+    $check('mês fechado: compra no cartão cuja fatura é de mês fechado é recusada; com fatura num mês aberto, entra', $r1['erro'] !== null && str_contains($r1['erro'], 'fechado') && $r2['erro'] === null, json_encode([$r1['erro'], $r2['erro']]));
+
+    // adiantamento do empréstimo e Pagar
+    [$erroAd] = EmprestimoController::validarAdiantamento('100', $diaFechado, $hoje);
+    $check('mês fechado: adiantamento do empréstimo com data nele é recusado', $erroAd === $msg, (string) $erroAd);
+
+    // a tela: o Lançar sabe os meses fechados, e o editar de um lançamento fechado não tem Salvar nem Excluir
+    $check('mês fechado: o Lançar recebe os meses fechados com a mensagem', (LancarForm::dados()['fechados'][substr($fechado, 0, 7)] ?? null) === $msg);
+    $idF = (int) $pdo->query("SELECT id FROM lancamentos WHERE data >= '{$fechado}' AND data < '{$abre}' ORDER BY id LIMIT 1")->fetchColumn();
+    $_SERVER['REQUEST_URI'] = '/lancamentos/' . $idF . '/editar';
+    $_GET = [];
+    ob_start();
+    (new LancamentosController())->editForm((string) $idF);
+    $htmlEd = (string) ob_get_clean();
+    $check('mês fechado: o lançamento abre só para ler', str_contains($htmlEd, e($msg)) && !str_contains($htmlEd, '/excluir"') && preg_match('/data-lf-enviar disabled/', $htmlEd) === 1);
+});
+ContaModel::limparCache();
+LancarForm::limparCache();
+
 // ==== no último dia do mês, só a primeira parte, mais a conferência do site sobre a demonstração
 if ($borda) {
     conferencia($check);
@@ -3194,7 +3247,7 @@ if (Sql::sqlite()) {
         $colunas114 = array_column($v->query('PRAGMA table_info(cartoes)')->fetchAll(), 'name');
         $feitas = \Financeiro\Migrador::aplicar($v, \Financeiro\Migrador::pasta());
         $check('s0040: num site da 1.14, a 2.0 roda depois da s0004 e termina na s0040', count($da114) === 3 && end($colunas114) === 'visual'
-            && $feitas[0] === 's0001_contas.sql' && end($feitas) === 's0040_gatilho_cartoes.sql', json_encode([$da114, $feitas]));
+            && $feitas[0] === 's0001_contas.sql' && (int) array_search('s0040_gatilho_cartoes.sql', $feitas, true) > 0, json_encode([$da114, $feitas]));
         $novo = new \Financeiro\SqliteConexao($arqNovo);
         $novo->exec((string) file_get_contents(dirname(__DIR__) . '/database/schema.sqlite.sql'));
         $e114 = $estrutura($v);
@@ -3252,7 +3305,8 @@ if (Sql::sqlite()) {
         $id2 = ContaModel::salvar(null, 'Carteira teste', 'dinheiro', 150.0);
         MotorFinanceiro::limparCache();
         LancarForm::limparCache();
-        $check('contas: o saldo inicial do plano é a soma dos saldos iniciais', abs(AjusteModel::valor('saldo_ini') - $iniAntes - 150.0) < 0.001 && ContaModel::varias());
+        // com meses fechados, o saldo da conta nova entra no 1º mês aberto (aportes), fora de ajustes.saldo_ini
+        $check('contas: o saldo inicial do plano é a soma dos saldos iniciais', abs(AjusteModel::valor('saldo_ini') + array_sum(ContaModel::aportes()) - $iniAntes - 150.0) < 0.001 && ContaModel::varias());
         $planoAntes = MotorFinanceiro::calcularPlano();
         $r = TransferenciaController::criarDe(['valor' => '80,00', 'de_conta' => (string) ContaModel::PRINCIPAL, 'para_conta' => (string) $id2, 'quando' => 'hoje', 'descricao' => 'saque teste']);
         MotorFinanceiro::limparCache();
@@ -3299,7 +3353,7 @@ if (Sql::sqlite()) {
         MotorFinanceiro::limparCache();
         $check('conta arquivada: sai das telas; a soma das contas continua a do motor', !ContaModel::varias()
             && abs(array_sum(ContaModel::saldos($hoje)) - LancamentoModel::saldoCalculado(AjusteModel::valor('saldo_ini'), $hoje)) < 0.001
-            && abs(AjusteModel::valor('saldo_ini') - $iniAntes - 150.0) < 0.001);
+            && abs(AjusteModel::valor('saldo_ini') + array_sum(ContaModel::aportes()) - $iniAntes - 150.0) < 0.001);
     });
     $emTransacao('saldo do início com uma conta', static function () use ($check): void {
         $check('uma conta: o saldo do início digitado vai para a conta e para o plano', ContaModel::saldoInicialDaUnica(777.77)

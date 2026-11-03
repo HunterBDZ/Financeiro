@@ -441,7 +441,8 @@ final class LancamentoModel
              WHERE l.data <= :ate'
         );
         $stmt->execute(['ate' => $ateData]);
-        return $saldoInicial + (float) $stmt->fetchColumn();
+        // o saldo inicial de uma conta criada com meses fechados vale a partir da data dele (ContaModel)
+        return $saldoInicial + ContaModel::saldoInicialDatado($ateData) + (float) $stmt->fetchColumn();
     }
 
     /**
