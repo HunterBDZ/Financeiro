@@ -3,8 +3,8 @@
  * A vitrine das telas de entrar (entrar, criar conta, o código): o MyMonetto mostrado como ele é, numa janela que
  * flutua sobre o azul-marinho, com um cartão por cima. Os valores são um exemplo fixo (a página é pública: nunca dado
  * de verdade). A marca e a frase são lidas; a cena é decorativa (aria-hidden). A barra se preenche e o carimbo bate
- * uma vez, só com CSS; com o mouse, a cena se inclina de leve (entrar.js, [data-inclina]). No fundo, uma foto de
- * casas à noite (Wikimedia Commons, CC BY-SA 2.0), tingida de azul-marinho; o crédito fica no canto, com o link.
+ * uma vez, só com CSS; com o mouse, a cena se inclina de leve (entrar.js, [data-inclina]). No fundo, as faixas: a
+ * barra "para onde vai o dinheiro" repetida em diagonal (_vitrine_faixas.svg), nas cores do tema.
  */
 use Financeiro\Icones;
 use Financeiro\SiteIcone;
@@ -20,9 +20,7 @@ $segVitrine = [
     ['s-reserva', 12],
 ];
 ?>
-<img class="vit-foto" src="<?= e(asset('/assets/img/entrar-casas-1600.webp')) ?>"
-     srcset="<?= e(asset('/assets/img/entrar-casas-800.webp')) ?> 800w, <?= e(asset('/assets/img/entrar-casas-1600.webp')) ?> 1600w"
-     sizes="(min-width: 1024px) 60vw, 100vw" width="1600" height="1068" alt="" fetchpriority="high">
+<?php readfile(__DIR__ . '/_vitrine_faixas.svg'); ?>
 <div class="vit-trilhos"><span></span><span></span><span></span></div>
 <p class="vit-marca"><?= $sinalVitrine ?><b translate="no">MyMonetto</b></p>
 
@@ -50,5 +48,3 @@ $segVitrine = [
         <b class="vit-cartao-v num">1.646<span class="cent">,70</span></b>
     </div>
 </div>
-
-<p class="vit-credito"><a href="https://commons.wikimedia.org/wiki/File:Appartment_building_from_Banner_Street_2024-01-11.jpg" rel="noopener" target="_blank"><?= e(t('Foto: {autor}, {licenca}', ['autor' => 'Tom Page', 'licenca' => 'CC BY-SA 2.0'])) ?></a></p>

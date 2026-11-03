@@ -1402,7 +1402,6 @@ return [
     'Aluguel e condomínio' => 'Rent and building fees',
     'Dá para gastar até dia 30' => 'Available to spend until day 30',
     'Fatura de dezembro' => 'December bill',
-    'Foto: {autor}, {licenca}' => 'Photo: {autor}, {licenca}',
     'Aluguel' => 'Rent',
     'Luz' => 'Electricity',
     'Internet' => 'Internet',

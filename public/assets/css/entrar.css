@@ -74,14 +74,13 @@
     --vit-tinta: var(--fundo);
     --vit-tinta-2: color-mix(in srgb, var(--fundo) 72%, transparent);
     --vit-fio: color-mix(in srgb, var(--fundo) 9%, transparent);
-    --vit-veu: color-mix(in srgb, var(--vit-fundo) 66%, transparent);
-    --vit-veu-alto: color-mix(in srgb, var(--vit-fundo) 92%, transparent);
     --vit-sombra: 0 60px 100px -30px #00000080, 0 24px 48px -24px #0000008C;
     --vit-cartao-a: #3B5BD9;
     --vit-cartao-b: #22399A;
     --vit-cartao-tinta: #F5F7FE;
     --vit-cartao-tinta-2: #E6EBFC;
     --vit-curva: cubic-bezier(.22, 1, .36, 1);
+    --vit-mascara: #000000;          /* só a opacidade da máscara das faixas */
 }
 @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) { --vit-fundo: color-mix(in srgb, var(--fundo) 55%, #000000); --vit-tinta: var(--tinta); --vit-tinta-2: var(--tinta-2); --vit-fio: color-mix(in srgb, var(--tinta) 7%, transparent); }
@@ -98,14 +97,18 @@
 .pub-dividida .pub-meio { padding-top: var(--e-2); }
 .pub-dividida .pub-form-t { font: 300 var(--t-pagina)/var(--lh-pagina) var(--f-num); letter-spacing: -.02em; }
 
-/* a foto do fundo: casas à noite, tingida com o véu do azul-marinho para a janela e o texto ficarem à frente */
-.vit-foto { position: absolute; inset: 0; z-index: -2; width: 100%; height: 100%; object-fit: cover; object-position: 100% 40%; filter: grayscale(.25); }
-.pub-vitrine::before { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(var(--vit-veu-alto), var(--vit-veu) 40%, var(--vit-veu) 75%, var(--vit-veu-alto)); }   /* um tom só, mais denso em cima (o texto) e embaixo */
-.vit-foto { animation: vit-foto 1600ms var(--vit-curva) backwards; }
-.vit-credito { position: absolute; right: var(--e-4); top: calc(var(--e-4) + env(safe-area-inset-top, 0px)); font-size: var(--t-meta); line-height: var(--lh-meta); }
-.vit-credito a { display: inline-flex; align-items: center; min-height: var(--tap); color: var(--vit-tinta-2); text-decoration: underline; text-decoration-color: var(--vit-fio); text-underline-offset: 3px; }
-.vit-credito a:hover { color: var(--vit-tinta); }
-.vit-credito a:focus-visible { outline-color: var(--vit-tinta); }   /* o azul do foco some no azul-marinho */
+/* as faixas do fundo: a barra do dinheiro do mês repetida em diagonal, nos tons da tinta e um segmento no azul.
+   Somem para a esquerda, onde ficam a marca e a frase; entram uma vez, deslizando de leve */
+.vit-desenho {
+    position: absolute; inset: 0; z-index: -1; width: 100%; height: 100%; pointer-events: none;
+    -webkit-mask-image: linear-gradient(105deg, transparent 0%, var(--vit-mascara) 55%); mask-image: linear-gradient(105deg, transparent 0%, var(--vit-mascara) 55%);
+    animation: vit-desenho 1400ms var(--vit-curva) backwards;
+}
+.vit-desenho .f0 { fill: color-mix(in srgb, var(--vit-tinta) 11%, transparent); }
+.vit-desenho .f1 { fill: color-mix(in srgb, var(--vit-tinta) 6%, transparent); }
+.vit-desenho .f2 { fill: color-mix(in srgb, var(--vit-tinta) 3.5%, transparent); }
+.vit-desenho .f3 { fill: color-mix(in srgb, var(--azul) 38%, transparent); }
+.vit-desenho .f4 { fill: none; stroke: color-mix(in srgb, var(--vit-tinta) 10%, transparent); stroke-width: 1.5; }
 
 /* os trilhos: fios verticais finos que se desenham uma vez de cima para baixo */
 .vit-trilhos { position: absolute; inset: 0; z-index: -1; pointer-events: none; }
@@ -159,7 +162,7 @@
 .vit-cartao-v .cent { color: inherit; opacity: .8; }
 
 @keyframes vit-trilho { from { transform: scaleY(0); } }
-@keyframes vit-foto { from { opacity: 0; transform: scale(1.06); } }
+@keyframes vit-desenho { from { opacity: 0; transform: translateX(-48px); } }
 @keyframes vit-sobe { from { opacity: 0; transform: perspective(1400px) translateY(32px) rotateX(8deg); } }
 @keyframes vit-enche { from { transform: scaleX(0); } }
 @keyframes vit-carimbo { from { opacity: 0; transform: rotate(-12deg) scale(1.8); } 70% { opacity: 1; } }
@@ -174,7 +177,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .vit-foto, .vit-trilhos span, .vit-cena, .vit-barra span, .vit-contas .carimbo, .vit-cartao { animation: none; }
+    .vit-desenho, .vit-trilhos span, .vit-cena, .vit-barra span, .vit-contas .carimbo, .vit-cartao { animation: none; }
     .vit-cena { transition: none; }
 }
 
@@ -236,7 +239,6 @@
     .vit-cena { margin: auto auto; top: calc(-1 * var(--e-6)); }
     .vit-num { font-size: 44px; line-height: 52px; }
     .vit-cartao { display: flex; }
-    .vit-credito { top: auto; right: auto; left: var(--e-7); bottom: var(--e-3); }
     .pub-dividida .pub-topo { max-width: none; }
     .pub-dividida .pub-meio { display: grid; place-items: center; align-content: center; max-width: none; padding-top: 0; }
     .pub-dividida .pub-lado { width: min(400px, 100%); margin-top: calc(-1 * var(--e-8)); }

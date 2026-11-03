@@ -1402,7 +1402,6 @@ return [
     'Aluguel e condomínio' => 'Alquiler y gastos comunes',
     'Dá para gastar até dia 30' => 'Puede gastar hasta el día 30',
     'Fatura de dezembro' => 'Factura de diciembre',
-    'Foto: {autor}, {licenca}' => 'Foto: {autor}, {licenca}',
     'Aluguel' => 'Alquiler',
     'Luz' => 'Electricidad',
     'Internet' => 'Internet',
