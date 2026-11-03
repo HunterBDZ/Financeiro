@@ -280,6 +280,35 @@ summary.ajs-linha:has(.ajs-val)::after { margin-left: 0; }
 .tm-barra[hidden] { display: none; }
 .tm-barra-n { flex: 1 1 auto; min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
 
+/* ---------------------------------------------------------------- Ajuda: um documento, com o índice à esquerda */
+.ajuda-corpo { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--e-6); }
+.ajuda-indice { display: none; }
+.ajuda-indice-t { margin-bottom: var(--e-3); color: var(--tinta-3); font-size: var(--t-rotulo); font-weight: 400; }
+.ajuda-indice-g { margin-top: var(--e-4); font-size: var(--t-rotulo); font-weight: 600; }
+.ajuda-indice-g:first-of-type { margin-top: 0; }
+.ajuda-indice ul { margin-top: var(--e-1); }
+.ajuda-indice li a, .ajuda-indice-g a {
+    display: block; padding: var(--e-1) var(--e-2); margin-left: calc(-1 * var(--e-2)); border-radius: var(--raio-controle);
+    color: var(--tinta-2); font-size: var(--t-rotulo); line-height: var(--lh-rotulo); text-wrap: pretty;
+}
+.ajuda-indice-g a { color: var(--tinta); }
+.ajuda-indice a:hover { background: var(--realce); color: var(--tinta); }
+.ajuda-texto { display: flex; flex-direction: column; gap: var(--e-7); max-width: 688px; min-width: 0; }
+.ajuda-busca { max-width: 420px; }
+.ajuda-vazio { color: var(--tinta-2); }
+.ajuda-texto .ajuda-grupo { gap: 0; }
+.ajuda-grupo-t { padding-bottom: var(--e-3); border-bottom: 1px solid var(--fio); font: 400 var(--t-titulo)/var(--lh-titulo) var(--f-num); letter-spacing: -.01em; }
+.ajuda-texto .ajuda-item { padding: var(--e-5) 0; border-bottom: 1px solid var(--fio); scroll-margin-top: var(--e-6); }
+.ajuda-texto .ajuda-item h3 { font-size: var(--t-corpo); font-weight: 600; line-height: var(--lh-corpo); text-wrap: balance; }
+.ajuda-texto .ajuda-item > p { margin: var(--e-2) 0 0; color: var(--tinta); line-height: var(--lh-corpo); text-wrap: pretty; }
+/* a resposta que o "?" abriu: um fundo azul bem claro, só enquanto ela é o alvo do endereço */
+.ajuda-texto .ajuda-item:target { margin: 0 calc(-1 * var(--e-4)); padding-inline: var(--e-4); border-radius: var(--raio-controle); background: var(--azul-fundo); }
+.ajuda-texto .ajuda-rodape { padding: 0; }
+@media (min-width: 1024px) {
+    .ajuda-corpo { grid-template-columns: 240px minmax(0, 1fr); column-gap: var(--e-8); align-items: start; }
+    .ajuda-indice { display: block; position: sticky; top: var(--e-6); max-height: calc(100dvh - 2 * var(--e-6)); overflow-y: auto; padding-right: var(--e-2); }
+}
+
 /* ---------------------------------------------------------------- celular e computador */
 @media (max-width: 479px) {
     .aj-input { width: 136px; }

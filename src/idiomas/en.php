@@ -2137,4 +2137,7 @@ return [
     '{n} contas, em Metas' => '{n} bills, in Goals',
     'Leia o código com o app autenticador' => 'Scan the code with the authenticator app',
     'Confirme com um código' => 'Confirm with a code',
+    'É esperado: na instalação, o MyMonetto criou um certificado próprio, e o navegador ainda não o conhece. A conexão continua criptografada, e os dados não saem da sua rede.' => 'It is expected: during installation, MyMonetto created its own certificate, and the browser does not know it yet. The connection is still encrypted, and the data does not leave your network.',
+    'Os passos de cada navegador' => 'The steps for each browser',
+    'Nesta página' => 'On this page',
 ];

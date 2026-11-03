@@ -200,7 +200,7 @@ function conferencia(callable $check): void
         ['/relatorio',     RelatorioController::class,     'index',      [],                  'rl-topo'],
         ['/relatorio',     RelatorioController::class,     'index',      ['tipo' => 'anual'], 'rl-topo'],
         ['/temas',         TemaController::class,          'index',      [],                  'tm-modos'],
-        ['/ajuda',         AjudaController::class,         'index',      [],                  'aj-titulo'],
+        ['/ajuda',         AjudaController::class,         'index',      [],                  'ajuda-indice'],
     ];
     foreach ($telas as [$caminho, $cls, $metodo, $get, $marcador]) {
         $ruim = [];
