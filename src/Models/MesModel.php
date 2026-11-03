@@ -61,6 +61,18 @@ final class MesModel
         return self::ultimo() ?? $cal;
     }
 
+    /** O dia a partir do qual o mês pode ser fechado: o último dia dele. A tela e o POST /mes/fechar usam a mesma regra. */
+    public static function fechaAPartirDe(string $mes): string
+    {
+        return date('Y-m-t', strtotime($mes));
+    }
+
+    /** Já dá para fechar o mês? A partir do último dia dele (ou depois, num mês que já passou). */
+    public static function podeFechar(string $mes, string $hoje): bool
+    {
+        return $hoje >= self::fechaAPartirDe($mes);
+    }
+
     /** Primeiro mês cadastrado (MIN(mes)) — limite inferior da data de um lançamento. */
     public static function primeiro(): ?string
     {

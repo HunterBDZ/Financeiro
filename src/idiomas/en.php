@@ -2349,4 +2349,5 @@ return [
     '{mes} está fechado. Para mudar, reabra o mês no Mês.' => '{mes} is closed. To change it, reopen the month in Month.',
     'Abrir o Mês' => 'Open Month',
     'A compra cai na fatura de {mes}, e esse mês está fechado. Para mudar, reabra o mês no Mês.' => 'The purchase falls on the {mes} statement, and that month is closed. To change it, reopen the month in Month.',
+    'Dá para fechar {mes} a partir de {data}.' => '{mes} can be closed from {data}.',
 ];

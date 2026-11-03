@@ -1488,6 +1488,13 @@ $emTransacao('contas do mês: Pago', static function () use ($pdo, $check, $rend
     $check('Pago: conta com parte já paga fica de fora (o Mês pergunta se foi o valor final)', $naLista($catPago) === null && LancamentosController::pagarConta($catPago, $uid)['erro'] !== null && count($noMes($catPago)) === 1);
 });
 
+// ---- 9e. Fechar o mês só a partir do último dia (B-02): a tela e o POST usam MesModel::podeFechar
+$check('fechar: só a partir do último dia do mês, o mesmo dia que a tela mostra', MesModel::podeFechar($mesHoje, $hoje) === ($hoje === date('Y-m-t', strtotime($hoje)))
+    && MesModel::podeFechar(date('Y-m-01', strtotime($mesHoje . ' -1 month')), $hoje) && !MesModel::podeFechar(date('Y-m-01', strtotime($mesHoje . ' +1 month')), $hoje)
+    && MesModel::fechaAPartirDe($mesHoje) === date('Y-m-t', strtotime($mesHoje)));
+$htmlMesHoje = $render(MesController::class, 'index', ['mes' => $mesHoje]);
+$check('fechar: o botão do Mês segue a mesma regra', str_contains($htmlMesHoje, 'href="/mes/fechar?mes=' . $mesHoje . '"') === MesModel::podeFechar($mesHoje, $hoje));
+
 // ---- 9d. Mês fechado não muda (B-01): lançar, editar, excluir, transferir, pagar e a compra cuja fatura é de mês fechado
 $emTransacao('mês fechado não muda', static function () use ($pdo, $check, $render, $catDia, $mesHoje, $hoje, $uid): void {
     $fechado = (string) $pdo->query("SELECT MAX(mes) FROM meses WHERE situacao = 'REAL'")->fetchColumn();

@@ -388,7 +388,7 @@ $apoioFim = match (true) {
 };
 // Fechar: um botão de verdade; antes do fim do mês, desligado e com o motivo
 $podeFechar = $menu['fechar'];
-$fechaJa = $podeFechar && ($mes < $mesCal || (string) $hoje >= $fimMesData);
+$fechaJa = $podeFechar && \Financeiro\Models\MesModel::podeFechar($mes, (string) $hoje);     // a mesma regra do POST
 ?>
 <div class="grade mes">
     <?php View::partial('partials/topo', ['mes' => $mes, 'meses' => $meses, 'href' => '/mes?mes=', 'hoje' => $hoje, 'anual' => true, 'apoio' => $apoio, 'acoes' => $acoesTopo]); ?>

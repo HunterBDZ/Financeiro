@@ -44,9 +44,9 @@ $resto = round((float) $sobra['mov'] - array_sum(array_column($passos, 1)), 2);
 if (abs($resto) >= 0.005) {
     $passos[] = [t('Parcela do empréstimo'), $resto];
 }
-$fimData = date('Y-m-t', strtotime($mes));
-// o botão: só a partir do último dia do mês (ou depois, num mês que já passou)
-$podeFechar = !$real && (string) $hoje >= $fimData;
+$fimData = \Financeiro\Models\MesModel::fechaAPartirDe($mes);
+// o botão: só a partir do último dia do mês (ou depois, num mês que já passou); o POST confere a mesma regra
+$podeFechar = !$real && \Financeiro\Models\MesModel::podeFechar($mes, (string) $hoje);
 $apoio = $real ? t('Fechado') : ($podeFechar ? t('Confira os números e feche') : t('Dá para fechar a partir de {data}', ['data' => t('{dia} de {mes}', ['dia' => (int) substr($fimData, 8, 2), 'mes' => $mesNome])]));
 $titulo = $real ? mb_convert_case(mesAno($mes), MB_CASE_TITLE) : t('Fechar {mes}', ['mes' => $mesNome]);
 ?>

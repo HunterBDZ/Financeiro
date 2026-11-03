@@ -518,8 +518,10 @@ final class MesController
         if (self::situacaoEm($meses, $mes) === 'REAL') {
             redirecionar($volta, 303);                           // já fechado: nada a gravar
         }
-        if ($mes > substr($hoje, 0, 7) . '-01') {
-            flash('error', t('Esse mês ainda não começou. Ele pode ser fechado a partir do dia 1.'));
+        if (!MesModel::podeFechar($mes, $hoje)) {
+            // a mesma regra da tela: só a partir do último dia do mês
+            $fim = MesModel::fechaAPartirDe($mes);
+            flash('error', t('Dá para fechar {mes} a partir de {data}.', ['mes' => mesExtenso($mes), 'data' => t('{dia} de {mes}', ['dia' => (int) substr($fim, 8, 2), 'mes' => mesExtenso($mes)])]));
             redirecionar('/mes?mes=' . $mes, 303);
         }
 
