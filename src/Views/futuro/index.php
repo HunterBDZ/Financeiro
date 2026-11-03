@@ -1,6 +1,9 @@
 <?php
 /**
- * Anual — os próximos meses pelo plano do motor, em três blocos:
+ * Simular (antes "Anual") — os próximos meses pelo plano do motor. O gráfico é a peça principal da tela, com a
+ * resposta "Fim de {mês}" ao lado do título; depois o caminho (os marcos) e o "E se…?"; por último, o mês a mês.
+ * Os rótulos do eixo não se tocam: um a cada k meses, com k pela largura, e os janeiros sempre à vista.
+ * Em três blocos:
  *  · Resumo: como o plano termina e os marcos em ordem (meses abaixo da reserva ou no vermelho,
  *    volta à reserva, sobra adiantando o empréstimo, quitação), cada um levando ao seu mês.
  *  · Gráfico da conta no fim de cada mês: linha reta com um ponto por mês (● fechado, ◐ aberto,
@@ -39,7 +42,7 @@ $faixa  = static function (string $ini, string $fimM): string {
     if ($ini === $fimM) {
         return monthLabel($ini);
     }
-    return substr($ini, 0, 4) === substr($fimM, 0, 4) ? mesCurto($ini) . '–' . monthLabel($fimM) : monthLabel($ini) . '–' . monthLabel($fimM);
+    return substr($ini, 0, 4) === substr($fimM, 0, 4) ? t('{de} a {ate}', ['de' => mesCurto($ini), 'ate' => monthLabel($fimM)]) : t('{de} a {ate}', ['de' => monthLabel($ini), 'ate' => monthLabel($fimM)]);
 };
 $seguinte = static fn(string $m): string => date('Y-m-01', strtotime($m . ' +1 month'));
 $sim = !empty($se['ativo']);
@@ -220,15 +223,36 @@ $apertado = $marcos['apertado'];
 $iAp = $apertado !== null && $apertado['fica'] < $reserva - 0.004 ? array_search($apertado['mes'], array_column($linhas, 'mes'), true) : false;
 // a quitação vai no eixo, embaixo do mês (em cima do ponto a linha passaria por cima do texto)
 $iQuita = $quita !== null && $quita >= $ref && substr($quita, 5, 2) !== '01' ? array_search($quita, array_column($linhas, 'mes'), true) : false;
-// eixo apertado (celular): meses alternados, na paridade do 1º janeiro (os janeiros ficam visíveis)
-$par = 0;
+// o eixo: um rótulo a cada k meses, contado do 1º janeiro (os janeiros ficam sempre à vista), com k para os rótulos
+// não se tocarem: ~36 px por rótulo, em ~880 px no computador e ~340 px no celular (k em 1, 2, 3, 4 ou 6)
+$jan = 0;
 foreach ($linhas as $i => $l) {
     if (substr($l['mes'], 5, 2) === '01') {
-        $par = $i % 2;
+        $jan = $i;
         break;
     }
 }
-$marca = static fn(string $estado): string => '<i class="fu-mk is-' . ($estado === 'real' ? 'real' : ($estado === 'aberto' ? 'aberto' : 'prev')) . '" aria-hidden="true"></i>';
+$passo = static function (float $largura) use ($n): int {
+    $k = (int) ceil($n * 36 / $largura);
+    foreach ([1, 2, 3, 4, 6] as $p) {
+        if ($k <= $p) {
+            return $p;
+        }
+    }
+    return 12;
+};
+$passoPc = $passo(880.0);
+$passoCel = $passo(340.0);
+$classesMes = static function (int $i) use ($jan): string {
+    $c = [];
+    foreach ([2, 3, 4, 6, 12] as $k) {
+        if ((($i - $jan) % $k + $k) % $k === 0) {
+            $c[] = 'is-p' . $k;
+        }
+    }
+    return implode(' ', $c);
+};
+$marca = static fn(string $estado): string => '<i class="sim-mk is-' . ($estado === 'real' ? 'real' : ($estado === 'aberto' ? 'aberto' : 'prev')) . '" aria-hidden="true"></i>';
 
 // ---- tabela: "o que mudou" de cada mês (fluxos do empréstimo e da poupança antes das categorias)
 $chips = static function (array $l) use ($quita): array {
@@ -254,15 +278,16 @@ $chips = static function (array $l) use ($quita): array {
     foreach ($l['mudou'] as $m) {
         $sobe = $m['valor'] > $m['antes'];
         $d = num(abs($m['valor'] - $m['antes']));
+        // sem verbo que concorde com o nome ("Outras entradas sobe"): mais ou menos que no mês anterior
         $out[] = ['tipo' => $m['efeito'] > 0 ? 'pos' : 'neg', 'seta' => $sobe ? 'arrow-up' : 'arrow-down', 'txt' => $m['nome'] . ' ' . $d,
-                  'sr' => $sobe ? t('{nome} sobe {valor} em relação ao mês anterior', ['valor' => $d, 'nome' => $m['nome']]) : t('{nome} cai {valor} em relação ao mês anterior', ['valor' => $d, 'nome' => $m['nome']])];
+                  'sr' => $sobe ? t('{nome}: {valor} a mais que no mês anterior', ['valor' => $d, 'nome' => $m['nome']]) : t('{nome}: {valor} a menos que no mês anterior', ['valor' => $d, 'nome' => $m['nome']])];
     }
     return array_slice($out, 0, 4);
 };
 $chipsHtml = static function (array $lista): string {
     $h = '';
     foreach ($lista as $c) {
-        $h .= '<span class="fu-chip is-' . e($c['tipo']) . '">' . ($c['seta'] !== '' ? svgIcon($c['seta'], 12) : '')
+        $h .= '<span class="sim-chip is-' . e($c['tipo']) . '">' . ($c['seta'] !== '' ? svgIcon($c['seta'], 12) : '')
             . ($c['sr'] !== '' ? '<span aria-hidden="true">' . e($c['txt']) . '</span><span class="sr-only">' . e($c['sr']) . '</span>' : e($c['txt']))
             . '</span>';
     }
@@ -272,7 +297,7 @@ $anos = [];
 foreach ($linhas as $l) {
     $anos[substr($l['mes'], 0, 4)][] = $l;
 }
-$alertaIc = static fn(string $a): string => $a !== '' ? svgIcon('alert', 13, 'fu-al') : '';
+$alertaIc = static fn(string $a): string => $a !== '' ? svgIcon('alert', 14, 'sim-al') : '';
 ?>
 <?php
 // o que está sendo simulado, em palavras
@@ -303,235 +328,247 @@ $opcoesMes = static function (string $sel) use ($se): string {
     return $h;
 };
 ?>
-<div class="fu<?= $sim ? ' is-sim' : '' ?>">
-    <h1 class="fu-titulo pg-titulo"><?= e(t('Simular')) ?></h1>
-    <p class="fu-sub"><?= e(t('Veja como uma mudança mexe no plano. Nada é salvo.')) ?> <a class="btn-link" href="/relatorio"><?= e(t('Ver relatório')) ?></a></p>
+<div class="grade sim<?= $sim ? ' is-sim' : '' ?>">
+    <?php \Financeiro\View::partial('partials/topo', ['titulo' => t('Simular'), 'apoio' => t('Veja como uma mudança mexe no plano. Nada é salvo.'),
+        'acoes' => '<a class="btn-link" href="/relatorio">' . e(t('Ver relatório')) . '</a>']); ?>
 
     <?php if ($sim): ?>
-        <p class="fu-sim" role="status">
+        <p class="faixa-grade sim-aviso" role="status">
             <span><?= t('{titulo} {oque}. Nada foi salvo.', ['titulo' => '<b>' . e(t('Simulação:')) . '</b>', 'oque' => e($juntar($oQue))]) ?></span>
             <a class="btn-link" href="/futuro"><?= e(t('Voltar ao plano')) ?></a>
         </p>
     <?php endif; ?>
 
-    <!-- resumo: como termina e os marcos -->
-    <section class="card fu-res" aria-labelledby="fu-res-t">
-        <h2 class="fu-res-t" id="fu-res-t"><?= e(t('Fim de {mes}', ['mes' => monthLabel($fim['mes'])])) ?></h2>
-        <p class="fu-res-v num"><b><?= e(moedaSimbolo()) ?> <?= e($valor((float) $fim['fica'])) ?></b><span class="<?= $fim['desde'] >= 0 ? 'pos' : 'neg' ?>"><?= e(t('{valor} desde {mes}', ['valor' => $sinal((float) $fim['desde']), 'mes' => monthLabel($ref)])) ?></span></p>
-        <?php if ($metaTxt !== ''): ?><p class="fu-res-meta num"><?= e($metaTxt) ?></p><?php endif; ?>
-        <?php if ($itens !== []): ?>
-            <ol class="fu-marcos">
-                <?php foreach ($itens as $it): ?>
-                    <li><a class="fu-marco is-<?= e($it['tipo']) ?>" href="/mes?mes=<?= e($it['mes']) ?>">
-                        <span class="fu-marco-q num"><?= e($it['quando']) ?></span>
-                        <span class="fu-marco-t num"><?= $it['html'] ?></span>
-                    </a></li>
-                <?php endforeach; ?>
-            </ol>
-        <?php endif; ?>
-        <?php if ($temDivida): ?><a class="fu-res-emp" href="/emprestimo"><?= e(t('Simular um adiantamento do empréstimo')) ?></a><?php endif; ?>
-    </section>
-
-    <!-- e se: simulação pela URL, nada é gravado -->
-    <details class="card fu-ese" id="e-se"<?= $sim || $se['erros'] !== [] ? ' open' : '' ?>>
-        <summary class="fu-ese-cab">
-            <span class="fu-ese-t"><?= e(t('E se…?')) ?></span>
-            <span class="fu-ese-dica"><?= e(t('Simule uma economia por mês, um gasto ou uma entrada. Nada é salvo.')) ?></span>
-        </summary>
-        <?php if ($se['erros'] !== []): ?><p class="fu-ese-erro" role="alert"><?= e(implode(' ', $se['erros'])) ?></p><?php endif; ?>
-        <?php if ($comparar !== null):
-            [$cp, $cs] = [$comparar['plano'], $comparar['se']];
-            $dFim = $cs['fim'] - $cp['fim'];
-            $apert = static fn(?array $a): string => $a === null ? '—' : monthLabel($a['mes']) . ': ' . (($a['fica'] < -0.004 ? MENOS : '') . num(abs($a['fica'])));
-            $quitaTxt = static fn(?string $q): string => $q === null ? t('não dá para dizer') : monthLabel($q);
-            ?>
-            <?php /* papéis explícitos: no celular cada linha vira um bloco (display grid) e alguns leitores de tela perdem a tabela */ ?>
-            <table class="fu-cmp num" role="table">
-                <caption class="sr-only"><?= e(t('Plano comparado com a simulação')) ?></caption>
-                <thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader"><span class="sr-only"><?= e(t('O quê')) ?></span></th><th scope="col" role="columnheader"><?= e(t('Plano')) ?></th><th scope="col" role="columnheader"><?= e(t('E se')) ?></th></tr></thead>
-                <tbody role="rowgroup">
-                    <tr role="row"><th scope="row" role="rowheader"><?= e(t('Conta no fim de {mes}', ['mes' => monthLabel($ultimo)])) ?></th><td role="cell" data-rot="<?= e(t('Plano')) ?>"><?= e($valor($cp['fim'])) ?></td><td role="cell" data-rot="<?= e(t('E se')) ?>"><b><?= e($valor($cs['fim'])) ?></b><?php if (abs($dFim) >= 0.5): ?> <small class="<?= $dFim > 0 ? 'pos' : 'neg' ?>"><?= e($sinal($dFim)) ?></small><?php endif; ?></td></tr>
-                    <?php if ($temDivida): ?>
-                        <tr role="row"><th scope="row" role="rowheader"><?= e(t('Dívida no fim de {mes}', ['mes' => monthLabel($ultimo)])) ?></th><td role="cell" data-rot="<?= e(t('Plano')) ?>"><?= $cp['divida'] > 0.004 ? e(num($cp['divida'])) : e(t('quitada')) ?></td><td role="cell" data-rot="<?= e(t('E se')) ?>"><b><?= $cs['divida'] > 0.004 ? e(num($cs['divida'])) : e(t('quitada')) ?></b></td></tr>
-                    <?php endif; ?>
-                    <tr role="row"><th scope="row" role="rowheader"><?= e(t('Mês mais apertado')) ?></th><td role="cell" data-rot="<?= e(t('Plano')) ?>"><?= e($apert($cp['apertado'])) ?></td><td role="cell" data-rot="<?= e(t('E se')) ?>"><b><?= e($apert($cs['apertado'])) ?></b></td></tr>
-                    <tr role="row"><th scope="row" role="rowheader"><?= e(t('Meses abaixo da reserva')) ?></th><td role="cell" data-rot="<?= e(t('Plano')) ?>"><?= (int) $cp['abaixo'] ?></td><td role="cell" data-rot="<?= e(t('E se')) ?>"><b><?= (int) $cs['abaixo'] ?></b></td></tr>
-                    <?php if ($temDivida): ?>
-                        <tr role="row"><th scope="row" role="rowheader"><?= e(t('Empréstimo acaba')) ?></th><td role="cell" data-rot="<?= e(t('Plano')) ?>"><?= e($quitaTxt($cp['quita'])) ?></td><td role="cell" data-rot="<?= e(t('E se')) ?>"><b><?= e($quitaTxt($cs['quita'])) ?></b></td></tr>
-                        <tr role="row"><th scope="row" role="rowheader"><?= e(t('Juros até quitar')) ?></th><td role="cell" data-rot="<?= e(t('Plano')) ?>"><?= $cp['juros'] === null ? '—' : e(num($cp['juros'])) ?></td><td role="cell" data-rot="<?= e(t('E se')) ?>"><b><?= $cs['juros'] === null ? '—' : e(num($cs['juros'])) ?></b></td></tr>
-                    <?php endif; ?>
-                </tbody>
-            </table>
-        <?php endif; ?>
-        <form class="fu-ese-form" method="get" action="/futuro#e-se">
-            <input type="hidden" name="se" value="1">
-            <div class="fu-ese-l" role="group" aria-labelledby="fu-ese-mensal">
-                <span class="fu-ese-rot" id="fu-ese-mensal"><?= e(t('Todo mês')) ?></span>
-                <select name="mensal_tipo" aria-label="<?= e(t('Economizar ou gastar a mais')) ?>"><option value="economizar"<?= $se['mensalTipo'] === 'economizar' ? ' selected' : '' ?>><?= e(t('Economizar')) ?></option><option value="gastar"<?= $se['mensalTipo'] === 'gastar' ? ' selected' : '' ?>><?= e(t('Gastar a mais')) ?></option></select>
-                <input name="mensal" inputmode="decimal" autocomplete="off" placeholder="<?= e(numInput(0)) ?>" aria-label="<?= e(t('Valor todo mês')) ?>" value="<?= $se['mensal'] > 0 ? e(numInput($se['mensal'])) : '' ?>">
-                <label class="fu-ese-mes"><?= t('a partir de {campo}', ['campo' => '<select name="mensal_de">' . $opcoesMes($se['mensalDe']) . '</select>']) ?></label>
+    <!-- a peça principal: a conta no fim de cada mês -->
+    <section class="faixa-grade sim-graf" aria-labelledby="sim-graf-t">
+        <div class="sim-cab">
+            <div class="sim-cab-txt">
+                <h2 class="sim-graf-t" id="sim-graf-t"><?= e($titulo) ?></h2>
+                <p class="sim-graf-sub"><?= $sim ? e(t('Simulação tracejada e o plano em cinza (linha cheia).')) . ' ' : '' ?><?= $comDivida ? e(t('Conta no fim de cada mês e a dívida do empréstimo, em {moeda}', ['moeda' => moedaSimbolo()])) : e(t('Conta no fim de cada mês, em {moeda}', ['moeda' => moedaSimbolo()])) ?></p>
             </div>
-            <div class="fu-ese-l" role="group" aria-labelledby="fu-ese-uma">
-                <span class="fu-ese-rot" id="fu-ese-uma"><?= e(t('Uma vez')) ?></span>
-                <select name="uma_tipo" aria-label="<?= e(t('Gasto ou entrada')) ?>"><option value="gasto"<?= $se['umaTipo'] === 'gasto' ? ' selected' : '' ?>><?= e(t('Um gasto')) ?></option><option value="entrada"<?= $se['umaTipo'] === 'entrada' ? ' selected' : '' ?>><?= e(t('Uma entrada')) ?></option></select>
-                <input name="uma" inputmode="decimal" autocomplete="off" placeholder="<?= e(numInput(0)) ?>" aria-label="<?= e(t('Valor uma vez')) ?>" value="<?= $se['uma'] > 0 ? e(numInput($se['uma'])) : '' ?>">
-                <label class="fu-ese-mes"><?= t('em {campo}', ['campo' => '<select name="uma_mes">' . $opcoesMes($se['umaMes']) . '</select>']) ?></label>
+            <div class="sim-fim">
+                <p class="rot-resposta"><?= e(t('Fim de {mes}', ['mes' => monthLabel($fim['mes'])])) ?></p>
+                <p class="sim-fim-v"><?= valor((float) $fim['fica'], 'previsto', ['moeda' => true]) ?></p>
+                <p class="sim-fim-d num"><?= e(t('{valor} desde {mes}', ['valor' => $sinal((float) $fim['desde']), 'mes' => monthLabel($ref)])) ?></p>
             </div>
-            <?php if ($temDivida): ?>
-                <label class="fu-ese-adi"><input type="checkbox" name="adiantar" value="1"<?= $se['adiantar'] ? ' checked' : '' ?>> <?= e(t('Usar a sobra para adiantar o empréstimo')) ?></label>
-            <?php elseif ($se['adiantar']): ?>
-                <input type="hidden" name="adiantar" value="1">
-            <?php endif; ?>
-            <div class="fu-ese-acoes">
-                <button type="submit" class="btn btn-primary fu-ese-btn"><?= e(t('Simular')) ?></button>
-                <?php if ($sim): ?><a class="btn-link" href="/futuro"><?= e(t('Voltar ao plano')) ?></a><?php endif; ?>
-            </div>
-        </form>
-    </details>
-
-    <!-- conta no fim de cada mês -->
-    <section class="card fu-graf" aria-labelledby="fu-graf-t">
-        <h2 class="fu-graf-t" id="fu-graf-t"><?= e($titulo) ?></h2>
-        <p class="fu-graf-sub"><?= $sim ? e(t('Simulação tracejada e o plano em cinza (linha cheia).')) . ' ' : '' ?><?= $comDivida ? e(t('Conta no fim de cada mês e a dívida do empréstimo, em {moeda}', ['moeda' => moedaSimbolo()])) : e(t('Conta no fim de cada mês, em {moeda}', ['moeda' => moedaSimbolo()])) ?></p>
-        <figure class="fu-fig is-denso" role="img" aria-label="<?= e($titulo . ' ' . ($comDivida ? t('Conta no fim de cada mês e dívida do empréstimo, de {de} a {ate}. Os valores estão na tabela mês a mês.', ['de' => monthLabel($linhas[0]['mes']), 'ate' => monthLabel($ultimo)]) : t('Conta no fim de cada mês, de {de} a {ate}. Os valores estão na tabela mês a mês.', ['de' => monthLabel($linhas[0]['mes']), 'ate' => monthLabel($ultimo)]))) ?>">
-            <div class="fu-plot" aria-hidden="true">
-                <svg class="fu-svg" viewBox="0 0 <?= $VW ?> <?= $VH ?>" preserveAspectRatio="none" focusable="false">
+        </div>
+        <figure class="sim-fig" role="img" aria-label="<?= e($titulo . ' ' . ($comDivida ? t('Conta no fim de cada mês e dívida do empréstimo, de {de} a {ate}. Os valores estão na tabela mês a mês.', ['de' => monthLabel($linhas[0]['mes']), 'ate' => monthLabel($ultimo)]) : t('Conta no fim de cada mês, de {de} a {ate}. Os valores estão na tabela mês a mês.', ['de' => monthLabel($linhas[0]['mes']), 'ate' => monthLabel($ultimo)]))) ?>">
+            <div class="sim-plot" aria-hidden="true">
+                <svg class="sim-svg" viewBox="0 0 <?= $VW ?> <?= $VH ?>" preserveAspectRatio="none" focusable="false">
                     <?php if ($reserva > 0.004 && $yRes < $VH): ?>
-                        <rect class="fu-faixa-warn" x="0" width="<?= $VW ?>" y="<?= $f(max(0.0, $yRes)) ?>" height="<?= $f(max(0.0, min($VH, $yZero) - max(0.0, $yRes))) ?>"/>
+                        <rect class="sim-faixa-warn" x="0" width="<?= $VW ?>" y="<?= $f(max(0.0, $yRes)) ?>" height="<?= $f(max(0.0, min($VH, $yZero) - max(0.0, $yRes))) ?>"/>
                     <?php endif; ?>
                     <?php if ($piso < -0.004): ?>
-                        <rect class="fu-faixa-neg" x="0" width="<?= $VW ?>" y="<?= $f($yZero) ?>" height="<?= $f($VH - $yZero) ?>"/>
+                        <rect class="sim-faixa-neg" x="0" width="<?= $VW ?>" y="<?= $f($yZero) ?>" height="<?= $f($VH - $yZero) ?>"/>
                     <?php endif; ?>
                     <?php foreach ($grade as $g): ?>
-                        <line class="<?= abs($g) < 0.004 ? 'fu-zero' : 'fu-grade' ?>" x1="0" x2="<?= $VW ?>" y1="<?= $f($y($g)) ?>" y2="<?= $f($y($g)) ?>"/>
+                        <line class="<?= abs($g) < 0.004 ? 'sim-zero' : 'sim-grade' ?>" x1="0" x2="<?= $VW ?>" y1="<?= $f($y($g)) ?>" y2="<?= $f($y($g)) ?>"/>
                     <?php endforeach; ?>
                     <?php if ($reserva > 0.004): ?>
-                        <line class="fu-reserva" x1="0" x2="<?= $VW ?>" y1="<?= $f($yRes) ?>" y2="<?= $f($yRes) ?>"/>
+                        <line class="sim-reserva" x1="0" x2="<?= $VW ?>" y1="<?= $f($yRes) ?>" y2="<?= $f($yRes) ?>"/>
                     <?php endif; ?>
                     <?php if ($comMeta): ?>
-                        <line class="fu-meta-l" x1="0" x2="<?= $VW ?>" y1="<?= $f($y($meta)) ?>" y2="<?= $f($y($meta)) ?>"/>
+                        <line class="sim-meta-l" x1="0" x2="<?= $VW ?>" y1="<?= $f($y($meta)) ?>" y2="<?= $f($y($meta)) ?>"/>
                     <?php endif; ?>
-                    <line class="fu-hoje-l" x1="<?= $f($x($iRef)) ?>" x2="<?= $f($x($iRef)) ?>" y1="0" y2="<?= $VH ?>"/>
-                    <?php if ($baseCaminho !== ''): ?><path class="fu-base-l" d="<?= $baseCaminho ?>"/><?php endif; ?>
-                    <?php if ($divSolida !== ''): ?><path class="fu-div-l" d="<?= $divSolida ?>"/><?php endif; ?>
-                    <?php if ($divTracejada !== ''): ?><path class="fu-div-l is-prev" d="<?= $divTracejada ?>"/><?php endif; ?>
-                    <?php if ($solida !== ''): ?><path class="fu-linha" d="<?= $solida ?>"/><?php endif; ?>
-                    <?php if ($tracejada !== ''): ?><path class="fu-linha is-prev" d="<?= $tracejada ?>"/><?php endif; ?>
+                    <line class="sim-hoje-l" x1="<?= $f($x($iRef)) ?>" x2="<?= $f($x($iRef)) ?>" y1="0" y2="<?= $VH ?>"/>
+                    <?php if ($iQuita !== false): ?>
+                        <line class="sim-evento-l" x1="<?= $f($x($iQuita)) ?>" x2="<?= $f($x($iQuita)) ?>" y1="0" y2="<?= $VH ?>"/>
+                    <?php endif; ?>
+                    <?php if ($baseCaminho !== ''): ?><path class="sim-base-l" d="<?= $baseCaminho ?>"/><?php endif; ?>
+                    <?php if ($divSolida !== ''): ?><path class="sim-div-l" d="<?= $divSolida ?>"/><?php endif; ?>
+                    <?php if ($divTracejada !== ''): ?><path class="sim-div-l is-prev" d="<?= $divTracejada ?>"/><?php endif; ?>
+                    <?php if ($solida !== ''): ?><path class="sim-linha" d="<?= $solida ?>"/><?php endif; ?>
+                    <?php if ($tracejada !== ''): ?><path class="sim-linha is-prev" d="<?= $tracejada ?>"/><?php endif; ?>
                 </svg>
                 <?php foreach ($grade as $g): // marcas redondas do eixo: sem centavos, como em todo gráfico ?>
-                    <span class="fu-gl num" style="top:<?= $pc($y($g), $VH) ?>"><?= e(num($g, 0)) ?></span>
+                    <span class="sim-gl num" style="top:<?= $pc($y($g), $VH) ?>"><?= e(num($g, 0)) ?></span>
                 <?php endforeach; ?>
                 <?php if ($reserva > 0.004): ?>
-                    <span class="fu-ref fu-reserva-rot num" style="top:<?= $pc($yRes, $VH) ?>"><?= e(t('Reserva {valor}', ['valor' => num($reserva)])) ?></span>
+                    <span class="sim-ref sim-reserva-rot num" style="top:<?= $pc($yRes, $VH) ?>"><?= e(t('Reserva {valor}', ['valor' => num($reserva)])) ?></span>
                 <?php endif; ?>
                 <?php if ($comMeta): ?>
-                    <span class="fu-ref fu-meta-rot num" style="top:<?= $pc($y($meta), $VH) ?>"><?= e(t('Meta {valor}', ['valor' => num($meta)])) ?></span>
+                    <span class="sim-ref sim-meta-rot num" style="top:<?= $pc($y($meta), $VH) ?>"><?= e(t('Meta {valor}', ['valor' => num($meta)])) ?></span>
                 <?php endif; ?>
-                <span class="fu-hoje" style="left:<?= $pc($x($iRef), $VW) ?>"><?= e(t('hoje')) ?></span>
+                <span class="sim-hoje" style="left:<?= $pc($x($iRef), $VW) ?>"><?= e(t('hoje')) ?></span>
+                <?php if ($iQuita !== false): ?>
+                    <span class="sim-evento" style="left:<?= $pc($x($iQuita), $VW) ?>"><?= e(t('fim do empréstimo')) ?></span>
+                <?php endif; ?>
                 <?php if ($comDivida): ?>
-                    <span class="fu-serie<?= $iDivRot === null ? ' is-inicio' : '' ?>" style="left:<?= $pc($x($iDivRot ?? 0), $VW) ?>;top:<?= $pc($y($divs[$iDivRot ?? 0]), $VH) ?>"><?= e(t('Dívida')) ?></span>
+                    <span class="sim-serie<?= $iDivRot === null ? ' is-inicio' : '' ?>" style="left:<?= $pc($x($iDivRot ?? 0), $VW) ?>;top:<?= $pc($y($divs[$iDivRot ?? 0]), $VH) ?>"><?= e(t('Dívida')) ?></span>
                 <?php endif; ?>
                 <?php foreach ($linhas as $i => $l): ?>
-                    <i class="fu-pt is-<?= $l['estado'] === 'real' ? 'real' : ($l['estado'] === 'aberto' ? 'aberto' : 'prev') ?><?= $l['alerta'] !== '' ? ' is-' . e($l['alerta']) : '' ?><?= $i === $iRef || $i === $iAp || $i === $n - 1 ? ' is-chave' : '' ?>" style="left:<?= $pc($x($i), $VW) ?>;top:<?= $pc($y($vals[$i]), $VH) ?>"></i>
+                    <i class="sim-pt is-<?= $l['estado'] === 'real' ? 'real' : ($l['estado'] === 'aberto' ? 'aberto' : 'prev') ?><?= $l['alerta'] !== '' ? ' is-' . e($l['alerta']) : '' ?><?= $i === $iRef || $i === $iAp || $i === $n - 1 ? ' is-chave' : '' ?>" style="left:<?= $pc($x($i), $VW) ?>;top:<?= $pc($y($vals[$i]), $VH) ?>"></i>
                 <?php endforeach; ?>
                 <?php if ($iAp !== false): ?>
-                    <span class="fu-nota is-baixo <?= $vals[$iAp] < -0.004 ? 'neg' : 'warn' ?> num" style="left:<?= $pc($x($iAp), $VW) ?>;top:<?= $pc($y($vals[$iAp]), $VH) ?>"><?= e($valor($vals[$iAp])) ?></span>
+                    <span class="sim-nota is-baixo <?= $vals[$iAp] < -0.004 ? 'neg' : 'warn' ?> num" style="left:<?= $pc($x($iAp), $VW) ?>;top:<?= $pc($y($vals[$iAp]), $VH) ?>"><?= e($valor($vals[$iAp])) ?></span>
                 <?php endif; ?>
-                <span class="fu-nota is-fim num" style="left:<?= $pc($x($n - 1), $VW) ?>;top:<?= $pc($y($vals[$n - 1]), $VH) ?>"><?= e($valor($vals[$n - 1])) ?></span>
+                <span class="sim-nota is-fim num" style="left:<?= $pc($x($n - 1), $VW) ?>;top:<?= $pc($y($vals[$n - 1]), $VH) ?>"><?= e($valor($vals[$n - 1])) ?></span>
                 <?php if ($sim): ?>
-                    <span class="fu-nota is-plano num" style="left:<?= $pc($x($n - 1), $VW) ?>;top:<?= $pc($y($valsBase[$n - 1]), $VH) ?>"><?= e(t('plano {valor}', ['valor' => $valor($valsBase[$n - 1])])) ?></span>
+                    <span class="sim-nota is-plano num" style="left:<?= $pc($x($n - 1), $VW) ?>;top:<?= $pc($y($valsBase[$n - 1]), $VH) ?>"><?= e(t('plano {valor}', ['valor' => $valor($valsBase[$n - 1])])) ?></span>
                 <?php endif; ?>
             </div>
-            <div class="fu-eixo" aria-hidden="true">
+            <div class="sim-eixo passo-<?= $passoPc ?> cel-<?= $passoCel ?>" aria-hidden="true">
                 <?php foreach ($linhas as $i => $l): ?>
-                    <span class="fu-mx<?= $i % 2 !== $par ? ' is-salta' : '' ?><?= $l['mes'] === $ref ? ' is-ref' : '' ?>" style="left:<?= $pc($x($i), $VW) ?>"><?= e(mesCurto($l['mes'])) ?></span>
-                    <?php if ($i === 0 || substr($l['mes'], 5, 2) === '01'): ?><span class="fu-ano" style="left:<?= $pc($x($i), $VW) ?>"><?= e(substr($l['mes'], 0, 4)) ?></span><?php endif; ?>
-                    <?php if ($i === $iQuita): ?><span class="fu-ano fu-evento" style="left:<?= $pc($x($i), $VW) ?>"><?= e(t('fim do empréstimo')) ?></span><?php endif; ?>
+                    <span class="sim-mx <?= $classesMes($i) ?><?= $l['mes'] === $ref ? ' is-ref' : '' ?>" style="left:<?= $pc($x($i), $VW) ?>"><?= e(mesCurto($l['mes'])) ?></span>
+                    <?php if (($i === 0 && ($jan === 0 || $jan >= 3)) || ($i > 0 && substr($l['mes'], 5, 2) === '01')): ?><span class="sim-ano" style="left:<?= $pc($x($i), $VW) ?>"><?= e(substr($l['mes'], 0, 4)) ?></span><?php endif; ?>
                 <?php endforeach; ?>
             </div>
         </figure>
     </section>
 
-    <!-- mês a mês -->
-    <details class="fu-tabela"<?= $sim ? ' open' : '' ?>>
-    <summary class="btn btn-ghost"><?= e(t('Ver mês a mês')) ?></summary>
-    <section class="card fu-meses" id="meses" aria-labelledby="fu-meses-t">
-        <div class="fu-meses-cab">
-            <h2 class="titulo" id="fu-meses-t"><?= e(t('Mês a mês')) ?> <span class="fu-unid"><?= e(t('em {moeda}', ['moeda' => moedaSimbolo()])) ?></span></h2>
-            <p class="fu-leg"><span><?= $marca('real') ?><?= e(t('Fechado: só o lançado')) ?></span><span><?= $marca('aberto') ?><?= e(t('Aberto: lançado até hoje e o previsto do que falta')) ?></span><span><?= $marca('previsto') ?><?= e(t('Previsto')) ?></span></p>
-        </div>
-        <div class="fu-tab">
-            <div class="fu-cols fu-cab num">
-                <span class="fu-lbl fu-lbl-m"><?= e(t('Mês')) ?></span>
-                <span class="fu-lbl fu-largo"><?= e(t('Entradas')) ?></span>
-                <span class="fu-lbl fu-largo"><?= e(t('Saídas')) ?></span>
-                <span class="fu-lbl"><?= e(t('Balanço')) ?> <?= dica('numeros', t('Balanço')) ?></span>
-                <span class="fu-lbl"><?= e(t('Conta no fim')) ?></span>
-                <span class="fu-lbl fu-largo"><?= e(t('Dívida')) ?></span>
-                <span class="fu-lbl fu-lbl-m fu-xl"><?= e(t('Mudou em relação ao mês anterior')) ?></span>
-                <span></span>
-            </div>
-            <?php foreach ($anos as $ano => $doAno):
-                $ultimoDoAno = $doAno[count($doAno) - 1];
-                $somaE = array_sum(array_column($doAno, 'entra'));
-                $somaS = array_sum(array_column($doAno, 'sai'));
-                $somaB = array_sum(array_column($doAno, 'bal'));
-                $parcial = count($doAno) < 12 ? ' (' . mesCurto($doAno[0]['mes']) . '–' . mesCurto($ultimoDoAno['mes']) . ')' : '';
+    <div class="faixa-grade sim-duas">
+        <!-- o caminho: os marcos, em ordem -->
+        <section class="sim-caminho" aria-labelledby="sim-caminho-t">
+            <div class="secao-cab"><h2 id="sim-caminho-t"><?= e(t('O caminho até lá')) ?></h2></div>
+            <?php if ($metaTxt !== ''): ?><p class="sim-meta num"><?= e($metaTxt) ?></p><?php endif; ?>
+            <?php if ($itens !== []): ?>
+                <ol class="sim-marcos">
+                    <?php foreach ($itens as $it): ?>
+                        <li><a class="sim-marco is-<?= e($it['tipo']) ?>" href="/mes?mes=<?= e($it['mes']) ?>">
+                            <span class="sim-marco-q num"><?= e($it['quando']) ?></span>
+                            <span class="sim-marco-t num"><?= $it['html'] ?></span>
+                        </a></li>
+                    <?php endforeach; ?>
+                </ol>
+            <?php else: ?>
+                <p class="sim-meta"><?= e(t('Nenhum mês abaixo da reserva no caminho.')) ?></p>
+            <?php endif; ?>
+            <?php if ($temDivida): ?><a class="btn-link sim-emp" href="/emprestimo"><?= e(t('Simular um adiantamento do empréstimo')) ?></a><?php endif; ?>
+        </section>
+
+        <!-- e se: simulação pela URL, nada é gravado -->
+        <section class="sim-ese" id="e-se" aria-labelledby="sim-ese-t">
+            <div class="secao-cab"><h2 id="sim-ese-t"><?= e(t('E se…?')) ?></h2><p><?= e(t('Nada é salvo.')) ?></p></div>
+            <?php if ($se['erros'] !== []): ?><p class="sim-erro" role="alert"><?= svgIcon('alert', 16) ?><?= e(implode(' ', $se['erros'])) ?></p><?php endif; ?>
+            <?php if ($comparar !== null):
+                [$cp, $cs] = [$comparar['plano'], $comparar['se']];
+                $dFim = $cs['fim'] - $cp['fim'];
+                $apert = static fn(?array $a): string => $a === null ? '—' : monthLabel($a['mes']) . ': ' . (($a['fica'] < -0.004 ? MENOS : '') . num(abs($a['fica'])));
+                $quitaTxt = static fn(?string $q): string => $q === null ? t('não dá para dizer') : monthLabel($q);
                 ?>
-                <h3 class="fu-ano-cab num"><?= e($ano) ?></h3>
-                <?php foreach ($doAno as $l):
-                    $balCls = $l['bal'] < -0.004 ? ' neg' : '';
-                    $lista = $chips($l);
-                    // no detalhe, crédito, adiantamento e poupança já aparecem como valores: só as mudanças
-                    $listaDet = array_values(array_filter($lista, static fn($c) => $c['tipo'] !== 'info'));
-                    ?>
-                    <details class="fu-mes<?= $l['mes'] === $ref ? ' is-ref' : '' ?>">
-                        <summary class="fu-cols num">
-                            <span class="fu-m"><?= $marca($l['estado']) ?><?= e(monthLabel($l['mes'])) ?><span class="sr-only">, <?= e(mb_strtolower(estadoLabel($l['estado']))) ?></span></span>
-                            <span class="fu-v fu-largo"><span class="sr-only"><?= e(t('entradas')) ?> </span><?= e(num($l['entra'])) ?></span>
-                            <span class="fu-v fu-largo"><span class="sr-only"><?= e(t('saídas')) ?> </span><?= e(num($l['sai'])) ?></span>
-                            <span class="fu-v fu-bal<?= $balCls ?>"><span class="sr-only"><?= e(t('balanço')) ?> </span><?= e($sinal((float) $l['bal'])) ?></span>
-                            <span class="fu-v fu-fica<?= $l['alerta'] !== '' ? ' ' . e($l['alerta']) : '' ?>"><span class="sr-only"><?= e(t('conta no fim')) ?> </span><?= $alertaIc($l['alerta']) ?><?= e($valor((float) $l['fica'])) ?><?= $l['alerta'] === 'warn' ? '<span class="sr-only">, ' . e(t('abaixo da reserva')) . '</span>' : ($l['alerta'] === 'neg' ? '<span class="sr-only">, ' . e(t('no vermelho')) . '</span>' : '') ?></span>
-                            <span class="fu-v fu-largo fu-div"><span class="sr-only"><?= e(t('dívida')) ?> </span><?= $l['divida'] > 0.004 ? e(num((float) $l['divida'])) : '<span aria-hidden="true">—</span><span class="sr-only">' . e(t('quitada')) . '</span>' ?></span>
-                            <span class="fu-xl fu-chips"><?= $chipsHtml($lista) ?></span>
-                        </summary>
-                        <div class="fu-det">
-                            <div class="fu-conta num">
-                                <p><span><?= e(t('Começou o mês com')) ?></span> <?= e($valor2((float) $l['antes'])) ?></p>
-                                <p><span>+ <?= e(t('Entradas')) ?></span> <?= e(num($l['entra_op'])) ?></p>
-                                <?php if ($l['desconto'] > 0.004): ?><p class="fu-conta-sub"><span><?= e(t('salário de {bruto} menos {parcela} da parcela do empréstimo', ['bruto' => num($l['entra_bruto']), 'parcela' => num($l['desconto'])])) ?></span></p><?php endif; ?>
-                                <?php if ($l['simulado'] > 0.004): ?><p class="fu-conta-sub"><span><?= t('inclui {valor} do "e se"', ['valor' => e(num($l['simulado']))]) ?></span></p><?php endif; ?>
-                                <?php if ($l['cred'] > 0.004): ?><p><span>+ <?= e(t('Crédito do empréstimo')) ?></span> <?= e(num($l['cred'])) ?></p><?php endif; ?>
-                                <?php if ($l['poup'] > 0.004): ?><p><span>+ <?= e(t('Tirado da poupança')) ?></span> <?= e(num($l['poup'])) ?></p><?php endif; ?>
-                                <?php if ($l['inv'] > 0.004): ?><p><span>+ <?= e(t('Resgatado de investimentos')) ?></span> <?= e(num($l['inv'])) ?></p><?php endif; ?>
-                                <p><span><?= MENOS ?> <?= e(t('Gastos')) ?></span> <?= e(num($l['gastos'])) ?></p>
-                                <?php if ($l['simulado'] < -0.004): ?><p class="fu-conta-sub"><span><?= t('inclui {valor} do "e se"', ['valor' => e(num(abs($l['simulado'])))]) ?></span></p><?php endif; ?>
-                                <?php if ($l['amort'] > 0.004): ?><p><span><?= MENOS ?> <?= e(t('Adiantado do empréstimo')) ?></span> <?= e(num($l['amort'])) ?></p><?php endif; ?>
-                                <?php if ($l['poup'] < -0.004): ?><p><span><?= MENOS ?> <?= e(t('Guardado na poupança')) ?></span> <?= e(num(abs($l['poup']))) ?></p><?php endif; ?>
-                                <?php if (($l['parte'] ?? 0.0) > 0.004): ?><p><span><?= MENOS ?> <?= e(t('Parcela do empréstimo')) ?></span> <?= e(num($l['parte'])) ?></p><?php endif; ?>
-                                <?php if ($l['inv'] < -0.004): ?><p><span><?= MENOS ?> <?= e(t('Aplicado em investimentos')) ?></span> <?= e(num(abs($l['inv']))) ?></p><?php endif; ?>
-                                <p class="fu-conta-fim<?= $l['alerta'] !== '' ? ' ' . e($l['alerta']) : '' ?>"><span>= <?= e(t('Conta no fim')) ?></span> <?= e($valor2((float) $l['fica'])) ?></p>
-                                <p class="fu-conta-div"><span><?= e(t('Dívida no fim')) ?></span> <?= $l['divida'] > 0.004 ? e(num($l['divida'])) : e(t('quitada')) ?></p>
-                            </div>
-                            <div class="fu-det-lado">
-                                <?php if ($listaDet !== []): ?><div class="fu-det-mudou"><span><?= e(t('O que mudou em relação ao mês anterior')) ?></span><div class="fu-chips"><?= $chipsHtml($listaDet) ?></div></div><?php endif; ?>
-                                <a class="btn-link fu-abrir" href="/mes?mes=<?= e($l['mes']) ?>"><?= $l['estado'] === 'real' ? e(t('Ver {mes}', ['mes' => monthLabel($l['mes'])])) : e(t('Ver e ajustar {mes}', ['mes' => monthLabel($l['mes'])])) ?></a>
-                            </div>
-                        </div>
-                    </details>
-                <?php endforeach; ?>
-                <div class="fu-cols fu-total num">
-                    <span class="fu-m"><?= e(t('Total {ano}', ['ano' => $ano])) ?><small><?= e($parcial) ?></small></span>
-                    <span class="fu-v fu-largo"><span class="sr-only"><?= e(t('entradas')) ?> </span><?= e(num($somaE)) ?></span>
-                    <span class="fu-v fu-largo"><span class="sr-only"><?= e(t('saídas')) ?> </span><?= e(num($somaS)) ?></span>
-                    <span class="fu-v fu-bal<?= $somaB < -0.004 ? ' neg' : '' ?>"><span class="sr-only"><?= e(t('balanço')) ?> </span><?= e($sinal($somaB)) ?></span>
-                    <span class="fu-v fu-fica<?= $ultimoDoAno['alerta'] !== '' ? ' ' . e($ultimoDoAno['alerta']) : '' ?>"><span class="sr-only"><?= e(t('conta no fim de {mes}', ['mes' => monthLabel($ultimoDoAno['mes'])])) ?> </span><?= e($valor((float) $ultimoDoAno['fica'])) ?></span>
-                    <span class="fu-v fu-largo fu-div"><span class="sr-only"><?= e(t('dívida no fim do ano')) ?> </span><?= $ultimoDoAno['divida'] > 0.004 ? e(num((float) $ultimoDoAno['divida'])) : '<span aria-hidden="true">—</span><span class="sr-only">' . e(t('quitada')) . '</span>' ?></span>
-                    <span class="fu-xl"></span>
+                <table class="sim-cmp num">
+                    <caption class="sr-only"><?= e(t('Plano comparado com a simulação')) ?></caption>
+                    <thead><tr><th scope="col"><span class="sr-only"><?= e(t('O quê')) ?></span></th><th scope="col"><?= e(t('Plano')) ?></th><th scope="col"><?= e(t('E se')) ?></th></tr></thead>
+                    <tbody>
+                        <tr><th scope="row"><?= e(t('Conta no fim de {mes}', ['mes' => monthLabel($ultimo)])) ?></th><td><?= e($valor($cp['fim'])) ?></td><td><b><?= e($valor($cs['fim'])) ?></b><?php if (abs($dFim) >= 0.5): ?> <small class="<?= $dFim > 0 ? 'pos' : 'neg' ?>"><?= e($sinal($dFim)) ?></small><?php endif; ?></td></tr>
+                        <?php if ($temDivida): ?>
+                            <tr><th scope="row"><?= e(t('Dívida no fim de {mes}', ['mes' => monthLabel($ultimo)])) ?></th><td><?= $cp['divida'] > 0.004 ? e(num($cp['divida'])) : e(t('quitada')) ?></td><td><b><?= $cs['divida'] > 0.004 ? e(num($cs['divida'])) : e(t('quitada')) ?></b></td></tr>
+                        <?php endif; ?>
+                        <tr><th scope="row"><?= e(t('Mês mais apertado')) ?></th><td><?= e($apert($cp['apertado'])) ?></td><td><b><?= e($apert($cs['apertado'])) ?></b></td></tr>
+                        <tr><th scope="row"><?= e(t('Meses abaixo da reserva')) ?></th><td><?= (int) $cp['abaixo'] ?></td><td><b><?= (int) $cs['abaixo'] ?></b></td></tr>
+                        <?php if ($temDivida): ?>
+                            <tr><th scope="row"><?= e(t('Empréstimo acaba')) ?></th><td><?= e($quitaTxt($cp['quita'])) ?></td><td><b><?= e($quitaTxt($cs['quita'])) ?></b></td></tr>
+                            <tr><th scope="row"><?= e(t('Juros até quitar')) ?></th><td><?= $cp['juros'] === null ? '—' : e(num($cp['juros'])) ?></td><td><b><?= $cs['juros'] === null ? '—' : e(num($cs['juros'])) ?></b></td></tr>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            <?php endif; ?>
+            <form class="sim-ese-form" method="get" action="/futuro#e-se">
+                <input type="hidden" name="se" value="1">
+                <div class="sim-ese-l" role="group" aria-labelledby="sim-ese-mensal">
+                    <span class="sim-ese-rot" id="sim-ese-mensal"><?= e(t('Todo mês')) ?></span>
+                    <select name="mensal_tipo" aria-label="<?= e(t('Economizar ou gastar a mais')) ?>"><option value="economizar"<?= $se['mensalTipo'] === 'economizar' ? ' selected' : '' ?>><?= e(t('Economizar')) ?></option><option value="gastar"<?= $se['mensalTipo'] === 'gastar' ? ' selected' : '' ?>><?= e(t('Gastar a mais')) ?></option></select>
+                    <input name="mensal" inputmode="decimal" autocomplete="off" placeholder="<?= e(numInput(0)) ?>" aria-label="<?= e(t('Valor todo mês')) ?>" value="<?= $se['mensal'] > 0 ? e(numInput($se['mensal'])) : '' ?>">
+                    <label class="sim-ese-mes"><?= t('a partir de {campo}', ['campo' => '<select name="mensal_de">' . $opcoesMes($se['mensalDe']) . '</select>']) ?></label>
+                </div>
+                <div class="sim-ese-l" role="group" aria-labelledby="sim-ese-uma">
+                    <span class="sim-ese-rot" id="sim-ese-uma"><?= e(t('Uma vez')) ?></span>
+                    <select name="uma_tipo" aria-label="<?= e(t('Gasto ou entrada')) ?>"><option value="gasto"<?= $se['umaTipo'] === 'gasto' ? ' selected' : '' ?>><?= e(t('Um gasto')) ?></option><option value="entrada"<?= $se['umaTipo'] === 'entrada' ? ' selected' : '' ?>><?= e(t('Uma entrada')) ?></option></select>
+                    <input name="uma" inputmode="decimal" autocomplete="off" placeholder="<?= e(numInput(0)) ?>" aria-label="<?= e(t('Valor uma vez')) ?>" value="<?= $se['uma'] > 0 ? e(numInput($se['uma'])) : '' ?>">
+                    <label class="sim-ese-mes"><?= t('em {campo}', ['campo' => '<select name="uma_mes">' . $opcoesMes($se['umaMes']) . '</select>']) ?></label>
+                </div>
+                <?php if ($temDivida): ?>
+                    <label class="sim-ese-adi"><input type="checkbox" name="adiantar" value="1"<?= $se['adiantar'] ? ' checked' : '' ?>> <?= e(t('Usar a sobra para adiantar o empréstimo')) ?></label>
+                <?php elseif ($se['adiantar']): ?>
+                    <input type="hidden" name="adiantar" value="1">
+                <?php endif; ?>
+                <div class="sim-ese-acoes">
+                    <button type="submit" class="btn btn-principal"><?= e(t('Simular')) ?></button>
+                    <?php if ($sim): ?><a class="btn-link" href="/futuro"><?= e(t('Voltar ao plano')) ?></a><?php endif; ?>
+                </div>
+            </form>
+        </section>
+    </div>
+
+    <!-- mês a mês -->
+    <section class="faixa-grade sim-meses" id="meses" aria-labelledby="sim-meses-t">
+        <details class="sim-tabela"<?= $sim ? ' open' : '' ?>>
+            <summary><h2 class="sim-meses-t" id="sim-meses-t"><?= e(t('Mês a mês')) ?></h2><span class="sim-unid"><?= e(t('em {moeda}', ['moeda' => moedaSimbolo()])) ?></span></summary>
+            <p class="sim-leg"><span><?= $marca('real') ?><?= e(t('Fechado: só o lançado')) ?></span><span><?= $marca('aberto') ?><?= e(t('Aberto: lançado até hoje e o previsto do que falta')) ?></span><span><?= $marca('previsto') ?><?= e(t('Previsto')) ?></span></p>
+            <div class="sim-tab">
+                <div class="sim-cols sim-cab-t num">
+                    <span class="sim-lbl sim-lbl-m"><?= e(t('Mês')) ?></span>
+                    <span class="sim-lbl sim-largo"><?= e(t('Entra na conta')) ?></span>
+                    <span class="sim-lbl sim-largo"><?= e(t('Sai da conta')) ?></span>
+                    <span class="sim-lbl"><?= e(t('Balanço')) ?> <?= dica('numeros', t('Balanço')) ?></span>
+                    <span class="sim-lbl"><?= e(t('Conta no fim')) ?></span>
+                    <span class="sim-lbl sim-largo"><?= e(t('Dívida')) ?></span>
+                    <span class="sim-lbl sim-lbl-m sim-xl"><?= e(t('Mudou em relação ao mês anterior')) ?></span>
                     <span></span>
                 </div>
-            <?php endforeach; ?>
-        </div>
+                <?php foreach ($anos as $ano => $doAno):
+                    $ultimoDoAno = $doAno[count($doAno) - 1];
+                    $somaE = array_sum(array_column($doAno, 'entra'));
+                    $somaS = array_sum(array_column($doAno, 'sai'));
+                    $somaB = array_sum(array_column($doAno, 'bal'));
+                    $parcial = count($doAno) < 12 ? ' (' . t('{de} a {ate}', ['de' => mesCurto($doAno[0]['mes']), 'ate' => mesCurto($ultimoDoAno['mes'])]) . ')' : '';
+                    ?>
+                    <h3 class="sim-ano-cab num"><?= e($ano) ?></h3>
+                    <?php foreach ($doAno as $l):
+                        $balCls = $l['bal'] < -0.004 ? ' neg' : '';
+                        $lista = $chips($l);
+                        // no detalhe, crédito, adiantamento e poupança já aparecem como valores: só as mudanças
+                        $listaDet = array_values(array_filter($lista, static fn($c) => $c['tipo'] !== 'info'));
+                        $prev = $l['estado'] !== 'real';
+                        ?>
+                        <details class="sim-mes<?= $l['mes'] === $ref ? ' is-ref' : '' ?><?= $prev ? ' is-prev' : '' ?>">
+                            <summary class="sim-cols num">
+                                <span class="sim-m"><?= $marca($l['estado']) ?><?= e(monthLabel($l['mes'])) ?><span class="sr-only">, <?= e(mb_strtolower(estadoLabel($l['estado']))) ?></span></span>
+                                <span class="sim-v sim-largo"><span class="sr-only"><?= e(t('entra na conta')) ?> </span><?= e(num($l['entra'])) ?></span>
+                                <span class="sim-v sim-largo"><span class="sr-only"><?= e(t('sai da conta')) ?> </span><?= e(num($l['sai'])) ?></span>
+                                <span class="sim-v sim-bal<?= $balCls ?>"><span class="sr-only"><?= e(t('balanço')) ?> </span><?= e($sinal((float) $l['bal'])) ?></span>
+                                <span class="sim-v sim-fica<?= $l['alerta'] !== '' ? ' ' . e($l['alerta']) : '' ?>"><span class="sr-only"><?= e(t('conta no fim')) ?> </span><?= $alertaIc($l['alerta']) ?><?= e($valor((float) $l['fica'])) ?><?= $l['alerta'] === 'warn' ? '<span class="sr-only">, ' . e(t('abaixo da reserva')) . '</span>' : ($l['alerta'] === 'neg' ? '<span class="sr-only">, ' . e(t('no vermelho')) . '</span>' : '') ?></span>
+                                <span class="sim-v sim-largo sim-div"><span class="sr-only"><?= e(t('dívida')) ?> </span><?= $l['divida'] > 0.004 ? e(num((float) $l['divida'])) : '<span aria-hidden="true">—</span><span class="sr-only">' . e(t('quitada')) . '</span>' ?></span>
+                                <span class="sim-xl sim-chips"><?= $chipsHtml($lista) ?></span>
+                            </summary>
+                            <div class="sim-det">
+                                <div class="sim-conta num">
+                                    <p><span><?= e(t('Começou o mês com')) ?></span> <?= e($valor2((float) $l['antes'])) ?></p>
+                                    <p><span>+ <?= e(t('Entradas')) ?></span> <?= e(num($l['entra_op'])) ?></p>
+                                    <?php if ($l['desconto'] > 0.004): ?><p class="sim-conta-sub"><span><?= e(t('salário de {bruto} menos {parcela} da parcela do empréstimo', ['bruto' => num($l['entra_bruto']), 'parcela' => num($l['desconto'])])) ?></span></p><?php endif; ?>
+                                    <?php if ($l['simulado'] > 0.004): ?><p class="sim-conta-sub"><span><?= t('inclui {valor} do "e se"', ['valor' => e(num($l['simulado']))]) ?></span></p><?php endif; ?>
+                                    <?php if ($l['cred'] > 0.004): ?><p><span>+ <?= e(t('Crédito do empréstimo')) ?></span> <?= e(num($l['cred'])) ?></p><?php endif; ?>
+                                    <?php if ($l['poup'] > 0.004): ?><p><span>+ <?= e(t('Tirado da poupança')) ?></span> <?= e(num($l['poup'])) ?></p><?php endif; ?>
+                                    <?php if ($l['inv'] > 0.004): ?><p><span>+ <?= e(t('Resgatado de investimentos')) ?></span> <?= e(num($l['inv'])) ?></p><?php endif; ?>
+                                    <p><span><?= MENOS ?> <?= e(t('Gastos')) ?></span> <?= e(num($l['gastos'])) ?></p>
+                                    <?php if ($l['simulado'] < -0.004): ?><p class="sim-conta-sub"><span><?= t('inclui {valor} do "e se"', ['valor' => e(num(abs($l['simulado'])))]) ?></span></p><?php endif; ?>
+                                    <?php if ($l['amort'] > 0.004): ?><p><span><?= MENOS ?> <?= e(t('Adiantado do empréstimo')) ?></span> <?= e(num($l['amort'])) ?></p><?php endif; ?>
+                                    <?php if ($l['poup'] < -0.004): ?><p><span><?= MENOS ?> <?= e(t('Guardado na poupança')) ?></span> <?= e(num(abs($l['poup']))) ?></p><?php endif; ?>
+                                    <?php if (($l['parte'] ?? 0.0) > 0.004): ?><p><span><?= MENOS ?> <?= e(t('Parcela do empréstimo')) ?></span> <?= e(num($l['parte'])) ?></p><?php endif; ?>
+                                    <?php if ($l['inv'] < -0.004): ?><p><span><?= MENOS ?> <?= e(t('Aplicado em investimentos')) ?></span> <?= e(num(abs($l['inv']))) ?></p><?php endif; ?>
+                                    <p class="sim-conta-fim<?= $l['alerta'] !== '' ? ' ' . e($l['alerta']) : '' ?>"><span>= <?= e(t('Conta no fim')) ?></span> <?= e($valor2((float) $l['fica'])) ?></p>
+                                    <p class="sim-conta-div"><span><?= e(t('Dívida no fim')) ?></span> <?= $l['divida'] > 0.004 ? e(num($l['divida'])) : e(t('quitada')) ?></p>
+                                </div>
+                                <div class="sim-det-lado">
+                                    <?php $rotAbrir = $l['estado'] === 'real' ? t('Ver {mes}', ['mes' => monthLabel($l['mes'])]) : t('Ver e ajustar {mes}', ['mes' => monthLabel($l['mes'])]); ?>
+                                    <a class="sim-abrir" href="/mes?mes=<?= e($l['mes']) ?>" aria-label="<?= e($rotAbrir) ?>" title="<?= e($rotAbrir) ?>"><?= svgIcon($l['estado'] === 'real' ? 'chevron' : 'pen', 18) ?></a>
+                                    <?php if ($listaDet !== []): ?><div class="sim-det-mudou"><span><?= e(t('O que mudou em relação ao mês anterior')) ?></span><div class="sim-chips"><?= $chipsHtml($listaDet) ?></div></div><?php endif; ?>
+                                </div>
+                            </div>
+                        </details>
+                    <?php endforeach; ?>
+                    <div class="sim-cols sim-total num">
+                        <span class="sim-m"><?= e(t('Total {ano}', ['ano' => $ano])) ?><small><?= e($parcial) ?></small></span>
+                        <span class="sim-v sim-largo"><span class="sr-only"><?= e(t('entra na conta')) ?> </span><?= e(num($somaE)) ?></span>
+                        <span class="sim-v sim-largo"><span class="sr-only"><?= e(t('sai da conta')) ?> </span><?= e(num($somaS)) ?></span>
+                        <span class="sim-v sim-bal<?= $somaB < -0.004 ? ' neg' : '' ?>"><span class="sr-only"><?= e(t('balanço')) ?> </span><?= e($sinal($somaB)) ?></span>
+                        <span class="sim-v sim-fica<?= $ultimoDoAno['alerta'] !== '' ? ' ' . e($ultimoDoAno['alerta']) : '' ?>"><span class="sr-only"><?= e(t('conta no fim de {mes}', ['mes' => monthLabel($ultimoDoAno['mes'])])) ?> </span><?= e($valor((float) $ultimoDoAno['fica'])) ?></span>
+                        <span class="sim-v sim-largo sim-div"><span class="sr-only"><?= e(t('dívida no fim do ano')) ?> </span><?= $ultimoDoAno['divida'] > 0.004 ? e(num((float) $ultimoDoAno['divida'])) : '<span aria-hidden="true">—</span><span class="sr-only">' . e(t('quitada')) . '</span>' ?></span>
+                        <span class="sim-xl"></span>
+                        <span></span>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        </details>
     </section>
-    </details>
 </div>

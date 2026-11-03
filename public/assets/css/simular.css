@@ -1,0 +1,215 @@
+/* Hallmark · checked: 2026-11-03 · genre: modern-minimal · shape: app screen · scope: app · built: Simular do redesenho (design.md, § 6.8) · v1 */
+/* ==========================================================================
+   simular.css — Simular (prefixo .sim-*). O gráfico da conta no fim de cada mês é a peça principal: a linha cheia no
+   que já fechou e tracejada na previsão, a reserva em âmbar, a dívida em cinza. Depois o caminho (os marcos), o
+   "E se…?" e o mês a mês. Os rótulos do eixo aparecem a cada k meses (passo-k no computador, cel-k no celular).
+   Só tokens de style.css. As regras antigas .fu-* (em mes.css) não valem mais aqui.
+   ========================================================================== */
+
+.sim { min-width: 0; }
+.sim-aviso { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--e-2) var(--e-4); color: var(--tinta-2); font-size: var(--t-rotulo); line-height: var(--lh-rotulo); }
+.sim .topo .btn-link { white-space: nowrap; }
+.sim-aviso b { color: var(--tinta); font-weight: 600; }
+
+/* ---- o gráfico: o título é a conclusão; a resposta "Fim de" ao lado */
+.sim-cab { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--e-4); }
+.sim-graf-t { font: 400 var(--t-titulo)/var(--lh-titulo) var(--f-num); letter-spacing: -.01em; text-wrap: balance; }
+.sim-graf-sub { margin-top: var(--e-1); color: var(--tinta-2); font-size: var(--t-rotulo); line-height: var(--lh-rotulo); }
+.sim-fim-v { margin-top: var(--e-1); font: 300 var(--t-numero)/var(--lh-numero) var(--f-num); letter-spacing: -.02em; }
+.sim-fim-d { margin-top: var(--e-1); color: var(--tinta-2); font-size: var(--t-rotulo); }
+.sim-fig { margin: var(--e-7) 0 0; }
+.sim-plot { position: relative; height: 240px; }
+.sim-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.sim-faixa-warn { fill: var(--atencao); opacity: .08; }
+.sim-faixa-neg { fill: var(--alerta); opacity: .09; }
+.sim-grade { stroke: var(--fio); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.sim-zero { stroke: var(--fio-forte); stroke-width: 1.2; vector-effect: non-scaling-stroke; }
+.sim-reserva { stroke: var(--atencao); stroke-width: 1.5; stroke-dasharray: 1 4; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.sim-meta-l { stroke: var(--tinta-3); stroke-width: 1.5; stroke-dasharray: 1 4; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.sim-hoje-l, .sim-evento-l { stroke: var(--tinta-3); stroke-width: 1; stroke-dasharray: 2 3; vector-effect: non-scaling-stroke; }
+.sim-evento-l { stroke: var(--entrada); }
+.sim-linha { fill: none; stroke: var(--tinta); stroke-width: 2.2; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.sim-linha.is-prev { stroke-dasharray: 7 5; stroke-linecap: butt; }   /* previsão tracejada; o que já fechou, cheio */
+.sim-div-l { fill: none; stroke: var(--tinta-3); stroke-width: 1.6; stroke-linejoin: round; vector-effect: non-scaling-stroke; opacity: .75; }
+.sim-div-l.is-prev { stroke-dasharray: 4 4; }
+.sim-base-l { fill: none; stroke: var(--tinta-3); stroke-width: 1.5; opacity: .6; vector-effect: non-scaling-stroke; }
+/* os textos sobre o gráfico: fundo da página atrás, para as linhas passarem sem riscá-los */
+.sim-gl, .sim-ref, .sim-hoje, .sim-evento { padding: 1px var(--e-1); border-radius: var(--raio-carimbo); background: var(--fundo); font-size: var(--t-meta); line-height: var(--lh-meta); white-space: nowrap; }
+.sim-gl { position: absolute; left: 0; transform: translateY(calc(-100% - 2px)); color: var(--tinta-3); }
+.sim-ref { position: absolute; right: 0; transform: translateY(calc(-100% - 2px)); color: var(--atencao); font-weight: 600; }
+.sim-reserva-rot { transform: translateY(4px); }
+.sim-meta-rot { left: 0; right: auto; color: var(--tinta-3); }
+.sim-hoje, .sim-evento { position: absolute; top: 0; transform: translate(-50%, calc(-100% - 4px)); color: var(--tinta-2); font-weight: 600; }
+.sim-evento { color: var(--entrada); }
+.sim-serie { position: absolute; transform: translate(6px, calc(-100% - 4px)); color: var(--tinta-3); font-size: var(--t-meta); font-weight: 600; line-height: 1; white-space: nowrap; }
+.sim-serie.is-inicio { transform: translate(-4px, 8px); }
+.sim-pt {
+    --c: var(--tinta);
+    position: absolute; width: 10px; height: 10px; margin: -5px 0 0 -5px; box-sizing: border-box; border-radius: 50%;
+    box-shadow: 0 0 0 2px var(--fundo);
+}
+.sim-pt.is-real { background: var(--c); }
+.sim-pt.is-aberto { border: 2px solid var(--c); background: linear-gradient(90deg, var(--c) 50%, var(--fundo) 50%); }
+.sim-pt.is-prev { border: 1.5px solid var(--c); background: var(--fundo); }
+.sim-pt.is-warn { --c: var(--atencao); }
+.sim-pt.is-neg { --c: var(--alerta); }
+.sim-nota { position: absolute; transform: translate(-50%, calc(-100% - 9px)); color: var(--tinta); font-size: var(--t-meta); font-weight: 600; line-height: var(--lh-meta); white-space: nowrap; }
+.sim-nota.is-baixo { transform: translate(-50%, 9px); }
+.sim-nota.is-fim { transform: translate(calc(-100% + 5px), calc(-100% - 9px)); }
+.sim-nota.is-plano { transform: translate(calc(-100% - 10px), -50%); color: var(--tinta-3); }
+.sim-nota.neg { color: var(--alerta); }
+.sim-nota.warn { color: var(--atencao); }
+/* o eixo: um rótulo a cada k meses; o ano embaixo dos janeiros */
+.sim-eixo { position: relative; height: 40px; margin-top: var(--e-3); }
+.sim-mx, .sim-ano { position: absolute; top: 0; transform: translateX(-50%); color: var(--tinta-3); font-size: var(--t-meta); line-height: var(--lh-meta); white-space: nowrap; }
+.sim-ano { top: 18px; font-variant-numeric: tabular-nums; }
+.sim-mx.is-ref { color: var(--tinta); font-weight: 600; }
+@media (min-width: 1024px) {
+    .passo-2 .sim-mx:not(.is-p2), .passo-3 .sim-mx:not(.is-p3), .passo-4 .sim-mx:not(.is-p4), .passo-6 .sim-mx:not(.is-p6), .passo-12 .sim-mx:not(.is-p12) { visibility: hidden; }
+}
+@media (max-width: 1023px) {
+    .cel-2 .sim-mx:not(.is-p2), .cel-3 .sim-mx:not(.is-p3), .cel-4 .sim-mx:not(.is-p4), .cel-6 .sim-mx:not(.is-p6), .cel-12 .sim-mx:not(.is-p12) { visibility: hidden; }
+    .sim-pt:not(.is-chave) { display: none; }   /* no celular os pontos embolam: só hoje, o mais apertado e o fim */
+    .sim-nota.is-plano { display: none; }
+    .sim-plot { height: 200px; }
+}
+
+/* ---- o caminho e o "E se…?" */
+.sim-duas { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--e-7); }
+.sim-duas > section { min-width: 0; }
+.sim-meta { margin-top: var(--e-3); color: var(--tinta-2); font-size: var(--t-rotulo); line-height: var(--lh-rotulo); }
+.sim-marcos { position: relative; margin-top: var(--e-2); }
+.sim-marcos::before { content: ""; position: absolute; left: 3.5px; top: 24px; bottom: 24px; width: 1px; background: var(--fio-forte); }
+.sim-marco {
+    --c: var(--tinta-3);
+    position: relative; display: grid; gap: 2px; padding: var(--e-3) 0 var(--e-3) var(--e-6); color: var(--tinta);
+    transition: background-color var(--rapido) var(--curva);
+}
+.sim-marco:hover { background: var(--realce); }
+.sim-marco:active { background: var(--fio); }
+.sim-marco::before { content: ""; position: absolute; left: 0; top: 19px; width: 8px; height: 8px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 3px var(--fundo); }
+.sim-marco.is-neg { --c: var(--alerta); }
+.sim-marco.is-warn { --c: var(--atencao); }
+.sim-marco.is-pos { --c: var(--entrada); }
+.sim-marco-q { font-weight: 600; }
+.sim-marco-q, .sim-marco-t, .sim-meta { white-space: normal; }   /* .num não quebra a linha; estes são frases */
+.sim-marco-t { color: var(--tinta-2); font-size: var(--t-rotulo); line-height: var(--lh-rotulo); }
+.sim-marco-t b { color: var(--tinta); font-weight: 600; }
+.sim-marco-t b.neg { color: var(--alerta); }
+.sim-marco-t b.warn { color: var(--atencao); }
+.sim-marco-t b.pos { color: var(--entrada); }
+.sim-emp { margin-top: var(--e-2); }
+.sim-erro { display: flex; align-items: center; gap: var(--e-2); margin-top: var(--e-3); color: var(--alerta); font-size: var(--t-rotulo); }
+.sim-cmp { width: 100%; margin-top: var(--e-3); border-collapse: collapse; font-size: var(--t-rotulo); }
+.sim-cmp th, .sim-cmp td { height: 40px; padding: 0 0 0 var(--e-3); border-bottom: 1px solid var(--fio); text-align: right; font-weight: 400; white-space: nowrap; }
+.sim-cmp thead th { color: var(--tinta-3); border-bottom-color: var(--fio-forte); }
+.sim-cmp tbody th { padding-left: 0; text-align: left; color: var(--tinta-2); white-space: normal; }
+.sim-cmp td { color: var(--tinta-2); }
+.sim-cmp td b { color: var(--tinta); font-weight: 600; }
+.sim-cmp small { margin-left: var(--e-1); font-size: var(--t-meta); }
+.sim-ese-form { display: grid; gap: var(--e-4); margin-top: var(--e-4); }
+.sim-ese-l { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "rot rot" "tipo valor" "mes mes"; gap: var(--e-2); align-items: center; }
+.sim-ese-rot { grid-area: rot; font-size: var(--t-rotulo); font-weight: 600; }
+.sim-ese-l > select { grid-area: tipo; }
+.sim-ese-l > input { grid-area: valor; text-align: right; }
+.sim-ese-mes select { min-width: 0; }
+.sim-ese-mes { grid-area: mes; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: var(--e-3); color: var(--tinta-2); font-size: var(--t-rotulo); }
+.sim-ese-adi { display: flex; align-items: center; gap: var(--e-3); min-height: var(--tap); font-size: var(--t-rotulo); }
+.sim-ese-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: var(--e-2) var(--e-4); }
+
+/* ---- o mês a mês: tabela por ano. Celular: Mês, Balanço e Conta no fim; o resto ao abrir a linha */
+.sim-tabela > summary { display: inline-flex; align-items: center; gap: var(--e-3); min-height: var(--tap); list-style: none; cursor: pointer; }
+.sim-tabela > summary::after {
+    content: ""; width: 8px; height: 8px; border-right: 1.5px solid var(--tinta-3); border-bottom: 1.5px solid var(--tinta-3);
+    transform: rotate(45deg) translateY(-3px); transition: transform var(--entra) var(--curva);
+}
+.sim-tabela[open] > summary::after { transform: rotate(-135deg) translateY(-1px); }
+.sim-meses-t { font: 400 var(--t-titulo)/var(--lh-titulo) var(--f-num); letter-spacing: -.01em; }
+.sim-unid { margin-left: var(--e-1); color: var(--tinta-3); font: 400 var(--t-rotulo)/var(--lh-rotulo) var(--f-ui); }
+.sim-leg { display: flex; flex-wrap: wrap; gap: var(--e-1) var(--e-4); margin-top: var(--e-2); color: var(--tinta-2); font-size: var(--t-meta); }
+.sim-leg > span { display: inline-flex; align-items: center; gap: var(--e-2); }
+.sim-mk { --c: var(--tinta); display: inline-block; flex: none; width: 9px; height: 9px; box-sizing: border-box; border-radius: 50%; }
+.sim-mk.is-real { background: var(--c); }
+.sim-mk.is-aberto { border: 1.5px solid var(--c); background: linear-gradient(90deg, var(--c) 50%, transparent 50%); }
+.sim-mk.is-prev { border: 1.5px solid var(--c); }
+.sim-tab { display: flex; flex-direction: column; margin-top: var(--e-4); }
+.sim-cols { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(80px, auto) 12px; align-items: center; column-gap: var(--e-4); }
+.sim-cab-t { padding-bottom: var(--e-2); border-bottom: 1px solid var(--fio-forte); }
+.sim-lbl { text-align: right; color: var(--tinta-3); font-size: var(--t-rotulo); }
+.sim-lbl-m { text-align: left; }
+.sim-ano-cab { margin-top: var(--e-5); padding-bottom: var(--e-1); color: var(--tinta-2); font-size: var(--t-rotulo); font-weight: 600; border-bottom: 1px solid var(--fio); }
+.sim-mes { border-bottom: 1px solid var(--fio); }
+.sim-mes > summary { min-height: var(--linha); list-style: none; cursor: pointer; transition: background-color var(--rapido) var(--curva); }
+.sim-mes > summary:hover { background: var(--realce); }
+.sim-mes > summary::after {
+    content: ""; justify-self: end; width: 7px; height: 7px; border-right: 1.5px solid var(--tinta-3); border-bottom: 1.5px solid var(--tinta-3);
+    transform: rotate(45deg) translateY(-2px); transition: transform var(--entra) var(--curva);
+}
+.sim-mes[open] > summary::after { transform: rotate(-135deg); }
+.sim-mes[open] > summary, .sim-mes.is-ref > summary { background: var(--realce); }
+.sim-mes.is-prev .sim-v { color: var(--tinta-2); }
+.sim-m { display: inline-flex; align-items: center; gap: var(--e-2); white-space: nowrap; }
+.sim-v { text-align: right; color: var(--tinta-2); white-space: nowrap; }
+.sim-bal, .sim-fica { color: var(--tinta); }
+.sim-bal.neg { color: var(--alerta); }
+.sim-fica { display: inline-flex; align-items: center; justify-content: flex-end; gap: var(--e-1); }
+.sim-fica.warn { color: var(--atencao); }
+.sim-fica.neg { color: var(--alerta); }
+.sim-al { flex: none; }
+.sim-total { min-height: var(--linha); border-top: 1px solid var(--tinta); font-weight: 600; }
+.sim-total .sim-m { flex-wrap: wrap; white-space: normal; row-gap: 0; }
+.sim-total small { display: block; width: 100%; margin-left: 0; color: var(--tinta-3); font-size: var(--t-meta); font-weight: 400; }
+.sim-total .sim-v { color: var(--tinta); }
+.sim-largo, .sim-cols > .sim-xl { display: none; }
+/* o que mudou em relação ao mês anterior: a seta diz se subiu ou caiu; a cor, se foi bom ou ruim */
+.sim-chips { display: flex; flex-wrap: wrap; gap: var(--e-1); min-width: 0; }
+.sim-chip { display: inline-flex; align-items: center; gap: 2px; color: var(--tinta-2); font-size: var(--t-meta); white-space: nowrap; }
+.sim-chip + .sim-chip::before { content: ""; width: 1px; height: 12px; margin-right: var(--e-1); background: var(--fio-forte); }
+.sim-chip.is-pos svg { color: var(--entrada); }
+.sim-chip.is-neg svg { color: var(--alerta); }
+.sim-chip.is-ok { color: var(--entrada); }
+/* a linha aberta: a conta do mês e, ao lado, o link para o mês e o que mudou */
+.sim-det { display: grid; gap: var(--e-4); padding: var(--e-3) 0 var(--e-5); }
+.sim-conta { display: flex; flex-direction: column; max-width: 380px; }
+.sim-conta > p { display: flex; justify-content: space-between; align-items: baseline; gap: var(--e-3); padding: var(--e-1) 0; }
+.sim-conta > p > span { color: var(--tinta-2); }
+.sim-conta > .sim-conta-sub { padding-top: 0; font-size: var(--t-meta); }
+.sim-conta > .sim-conta-sub > span { padding-left: var(--e-4); color: var(--tinta-3); }
+.sim-conta > .sim-conta-fim { margin-top: var(--e-1); padding-top: var(--e-2); border-top: 1px solid var(--tinta); font-weight: 600; }
+.sim-conta > .sim-conta-fim > span { color: var(--tinta); }
+.sim-conta > .sim-conta-fim.warn { color: var(--atencao); }
+.sim-conta > .sim-conta-fim.neg { color: var(--alerta); }
+.sim-conta > .sim-conta-div { color: var(--tinta-2); }
+.sim-det-lado { display: flex; flex-direction: column; align-items: flex-start; gap: var(--e-3); min-width: 0; }
+.sim-det-mudou { display: flex; flex-direction: column; gap: var(--e-2); }
+.sim-det-mudou > span { color: var(--tinta-2); font-size: var(--t-meta); }
+/* "Ver e ajustar": um ícone com o nome no leitor de tela e na dica, sem quebrar em duas linhas */
+.sim-abrir {
+    display: grid; place-items: center; width: var(--tap); height: var(--tap); border-radius: var(--raio-controle);
+    color: var(--azul); box-shadow: inset 0 0 0 1px var(--fio-forte); background: var(--superficie);
+    transition: background-color var(--rapido) var(--curva);
+}
+.sim-abrir:hover { background: var(--realce); }
+.sim-abrir:active { background: var(--fio); }
+.sim-abrir:focus-visible { outline: 2px solid var(--azul); outline-offset: 2px; }
+
+@media (min-width: 1024px) {
+    .sim-cab { grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--e-7); align-items: end; }
+    .sim-fim { text-align: right; }
+    .sim-plot { height: 320px; }
+    .sim-duas { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); }
+    .sim-det { grid-template-columns: minmax(0, 380px) minmax(0, 1fr); column-gap: var(--e-7); align-items: start; }
+    .sim-largo { display: block; }
+    .sim-largo.sim-fica, .sim-fica { display: inline-flex; }
+    .sim-cols { grid-template-columns: minmax(96px, 1.2fr) repeat(5, minmax(84px, 1fr)) 12px; }
+}
+@media (min-width: 1280px) {
+    .sim-cols > .sim-xl { display: block; }
+    .sim-cols > .sim-xl.sim-chips { display: flex; flex-wrap: wrap; height: 20px; overflow: hidden; }
+    .sim-cols { grid-template-columns: 96px repeat(5, 88px) minmax(0, 1fr) 12px; }
+    .sim-det-mudou { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sim-marco, .sim-mes > summary, .sim-abrir, .sim-tabela > summary::after, .sim-mes > summary::after { transition: none; }
+}

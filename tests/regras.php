@@ -560,7 +560,11 @@ $html = $render(MesController::class, 'index', ['mes' => $prevMeses[0]]);
 $check('Mês aberto: editável com "também nos meses seguintes"', str_contains($html, 'action="/mes/previsao"') && str_contains($html, 'name="propagar"'));
 $html = $render(MesController::class, 'index', ['mes' => $realMes]);
 $check('Mês fechado: só leitura', str_contains($html, 'mes-ros') && !str_contains($html, 'action="/mes/previsao"'));
-$check('anual: cada mês leva à aba Mês', str_contains($render(FuturoController::class, 'index', []), 'class="btn-link fu-abrir" href="/mes?mes='));
+$htmlFuM = $render(FuturoController::class, 'index', []);
+$check('anual: cada mês leva à aba Mês, por um ícone com nome ("Ver e ajustar" não quebra em duas linhas)', str_contains($htmlFuM, 'class="sim-abrir" href="/mes?mes=')
+    && preg_match('#class="sim-abrir" href="/mes\?mes=[\d-]+" aria-label="Ver e ajustar [^"]+" title=#', $htmlFuM) === 1);
+// "Outras entradas sobe": o texto do leitor de tela não depende de o nome concordar com o verbo
+$check('anual: o que mudou, sem "sobe"/"cai" colado no nome', !preg_match('#<span class="sr-only">[^<]* (sobe|cai) [^<]*</span>#u', $htmlFuM));
 $check('meta: cada categoria abre o editor com o mês e até quando', str_contains($render(MetaController::class, 'index', []), 'name="ate"'));
 
 // ---- 10. fechar congela as metas do mês; mês fechado não segue a meta; reabrir descongela
@@ -785,9 +789,12 @@ $emTransacao('o que mudou acompanha a previsão', static function () use ($check
 });
 MotorFinanceiro::limparCache();
 $htmlFu = $render(FuturoController::class, 'index', []);
-$check('anual: resumo, conclusão no título do gráfico, previsão tracejada e total por ano', str_contains($htmlFu, 'class="card fu-res"')
-    && str_contains($htmlFu, 'id="fu-graf-t">A conta ') && str_contains($htmlFu, 'class="fu-linha is-prev"')
-    && str_contains($htmlFu, 'class="fu-cols fu-total num"') && !str_contains($htmlFu, 'fu-area'));
+$check('anual: o gráfico como peça principal, com a conclusão no título, a previsão tracejada e o total por ano', str_contains($htmlFu, 'class="sim-fim"')
+    && str_contains($htmlFu, 'id="sim-graf-t">A conta ') && str_contains($htmlFu, 'class="sim-linha is-prev"')
+    && str_contains($htmlFu, 'class="sim-cols sim-total num"') && strpos($htmlFu, 'sim-graf') < strpos($htmlFu, 'sim-caminho'));
+// os rótulos do eixo não se tocam: com muitos meses, um a cada k (passo-k), contados do janeiro
+$check('anual: o eixo mostra um rótulo a cada k meses quando são muitos', preg_match('#class="sim-eixo passo-(\d+) cel-(\d+)"#', $htmlFu, $mEixo) === 1
+    && (substr_count($htmlFu, 'class="sim-mx ') <= 22 || (int) $mEixo[1] >= 2) && (int) $mEixo[2] >= (int) $mEixo[1]);
 
 // ---- 14. "e se" do Anual: o motor soma o extra fora de mês fechado; a URL vira simulação; nada é gravado
 MotorFinanceiro::limparCache();
@@ -811,9 +818,9 @@ $_GET = ['se' => '1', 'mensal' => 'abc', 'adiantar' => '1'];
 $simT2 = FuturoController::simulacao(MotorFinanceiro::calcularPlano(), $refE, true);
 $check('e se: valor inválido é avisado e ignorado', !$simT2['ativo'] && count($simT2['erros']) === 1);
 $htmlSe = $render(FuturoController::class, 'index', ['se' => '1', 'mensal' => '500', 'mensal_de' => $e1, 'adiantar' => '1']);
-$check('e se: a página mostra o aviso, a comparação com o plano e a linha do plano', str_contains($htmlSe, 'class="fu-sim"')
-    && str_contains($htmlSe, 'class="fu-cmp num"') && str_contains($htmlSe, 'class="fu-base-l"') && str_contains($htmlSe, 'E se: +500'));
-$check('e se: sem simulação, nada disso aparece', !str_contains($htmlFu, 'class="fu-sim"') && !str_contains($htmlFu, 'class="fu-cmp num"')
+$check('e se: a página mostra o aviso, a comparação com o plano e a linha do plano', str_contains($htmlSe, 'class="faixa-grade sim-aviso"')
+    && str_contains($htmlSe, 'class="sim-cmp num"') && str_contains($htmlSe, 'class="sim-base-l"') && str_contains($htmlSe, 'E se: +500'));
+$check('e se: sem simulação, nada disso aparece', !str_contains($htmlFu, 'sim-aviso') && !str_contains($htmlFu, 'class="sim-cmp num"')
     && str_contains($htmlFu, 'id="e-se"'));
 $_GET = [];
 
