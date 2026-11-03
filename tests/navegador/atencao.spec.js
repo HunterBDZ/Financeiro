@@ -48,6 +48,6 @@ test('conta atrasada aparece na faixa e a ação leva ao lançar, no computador 
         const url = new URL(page.url());
         expect(url.searchParams.get('valor')).toBe('119,90');
         await expect(page.getByRole('textbox', { name: 'valor' })).toHaveValue('119,90');
-        await expect(page.locator(`input[name="categoria_id"][value="${url.searchParams.get('categoria')}"]`)).toBeChecked();
+        await expect(page.locator('select[name="categoria_id"]')).toHaveValue(url.searchParams.get('categoria'));
     }
 });

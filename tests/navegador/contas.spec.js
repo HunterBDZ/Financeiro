@@ -1,6 +1,6 @@
-// Várias contas e vários cartões: criar uma conta, transferir para ela pelo lançar e pagar a fatura de outro cartão,
-// escolhido no seletor da aba Cartão. Tem servidor e banco só seus: uma conta ou um cartão a mais mudariam as telas dos
-// outros testes do mesmo processo.
+// Várias contas e vários cartões: criar uma conta, ver o "Recebeu em" pela categoria, transferir para ela pelo lançar,
+// cadastrar outro cartão com outro visual e pagar a fatura dele, escolhido no seletor da aba Cartão. Tem servidor e banco
+// só seus: uma conta ou um cartão a mais mudariam as telas dos outros testes do mesmo processo.
 import { test, expect, entrar } from './fixtures.js';
 import { subirServidor } from './servidor.js';
 
@@ -27,7 +27,24 @@ test('transfere para uma conta nova e paga a fatura escolhendo o cartão', async
     await nova.getByRole('button', { name: 'Criar conta' }).click();
     await expect(page.getByRole('status').filter({ hasText: 'Conta criada' })).toBeVisible();
 
-    // com duas contas, o lançar tem o modo Transferir
+    // com duas contas, a categoria escolhida no campo de busca muda o "Pagou com": numa entrada, "Recebeu em" e sem os cartões
+    await ir('/lancar?volta=%2Flancamentos');
+    const pagou = page.locator('[data-ct-pagou]');
+    const categoria = page.getByRole('combobox', { name: 'Categoria' });
+    await expect(pagou.locator('[data-pagou-rot]')).toHaveText('Pagou com');
+    await expect(pagou.locator('[data-so-gasto]').first()).toBeVisible();
+    await categoria.click();
+    await categoria.pressSequentially('salar');
+    await categoria.press('Enter');
+    await expect(pagou.locator('[data-pagou-rot]')).toHaveText('Recebeu em');
+    await expect(pagou.locator('[data-so-gasto]').first()).toBeHidden();
+    await categoria.fill('');
+    await categoria.pressSequentially('merc');
+    await categoria.press('Enter');
+    await expect(pagou.locator('[data-pagou-rot]')).toHaveText('Pagou com');
+    await expect(pagou.locator('[data-so-gasto]').first()).toBeVisible();
+
+    // e tem o modo Transferir
     await ir('/lancar?volta=%2Flancamentos');
     await page.getByText('↔ Transferir').click();
     await page.getByRole('textbox', { name: 'valor' }).pressSequentially('120');
@@ -48,12 +65,20 @@ test('transfere para uma conta nova e paga a fatura escolhendo o cartão', async
     await cadastro.getByLabel('Nome').fill('Cartão dois');
     await cadastro.getByLabel('Fecha no dia').fill('10');
     await cadastro.getByLabel('Vence no dia').fill('20');
+    await cadastro.locator('.ct-vis-n').filter({ hasText: /^Verde$/ }).click();
     await cadastro.getByRole('button', { name: 'Salvar' }).click();
     await expect(page.getByRole('status').filter({ hasText: 'Cartão cadastrado' })).toBeVisible();
 
-    // escolhe o cartão no seletor, a fatura de novembro na escada, e paga com a carteira
+    // o visual é de cada cartão: o segundo fica verde, e o primeiro, com o seu
+    await expect(page.locator('[data-ct-plastico]')).toHaveAttribute('data-visual', 'verde');
     await ir('/cartao');
+    await expect(page.locator('[data-ct-plastico]')).not.toHaveAttribute('data-visual', 'verde');
+    await page.locator('.ct-config > summary').click();
+    await expect(page.locator('#cartao-config').getByRole('radio', { name: 'Verde', exact: true })).not.toBeChecked();
+
+    // escolhe o cartão no seletor, a fatura de novembro na escada, e paga com a carteira
     await page.getByRole('navigation', { name: 'cartões' }).getByRole('link', { name: 'Cartão dois' }).click();
+    await expect(page.locator('[data-ct-plastico]')).toHaveAttribute('data-visual', 'verde');
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Cartão');
     await expect(page.getByText('Cartão dois · fecha dia 10 · vence dia 20')).toBeVisible();
     await page.getByRole('link', { name: /Fatura de nov\/26/ }).click();
