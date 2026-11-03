@@ -18,7 +18,7 @@ $limite = '2 MB';
         <p class="aviso imp-pendente"><?= e(t('A revisão de {arquivo} ficou aberta.', ['arquivo' => $pendente])) ?> <a href="/importar/revisar"><?= e(t('Continuar a revisão')) ?></a></p>
     <?php endif; ?>
 
-    <form class="card imp-form" method="post" action="/importar" enctype="multipart/form-data">
+    <form class="card imp-form" method="post" action="/importar" enctype="multipart/form-data" data-espera="<?= e(t('Lendo o extrato…')) ?>">
         <?= csrfField() ?>
         <label class="imp-campo"><span><?= e(t('Para onde vão os lançamentos')) ?></span>
             <select name="destino" required>

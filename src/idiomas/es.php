@@ -1922,4 +1922,5 @@ return [
     'Gerando o PDF…' => 'Generando el PDF…',
     'Privacidade' => 'Privacidad',
     'Aguarde…' => 'Espera…',
+    'Lendo o extrato…' => 'Leyendo el extracto…',
 ];
