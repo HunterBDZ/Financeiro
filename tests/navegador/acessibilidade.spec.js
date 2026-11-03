@@ -40,6 +40,18 @@ for (const tema of ['claro', 'escuro']) {
             });
         }
 
+        test('Ajustes com as categorias abertas', async ({ page }) => {
+            await page.goto('/ajustes?aberto=categorias');
+            expect(await graves(page)).toEqual([]);
+        });
+
+        test('editar categoria', async ({ page }) => {
+            await page.goto('/ajustes?aberto=categorias');
+            await page.locator('#categorias').getByRole('link', { name: /Mercado/ }).click();
+            await expect(page.getByRole('heading', { level: 1, name: 'Editar categoria' })).toBeVisible();
+            expect(await graves(page)).toEqual([]);
+        });
+
         test('privacidade', async ({ page }) => {
             await page.goto('/privacidade');
             expect(await graves(page)).toEqual([]);

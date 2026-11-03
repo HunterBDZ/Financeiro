@@ -13,7 +13,7 @@ final class IdiomaController
         csrfCheck();
         $pedido = (string) ($_POST['idioma'] ?? '');
         $id = Auth::id();
-        $volta = $id !== null ? '/ajustes' : '/login';
+        $volta = $id !== null ? '/ajustes?aberto=idioma#idioma' : '/login';
         if (!Idioma::existe($pedido)) {
             redirecionar($volta, 303);
         }

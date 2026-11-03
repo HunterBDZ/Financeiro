@@ -10,19 +10,20 @@ use Financeiro\SiteIcone;
 use Financeiro\Models\AjusteModel;
 use Financeiro\Models\CategoriaModel;
 use Financeiro\Models\ContaRecorrenteModel;
-use Financeiro\Models\MesModel;
 use Financeiro\Models\UsuarioModel;
 use Financeiro\View;
 
 /**
- * Ajustes. A conta, o dinheiro, as contas fixas, as categorias, os essenciais,
- * as pessoas e, no Avançado, o ponto de partida, o ícone do site e os aparelhos. Cada grupo tem o seu SALVAR. Os dados do empréstimo
- * ficam na aba Empréstimo (EmprestimoController::salvarDados), que usa a mesma validação.
+ * Ajustes, em grupos por assunto: dinheiro e planejamento, aparência e idioma, conta e segurança, sistema e sobre.
+ * Cada item é uma linha que abre (<details>) ou leva a outra tela, e cada formulário tem o seu SALVAR. As contas
+ * fixas ficam em Metas; o essencial, em cada categoria. Os dados do empréstimo ficam na aba Empréstimo
+ * (EmprestimoController::salvarDados), que usa a mesma validação.
  */
 final class AjustesController
 {
-    /** Grupos (<details class="dobra">) e se abrem por padrão. */
-    private const GRUPOS = ['senha' => false, 'duasetapas' => false, 'parametros' => true, 'contas' => false, 'categorias' => false, 'essenciais' => false, 'pessoas' => false, 'partida' => false, 'icone' => false, 'aparelhos' => false];
+    /** Os itens que abrem (<details>), todos fechados: a lista mostra o estado de cada um à direita. ?aberto= abre um. */
+    private const GRUPOS = ['categorias' => false, 'parametros' => false, 'recursos' => false, 'partida' => false, 'idioma' => false, 'regional' => false,
+        'icone' => false, 'senha' => false, 'duasetapas' => false, 'pessoas' => false, 'aparelhos' => false];
 
     public function index(): void
     {
@@ -37,6 +38,12 @@ final class AjustesController
 
         $abertos = self::GRUPOS;
         $pedido = $_GET['aberto'] ?? null;
+        if ($pedido === 'contas') {                             // links antigos: as contas fixas foram para Metas
+            redirecionar('/meta#contas-fixas', 302);
+        }
+        if ($pedido === 'essenciais') {                         // e o essencial, para cada categoria
+            $pedido = 'categorias';
+        }
         if (is_string($pedido) && isset($abertos[$pedido])) {
             $abertos[$pedido] = true;
         }
@@ -44,23 +51,18 @@ final class AjustesController
             $abertos[$erro['grupo']] = true;
         }
 
-        $recorrentes = ContaRecorrenteModel::ativas();
-        $jaTem = array_flip(array_map(static fn($r) => (int) $r['categoria_id'], $recorrentes));
-        $elegiveis = array_values(array_filter(ContaRecorrenteModel::categoriasElegiveis(), static fn($c) => !isset($jaTem[$c['id']])));
-        $apelidos = [];
-        foreach (CategoriaModel::ativas() as $c) {
-            $apelidos[(int) $c['id']] = $c;
+        $dias = [];
+        foreach (ContaRecorrenteModel::ativas() as $r) {
+            $dias[(int) $r['categoria_id']] = (int) $r['dia_vencimento'];
         }
 
         View::render('ajustes/index', [
             'pageTitle'   => t('ajustes · financeiro'),
             'aj'          => $aj,
-            'ultimo'      => MesModel::ultimo(),
-            'recorrentes' => $recorrentes,
-            'apelidos'    => $apelidos,
-            'elegiveis'   => $elegiveis,
-            'gastos'      => CategoriaModel::gastos(),
+            'contas'      => count($dias),
+            'dias'        => $dias,
             'categorias'  => CategoriaModel::ativas(),
+            'arquivadas'  => CategoriaModel::arquivadas(),
             'abertos'     => $abertos,
             'erro'        => is_array($erro) ? $erro : null,
             'login'       => (string) (\Financeiro\Models\UsuarioModel::find((int) Auth::id())['login'] ?? ''),
@@ -100,7 +102,7 @@ final class AjustesController
             Site::salvarFuso($fuso);
             flash('success', t('Ajustes salvos.'));
         }
-        redirecionar('/ajustes#regional', 303);
+        redirecionar('/ajustes?aberto=regional#regional', 303);
     }
 
     public function salvarRecursos(): void
@@ -120,7 +122,7 @@ final class AjustesController
             AjusteModel::setValor('objetivo', (float) $objetivo);
         }
         flash('success', t('Ajustes salvos.'));
-        redirecionar('/ajustes#recursos', 303);
+        redirecionar('/ajustes?aberto=recursos#recursos', 303);
     }
 
     /* -------------------------------------------------------------- ícone do site */
@@ -232,63 +234,6 @@ final class AjustesController
             $valores[$chave] = $chave === 'juros_mes' ? round($v / 100, 6) : round($v, 4);   // o campo mostra %, o banco guarda a fração
         }
         return ['valores' => $valores, 'erro' => null];
-    }
-
-    /* -------------------------------------------------------------- contas recorrentes */
-
-    public function salvarConta(): void
-    {
-        Auth::requireLogin();
-        csrfCheck();
-
-        $cat = (int) ($_POST['categoria_id'] ?? 0);
-        $dia = (int) ($_POST['dia_vencimento'] ?? 0);
-        $elegivel = null;
-        foreach (ContaRecorrenteModel::categoriasElegiveis() as $c) {
-            if ($c['id'] === $cat) {
-                $elegivel = $c;
-            }
-        }
-        if ($elegivel === null || $dia < 1 || $dia > 31) {
-            $_SESSION['aj_erro'] = ['grupo' => 'contas', 'msg' => $elegivel === null ? t('Escolha uma conta.') : t('Digite um dia de 1 a 31.')];
-            redirecionar('/ajustes?aberto=contas#contas', 303);
-        }
-        ContaRecorrenteModel::upsert($cat, $dia);
-        flash('success', t('{nome} · dia {dia}', ['dia' => $dia, 'nome' => nomeCurto($elegivel)]));
-        redirecionar('/ajustes?aberto=contas#contas', 303);
-    }
-
-    public function removerConta(string $id): void
-    {
-        Auth::requireLogin();
-        csrfCheck();
-
-        $conta = ContaRecorrenteModel::buscar((int) $id);
-        if ($conta === null || (int) $conta['ativo'] !== 1) {
-            flash('warn', t('Essa conta já tinha sido removida.'));
-            redirecionar('/ajustes?aberto=contas#contas', 303);
-        }
-        ContaRecorrenteModel::desativar((int) $id);
-        flash('success', t('{nome} removida', ['nome' => nomeCurto(['nome' => $conta['categoria_nome'], 'apelido' => $conta['apelido']])]), [
-            'url' => '/ajustes/contas', 'label' => t('desfazer'),
-            'campos' => ['categoria_id' => (string) $conta['categoria_id'], 'dia_vencimento' => (string) $conta['dia_vencimento']],
-        ]);
-        redirecionar('/ajustes?aberto=contas#contas', 303);
-    }
-
-    /* -------------------------------------------------------------- essenciais */
-
-    public function salvarEssenciais(): void
-    {
-        Auth::requireLogin();
-        csrfCheck();
-
-        $marcadas = array_flip(array_map('intval', (array) ($_POST['essencial'] ?? [])));
-        foreach (CategoriaModel::gastos() as $c) {
-            CategoriaModel::setEssencial((int) $c['id'], isset($marcadas[(int) $c['id']]));
-        }
-        flash('success', t('Essenciais salvos.'));
-        redirecionar('/ajustes?aberto=essenciais#essenciais', 303);
     }
 
     /* -------------------------------------------------------------- aparelhos e senha */

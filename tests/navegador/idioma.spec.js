@@ -3,6 +3,7 @@ import { test, expect } from './fixtures.js';
 
 test('troca para inglês e volta para português', async ({ page }) => {
     await page.goto('/ajustes');
+    await page.getByText('Idioma', { exact: true }).click();          // a linha abre ali mesmo
     await page.getByRole('form', { name: 'Idioma' }).getByRole('button', { name: 'English' }).click();
 
     await expect(page.locator('html')).toHaveAttribute('lang', 'en');

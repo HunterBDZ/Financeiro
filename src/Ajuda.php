@@ -10,7 +10,7 @@ final class Ajuda
         $grupos = [
             ['titulo' => t('Começar'), 'itens' => [
                 ['id' => 'comecar', 'pergunta' => t('Como começo a usar?'), 'resposta' => t('Registre o que entra e o que sai em Lançar. Depois, veja em Mês como ele deve terminar.')],
-                ['id' => 'inicio-errado', 'pergunta' => t('Errei os valores do começo. E agora?'), 'resposta' => t('Corrija em Ajustes, em Avançado, em Ponto de partida.')],
+                ['id' => 'inicio-errado', 'pergunta' => t('Errei os valores do começo. E agora?'), 'resposta' => t('Corrija em Ajustes, em Ponto de partida.')],
                 ['id' => 'moeda', 'pergunta' => t('Posso trocar a moeda?'), 'resposta' => t('Sim, em Ajustes. Muda o símbolo em todo o app, para todas as pessoas. Os valores já lançados não são convertidos: 100 continua 100. O formato do número segue o seu idioma.')],
                 ['id' => 'fuso', 'pergunta' => t('O dia está errado. Como acerto o fuso?'), 'resposta' => t('Em Ajustes, em Moeda e fuso horário. O fuso decide o que é hoje: a data que já vem no Lançar, os vencimentos e a virada do mês.')],
                 ['id' => 'carro', 'pergunta' => t('Não tenho carro. Preciso das categorias de carro?'), 'resposta' => t('Não. Desmarque Carro em Ajustes, em O que você usa: as categorias de carro sem nenhum uso saem das listas. Marque de novo para trazê-las de volta.')],
@@ -18,7 +18,7 @@ final class Ajuda
             ['titulo' => t('Dia a dia'), 'itens' => [
                 ['id' => 'valor', 'pergunta' => t('Como digito o valor?'), 'resposta' => t('Digite como você fala: 45 é {valor}. Para centavos, use vírgula: {exemplo}.', ['valor' => money(45), 'exemplo' => num(45.9)])],
                 ['id' => 'corrigir', 'pergunta' => t('Errei um lançamento. Como corrijo?'), 'resposta' => t('Abra o Extrato, escolha o lançamento e edite ou apague.')],
-                ['id' => 'categoria', 'pergunta' => t('Como crio uma categoria?'), 'resposta' => t('Em Ajustes, abra Categorias. O formulário de Lançar tem um atalho para lá.')],
+                ['id' => 'categoria', 'pergunta' => t('Como crio uma categoria?'), 'resposta' => t('Em Ajustes, abra Categorias. Lá também dá para mudar tudo numa categoria: nome, tipo, vencimento, se é essencial e o ícone. O formulário de Lançar tem um atalho para lá.')],
             ]],
             ['titulo' => t('Entender os números'), 'itens' => [
                 ['id' => 'em-conta', 'pergunta' => t('O que é "Em conta hoje"?'), 'resposta' => t('É o que a conta deve ter agora: o valor inicial, mais o que entrou, menos o que saiu. Para ver se está certo, compare com o saldo do banco.')],

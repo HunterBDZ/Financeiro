@@ -291,7 +291,7 @@ function telas(PDO $pdo): array
     $ano = (int) \Financeiro\Relogio::agora()->format('Y');
     $out[] = '/relatorio?ano=' . $ano;
     $out[] = '/relatorio?ano=' . ($ano - 1);
-    foreach ([['lancamentos', '/lancamentos/%d/editar'], ['cartao_compras', '/cartao/compras/%d/editar'], ['wishlist_itens', '/wishlist/%d/editar'], ['categorias', '/categorias/%d/icone']] as [$tabela, $modelo]) {
+    foreach ([['lancamentos', '/lancamentos/%d/editar'], ['cartao_compras', '/cartao/compras/%d/editar'], ['wishlist_itens', '/wishlist/%d/editar'], ['categorias', '/categorias/%d']] as [$tabela, $modelo]) {
         foreach ($pdo->query("SELECT id FROM {$tabela} ORDER BY id LIMIT 25")->fetchAll(PDO::FETCH_COLUMN) as $id) {
             $out[] = sprintf($modelo, (int) $id);
         }

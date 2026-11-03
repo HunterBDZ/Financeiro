@@ -9,9 +9,8 @@ use Financeiro\Models\MetaModel;
 use Financeiro\View;
 
 /**
- * Criar categoria (em Ajustes). Escolhe-se entrada/saída, para saída
- * essencial/não essencial, e o ícone (Icones). Entrada cai em Entradas (+1); saída em Dia a dia (-1).
- * Trocar o ícone de uma categoria: GET/POST /categorias/{id}/icone.
+ * Categorias, em Ajustes. Criar: entrada ou gasto e, para gasto, essencial ou não, fixo ou que varia; e o ícone (Icones).
+ * Editar tudo (GET/POST /categorias/{id}): as regras ficam em CategoriaModel::editar.
  */
 final class CategoriaController
 {
@@ -71,43 +70,66 @@ final class CategoriaController
         redirecionar($volta, 303);
     }
 
-    /** GET /categorias/{id}/icone — escolher outro ícone para a categoria. */
-    public function iconeForm(string $id): void
+    /** GET /categorias/{id}: editar tudo da categoria. Erro de validação volta com o que foi digitado. */
+    public function editarForm(string $id): void
     {
         Auth::requireLogin();
-        $cat = CategoriaModel::find((int) $id);
+        $cat = ctype_digit($id) ? CategoriaModel::find((int) $id) : null;
         if ($cat === null) {
             renderErro(404, t('Categoria não encontrada'), t('Essa categoria não existe mais.'));
         }
-        $volta = voltaSegura(is_string($_GET['volta'] ?? null) ? $_GET['volta'] : null, self::AJUSTES);
-        View::render('categorias/icone', [
-            'pageTitle' => t('Ícone de {nome} · financeiro', ['nome' => nomeCurto($cat)]),
-            'cat'       => $cat,
-            'atual'     => Icones::daCategoria((int) $cat['id'], (string) $cat['nome'], (string) $cat['grupo']),
-            'volta'     => $volta,
+        $erro = $_SESSION['cat_erro'] ?? null;
+        unset($_SESSION['cat_erro']);
+        if (!is_array($erro) || ($erro['id'] ?? 0) !== (int) $cat['id']) {
+            $erro = null;
+        }
+        $conta = ContaRecorrenteModel::daCategoria((int) $cat['id']);
+        View::render('categorias/editar', [
+            'pageTitle'  => t('{nome} · financeiro', ['nome' => nomeCurto($cat)]),
+            'cat'        => $cat,
+            'icone'      => Icones::daCategoria((int) $cat['id'], (string) $cat['nome'], (string) $cat['grupo']),
+            'dia'        => $conta !== null && (int) $conta['ativo'] === 1 ? (int) $conta['dia_vencimento'] : null,
+            'doApp'      => CategoriaModel::doApp($cat),
+            'historico'  => CategoriaModel::temHistorico((int) $cat['id']),
+            'erros'      => $erro['erros'] ?? [],
+            'valores'    => $erro['valores'] ?? null,
+            'volta'      => voltaSegura(is_string($_GET['volta'] ?? null) ? $_GET['volta'] : null, self::AJUSTES),
         ], 'ajustes');
     }
 
-    /** POST /categorias/{id}/icone */
-    public function salvarIcone(string $id): void
+    /** POST /categorias/{id} */
+    public function salvar(string $id): void
     {
         Auth::requireLogin();
         csrfCheck();
 
         $volta = voltaSegura(is_string($_POST['volta'] ?? null) ? $_POST['volta'] : null, self::AJUSTES);
-        $cat   = CategoriaModel::find((int) $id);
-        $icone = is_string($_POST['icone'] ?? null) ? $_POST['icone'] : '';
+        $cat = ctype_digit($id) ? CategoriaModel::find((int) $id) : null;
         if ($cat === null) {
             flash('error', t('Categoria não encontrada.'));
             redirecionar($volta, 303);
         }
-        if (!Icones::existe($icone)) {
-            flash('error', t('Escolha um ícone.'));
-            redirecionar('/categorias/' . (int) $id . '/icone?volta=' . rawurlencode($volta), 303);
+        $dados = [
+            'nome' => $_POST['nome'] ?? '', 'apelido' => $_POST['apelido'] ?? '', 'icone' => $_POST['icone'] ?? '',
+            'tipo' => $_POST['tipo'] ?? '', 'valor_tipo' => $_POST['valor_tipo'] ?? '', 'dia' => $_POST['dia_vencimento'] ?? '',
+            'essencial' => ($_POST['essencial'] ?? '') === '1', 'ativo' => ($_POST['ativo'] ?? '') === '1',
+        ];
+        $erros = CategoriaModel::editar((int) $cat['id'], $dados);
+        if ($erros !== []) {
+            $_SESSION['cat_erro'] = ['id' => (int) $cat['id'], 'erros' => $erros, 'valores' => array_map(static fn($v) => is_string($v) || is_bool($v) ? $v : '', $dados)];
+            redirecionar('/categorias/' . (int) $cat['id'] . '?volta=' . rawurlencode($volta), 303);
         }
-        CategoriaModel::setIcone((int) $id, $icone);
-        flash('success', t('Ícone de {nome} trocado · {icone}', ['icone' => Icones::rotulo($icone), 'nome' => nomeCurto($cat)]));
+        $novo = CategoriaModel::find((int) $cat['id']) ?? $cat;
+        flash('success', t('{nome} salva', ['nome' => nomeCurto($novo)]));
         redirecionar($volta, 303);
+    }
+
+    /** GET /categorias/{id}/icone, o endereço antigo: o ícone agora se troca no editar. */
+    public function iconeAntigo(string $id): void
+    {
+        Auth::requireLogin();
+        $volta = is_string($_GET['volta'] ?? null) ? voltaSegura($_GET['volta'], '') : '';
+        redirecionar('/categorias/' . (int) $id . ($volta !== '' ? '?volta=' . rawurlencode($volta) : ''), 301);
     }
 
     /** POST /categorias/{id}/remover — arquiva (se tem histórico) ou apaga (se vazia). */
