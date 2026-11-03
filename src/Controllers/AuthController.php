@@ -189,11 +189,14 @@ final class AuthController
      * vencida não há token na sessão, e barrar aqui (403 "sessão expirada") deixava o cookie de
      * lembrar de 60 dias valendo: o próximo a abrir o app entrava logado. Os dois cookies são
      * SameSite=Strict, então um POST forjado de outro site chega sem eles e não derruba ninguém;
-     * o pior que um POST válido faz é o que o botão promete.
+     * o pior que um POST válido faz é o que o botão promete. Só POST: a rota não existe em GET, então um link ou uma
+     * imagem não derruba ninguém.
      */
     public function logout(): void
     {
-        csrfCheck();
+        if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+            redirecionar('/', 303);
+        }
         Auth::logout();
         redirecionar('/login');
     }

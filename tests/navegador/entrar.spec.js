@@ -88,3 +88,37 @@ test('endereço que não existe: a página diz isso e volta ao Início', async (
     await page.getByRole('link', { name: 'Voltar ao Início' }).click();
     await expect(page).toHaveURL(/\/login/);
 });
+
+test('sair com a sessão de 8 h vencida também esquece o aparelho (A-01)', async ({ page, context }) => {
+    await page.goto('/login');
+    await page.getByLabel('Usuário').fill(LOGIN);
+    await page.getByLabel('Senha').fill(SENHA);
+    await page.getByLabel('Lembrar este aparelho').check();
+    await page.getByRole('button', { name: 'Entrar' }).click();
+    await expect(page).toHaveURL('/');
+    await page.goto('/ajustes');
+
+    // a sessão venceu com a página aberta: sobra só o cookie de lembrar
+    const cookies = await context.cookies();
+    expect(cookies.some((c) => c.name === 'financeiro_lembrar')).toBe(true);
+    await context.clearCookies({ name: 'financeiro_sid' });
+
+    await page.getByRole('button', { name: 'sair' }).click();
+    await expect(page).toHaveURL('/login');
+    expect((await context.cookies()).some((c) => c.name === 'financeiro_lembrar')).toBe(false);
+    await page.goto('/');
+    await expect(page).toHaveURL(/\/login/);
+});
+
+test('sair só por POST: um link para /logout não derruba ninguém (A-01)', async ({ page, erros }) => {
+    erros.permitir(/status of 404/);
+    await page.goto('/login');
+    await page.getByLabel('Usuário').fill(LOGIN);
+    await page.getByLabel('Senha').fill(SENHA);
+    await page.getByRole('button', { name: 'Entrar' }).click();
+    await expect(page).toHaveURL('/');
+    const r = await page.goto('/logout');
+    expect(r.status()).toBe(404);
+    await page.goto('/');
+    await expect(page).toHaveURL('/');
+});
