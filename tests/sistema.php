@@ -157,6 +157,22 @@ $pdo->exec("UPDATE usuarios SET menu_ordem = NULL WHERE login = 'pessoa'");
 Backup::restaurar($comMenu);
 $pdo = Database::connection();
 $check('backup: a ordem do menu vai junto e volta', $pdo->query("SELECT menu_ordem FROM usuarios WHERE login = 'pessoa'")->fetchColumn() === '["meta"]');
+// backup de antes do visual do cartão (s0004): volta com a coluna nova, e o cartão com o Padrão
+sleep(1);
+$pdo->exec("INSERT INTO cartoes (nome, dia_fechamento, dia_vencimento) VALUES ('Cartão do backup', 25, 5)");
+$semVisual = Backup::criar('manual');
+$p = new SqliteConexao($semVisual);
+$p->exec('DROP TRIGGER upd_cartoes');
+$p->exec('ALTER TABLE cartoes DROP COLUMN visual');
+$p->exec('CREATE TRIGGER upd_cartoes AFTER UPDATE ON cartoes WHEN NEW.atualizado_em IS OLD.atualizado_em AND (NEW.nome IS NOT OLD.nome) BEGIN UPDATE cartoes SET atualizado_em = agora_local() WHERE rowid = NEW.rowid; END');
+$p->exec("DELETE FROM migracoes WHERE arquivo = 's0004_cartao_visual.sql'");
+$p = null;
+$erroVisual = $erroDe(static fn() => Backup::restaurar($semVisual));
+$check('restaurar: backup de antes do visual do cartão volta com a coluna nova', $erroVisual === '', $erroVisual);
+$pdo = Database::connection();
+$check('restaurar: o cartão do backup fica com o visual Padrão e o gatilho volta', $pdo->query("SELECT visual FROM cartoes WHERE nome = 'Cartão do backup'")->fetch() === ['visual' => null]
+    && in_array('s0004_cartao_visual.sql', Migrador::feitas($pdo), true)
+    && $pdo->query("SELECT 1 FROM sqlite_master WHERE type = 'trigger' AND name = 'upd_cartoes' AND sql LIKE '%NEW.visual%'")->fetchColumn() == 1);
 
 // ---- pacote .tar
 $tar = static function (array $itens): string {

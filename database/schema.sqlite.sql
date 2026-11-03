@@ -55,12 +55,13 @@ CREATE TABLE cartoes (
   ativo INTEGER NOT NULL DEFAULT 1,
   criado_em TEXT NOT NULL DEFAULT (agora_local()) CHECK (criado_em IS datetime(criado_em)),
   atualizado_em TEXT NOT NULL DEFAULT (agora_local()) CHECK (atualizado_em IS datetime(atualizado_em)),
+  visual TEXT CHECK (length(visual) <= 24),
   CONSTRAINT chk_cartao_dias CHECK (dia_fechamento BETWEEN 1 AND 31 AND dia_vencimento BETWEEN 1 AND 31),
   CONSTRAINT chk_cartao_limite CHECK (limite IS NULL OR limite > 0)
 ) STRICT;
 CREATE TRIGGER dec_cartoes_limite_i AFTER INSERT ON cartoes WHEN NEW.limite IS NOT dec_fix(NEW.limite, 2) BEGIN UPDATE cartoes SET limite = dec_fix(NEW.limite, 2) WHERE rowid = NEW.rowid; END;
 CREATE TRIGGER dec_cartoes_limite_u AFTER UPDATE OF limite ON cartoes WHEN NEW.limite IS NOT dec_fix(NEW.limite, 2) BEGIN UPDATE cartoes SET limite = dec_fix(NEW.limite, 2) WHERE rowid = NEW.rowid; END;
-CREATE TRIGGER upd_cartoes AFTER UPDATE ON cartoes WHEN NEW.atualizado_em IS OLD.atualizado_em AND (NEW.nome IS NOT OLD.nome OR NEW.dia_fechamento IS NOT OLD.dia_fechamento OR NEW.dia_vencimento IS NOT OLD.dia_vencimento OR NEW.limite IS NOT OLD.limite OR NEW.alimenta_plano IS NOT OLD.alimenta_plano OR NEW.ativo IS NOT OLD.ativo OR NEW.criado_em IS NOT OLD.criado_em) BEGIN UPDATE cartoes SET atualizado_em = agora_local() WHERE rowid = NEW.rowid; END;
+CREATE TRIGGER upd_cartoes AFTER UPDATE ON cartoes WHEN NEW.atualizado_em IS OLD.atualizado_em AND (NEW.nome IS NOT OLD.nome OR NEW.dia_fechamento IS NOT OLD.dia_fechamento OR NEW.dia_vencimento IS NOT OLD.dia_vencimento OR NEW.limite IS NOT OLD.limite OR NEW.alimenta_plano IS NOT OLD.alimenta_plano OR NEW.ativo IS NOT OLD.ativo OR NEW.criado_em IS NOT OLD.criado_em OR NEW.visual IS NOT OLD.visual) BEGIN UPDATE cartoes SET atualizado_em = agora_local() WHERE rowid = NEW.rowid; END;
 
 CREATE TABLE cartao_compras (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -146,6 +146,7 @@ use Financeiro\Models\MesModel;
 use Financeiro\Models\MetaModel;
 use Financeiro\Models\PrevisaoModel;
 use Financeiro\Models\UsuarioModel;
+use Financeiro\Services\CartaoVisual;
 use Financeiro\Services\EmprestimoSimulacao;
 use Financeiro\Services\Cotacao;
 use Financeiro\Services\LinkProduto;
@@ -838,6 +839,65 @@ $emTransacao('sem cartão cadastrado', static function () use ($pdo, $render, $c
     $pdo->exec('UPDATE cartoes SET ativo = 0');
     $check('cartão: sem cartão cadastrado, a aba pede o cadastro', CartaoModel::ativo() === null && str_contains($render(CartaoController::class, 'index', []), 'Cadastre o cartão'));
 });
+// ---- 15b. o visual do cartão: estilo válido, recusa do inválido, sem estilo = Padrão (as cores do tema)
+$check('visual do cartão: estilo da lista vale, vazio é o Padrão', CartaoVisual::validar('roxo') === [null, 'roxo']
+    && CartaoVisual::validar('') === [null, null] && CartaoVisual::validar('grafite-dourado', '#123456') === [null, 'grafite-dourado']);
+$check('visual do cartão: estilo fora da lista, lixo e cor inválida são recusados', CartaoVisual::validar('dourado-de-marca')[0] !== null
+    && CartaoVisual::validar(['roxo'])[0] !== null && CartaoVisual::validar('propria', 'red')[0] !== null
+    && CartaoVisual::validar('propria', '#12345')[0] !== null && CartaoVisual::validar('#123456')[0] !== null);
+$check('visual do cartão: a cor própria fica como #rrggbb', CartaoVisual::validar('propria', ' #A1B2C3 ') === [null, '#a1b2c3']);
+$emTransacao('visual do cartão', static function () use ($pdo, $check, $render): void {
+    $pdo->exec('UPDATE cartoes SET ativo = 0');
+    $idV = CartaoModel::salvar(null, 'Cartão visual', 25, 5, null, 'roxo');
+    $htmlV = $render(CartaoController::class, 'index', []);
+    $check('visual do cartão: o estilo salvo volta e pinta o cartão desenhado', CartaoModel::ativo()['visual'] === 'roxo'
+        && str_contains($htmlV, 'class="ct-plastico" data-visual="roxo"') && str_contains($htmlV, 'name="visual" value="roxo" checked'));
+    CartaoModel::salvar($idV, 'Cartão visual', 25, 5, null, null);
+    $htmlP = $render(CartaoController::class, 'index', []);
+    $check('visual do cartão: sem estilo, o cartão fica com as cores do tema', CartaoModel::ativo()['visual'] === null
+        && preg_match('#class="ct-plastico"(?! data-visual)#', $htmlP) === 1 && str_contains($htmlP, 'name="visual" value="" checked'));
+    CartaoModel::salvar($idV, 'Cartão visual', 25, 5, null, '#2f6fdf');
+    $htmlC = $render(CartaoController::class, 'index', []);
+    $check('visual do cartão: a cor própria pinta o cartão e marca "Cor própria"', str_contains($htmlC, 'class="ct-plastico" data-visual="propria" style="--ct-a:')
+        && str_contains($htmlC, 'name="visual" value="propria" checked') && str_contains($htmlC, 'name="visual_cor" value="#2f6fdf"'));
+    $pdo->prepare('UPDATE cartoes SET visual = ? WHERE id = ?')->execute(['estilo-velho', $idV]);
+    $check('visual do cartão: um estilo que não existe mais vira o Padrão', CartaoModel::ativo()['visual'] === null);
+});
+// as paletas de cartao.css: toda chave tem a sua, e o texto tem contraste AA sobre as três cores, com e sem o brilho
+$cssCt = (string) file_get_contents(__DIR__ . '/../public/assets/css/cartao.css');
+$semPaleta = $fracos = [];
+foreach (CartaoVisual::ESTILOS as $chaveV) {
+    if (!preg_match('/^\[data-visual="' . preg_quote($chaveV, '/') . '"\]\s*\{([^}]*)\}/m', $cssCt, $mV)) {
+        $semPaleta[] = $chaveV;
+        continue;
+    }
+    preg_match_all('/--(ct-[a-z0-9-]+):\s*([^;]+);/', $mV[1], $vs);
+    $vV = array_combine($vs[1], array_map('trim', $vs[2]));
+    $brilho = isset($vV['ct-brilho']) ? (float) $vV['ct-brilho'] : CartaoVisual::BRILHO;
+    foreach (['ct-a', 'ct-m', 'ct-b'] as $fundoK) {
+        $fundo = CartaoVisual::rgb($vV[$fundoK] ?? '#000000');
+        $comBrilho = CartaoVisual::hex(CartaoVisual::misturar($fundo, [255, 255, 255], $brilho));
+        foreach (['ct-txt', 'ct-txt-2'] as $txtK) {
+            $menor = min(CartaoVisual::contraste($vV[$txtK] ?? '#000000', CartaoVisual::hex($fundo)), CartaoVisual::contraste($vV[$txtK] ?? '#000000', $comBrilho));
+            if ($menor < 4.5) {
+                $fracos[] = $chaveV . ' ' . $txtK . '/' . $fundoK . ' ' . round($menor, 2);
+            }
+        }
+    }
+}
+$check('visual do cartão: todo estilo tem a sua paleta em cartao.css', $semPaleta === [] && count(CartaoVisual::nomes()) === count(CartaoVisual::ESTILOS) + 1, implode(', ', $semPaleta));
+$check('visual do cartão: o texto de todo estilo tem contraste AA, com e sem o brilho', $fracos === [], implode(' | ', $fracos));
+$fracosP = [];
+for ($cV = 0; $cV < 4096; $cV += 37) {
+    $hexV = sprintf('#%x%x%x%x%x%x', $cV >> 8, $cV >> 8, ($cV >> 4) & 15, ($cV >> 4) & 15, $cV & 15, $cV & 15);
+    $pV = CartaoVisual::corPropria($hexV);
+    $menor = min(CartaoVisual::piorContraste($pV['txt'], CartaoVisual::rgb($pV['a'])), CartaoVisual::piorContraste($pV['txt'], CartaoVisual::rgb($pV['b'])));
+    if ($menor < 4.5) {
+        $fracosP[] = $hexV . ' ' . round($menor, 2);
+    }
+}
+$check('visual do cartão: qualquer cor própria fica com texto legível (AA)', $fracosP === [], implode(' | ', array_slice($fracosP, 0, 5)));
+
 $htmlBar = $render(MesController::class, 'index', []);
 preg_match('#<nav class="tabbar".*?</nav>#s', $htmlBar, $mB);
 $check('barra do celular: Início, Extrato, +, Mês, Cartão; Metas e Relatório no botão Menu', str_contains($mB[0] ?? '', 'href="/cartao"')

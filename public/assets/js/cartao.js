@@ -116,4 +116,58 @@
         form.addEventListener('change', atualizar);
         atualizar();
     }
+
+    /* ---- o visual do cartão: a escolha aparece no cartão desenhado antes de salvar */
+    var vis = document.querySelector('[data-ct-vis]');
+    var plastico = document.querySelector('[data-ct-plastico]');
+    if (vis) {
+        var VARS = ['--ct-a', '--ct-b', '--ct-txt', '--ct-txt-2', '--ct-pill'];
+        var miniPropria = vis.querySelector('[data-ct-vis-propria]');
+        var cor = vis.querySelector('input[name="visual_cor"]');
+        var pintar = function (el, valor, c) {
+            if (!el) { return; }
+            VARS.forEach(function (v) { el.style.removeProperty(v); });
+            if (valor === '') { el.removeAttribute('data-visual'); return; }
+            el.setAttribute('data-visual', valor);
+            if (valor === 'propria') {
+                el.style.setProperty('--ct-a', c.a); el.style.setProperty('--ct-b', c.b); el.style.setProperty('--ct-txt', c.txt);
+                el.style.setProperty('--ct-txt-2', c.txt); el.style.setProperty('--ct-pill', c.pill);
+            }
+        };
+        var mostrar = function () {
+            var r = vis.querySelector('input[name="visual"]:checked');
+            var c = corPropria(cor && /^#[0-9a-f]{6}$/i.test(cor.value) ? cor.value.toLowerCase() : '#2f6fdf');
+            pintar(miniPropria, 'propria', c);
+            pintar(plastico, r ? r.value : '', c);
+        };
+        vis.addEventListener('change', mostrar);
+        if (cor) {
+            // mexer na cor já escolhe a "Cor própria"
+            cor.addEventListener('input', function () {
+                var r = vis.querySelector('input[name="visual"][value="propria"]');
+                if (r) { r.checked = true; }
+                mostrar();
+            });
+        }
+    }
+
+    // a mesma conta de CartaoVisual::corPropria: texto branco ou preto, a cor longe dele até o contraste bastar
+    function corPropria(hex) {
+        var rgb = [1, 3, 5].map(function (i) { return parseInt(hex.slice(i, i + 2), 16); });
+        var branco = contraste([255, 255, 255], rgb) >= contraste([0, 0, 0], rgb);
+        var alvo = branco ? [0, 0, 0] : [255, 255, 255], txt = branco ? [255, 255, 255] : [0, 0, 0];
+        for (var i = 0; i < 30 && Math.min(contraste(txt, rgb), contraste(txt, misturar(rgb, [255, 255, 255], 0.10))) < 4.6; i++) {
+            rgb = misturar(rgb, alvo, 0.06);
+        }
+        return { a: hexDe(rgb), b: hexDe(misturar(rgb, alvo, 0.28)), txt: branco ? '#ffffff' : '#000000',
+                 pill: branco ? 'rgb(0 0 0 / .22)' : 'rgb(255 255 255 / .45)' };
+    }
+    function misturar(a, b, q) { return [0, 1, 2].map(function (i) { return a[i] + (b[i] - a[i]) * q; }); }
+    // como o PHP: arredonda só ao escrever (o sprintf de lá), e a conta segue com a cor arredondada
+    function hexDe(c) { return '#' + c.map(function (x) { return ('0' + Math.round(Math.max(0, Math.min(255, x))).toString(16)).slice(-2); }).join(''); }
+    function lum(c) {
+        var l = c.map(function (x) { x = Math.round(Math.max(0, Math.min(255, x))) / 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); });
+        return 0.2126 * l[0] + 0.7152 * l[1] + 0.0722 * l[2];
+    }
+    function contraste(a, b) { var la = lum(a), lb = lum(b); return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05); }
 })();

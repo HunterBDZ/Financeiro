@@ -92,7 +92,7 @@ def main():
            "@font-face { font-family: 'JetBrains Mono'; font-style: normal; font-weight: 100 800; font-display: swap; src: url('/assets/fonts/jetbrains-mono-var-latin.woff2') format('woff2'); }",
            '/* o desenho de linhas do cartão de saldo pega a cor do tema */',
            ":root[data-tema]:not([data-tema=\"claro\"]):not([data-tema=\"escuro\"]) .saldo::before { background: var(--cofre-ok); -webkit-mask: url('/assets/img/linhas-cartao.svg') right -40px top -10px / 120% auto no-repeat; mask: url('/assets/img/linhas-cartao.svg') right -40px top -10px / 120% auto no-repeat; opacity: .5; }",
-           ":root[data-tema]:not([data-tema=\"claro\"]):not([data-tema=\"escuro\"]) .ct-plastico { background-image: none; }"]
+           ":root[data-tema]:not([data-tema=\"claro\"]):not([data-tema=\"escuro\"]) .ct-plastico:not([data-visual]) { background-image: none; }"]
     php = ['<?php', '// Gerado por tools/temas/gerar.py a partir de tools/temas/temas.json. Não edite à mão.', 'return [']
     esc = lambda s: "'" + str(s).replace('\\', '\\\\').replace("'", "\\'") + "'"
     for t in temas:
