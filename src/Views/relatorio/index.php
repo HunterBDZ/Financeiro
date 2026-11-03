@@ -39,7 +39,7 @@ $itens = [['bom', t('O que foi bom'), t('Nada relevante neste período.')], ['ru
                 </select>
             <?php endif; ?>
             <button type="submit" class="btn btn-ghost rl-ver" data-rl-ver><?= e(t('Ver')) ?></button>
-            <a class="btn btn-primary rl-baixar" href="/relatorio/pdf?<?= e($parametros) ?>"><?= svgIcon('download', 18) ?><?= e(t('Baixar PDF')) ?></a>
+            <a class="btn btn-primary rl-baixar" href="/relatorio/pdf?<?= e($parametros) ?>" data-espera="<?= e(t('Gerando o PDF…')) ?>" data-espera-baixa><?= svgIcon('download', 18) ?><?= e(t('Baixar PDF')) ?></a>
         </form>
 
         <section class="rl-capa" aria-labelledby="rl-manchete">

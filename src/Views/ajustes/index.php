@@ -358,5 +358,6 @@ $campo = static function (string $chave, string $rotulo, string $un = '', int $d
         <?php if (is_file($arqVersao)): ?><span class="num"><?= e(t('Versão {versao}', ['versao' => trim((string) file_get_contents($arqVersao))])) ?></span><?php endif; ?>
         <?php // a AGPL pede que quem usa pela rede ache o código: quem modificar o app troca o arquivo REPOSITORIO ?>
         <a href="<?= e('https://github.com/' . \Financeiro\Atualizacao::repositorio()) ?>" rel="noopener"><?= e(t('Código-fonte')) ?></a>
+        <a href="/privacidade"><?= e(t('Privacidade')) ?></a>
     </p>
 </div>

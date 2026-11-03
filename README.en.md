@@ -15,8 +15,8 @@ No subscription, no cloud, and it never asks for your bank password.
 <br>
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/img/pc-inicio-escuro.jpg">
-  <img src="docs/img/pc-inicio-claro.jpg" alt="Home screen: account balance, month summary, latest entries and where the money went" width="860">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/pc-inicio-escuro.webp">
+  <img src="docs/img/pc-inicio-claro.webp" alt="Home screen: account balance, month summary, latest entries and where the money went" width="860">
 </picture>
 
 <sub>All screenshots use made-up data from the demo mode. The app also runs in English and Spanish; the screenshots are in Portuguese.</sub>
@@ -99,6 +99,7 @@ The detailed documentation is in Portuguese:
 - [Installation manual](docs/INSTALACAO.md)
 - [Inside the app](docs/POR-DENTRO.md)
 - [Security](docs/SEGURANCA.md), including what leaves your computer
+- [Privacy and notice](docs/PRIVACIDADE.md) (in Portuguese): cookies, outbound connections and the license
 - [Decisions](docs/decisoes.md)
 - [Contributing](CONTRIBUTING.md) and [reporting a vulnerability](SECURITY.md)
 

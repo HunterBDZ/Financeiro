@@ -31,3 +31,24 @@ test('senha errada mostra a mensagem', async ({ page, erros }) => {
     await expect(page.getByLabel('Login')).toHaveValue(LOGIN);
     await expect(page.getByRole('button', { name: 'sair' })).toHaveCount(0);
 });
+
+test('fora dos buscadores, com favicon e a página de privacidade', async ({ page, request }) => {
+    const robots = await request.get('/robots.txt');
+    expect(robots.ok()).toBe(true);
+    expect(await robots.text()).toMatch(/User-agent: \*\s+Disallow: \/$/m);
+    const login = await request.get('/login');
+    expect(login.headers()['x-robots-tag']).toBe('noindex, nofollow');
+    const icone = await request.get('/favicon.ico');
+    expect(icone.ok()).toBe(true);
+    expect(icone.headers()['content-type']).toMatch(/^image\//);
+
+    await page.goto('/login');
+    await page.getByRole('link', { name: 'Privacidade e aviso' }).click();
+    await expect(page).toHaveURL('/privacidade');
+    await expect(page.getByRole('heading', { level: 1, name: 'Privacidade e aviso' })).toBeVisible();
+    for (const secao of ['Seus dados', 'O que sai do computador', 'Cookies', 'Aviso', 'Contato']) {
+        await expect(page.getByRole('heading', { level: 2, name: secao })).toBeVisible();
+    }
+    await page.getByRole('link', { name: 'Voltar para entrar' }).click();
+    await expect(page).toHaveURL('/login');
+});

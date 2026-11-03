@@ -1,7 +1,7 @@
 """Gera o sprite dos ícones de categoria (public/assets/img/icones.webp) e a lista em PHP
 (src/icones_lista.php) a partir de tools/icones/icones.json.
 
-Os desenhos são o Noto Emoji (Apache-2.0), em PNG de 512 px, de um commit fixo do repositório
+Os desenhos são o Noto Emoji (Apache-2.0), em PNG de 512 px reduzidos a 112 px, de um commit fixo do repositório
 oficial. Cada arquivo baixado é conferido com o SHA-256 guardado em tools/icones/noto.sha256,
 e nada baixado fica no repositório: o cache é uma pasta temporária (troque com --cache).
 Cada emoji ocupa uma célula de 160 px com 8 px transparentes à direita e embaixo: vários
@@ -69,8 +69,9 @@ def main():
         php.append(f"    {chave!r} => [{json.dumps(rot, ensure_ascii=False)}, {c}, {l}, {g!r}],")
     if opcoes.atualizar_hashes:
         HASHES.write_text(''.join(f'{h}  {nome}\n' for nome, h in sorted(hashes.items())))
-    # WebP com perda só na cor (a transparência fica exata): ~5× menor que o PNG, sem diferença à vista
-    folha.save(RAIZ / 'public/assets/img/icones.webp', quality=90, method=6)
+    # WebP com perda: célula de 112 px (o maior uso é o círculo de 80 px, em tela 2×) e qualidade 80
+    # na cor e na transparência. Ficou em ~200 KB, contra 433 KB com 160 px; à vista, igual
+    folha.save(RAIZ / 'public/assets/img/icones.webp', quality=80, alpha_quality=80, method=6)
     grupos = ',\n'.join(f"    {g!r} => {json.dumps(r, ensure_ascii=False)}" for g, r, _ in cfg['grupos'])
     (RAIZ / 'src/icones_lista.php').write_text(
         "<?php\n// GERADO por tools/icones/gerar.py a partir de tools/icones/icones.json: não editar à mão.\n"

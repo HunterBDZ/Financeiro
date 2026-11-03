@@ -16,4 +16,5 @@
             <?php endforeach; ?>
         </section>
     <?php endforeach; ?>
+    <p class="ajuda-rodape"><a href="/privacidade"><?= e(t('Privacidade, aviso e contato')) ?></a></p>
 </div>

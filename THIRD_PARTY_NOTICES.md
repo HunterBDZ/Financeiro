@@ -28,7 +28,7 @@ Estas imagens foram criadas para o Financeiro e seguem a licença do projeto:
 
 - `public/assets/img/marca.svg`, `icone-*.png` e `linhas-*.svg`;
 - `database/demo/*.jpg`, desenhos dos itens da demonstração;
-- `docs/img/*.jpg`, capturas do app com dados fictícios. Elas mostram os ícones e as fontes acima, sob as respectivas licenças.
+- `docs/img/*.webp`, capturas do app com dados fictícios. Elas mostram os ícones e as fontes acima, sob as respectivas licenças.
 
 ## Serviços externos
 

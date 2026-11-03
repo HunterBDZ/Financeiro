@@ -40,6 +40,11 @@ for (const tema of ['claro', 'escuro']) {
             });
         }
 
+        test('privacidade', async ({ page }) => {
+            await page.goto('/privacidade');
+            expect(await graves(page)).toEqual([]);
+        });
+
         test('diálogo de lançar', async ({ page }) => {
             await page.goto('/');
             await page.getByRole('complementary', { name: 'menu' }).getByRole('link', { name: 'Lançar' }).click();
