@@ -49,9 +49,8 @@ $noPlano = $plano !== null ? $pagas + max(0, AnualResumo::mesesEntre($sit['ref']
                         <span id="emp-linha-t"><?= e(tn($restantes, 'Falta 1 parcela', 'Faltam {n} parcelas')) ?></span>
                         <?php if ($pagas > 0): ?><span class="emp-linha-pagas num"><?= e(t('{pagas} de {total} pagas', ['pagas' => $pagas, 'total' => $total])) ?></span><?php endif; ?>
                     </figcaption>
-                    <div class="emp-trilho<?= $total <= 120 ? ' com-parcelas' : '' ?>" aria-hidden="true">
-                        <?php if ($pagas > 0): ?><i class="emp-t-pago" style="--k:<?= $pagas ?>"></i><?php endif; ?>
-                        <i class="emp-t-falta" style="--k:<?= max(1, $restantes) ?>"></i>
+                    <div class="emp-trilho" aria-hidden="true">
+                        <?php if ($pagas > 0): ?><i class="emp-t-pago" style="--x:<?= $pct($pagas) ?>%"></i><?php endif; ?>
                         <?php if ($plano !== null): ?><b class="emp-t-plano" style="--x:<?= $pct($noPlano) ?>%"></b><?php endif; ?>
                     </div>
                     <div class="emp-linha-eixo num">

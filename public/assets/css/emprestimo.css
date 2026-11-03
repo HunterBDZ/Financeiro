@@ -1,7 +1,7 @@
 /* Hallmark · checked: 2026-11-03 · genre: modern-minimal · shape: answer + timeline + simulator · scope: app · built: Empréstimo do MyMonetto (design.md) · v1 */
 /* ==========================================================================
    emprestimo.css — aba Empréstimo (prefixo .emp-*), na grade. A resposta da tela é quanto falta (o número grande);
-   a linha do tempo mostra as parcelas, o que já foi pago em tinta cheia e o que falta claro (fato e previsão), com
+   a linha do tempo é uma barra fina, o que já foi pago em tinta cheia e o que falta claro (fato e previsão), com
    o fim das parcelas e a quitação pelo plano, cada um com o seu nome. Sem caixas: fio, espaço e tom.
    ========================================================================== */
 
@@ -11,23 +11,14 @@
 .emp-aviso { margin-top: var(--e-4); max-width: 72ch; font-size: var(--t-rotulo); line-height: var(--lh-rotulo); text-wrap: pretty; }
 .emp-aviso a { margin-left: var(--e-1); }
 
-/* a linha do tempo das parcelas: uma régua de traços, um por parcela (até 120; depois, uma faixa lisa) */
+/* a linha do tempo das parcelas: uma barra fina só, o pago em tinta cheia sobre o trilho do que falta; o número fica
+   no texto ("Faltam N parcelas", "X de Y pagas") */
 .emp-linha { margin: 0; padding-top: var(--e-5); border-top: 1px solid var(--fio); }
 .emp-linha-cab { display: flex; align-items: baseline; justify-content: space-between; gap: var(--e-4); margin-bottom: var(--e-3); }
 .emp-linha-cab > span:first-child { font: 400 var(--t-titulo)/var(--lh-titulo) var(--f-num); letter-spacing: -.01em; }
 .emp-linha-pagas { color: var(--tinta-3); font-size: var(--t-rotulo); }
-.emp-trilho { position: relative; display: flex; gap: 2px; height: 24px; }
-.emp-trilho > i { display: block; flex: var(--k) 1 0; min-width: 2px; height: 100%; }   /* largura proporcional ao número de parcelas */
-.emp-t-pago { background: var(--seg-saiu); border-radius: var(--raio-controle) 0 0 var(--raio-controle); }
-.emp-t-falta { background: var(--seg-metas); border-radius: 0 var(--raio-controle) var(--raio-controle) 0; }
-.emp-t-falta:only-child { border-radius: var(--raio-controle); }
-/* com até 120 parcelas, cada uma é um traço: o fundo se repete na largura de uma parcela */
-.emp-trilho.com-parcelas > i {
-    background: repeating-linear-gradient(90deg, var(--cor-t) 0 calc(100% / var(--k) - 2px), transparent calc(100% / var(--k) - 2px) calc(100% / var(--k)));
-    border-radius: 0;
-}
-.emp-trilho.com-parcelas > .emp-t-pago { --cor-t: var(--seg-saiu); }
-.emp-trilho.com-parcelas > .emp-t-falta { --cor-t: var(--seg-metas); }
+.emp-trilho { position: relative; height: 8px; border-radius: 4px; background: var(--seg-metas); }
+.emp-t-pago { position: absolute; inset: 0 auto 0 0; width: var(--x); min-width: 4px; border-radius: inherit; background: var(--seg-saiu); }
 /* a quitação pelo plano: um marco azul na régua */
 .emp-t-plano { position: absolute; top: -6px; bottom: -6px; left: var(--x); width: 2px; margin-left: -1px; background: var(--azul); border-radius: 1px; }
 .emp-linha-eixo { display: flex; justify-content: space-between; margin-top: var(--e-2); color: var(--tinta-3); font-size: var(--t-meta); line-height: var(--lh-meta); }
