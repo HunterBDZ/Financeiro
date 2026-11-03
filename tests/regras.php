@@ -2194,6 +2194,14 @@ try {
 }
 $check('pessoas: a conta mais antiga com acesso administra', UsuarioModel::administradorId() === $uid);
 
+// ---- 18b6. fuso com acento só no nome mostrado (A-16)
+$check('fuso: "São Paulo" com acento, e o identificador continua o mesmo', Site::nomeFuso('America/Sao_Paulo') === 'America/São Paulo'
+    && Site::cidadeDoFuso('America/Sao_Paulo') === 'São Paulo' && Site::nomeFuso('America/Argentina/Buenos_Aires') === 'America/Argentina/Buenos Aires'
+    && str_starts_with(Site::opcoesFuso()['America/Sao_Paulo'], 'America/São Paulo (UTC') && Site::nomeFuso('UTC') === 'UTC');
+$htmlFuso = $pagina(AjustesController::class, 'index', '/ajustes');
+$check('fuso: a linha de Ajustes e a lista mostram "São Paulo"', str_contains($htmlFuso, e(moedaSimbolo()) . ', São Paulo</span>')
+    && str_contains($htmlFuso, '<option value="America/Sao_Paulo" selected>America/São Paulo (UTC') && !str_contains($htmlFuso, 'Sao Paulo'));
+
 // ---- 18c. verificação em duas etapas: TOTP da RFC 6238, janela, reuso, recuperação, login, limite, desligar e o
 // comando que redefine a senha. Numa conta só do teste, com um instante fixo (o código não usa Relogio).
 $rfc = '12345678901234567890';      // a semente SHA1 dos vetores da RFC 6238, apêndice B

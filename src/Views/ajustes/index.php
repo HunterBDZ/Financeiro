@@ -66,7 +66,7 @@ $usos = array_values(array_filter([$usa('usa_cartao') ? t('Cartão') : '', $usa(
 $inicioPlano = \Financeiro\Models\AjusteModel::dataInicio();
 $temaConta = Temas::doUsuario();
 $fuso = Site::fuso();
-$cidade = str_replace('_', ' ', substr($fuso, (int) strrpos($fuso, '/') + (str_contains($fuso, '/') ? 1 : 0)));
+$cidade = Site::cidadeDoFuso($fuso);
 $arqVersao = __DIR__ . '/../../../VERSION';
 
 // onde o dinheiro está: banco, banco digital, dinheiro vivo
