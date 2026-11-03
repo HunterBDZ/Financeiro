@@ -44,7 +44,7 @@ $invalido = static fn(string $campo): string => isset($erros[$campo]) ? ' aria-i
 
         <div class="cat-sec">
             <details class="cat-ic"<?= isset($erros['icone']) ? ' open' : '' ?>>
-                <summary><?= Icones::html($icone, 56) ?><span><?= e(t('Trocar o ícone')) ?></span></summary>
+                <summary><?= Icones::html($icone, 28) ?><span><?= e(t('Trocar o ícone')) ?></span></summary>
                 <?php View::partial('partials/icone_picker', ['selecionado' => $val('icone', $icone), 'legenda' => t('Ícone')]); ?>
             </details>
             <?= $erroDe('icone') ?>

@@ -211,8 +211,8 @@ As regras do app e o porquê de cada uma. Para instalar e operar, veja o [manual
 ## Ícones
 
 - **Categorias:** `categorias.icone` guarda a chave do catálogo. NULL, ou chave fora do catálogo, vale a sugestão pelo nome e grupo (`Icones::sugerir`). Assim, uma categoria nova sempre tem ícone, sem dado novo.
-- **Sprite:** `public/assets/img/icones.webp`, gerado por `tools/icones/gerar.py`, com células de 160 px e 8 px transparentes de respiro, porque vários emojis encostam na borda e vazariam para o vizinho ao reduzir. `Icones::html` desenha o emoji a 66% dentro de um círculo; no tema escuro, um contorno claro (`--ic-halo`) impede que emojis escuros sumam no fundo.
-- **Licença:** Noto Emoji, Apache-2.0, de um commit fixo (`tools/icones/CREDITOS.md`).
+- **Sprite:** `public/assets/img/categorias.svg`, gerado por `tools/icones/gerar.py` a partir de `tools/icones/icones.json`, com um `<symbol id="cat-<chave>">` por ícone. Desde a 2.0 são desenhos de traço próprios (24×24, traço de 1,5, `currentColor`, sem círculo de fundo), no lugar dos emojis: `Icones::html` desenha `<svg><use href="…/categorias.svg?v=…#cat-<chave>">` no tamanho pedido, e a cor vem do texto (`public/assets/css/icones.css`). A CSP aceita o `<use>` porque o arquivo é do próprio site (`default-src` e `img-src` `'self'`). Chave fora da lista desenha o ícone padrão (`padrao` em `icones.json`).
+- **Licença:** os desenhos são do projeto, sob a mesma licença dele (`tools/icones/LEIA-ME.md`).
 - **Ícone do site:** fica em `site_icone`, no banco, e vale para o site inteiro, porque a tela de login aparece antes de saber quem entrou. Sem ícone enviado, vale `marca.svg`.
 
 ## Idiomas

@@ -1,0 +1,10 @@
+/* Ícones de categoria: o traço do sprite categorias.svg (Icones::html), sem o círculo de fundo de antes.
+   O tamanho vem do width/height do <svg>; a cor é a do texto, mais apagada nas listas. */
+.ci {
+    display: inline-block; flex: none; vertical-align: middle;
+    border-radius: 0; background: none;
+    color: var(--tinta-3, var(--text-2));
+}
+
+/* no seletor de ícones, o traço na cor do texto, para ver bem o que se escolhe */
+.ic-opcao > .ci { color: var(--tinta, var(--text)); }

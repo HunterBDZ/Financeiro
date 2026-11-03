@@ -396,8 +396,8 @@ function corClasse(array $c): string
     return (int) ($c['essencial'] ?? 1) === 1 ? 'g-ess' : 'g-naoess';
 }
 
-/** Ícone da categoria (pixel art do sprite), em $px; decorativo. Ver Financeiro\Icones. */
-function iconeCategoria(int $id, string $nome = '', string $grupo = '', int $px = 40, string $classe = ''): string
+/** Ícone da categoria (traço do sprite categorias.svg), em $px; decorativo. Ver Financeiro\Icones. */
+function iconeCategoria(int $id, string $nome = '', string $grupo = '', int $px = 20, string $classe = ''): string
 {
     return \Financeiro\Icones::html(\Financeiro\Icones::daCategoria($id, $nome, $grupo), $px, $classe);
 }

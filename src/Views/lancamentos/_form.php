@@ -194,7 +194,7 @@ $transferir = !$editar && $contasF !== [] && ($a['modo'] ?? '') === 'transferir'
             <?php endforeach; ?>
         </select>
         <div class="lf-combo" data-lf-combo-caixa hidden>
-            <span class="lf-combo-ic" data-lf-combo-ic><?= $catEscolhida !== null ? iconeCategoria((int) $catEscolhida['id'], (string) $catEscolhida['nome'], (string) $catEscolhida['grupo'], 32) : '' ?></span>
+            <span class="lf-combo-ic" data-lf-combo-ic><?= $catEscolhida !== null ? iconeCategoria((int) $catEscolhida['id'], (string) $catEscolhida['nome'], (string) $catEscolhida['grupo'], 20) : '' ?></span>
             <input type="text" id="<?= e($pref) ?>-cat-in" class="lf-combo-in" role="combobox" aria-labelledby="<?= e($pref) ?>-cat-rot"
                    aria-autocomplete="list" aria-expanded="false" aria-controls="<?= e($pref) ?>-cat-lista" autocomplete="off" autocapitalize="off"
                    spellcheck="false" enterkeyhint="done" placeholder="<?= e(t('Escolha ou digite')) ?>"
@@ -207,7 +207,7 @@ $transferir = !$editar && $contasF !== [] && ($a['modo'] ?? '') === 'transferir'
                     <div class="lf-combo-gt" aria-hidden="true"><?= e(t((string) $grupo)) ?></div>
                     <?php foreach ($itens as $c): ?>
                         <div class="lf-combo-op" role="option" id="<?= e($pref) ?>-op-<?= (int) $c['id'] ?>" data-value="<?= (int) $c['id'] ?>"
-                             data-busca="<?= e(mb_strtolower($c['curto'] . ' ' . nomeCategoria($c['nome']))) ?>" aria-selected="<?= (int) $c['id'] === $catSel ? 'true' : 'false' ?>"><?= iconeCategoria((int) $c['id'], (string) $c['nome'], (string) $c['grupo'], 32) ?><span><?= e($c['curto']) ?></span></div>
+                             data-busca="<?= e(mb_strtolower($c['curto'] . ' ' . nomeCategoria($c['nome']))) ?>" aria-selected="<?= (int) $c['id'] === $catSel ? 'true' : 'false' ?>"><?= iconeCategoria((int) $c['id'], (string) $c['nome'], (string) $c['grupo'], 20) ?><span><?= e($c['curto']) ?></span></div>
                     <?php endforeach; ?>
                 </div>
             <?php endforeach; ?>

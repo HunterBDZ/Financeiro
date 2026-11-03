@@ -732,6 +732,10 @@ $htmlEx = $render(LancamentosController::class, 'index', []);
 $htmlAjCat = $render(AjustesController::class, 'index', ['aberto' => 'categorias']);
 // o extrato abre no mês do calendário, que na demonstração já tem lançamentos
 $check('extrato: ícone em cada lançamento, sem o painel de categorias', str_contains($htmlEx, 'class="ci"') && !str_contains($htmlEx, 'action="/categorias"'));
+$semEmoji = static fn(string $h): bool => !str_contains($h, 'icones.webp') && !str_contains($h, '--ic-sprite')
+    && !str_contains($h, 'background-position') && preg_match('/<span class="ci[ "]/', $h) !== 1;
+$check('ícones: extrato e ajustes desenham o traço do sprite, sem o emoji de antes', $semEmoji($htmlEx) && $semEmoji($htmlAjCat)
+    && str_contains($htmlEx, 'categorias.svg?v=') && str_contains($htmlAjCat, '<svg class="ci" width="24" height="24"'));
 $check('ajustes: categorias, com o ícone dobrado em "Escolher ícone" e cada uma levando ao editar', str_contains($htmlAjCat, 'id="categorias" open') && str_contains($htmlAjCat, 'action="/categorias"')
     && str_contains($htmlAjCat, 'class="ic-escolher"') && str_contains($htmlAjCat, 'data-ic-sugerir') && str_contains($htmlAjCat, 'class="aj-cat" href="/categorias/' . $catDia . '"')
     && !str_contains($htmlAjCat, '/icone?volta='));
@@ -1458,7 +1462,7 @@ SiteIcone::remover();
 $pdo->rollBack();
 $check('ícone: arquivo que não é imagem é recusado', LinkProduto::fotoValida('<?php echo 1;') === null);
 $imagensApp = array_values(array_diff(scandir(__DIR__ . '/../public/assets/img') ?: [], ['.', '..']));
-$check('ícone: nenhuma imagem individual no código, só as do app', $imagensApp === ['icone-180.png', 'icone-32.png', 'icone-64.png', 'icones.webp', 'linhas-cartao.svg', 'linhas-fundo.svg', 'marca.svg'], implode(', ', $imagensApp));
+$check('ícone: nenhuma imagem individual no código, só as do app', $imagensApp === ['categorias.svg', 'icone-180.png', 'icone-32.png', 'icone-64.png', 'linhas-cartao.svg', 'linhas-fundo.svg', 'marca.svg'], implode(', ', $imagensApp));
 
 // ---- 3g. relatório: o PDF
 $docT = new Documento('Título ação', 'pt-BR', '20261122153000');
@@ -1495,10 +1499,12 @@ foreach (Icones::POR_GRUPO as $k) {
 }
 $check('ícones: toda regra e todo grupo apontam para um ícone do catálogo', $todosExistem);
 $lic = Icones::lista();
-$dim = @getimagesize(__DIR__ . '/../public/assets/img/icones.webp');
-$check('ícones: o sprite tem o tamanho do catálogo (célula + respiro)', is_array($dim)
-    && $dim[0] === $lic['colunas'] * $lic['passo'] && $dim[1] === $lic['linhas'] * $lic['passo']
-    && $lic['passo'] > $lic['tamanho'] && count($lic['icones']) <= $lic['colunas'] * $lic['linhas']);
+$spriteCat = (string) file_get_contents(__DIR__ . '/../public/assets/img/categorias.svg');
+preg_match_all('/<symbol id="cat-([a-z]+)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1\\.5"/', $spriteCat, $mSimb);
+$check('ícones: toda chave da lista tem o seu símbolo no sprite, de traço e sem sobra', $mSimb[1] === array_keys($lic['icones'])
+    && Icones::existe($lic['padrao']) && @simplexml_load_string($spriteCat) !== false, implode(', ', array_diff(array_keys($lic['icones']), $mSimb[1])));
+$check('ícones: o sprite é só traço, sem preenchimento, estilo, imagem nem script',
+    !preg_match('/fill="(?!none)|style=|<image|<script|href=|on[a-z]+=/i', $spriteCat));
 $esperado = ['Farmácia e saúde' => 'pilula', 'Mercado' => 'prato', 'Combustível' => 'combustivel',
              'Imposto de renda' => 'leao', 'Gastos mesada filho' => 'nota', 'Seguro do carro' => 'carro',
              'Licenciamento do carro' => 'documento', 'Ração do pet' => 'cachorro', 'Barbeiro' => 'barbearia'];
@@ -1511,8 +1517,10 @@ foreach ($esperado as $nomeCat => $k) {
 $check('ícones: sugestão pelo nome', $erradas === [], implode('; ', $erradas));
 $check('ícones: sem palavra conhecida, vale o ícone do grupo', Icones::sugerir('Xyzw', 'Entradas') === 'moeda'
     && Icones::sugerir('Xyzw', 'Dia a dia') === 'sacola' && Icones::sugerir('Xyzw', '') === 'sacola');
-$check('ícones: o HTML põe o emoji do sprite dentro do círculo', str_contains(Icones::html('pilula', 40), '<i style="background-size:')
-    && str_contains(Icones::html('pilula', 40), 'background-position:') && str_contains(Icones::html('chave-que-nao-existe', 20), 'width:20px'));
+$htmlIc = Icones::html('pilula', 18, 'mes-ic');
+$check('ícones: o HTML usa o símbolo do sprite no tamanho pedido, decorativo', preg_match('#^<svg class="ci mes-ic" width="18" height="18" aria-hidden="true" focusable="false"><use href="/assets/img/categorias\\.svg\\?v=\\d+\\#cat-pilula"/></svg>$#', $htmlIc) === 1, $htmlIc);
+$check('ícones: chave inválida desenha o ícone padrão', str_contains(Icones::html('chave-que-nao-existe', 20), '#cat-' . $lic['padrao'] . '"')
+    && str_contains(Icones::html('"><script>', 20), '#cat-' . $lic['padrao'] . '"') && !str_contains(Icones::html('"><script>', 20), '<script'));
 $emTransacao('categoria com ícone', static function () use ($check): void {
     $id = CategoriaModel::criar('Teste ícone ' . bin2hex(random_bytes(3)), 'saida', false, 'gato');
     Icones::limpar();
@@ -2883,7 +2891,7 @@ $check('categorias: um campo só, com a lista inteira, sem os botões das mais u
     && str_contains($htmlLf, 'role="listbox"') && str_contains($htmlLf, 'class="lf-combo-op" role="option"')
     && !str_contains($htmlLf, 'lf-chip') && !str_contains($htmlLf, 'data-lf-mais') && !str_contains($htmlLf, 'type="radio" name="categoria_id"'));
 $check('categorias: a lista tem os grupos e o ícone de cada uma', substr_count($htmlLf, 'class="lf-combo-g" role="group" aria-label="') === count($lf['grupos'])
-    && preg_match('/role="option"[^>]*>\s*<span class="ci/', $htmlLf) === 1);
+    && preg_match('/role="option"[^>]*>\s*<svg class="ci/', $htmlLf) === 1);
 $poucoUsada = (int) $pdo->query("SELECT id FROM categorias WHERE ativo = 1 AND operacional = 1 AND sinal = -1 AND grupo <> 'Dia a dia' ORDER BY ordem DESC, id DESC LIMIT 1")->fetchColumn();
 if ($poucoUsada > 0) {
     $emTransacao('categorias: as mais usadas', static function () use ($pdo, $check, $poucoUsada, $uid): void {

@@ -30,7 +30,7 @@ $linha = static function (array $c) use ($volta, $hoje, $csrf): void {
     }; ?>
     <li class="cm-i<?= $c['atrasado'] ? ' is-vencida' : '' ?>">
         <a class="cm-outro" href="/lancar?categoria=<?= $id ?>&amp;volta=<?= e(rawurlencode($volta)) ?>" data-lancar data-categoria="<?= $id ?>">
-            <?= iconeCategoria($id, (string) $c['nome'], (string) $c['grupo'], 36, 'cm-ic') ?>
+            <?= iconeCategoria($id, (string) $c['nome'], (string) $c['grupo'], 20, 'cm-ic') ?>
             <span class="cm-n">
                 <span class="cm-l1"><b><?= e($nome) ?></b><span class="cm-v num"><?= e(num((float) $c['previsto'])) ?></span></span>
                 <small><?php if ($quando !== ''): ?><span class="cm-vence"><?= e($quando) ?></span> · <?php endif; ?><span class="cm-outro-t"><?= e(t('outro valor')) ?></span></small>

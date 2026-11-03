@@ -257,7 +257,7 @@ $hrefLancar = '/lancar?pagou=' . rawurlencode($pagouCartao) . '&volta=' . rawurl
                 <ul class="ct-parc">
                     <?php foreach ($listaP as $pc): $c = $pc['compra']; ?>
                         <li><a class="ct-parc-i" href="/cartao/compras/<?= (int) $c['id'] ?>/editar">
-                            <?= iconeCategoria((int) ($c['categoria_id'] ?? 0), (string) ($c['categoria_nome'] ?? $c['descricao']), (string) ($c['categoria_grupo'] ?? ''), 40) ?>
+                            <?= iconeCategoria((int) ($c['categoria_id'] ?? 0), (string) ($c['categoria_nome'] ?? $c['descricao']), (string) ($c['categoria_grupo'] ?? ''), 20) ?>
                             <span class="ct-parc-l1"><span><?= e(descricaoTela((string) $c['descricao'], ['nome' => $c['categoria_nome'] ?? '', 'apelido' => $c['categoria_apelido'] ?? ''])) ?></span><span class="num"><?= e(num((float) $pc['valor'])) ?></span></span>
                             <span class="trilho" aria-hidden="true"><i style="--w:<?= (int) round(($pc['agora'] - 1) / $pc['n'] * 100) ?>%"></i></span>
                             <span class="ct-parc-l3 num"><span><?= $pc['comeca'] > $aberta ? e(t('começa em {mes}', ['mes' => monthLabel($pc['comeca'])])) : e(t('Parcela {agora} de {n}. Faltam {faltam}, incluindo a fatura atual.', ['agora' => $pc['agora'], 'n' => $pc['n'], 'faltam' => $pc['faltam']])) ?></span><span><?= e(t('última em {mes}', ['mes' => monthLabel($pc['ultima'])])) ?></span></span>
@@ -318,7 +318,7 @@ $hrefLancar = '/lancar?pagou=' . rawurlencode($pagouCartao) . '&volta=' . rawurl
                     <?php if ($rot !== ''): ?><p class="ct-grupo"><?= e($rot) ?></p><?php endif; ?>
                     <?php foreach ($lista as $it): $c = $it['compra']; ?>
                         <a class="ct-linha" href="/cartao/compras/<?= (int) $c['id'] ?>/editar">
-                            <?= iconeCategoria((int) ($c['categoria_id'] ?? 0), (string) ($c['categoria_nome'] ?? $c['descricao']), (string) ($c['categoria_grupo'] ?? ''), 40) ?>
+                            <?= iconeCategoria((int) ($c['categoria_id'] ?? 0), (string) ($c['categoria_nome'] ?? $c['descricao']), (string) ($c['categoria_grupo'] ?? ''), 20) ?>
                             <span class="ct-linha-n"><b><?= e(descricaoTela((string) $c['descricao'], ['nome' => $c['categoria_nome'] ?? '', 'apelido' => $c['categoria_apelido'] ?? ''])) ?></b>
                                 <small><?= e(implode(' · ', array_filter([nomeCurto(['apelido' => $c['categoria_apelido'], 'nome' => $c['categoria_nome'] ?? '']),
                                     (int) $c['parcelas'] === 1 ? diaMes($c['data']) : t('Parcela {k} de {n}', ['k' => (int) $it['k'], 'n' => (int) $c['parcelas']])], static fn($x) => $x !== ''))) ?></small></span>

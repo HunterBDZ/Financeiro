@@ -4,9 +4,9 @@ namespace Financeiro;
 use Financeiro\Models\CategoriaModel;
 
 /**
- * Ícones de categoria: emojis do Noto Emoji (112 px) num sprite só, public/assets/img/icones.webp;
- * a lista com posição e grupo de cada um é gerada em src/icones_lista.php por
- * tools/icones/gerar.py.
+ * Ícones de categoria: desenhos de traço próprios (24×24, traço de 1,5, currentColor) num sprite SVG,
+ * public/assets/img/categorias.svg, um <symbol id="cat-<chave>"> por ícone. O sprite e a lista com o
+ * rótulo e o grupo de cada um (src/icones_lista.php) são gerados por tools/icones/gerar.py.
  *
  * Cada categoria guarda a chave em categorias.icone (escolhida no formulário). Sem chave, ou
  * com uma que saiu da lista, vale a sugestão pelo nome (REGRAS) e, por último, a do grupo.
@@ -98,10 +98,11 @@ final class Icones
     ];
 
     private static ?array $lista = null;
+    private static ?string $sprite = null;
     /** @var array<int, ?string>|null categorias.icone de todas as categorias (1 consulta por requisição) */
     private static ?array $porId = null;
 
-    /** @return array{tamanho:int, colunas:int, linhas:int, grupos:array<string,string>, icones:array<string,array{0:string,1:int,2:int,3:string}>} */
+    /** @return array{padrao:string, grupos:array<string,string>, icones:array<string,array{0:string,1:string}>} [rótulo, grupo] por chave */
     public static function lista(): array
     {
         return self::$lista ??= require __DIR__ . '/icones_lista.php';
@@ -125,7 +126,7 @@ final class Icones
         foreach ($l['grupos'] as $g => $rotulo) {
             $out[$g] = ['rotulo' => t((string) $rotulo), 'chaves' => []];
         }
-        foreach ($l['icones'] as $chave => [, , , $g]) {
+        foreach ($l['icones'] as $chave => [, $g]) {
             $out[$g]['chaves'][] = $chave;
         }
         return $out;
@@ -189,22 +190,19 @@ final class Icones
     }
 
     /**
-     * <span> do tamanho $px (o círculo) com o emoji do sprite dentro. Decorativo.
-     * Cada célula do sprite tem 'tamanho' px de desenho a cada 'passo' px (o resto é respiro).
+     * O ícone em <svg> de $px, que usa o símbolo do sprite (arquivo do próprio site, aceito pela CSP).
+     * Decorativo: o nome da categoria vem sempre ao lado. Sem fundo nem círculo; a cor é a do texto
+     * (icones.css). Chave fora da lista desenha o ícone padrão.
      */
-    public static function html(string $chave, int $px = 40, string $classe = ''): string
+    public static function html(string $chave, int $px = 20, string $classe = ''): string
     {
-        $l = self::lista();
-        [, $c, $r] = $l['icones'][$chave] ?? $l['icones']['sacola'];
-        $t = $l['tamanho'];
-        $p = $l['passo'];
-        $w = $l['colunas'] * $p;
-        $h = $l['linhas'] * $p;
-        $tam = round($w / $t * 100, 4) . '% ' . round($h / $t * 100, 4) . '%';
-        $pos = round($c * $p / ($w - $t) * 100, 4) . '% ' . round($r * $p / ($h - $t) * 100, 4) . '%';
+        if (!self::existe($chave)) {
+            $chave = self::lista()['padrao'];
+        }
+        self::$sprite ??= asset('/assets/img/categorias.svg');
         $cls = 'ci' . ($classe !== '' ? ' ' . $classe : '');
-        return '<span class="' . e($cls) . '" style="width:' . $px . 'px;height:' . $px . 'px" aria-hidden="true">'
-            . '<i style="background-size:' . $tam . ';background-position:' . $pos . '"></i></span>';
+        return '<svg class="' . e($cls) . '" width="' . $px . '" height="' . $px . '" aria-hidden="true" focusable="false">'
+            . '<use href="' . e(self::$sprite) . '#cat-' . $chave . '"/></svg>';
     }
 
     /** Regras e ícones por grupo em JSON, para o formulário sugerir o ícone enquanto se digita. */

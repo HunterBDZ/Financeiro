@@ -620,7 +620,7 @@ return [
     'Mês' => 'Month',
     'mês' => 'month',
     'Mínimo que você quer manter na conta: {valor}.' => 'Minimum you want to keep in the account: {valor}.',
-    'Músculo' => 'Muscle',
+    'Haltere' => 'Dumbbell',
     'Música' => 'Music',
     'Na sobra prevista, entradas: {conta}' => 'In the expected surplus, income: {conta}',
     'Nada com “{q}” em {mes}.' => 'Nothing with “{q}” in {mes}.',

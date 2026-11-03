@@ -264,6 +264,23 @@ $check('QR: 25 módulos na versão 2, com localizadores', count($qr) === 25 && $
 $check('QR: SVG com rótulo escapado', str_contains(QrCode::svg('http://x', 'a"b'), 'aria-label="a&quot;b"'));
 $check('QR: texto grande demais é recusado', $erroDe(static fn() => QrCode::matriz(str_repeat('x', 300))) !== '');
 
+// ---- ícones de categoria: o sprite SVG que o pacote leva e a CSP que deixa usá-lo
+$listaIc = \Financeiro\Icones::lista();
+$svgIc = @simplexml_load_file(__DIR__ . '/../public/assets/img/categorias.svg');
+$simbolosIc = [];
+if ($svgIc !== false) {
+    foreach ($svgIc->symbol as $sim) {
+        $simbolosIc[] = (string) $sim['id'];
+    }
+}
+$check('ícones: o sprite abre como XML e tem um símbolo por chave da lista', $svgIc !== false
+    && $simbolosIc === array_map(static fn(string $k): string => 'cat-' . $k, array_keys($listaIc['icones'])));
+$check('ícones: chave inválida cai no ícone padrão', str_contains(\Financeiro\Icones::html('nao-existe'), '#cat-' . $listaIc['padrao'] . '"'));
+$check('ícones: o emoji de antes saiu do pacote', !is_file(__DIR__ . '/../public/assets/img/icones.webp')
+    && !str_contains((string) file_get_contents(__DIR__ . '/../src/Views/layout/app.php'), 'icones.webp'));
+preg_match('/Content-Security-Policy: ([^"]+)"/', (string) file_get_contents(__DIR__ . '/../public/index.php'), $mCsp);
+$check('ícones: a CSP aceita <use> com o sprite do próprio site', str_contains($mCsp[1] ?? '', "default-src 'self'") && str_contains($mCsp[1] ?? '', "img-src 'self'"));
+
 // ---- comando do PHP e arquivos em uso
 $check('comando do PHP: caminho com espaço e argumento', Atualizacao::lerComandoPhp("C:/Pessoa com espaço/frankenphp\tphp-cli") === ['C:/Pessoa com espaço/frankenphp', 'php-cli']);
 $check('comando do PHP: como os pacotes antigos de Linux mandam', Atualizacao::lerComandoPhp('/opt/bin/frankenphp php-cli') === ['/opt/bin/frankenphp', 'php-cli']);
