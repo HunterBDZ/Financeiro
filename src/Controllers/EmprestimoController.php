@@ -27,7 +27,7 @@ final class EmprestimoController
         $hoje  = Relogio::hoje();
         $dados = MotorFinanceiro::dados();
         if ($dados['meses'] === []) {
-            View::render('dashboard/vazio', ['pageTitle' => t('empréstimo') . ' · financeiro'], 'emprestimo');
+            View::render('dashboard/vazio', ['pageTitle' => t('empréstimo') . ' · MyMonetto'], 'emprestimo');
             return;
         }
         $ref = MesModel::referencia($hoje);
@@ -55,7 +55,7 @@ final class EmprestimoController
         }
 
         $data = [
-            'pageTitle' => t('empréstimo') . ' · financeiro', 'sit' => $sit, 'sim' => $sim, 'erro' => $erro,
+            'pageTitle' => t('empréstimo') . ' · MyMonetto', 'sit' => $sit, 'sim' => $sim, 'erro' => $erro,
             'mes' => $mes, 'campo' => $campo, 'hoje' => $hoje, 'catAmort' => $dados['esp']['amort'],
             'pago' => trim(is_string($_GET['pago'] ?? null) ? $_GET['pago'] : ''),   // só o "Já paguei" manda o valor
         ];

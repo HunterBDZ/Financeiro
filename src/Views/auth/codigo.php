@@ -13,10 +13,10 @@ $css = array_filter(['/assets/css/style.css', '/assets/css/lancar.css', '/assets
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
-<meta name="theme-color" content="#f4f5f7" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0a0b0f" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#F6F8FB" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0A1020" media="(prefers-color-scheme: dark)">
 <meta name="format-detection" content="telephone=no">
-<title><?= e(t('Código de verificação · financeiro')) ?></title>
+<title><?= e(t('Código de verificação · MyMonetto')) ?></title>
 <?= \Financeiro\SiteIcone::tags() ?><link rel="preload" href="/assets/fonts/manrope-var-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/assets/fonts/sora-var-latin.woff2" as="font" type="font/woff2" crossorigin>
 <script src="<?= e(asset('/assets/js/theme.js')) ?>"></script>
@@ -28,7 +28,7 @@ $css = array_filter(['/assets/css/style.css', '/assets/css/lancar.css', '/assets
 <main class="lg">
     <div class="lg-topo">
         <span class="marca"><img src="<?= e(\Financeiro\SiteIcone::url()) ?>" alt="" width="96" height="96"></span>
-        <b translate="no">financeiro</b>
+        <b translate="no">MyMonetto</b>
         <button type="button" class="ic" data-theme-toggle aria-label="<?= e(t('trocar tema')) ?>"><?= svgIcon('sun', 19, 'so-escuro') ?><?= svgIcon('moon', 19, 'so-claro') ?></button>
     </div>
 
@@ -44,7 +44,7 @@ $css = array_filter(['/assets/css/style.css', '/assets/css/lancar.css', '/assets
             <?php if ($recuperacao): ?><input type="hidden" name="recuperacao" value="1"><?php endif; ?>
             <p class="lg-nota"><?= e($recuperacao
                 ? t('Digite um dos códigos de recuperação que você guardou ao ligar a verificação. Cada um vale uma vez.')
-                : t('Abra o app autenticador no celular e digite o código de 6 dígitos que aparece para o Financeiro.')) ?></p>
+                : t('Abra o app autenticador no celular e digite o código de 6 dígitos que aparece para o MyMonetto.')) ?></p>
             <label class="lg-campo">
                 <?= svgIcon('lock', 19) ?>
                 <span class="sr-only"><?= e($recuperacao ? t('Código de recuperação') : t('Código de 6 dígitos')) ?></span>

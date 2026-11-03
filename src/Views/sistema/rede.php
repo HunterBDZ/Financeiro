@@ -7,7 +7,7 @@ $csrf = csrfField();
     <h1 class="aj-titulo"><?= e(t('Usar no celular')) ?></h1>
 
     <?php if ($modo === 'instalador' && !$pode): ?>
-        <p class="aviso"><?= e($administrador ? t('Faça isso no computador onde o Financeiro está instalado.') : t('Só a primeira conta criada neste site pode fazer isso.')) ?></p>
+        <p class="aviso"><?= e($administrador ? t('Faça isso no computador onde o MyMonetto está instalado.') : t('Só a primeira conta criada neste site pode fazer isso.')) ?></p>
     <?php endif; ?>
 
     <?php if ($ligada && $url !== null): ?>
@@ -24,7 +24,7 @@ $csrf = csrfField();
                 </ul>
                 <details class="sis-acao">
                     <summary><?= e(t('O celular não abre o endereço')) ?></summary>
-                    <p class="aj-ajuda"><?= e(t('Em geral, é o firewall deste computador. O Financeiro não mexe nele: libere a porta {porta} você mesmo.', ['porta' => (string) $porta])) ?></p>
+                    <p class="aj-ajuda"><?= e(t('Em geral, é o firewall deste computador. O MyMonetto não mexe nele: libere a porta {porta} você mesmo.', ['porta' => (string) $porta])) ?></p>
                     <?php if ($sistema === 'Windows'): ?>
                         <p class="aj-ajuda"><?= e(t('No Windows, quando aparecer o aviso do firewall, permita o acesso em redes privadas. Se ele não aparecer, abra Segurança do Windows, depois Firewall e proteção de rede, depois Permitir um aplicativo pelo firewall, e permita frankenphp. Isso pode pedir a senha de quem administra o computador. Confira também se a sua rede está marcada como privada.')) ?></p>
                     <?php elseif ($sistema === 'Darwin'): ?>
@@ -42,7 +42,7 @@ sudo firewall-cmd --permanent --add-port=<?= (int) $porta ?>/tcp &amp;&amp; sudo
     <?php else: ?>
         <section class="card sis-grupo" aria-labelledby="sis-rede-t">
             <h2 class="titulo" id="sis-rede-t"><?= e(t('O acesso pela rede está desligado')) ?></h2>
-            <p><?= e(t('Por enquanto, o Financeiro só abre neste computador. Ligue o acesso para usar no celular e em outros aparelhos da sua casa.')) ?></p>
+            <p><?= e(t('Por enquanto, o MyMonetto só abre neste computador. Ligue o acesso para usar no celular e em outros aparelhos da sua casa.')) ?></p>
             <p class="aviso aviso-warn"><?= e(t('Na rede, a conexão não é criptografada: quem estiver na mesma rede pode ver a sua senha e os seus dados. Ligue só em uma rede de confiança, como a da sua casa, e nunca em Wi-Fi público.')) ?></p>
         </section>
     <?php endif; ?>

@@ -34,7 +34,7 @@ final class MetaController
         $hoje  = Relogio::hoje();
         $meses = MesModel::todos();
         if ($meses === []) {
-            View::render('dashboard/vazio', ['pageTitle' => t('meta · financeiro')], 'meta');
+            View::render('dashboard/vazio', ['pageTitle' => t('meta · MyMonetto')], 'meta');
             return;
         }
         $mesCal = substr($hoje, 0, 7) . '-01';
@@ -130,7 +130,7 @@ final class MetaController
         }
 
         View::render('meta/index', [
-            'pageTitle'     => t('meta · financeiro'),
+            'pageTitle'     => t('meta · MyMonetto'),
             'mes'           => $mes,
             'meses'         => $meses,
             'hoje'          => $hoje,

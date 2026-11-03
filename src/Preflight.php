@@ -15,7 +15,7 @@ final class Preflight
     {
         $out = [];
         if ($versaoPhp < 80400) {
-            $out[] = t('O PHP é antigo: o Financeiro precisa do PHP 8.4 ou mais novo.');
+            $out[] = t('O PHP é antigo: o MyMonetto precisa do PHP 8.4 ou mais novo.');
         }
         foreach (self::EXTENSOES as $ext) {
             if (!($tem[$ext] ?? false)) {
@@ -60,7 +60,7 @@ final class Preflight
         if ($driver === 'sqlite' && ($tem['pdo_sqlite'] ?? false) && Paths::dados() !== null && !is_file(Paths::banco())) {
             $versao = (string) (new \PDO('sqlite::memory:'))->query('SELECT sqlite_version()')->fetchColumn();
             if (version_compare($versao, SqliteConexao::VERSAO_MINIMA, '<')) {
-                $out[] = t('O SQLite é antigo: o Financeiro precisa do {minima} ou mais novo, e este é o {versao}.', ['minima' => SqliteConexao::VERSAO_MINIMA, 'versao' => $versao]);
+                $out[] = t('O SQLite é antigo: o MyMonetto precisa do {minima} ou mais novo, e este é o {versao}.', ['minima' => SqliteConexao::VERSAO_MINIMA, 'versao' => $versao]);
             }
         }
         return $out;
@@ -71,7 +71,7 @@ final class Preflight
     {
         $problemas = self::problemas();
         if ($problemas !== []) {
-            self::tela(500, t('O Financeiro não pôde abrir'), $problemas);
+            self::tela(500, t('O MyMonetto não pôde abrir'), $problemas);
         }
     }
 
@@ -103,7 +103,7 @@ final class Preflight
         header("Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'");
         $itens = implode('', array_map(static fn(string $l): string => '<li>' . e($l) . '</li>', $linhas));
         echo '<!doctype html><html lang="', e(Idioma::html()), '"><head><meta charset="utf-8">',
-            '<meta name="viewport" content="width=device-width, initial-scale=1"><title>Financeiro</title>',
+            '<meta name="viewport" content="width=device-width, initial-scale=1"><title>MyMonetto</title>',
             '<style>body{font:16px/1.5 system-ui,sans-serif;margin:0;padding:3rem 1.25rem;color:#1f2328;background:#f4f5f7}',
             'main{max-width:36rem;margin:auto}h1{font-size:1.4rem}li{margin:.5rem 0;overflow-wrap:anywhere}',
             '@media(prefers-color-scheme:dark){body{color:#e8eaed;background:#0a0b0f}}</style></head><body><main><h1>',

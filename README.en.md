@@ -2,7 +2,9 @@
 
 <img src="public/assets/img/marca.svg" alt="" width="96">
 
-# Financeiro
+# MyMonetto
+
+<sub>Formerly called Financeiro. Commands and folders keep the old name.</sub>
 
 **Track your household money on your own computer: add expenses in seconds, see how the month will end, and plan purchases, debts and investments.**
 
@@ -43,7 +45,7 @@ On Windows, Mac and Linux there is no database or other program to install.
 1. Download `financeiro-…-windows-x86_64.exe` from [Releases](https://github.com/HunterBDZ/Financeiro/releases/latest).
 2. Double-click the file.
 3. If **"Windows protected your PC"** appears, click **More info** and then **Run anyway**.
-4. At the end, leave **Open Financeiro** checked and create your account in the browser.
+4. At the end, leave **Open MyMonetto** checked and create your account in the browser.
 
 After that, open it from the **Financeiro** icon on the desktop. It starts by itself when you sign in to Windows.
 

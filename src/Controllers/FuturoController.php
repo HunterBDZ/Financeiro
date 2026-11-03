@@ -27,7 +27,7 @@ final class FuturoController
         $hoje  = Relogio::hoje();
         $base  = MotorFinanceiro::calcularPlano();
         if ($base === []) {
-            View::render('dashboard/vazio', ['pageTitle' => t('simular · financeiro')], 'simular');
+            View::render('dashboard/vazio', ['pageTitle' => t('simular · MyMonetto')], 'simular');
             return;
         }
         $dados    = MotorFinanceiro::dados();
@@ -86,7 +86,7 @@ final class FuturoController
         }
 
         View::render('futuro/index', [
-            'pageTitle' => t('simular · financeiro'),
+            'pageTitle' => t('simular · MyMonetto'),
             'hoje' => $hoje, 'ref' => $ref, 'ultimo' => (string) end($meses),
             'marcos' => AnualResumo::marcos($plano, $reserva, $ref), 'ganho' => $ganho,
             'reserva' => $reserva, 'meta' => $meta, 'metaMes' => $metaMes, 'linhas' => $linhas,

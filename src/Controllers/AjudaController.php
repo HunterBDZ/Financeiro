@@ -10,7 +10,7 @@ final class AjudaController
     public function index(): void
     {
         Auth::requireLogin();
-        View::render('ajuda/index', ['pageTitle' => t('ajuda · financeiro'), 'grupos' => Ajuda::grupos()], 'ajuda');
+        View::render('ajuda/index', ['pageTitle' => t('ajuda · MyMonetto'), 'grupos' => Ajuda::grupos()], 'ajuda');
     }
 
     /** O navegador pede /favicon.ico por conta própria: leva ao ícone escolhido em Ajustes (ou ao padrão). */

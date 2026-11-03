@@ -94,7 +94,7 @@ final class Migrador
     public static function telaDeErro(\Throwable $e): never
     {
         error_log('migração: ' . $e->getMessage());
-        Preflight::tela(500, t('O Financeiro não pôde abrir'), [t('Não deu para atualizar o banco de dados. Os seus dados estão guardados: volte para a versão anterior e avise quem mantém o projeto.')]);
+        Preflight::tela(500, t('O MyMonetto não pôde abrir'), [t('Não deu para atualizar o banco de dados. Os seus dados estão guardados: volte para a versão anterior e avise quem mantém o projeto.')]);
     }
 
     /** Pacote novo por cima do antigo, ou imagem Docker nova: o banco acompanha ao abrir, depois de uma cópia. */
@@ -105,7 +105,7 @@ final class Migrador
         }
         $pdo = Database::connection();
         if (self::desconhecidas($pdo, self::pasta()) !== []) {
-            Preflight::tela(500, t('O Financeiro não pôde abrir'), [t('Os seus dados são de uma versão mais nova do Financeiro. Instale essa versão ou uma mais nova.')]);
+            Preflight::tela(500, t('O MyMonetto não pôde abrir'), [t('Os seus dados são de uma versão mais nova do MyMonetto. Instale essa versão ou uma mais nova.')]);
         }
         if (self::pendentes($pdo, self::pasta()) === []) {
             return;

@@ -26,7 +26,7 @@ try {
     Primeira::garantir();
 } catch (\Throwable $e) {
     error_log('primeira execução: ' . $e->getMessage());
-    Preflight::tela(500, t('O Financeiro não pôde abrir'), [t('Não deu para preparar o banco de dados. Confira se há espaço em disco.')]);
+    Preflight::tela(500, t('O MyMonetto não pôde abrir'), [t('Não deu para preparar o banco de dados. Confira se há espaço em disco.')]);
 }
 Config::load(Paths::config());
 

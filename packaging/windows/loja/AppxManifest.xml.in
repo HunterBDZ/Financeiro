@@ -6,7 +6,7 @@
          IgnorableNamespaces="uap desktop rescap">
   <Identity Name="@NOME@" Publisher="@PUBLISHER@" Version="@VERSAO@.0" ProcessorArchitecture="x64" />
   <Properties>
-    <DisplayName>Financeiro</DisplayName>
+    <DisplayName>MyMonetto</DisplayName>
     <PublisherDisplayName>@PUBLICADO_POR@</PublisherDisplayName>
     <Logo>recursos\icone-50.png</Logo>
   </Properties>
@@ -20,11 +20,11 @@
   </Resources>
   <Applications>
     <Application Id="Financeiro" Executable="financeiro-abrir.exe" EntryPoint="Windows.FullTrustApplication">
-      <uap:VisualElements DisplayName="Financeiro" Description="Financeiro" BackgroundColor="transparent"
+      <uap:VisualElements DisplayName="MyMonetto" Description="MyMonetto" BackgroundColor="transparent"
                           Square150x150Logo="recursos\icone-150.png" Square44x44Logo="recursos\icone-44.png" />
       <Extensions>
         <desktop:Extension Category="windows.startupTask" Executable="financeiro-servir.exe" EntryPoint="Windows.FullTrustApplication">
-          <desktop:StartupTask TaskId="FinanceiroServir" Enabled="true" DisplayName="Financeiro" />
+          <desktop:StartupTask TaskId="FinanceiroServir" Enabled="true" DisplayName="MyMonetto" />
         </desktop:Extension>
       </Extensions>
     </Application>

@@ -80,7 +80,7 @@ final class AuthController
     private static function exigirContaPermitida(): void
     {
         if (!Primeira::contaPermitida()) {
-            renderErro(403, t('Crie a conta no próprio computador'), t('Abra o Financeiro no computador onde ele está instalado para criar a primeira conta. Depois, os outros aparelhos podem entrar'));
+            renderErro(403, t('Crie a conta no próprio computador'), t('Abra o MyMonetto no computador onde ele está instalado para criar a primeira conta. Depois, os outros aparelhos podem entrar'));
         }
     }
 

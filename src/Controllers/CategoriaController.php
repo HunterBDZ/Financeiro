@@ -85,7 +85,7 @@ final class CategoriaController
         }
         $conta = ContaRecorrenteModel::daCategoria((int) $cat['id']);
         View::render('categorias/editar', [
-            'pageTitle'  => t('{nome} · financeiro', ['nome' => nomeCurto($cat)]),
+            'pageTitle'  => t('{nome} · MyMonetto', ['nome' => nomeCurto($cat)]),
             'cat'        => $cat,
             'icone'      => Icones::daCategoria((int) $cat['id'], (string) $cat['nome'], (string) $cat['grupo']),
             'dia'        => $conta !== null && (int) $conta['ativo'] === 1 ? (int) $conta['dia_vencimento'] : null,

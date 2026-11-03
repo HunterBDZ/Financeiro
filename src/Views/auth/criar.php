@@ -14,10 +14,10 @@ $css = array_filter(['/assets/css/style.css', '/assets/css/lancar.css', '/assets
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
-<meta name="theme-color" content="#f4f5f7" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0a0b0f" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#F6F8FB" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0A1020" media="(prefers-color-scheme: dark)">
 <meta name="format-detection" content="telephone=no">
-<title><?= e(t('Criar conta · financeiro')) ?></title>
+<title><?= e(t('Criar conta · MyMonetto')) ?></title>
 <?= \Financeiro\SiteIcone::tags() ?><link rel="preload" href="/assets/fonts/manrope-var-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/assets/fonts/sora-var-latin.woff2" as="font" type="font/woff2" crossorigin>
 <script src="<?= e(asset('/assets/js/theme.js')) ?>"></script>
@@ -29,13 +29,13 @@ $css = array_filter(['/assets/css/style.css', '/assets/css/lancar.css', '/assets
 <main class="lg">
     <div class="lg-topo">
         <span class="marca"><img src="<?= e(\Financeiro\SiteIcone::url()) ?>" alt="" width="96" height="96"></span>
-        <b translate="no">financeiro</b>
+        <b translate="no">MyMonetto</b>
         <button type="button" class="ic" data-theme-toggle aria-label="<?= e(t('trocar tema')) ?>"><?= svgIcon('sun', 19, 'so-escuro') ?><?= svgIcon('moon', 19, 'so-claro') ?></button>
     </div>
 
     <div class="lg-esq">
         <h1 class="lg-titulo"><?= e(t('Falta só a sua conta.')) ?></h1>
-        <p class="lg-sub"><?= e(t('O Financeiro está instalado. Crie o seu acesso para começar.')) ?></p>
+        <p class="lg-sub"><?= e(t('O MyMonetto está instalado. Crie o seu acesso para começar.')) ?></p>
     </div>
 
     <div class="lg-dir">
@@ -63,7 +63,7 @@ $css = array_filter(['/assets/css/style.css', '/assets/css/lancar.css', '/assets
                 <span class="sr-only"><?= e(t('Código de instalação')) ?></span>
                 <input type="text" name="codigo" required maxlength="40" placeholder="<?= e(t('Código de instalação')) ?>" autocomplete="one-time-code" autocapitalize="characters" autocorrect="off" spellcheck="false" aria-describedby="codigo-ajuda" enterkeyhint="go">
             </label>
-            <p class="lg-nota" id="codigo-ajuda"><?= e(t('Para ninguém criar a conta antes de você, o Financeiro mostrou um código no fim da instalação. No Docker, ele está em docker compose logs.')) ?></p>
+            <p class="lg-nota" id="codigo-ajuda"><?= e(t('Para ninguém criar a conta antes de você, o MyMonetto mostrou um código no fim da instalação. No Docker, ele está em docker compose logs.')) ?></p>
             <?php endif; ?>
             <?php if ($erro !== null): ?>
                 <div class="aviso aviso-error" role="alert"><?= e($erro) ?></div>

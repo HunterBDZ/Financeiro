@@ -2,6 +2,8 @@
 
 Cada versão publicada é uma tag `vX.Y.Z` deste repositório. Pacotes atualizam em Ajustes, em Backup e atualização; servidores, com `sudo financeiro-atualizar`.
 
+> **Nota:** a partir do redesenho, o app se chama **MyMonetto**. Os comandos, as pastas de dados e o serviço continuam com o nome antigo (`financeiro`).
+
 ## 1.14.1
 
 - Correção num teste do menu: no PHP de servidor ele falhava, e a atualização para a 1.14.0 parava no ensaio, sem mexer no site. Traz tudo o que a 1.14.0 trouxe.

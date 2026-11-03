@@ -18,9 +18,9 @@ $titulos = [1 => t('A partir de que dia quer controlar?'), 2 => t('Quanto entra 
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#f4f5f7" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0a0b0f" media="(prefers-color-scheme: dark)">
-<title><?= e(t('Primeira configuração')) ?> · financeiro</title>
+<meta name="theme-color" content="#F6F8FB" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0A1020" media="(prefers-color-scheme: dark)">
+<title><?= e(t('Primeira configuração')) ?> · MyMonetto</title>
 <?= SiteIcone::tags() ?>
 <script src="<?= e(asset('/assets/js/theme.js')) ?>"></script>
 <script src="<?= e(asset('/assets/js/fuso.js')) ?>" defer></script>
@@ -32,7 +32,7 @@ $titulos = [1 => t('A partir de que dia quer controlar?'), 2 => t('Quanto entra 
 <main class="cm">
     <div class="cm-topo">
         <span class="marca"><img src="<?= e(SiteIcone::url()) ?>" alt="" width="96" height="96"></span>
-        <b translate="no">financeiro</b>
+        <b translate="no">MyMonetto</b>
         <span class="cm-passo num"><?= e(t('Passo {n} de {total}', ['n' => $passo, 'total' => $total])) ?></span>
     </div>
     <div class="cm-barra" aria-hidden="true"><i style="--p:<?= (int) round($passo / $total * 100) ?>%"></i></div>

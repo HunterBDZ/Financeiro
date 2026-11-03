@@ -16,18 +16,18 @@ SetCompressor /SOLID lzma
 !uninstfinalize '${ASSINAR}' = 0
 !endif
 
-Name "Financeiro"
+Name "MyMonetto"
 OutFile "${SAIDA}"
 InstallDir "$LOCALAPPDATA\Programs\Financeiro"
 RequestExecutionLevel user
 ShowInstDetails nevershow
 ShowUninstDetails nevershow
-BrandingText "Financeiro ${VERSAO}"
+BrandingText "MyMonetto ${VERSAO}"
 VIProductVersion "${VERSAO}.0"
-VIAddVersionKey /LANG=0 "ProductName" "Financeiro"
+VIAddVersionKey /LANG=0 "ProductName" "MyMonetto"
 VIAddVersionKey /LANG=0 "ProductVersion" "${VERSAO}"
 VIAddVersionKey /LANG=0 "FileVersion" "${VERSAO}"
-VIAddVersionKey /LANG=0 "FileDescription" "Financeiro"
+VIAddVersionKey /LANG=0 "FileDescription" "MyMonetto"
 VIAddVersionKey /LANG=0 "LegalCopyright" "AGPL-3.0-or-later"
 
 !define MUI_ICON "${ICONE}"
@@ -47,12 +47,12 @@ VIAddVersionKey /LANG=0 "LegalCopyright" "AGPL-3.0-or-later"
 !insertmacro MUI_LANGUAGE "PortugueseBR"
 !insertmacro MUI_LANGUAGE "Spanish"
 
-LangString TXT_ABRIR ${LANG_ENGLISH} "Open Financeiro"
-LangString TXT_ABRIR ${LANG_PORTUGUESEBR} "Abrir o Financeiro"
-LangString TXT_ABRIR ${LANG_SPANISH} "Abrir Financeiro"
-LangString TXT_MAIS_NOVA ${LANG_ENGLISH} "A newer version of Financeiro is already installed: $R0. Nothing was changed."
-LangString TXT_MAIS_NOVA ${LANG_PORTUGUESEBR} "Já está instalada uma versão mais nova do Financeiro: $R0. Nada foi alterado."
-LangString TXT_MAIS_NOVA ${LANG_SPANISH} "Ya está instalada una versión más nueva de Financeiro: $R0. No se cambió nada."
+LangString TXT_ABRIR ${LANG_ENGLISH} "Open MyMonetto"
+LangString TXT_ABRIR ${LANG_PORTUGUESEBR} "Abrir o MyMonetto"
+LangString TXT_ABRIR ${LANG_SPANISH} "Abrir MyMonetto"
+LangString TXT_MAIS_NOVA ${LANG_ENGLISH} "A newer version of MyMonetto is already installed: $R0. Nothing was changed."
+LangString TXT_MAIS_NOVA ${LANG_PORTUGUESEBR} "Já está instalada uma versão mais nova do MyMonetto: $R0. Nada foi alterado."
+LangString TXT_MAIS_NOVA ${LANG_SPANISH} "Ya está instalada una versión más nueva de MyMonetto: $R0. No se cambió nada."
 LangString TXT_APAGAR ${LANG_ENGLISH} "Also delete your data (entries, accounts and backups)?$\r$\n$\r$\nThis cannot be undone. If you choose No, they stay in $LOCALAPPDATA\Financeiro."
 LangString TXT_APAGAR ${LANG_PORTUGUESEBR} "Apagar também os seus dados (lançamentos, contas e backups)?$\r$\n$\r$\nIsso não pode ser desfeito. Se escolher Não, eles ficam em $LOCALAPPDATA\Financeiro."
 LangString TXT_APAGAR ${LANG_SPANISH} "¿Borrar también sus datos (movimientos, cuentas y copias de seguridad)?$\r$\n$\r$\nEsto no se puede deshacer. Si elige No, se quedan en $LOCALAPPDATA\Financeiro."
@@ -61,7 +61,7 @@ Function AbrirAgora
     Exec '"$INSTDIR\financeiro.exe"'
 FunctionEnd
 
-Section "Financeiro"
+Section "MyMonetto"
     ; uma versão já instalada: não volta para uma mais velha, e para antes de trocar os arquivos
     ${If} ${FileExists} "$INSTDIR\app\VERSION"
         FileOpen $R1 "$INSTDIR\app\VERSION" r
@@ -89,7 +89,7 @@ Section "Financeiro"
 
     ; no início da sessão, em segundo plano e sem janela
     WriteRegStr HKCU "${CHAVE_INICIO}" "Financeiro" '"$INSTDIR\financeiro.exe" servir'
-    WriteRegStr HKCU "${CHAVE_APP}" "DisplayName" "Financeiro"
+    WriteRegStr HKCU "${CHAVE_APP}" "DisplayName" "MyMonetto"
     WriteRegStr HKCU "${CHAVE_APP}" "DisplayVersion" "${VERSAO}"
     WriteRegStr HKCU "${CHAVE_APP}" "Publisher" "Hunter"
     WriteRegStr HKCU "${CHAVE_APP}" "DisplayIcon" "$INSTDIR\financeiro.exe"

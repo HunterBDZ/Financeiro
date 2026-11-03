@@ -63,7 +63,7 @@ iniciar() {
         sleep 1
         i=$((i + 1))
     done
-    echo "O Financeiro não abriu. Veja: financeiro status" >&2
+    echo "O MyMonetto não abriu. Veja: financeiro status" >&2
     return 1
 }
 
@@ -76,12 +76,12 @@ parar() {
 case ${1:-abrir} in
     abrir)
         iniciar || exit 1
-        echo "O Financeiro está em $(endereco)"
+        echo "O MyMonetto está em $(endereco)"
         if command -v xdg-open >/dev/null 2>&1 && [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]; then xdg-open "$(endereco)" >/dev/null 2>&1 & fi
         ;;
     servir) servir ;;
-    iniciar) iniciar && echo "O Financeiro está em $(endereco)" ;;
-    parar) parar; echo "O Financeiro parou." ;;
+    iniciar) iniciar && echo "O MyMonetto está em $(endereco)" ;;
+    parar) parar; echo "O MyMonetto parou." ;;
     status)
         if no_ar; then echo "No ar em $(endereco)"; else echo "Parado."; fi
         echo "Dados em $DADOS"
@@ -101,7 +101,7 @@ case ${1:-abrir} in
             echo "Os seus dados ficaram em $DADOS"
         fi
         rm -rf "$AQUI"
-        echo "O Financeiro foi desinstalado."
+        echo "O MyMonetto foi desinstalado."
         ;;
     *) sed -n '2,8p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
 esac

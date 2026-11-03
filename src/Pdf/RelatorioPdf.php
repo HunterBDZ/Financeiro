@@ -57,7 +57,7 @@ final class RelatorioPdf
     public function nomeArquivo(): string
     {
         $sufixo = $this->r['tipo'] === 'anual' ? (string) $this->r['ano'] : substr((string) $this->r['mes'], 0, 7);
-        return 'financeiro-' . t('relatorio') . '-' . $sufixo . '.pdf';
+        return 'mymonetto-' . t('relatorio') . '-' . $sufixo . '.pdf';
     }
 
     /* ================================================================== mensal */
@@ -185,7 +185,7 @@ final class RelatorioPdf
     {
         $x = self::MARGEM;
         $this->marca($x, 40, 24);
-        $this->d->texto($x + 31, 56.5, 'financeiro', self::BOLD, 12, self::TINTA);
+        $this->d->texto($x + 31, 56.5, 'MyMonetto', self::BOLD, 12, self::TINTA);
         $this->d->texto($x + self::LARG, 56.5, $tipo, self::MED, 10, self::GRAFITE, 'd');
         $this->y = 104;
         $this->d->texto($x, $this->y, $periodo, self::MED, 13, self::GRAFITE);

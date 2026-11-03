@@ -11,9 +11,9 @@ $logado = \Financeiro\Auth::logado();
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#f4f5f7" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0a0b0f" media="(prefers-color-scheme: dark)">
-<title><?= e(t('privacidade · financeiro')) ?></title>
+<meta name="theme-color" content="#F6F8FB" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0A1020" media="(prefers-color-scheme: dark)">
+<title><?= e(t('privacidade · MyMonetto')) ?></title>
 <?= \Financeiro\SiteIcone::tags() ?>
 <script src="<?= e(asset('/assets/js/theme.js')) ?>"></script>
 <?php foreach ($css as $c): ?>
@@ -24,7 +24,7 @@ $logado = \Financeiro\Auth::logado();
 <main class="lg lg-texto lg-privacidade">
     <div class="lg-topo">
         <span class="marca"><img src="<?= e(\Financeiro\SiteIcone::url()) ?>" alt="" width="96" height="96"></span>
-        <b translate="no">financeiro</b>
+        <b translate="no">MyMonetto</b>
     </div>
     <div class="lg-card lg-card-sem-espia">
         <h1 class="titulo"><?= e(t('Privacidade e aviso')) ?></h1>
@@ -51,7 +51,7 @@ $logado = \Financeiro\Auth::logado();
 
         <section id="aviso">
             <h2><?= e(t('Aviso')) ?></h2>
-            <p><?= e(t('O Financeiro é software livre, sob a licença AGPL-3.0, e vem sem garantia. Ele ajuda a organizar as contas, mas não é aconselhamento financeiro: confira os números antes de decidir. Os dados são seus, e os backups ficam com quem instalou o app.')) ?></p>
+            <p><?= e(t('O MyMonetto é software livre, sob a licença AGPL-3.0, e vem sem garantia. Ele ajuda a organizar as contas, mas não é aconselhamento financeiro: confira os números antes de decidir. Os dados são seus, e os backups ficam com quem instalou o app.')) ?></p>
         </section>
 
         <section id="contato">

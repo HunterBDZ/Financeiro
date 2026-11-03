@@ -37,7 +37,7 @@ final class MesController
         $hoje  = Relogio::hoje();
         $meses = MesModel::todos();
         if ($meses === []) {
-            View::render('dashboard/vazio', ['pageTitle' => t('mês · financeiro')], 'mes');
+            View::render('dashboard/vazio', ['pageTitle' => t('mês · MyMonetto')], 'mes');
             return;
         }
         $mesCal   = substr($hoje, 0, 7) . '-01';
@@ -182,7 +182,7 @@ final class MesController
         $erroLinha = is_array($erro) && ($erro['mes'] ?? '') === $mes ? $erro : null;
 
         View::render('mes/index', [
-            'pageTitle' => t('{mes} · mês · financeiro', ['mes' => monthLabel($mes)]),
+            'pageTitle' => t('{mes} · mês · MyMonetto', ['mes' => monthLabel($mes)]),
             'mes' => $mes, 'meses' => $meses, 'hoje' => $hoje, 'situacao' => $situacao, 'estado' => $estado,
             'editavel' => $editavel, 'ultimo' => $ultimo,
             'emConta' => round($emConta, 2), 'projetado' => $projetado, 'reserva' => $reserva,
@@ -371,7 +371,7 @@ final class MesController
             }
         }
         if ($meses === []) {
-            View::render('dashboard/vazio', ['pageTitle' => t('fechar mês · financeiro')], 'mes');
+            View::render('dashboard/vazio', ['pageTitle' => t('fechar mês · MyMonetto')], 'mes');
             return;
         }
         $mes = mesValido($_GET['mes'] ?? null, $meses, $padrao);
@@ -383,7 +383,7 @@ final class MesController
         if ($mes > $mesCal) {
             http_response_code(400);
             View::render('mes/fechar', [
-                'pageTitle' => t('fechar {mes} · financeiro', ['mes' => monthLabel($mes)]),
+                'pageTitle' => t('fechar {mes} · MyMonetto', ['mes' => monthLabel($mes)]),
                 'mes' => $mes, 'meses' => $meses, 'hoje' => $hoje, 'bloqueado' => true,
             ], 'mes');
             return;
@@ -395,7 +395,7 @@ final class MesController
         $plano = $real ? MotorFinanceiro::calcularPlano()
                        : MotorFinanceiro::calcular($d, ['hoje' => $hoje, 'tratarComoReal' => [$mes]]);
         if (!isset($plano[$mes])) {
-            View::render('dashboard/vazio', ['pageTitle' => t('fechar mês · financeiro')], 'mes');
+            View::render('dashboard/vazio', ['pageTitle' => t('fechar mês · MyMonetto')], 'mes');
             return;
         }
         $linha = $plano[$mes];
@@ -473,7 +473,7 @@ final class MesController
         unset($_SESSION['fe_erro']);
 
         View::render('mes/fechar', [
-            'pageTitle' => $real ? t('{mes} · fechado · financeiro', ['mes' => monthLabel($mes)]) : t('fechar {mes} · financeiro', ['mes' => monthLabel($mes)]),
+            'pageTitle' => $real ? t('{mes} · fechado · MyMonetto', ['mes' => monthLabel($mes)]) : t('fechar {mes} · MyMonetto', ['mes' => monthLabel($mes)]),
             'mes' => $mes, 'meses' => $meses, 'hoje' => $hoje, 'bloqueado' => false, 'real' => $real,
             'entrou' => $entrou, 'saiu' => $saiu, 'saldoMes' => $balanco,
             // a sobra até hoje (no mês fechado, a do mês) e o que leva dela ao balanço: as movimentações

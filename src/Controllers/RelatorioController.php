@@ -14,7 +14,7 @@ final class RelatorioController
         Auth::requireLogin();
         [$tipo, $periodos, $relatorio] = self::relatorioPedido();
         View::render('relatorio/index', [
-            'pageTitle' => t('relatório · financeiro'), 'tipo' => $tipo, 'periodos' => $periodos, 'r' => $relatorio,
+            'pageTitle' => t('relatório · MyMonetto'), 'tipo' => $tipo, 'periodos' => $periodos, 'r' => $relatorio,
         ], 'relatorio');
     }
 

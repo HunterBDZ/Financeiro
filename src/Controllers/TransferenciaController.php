@@ -39,7 +39,7 @@ final class TransferenciaController
         $erro = $_SESSION['transf_erro'] ?? null;
         unset($_SESSION['transf_erro']);
         View::render('transferencias/editar', [
-            'pageTitle' => t('transferência · financeiro'), 'transf' => $t, 'erro' => is_string($erro) ? $erro : null,
+            'pageTitle' => t('transferência · MyMonetto'), 'transf' => $t, 'erro' => is_string($erro) ? $erro : null,
             'contas' => self::contasPara($t), 'volta' => voltaSegura(is_string($_GET['volta'] ?? null) ? $_GET['volta'] : null, '/lancamentos?mes=' . substr((string) $t['data'], 0, 8) . '01'),
         ], 'extrato');
     }

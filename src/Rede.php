@@ -118,7 +118,7 @@ final class Rede
             (string) gethostname()
         );
         if (!$ok) {
-            Preflight::tela(421, t('Endereço não reconhecido'), [t('Abra o Financeiro pelo endereço mostrado no computador onde ele está instalado.')]);
+            Preflight::tela(421, t('Endereço não reconhecido'), [t('Abra o MyMonetto pelo endereço mostrado no computador onde ele está instalado.')]);
         }
     }
 

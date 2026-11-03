@@ -1,4 +1,4 @@
-Financeiro para Linux
+MyMonetto para Linux
 
 Para instalar, abra um terminal nesta pasta e rode:
 

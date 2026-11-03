@@ -58,7 +58,7 @@ final class AjustesController
         }
 
         View::render('ajustes/index', [
-            'pageTitle'   => t('ajustes · financeiro'),
+            'pageTitle'   => t('ajustes · MyMonetto'),
             'aj'          => $aj,
             'contas'      => count($dias),
             'dias'        => $dias,

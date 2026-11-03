@@ -17,8 +17,8 @@ use Financeiro\View;
  *
  * As mensagens de Backup e Atualizacao são escritas em português e traduzidas ao mostrar, porque a atualização roda
  * em outro processo:
- * i18n: t('Esse arquivo não é um backup do Financeiro.') t('Esse backup está danificado.') t('Não deu para guardar a cópia.')
- * i18n: t('Não deu para ler o backup.') t('Esse backup veio de uma versão mais nova do Financeiro. Atualize o Financeiro antes de restaurar.')
+ * i18n: t('Esse arquivo não é um backup do MyMonetto.') t('Esse backup está danificado.') t('Não deu para guardar a cópia.')
+ * i18n: t('Não deu para ler o backup.') t('Esse backup veio de uma versão mais nova do MyMonetto. Atualize o MyMonetto antes de restaurar.')
  * i18n: t('Não consigo gravar na pasta de dados.') t('Este PHP não consegue conferir a assinatura da atualização.')
  * i18n: t('A assinatura da atualização não confere. Nada foi baixado.') t('A resposta sobre a versão nova veio incompleta.')
  * i18n: t('A atualização parou no meio. Se o site estranhar algo, restaure o backup mais recente.') t('Outra atualização está rodando.')
@@ -48,7 +48,7 @@ final class SistemaController
         $motivos = ['diario' => t('do dia'), 'manual' => t('feito por você'), 'antes-atualizacao' => t('antes de atualizar'), 'antes-restaurar' => t('antes de restaurar')];
 
         View::render('sistema/index', [
-            'pageTitle' => t('backup e atualização · financeiro'),
+            'pageTitle' => t('backup e atualização · MyMonetto'),
             'pode' => $pode, 'administrador' => Auth::administrador(),
             'nomeAdministrador' => (string) (UsuarioModel::find((int) UsuarioModel::administradorId())['nome'] ?? ''),
             'tipo' => $tipo, 'versao' => Atualizacao::versaoAtual(), 'estado' => $estado, 'consulta' => is_array($consulta) ? $consulta : null,
@@ -188,7 +188,7 @@ final class SistemaController
             $url = (Rede::https() ? 'https://' : 'http://') . (string) ($_SERVER['HTTP_HOST'] ?? '');
         }
         View::render('sistema/rede', [
-            'pageTitle' => t('usar no celular · financeiro'),
+            'pageTitle' => t('usar no celular · MyMonetto'),
             'modo' => $modo, 'ligada' => $ligada, 'gerenciada' => Rede::gerenciada(), 'pode' => Auth::podeAdministrar(), 'administrador' => Auth::administrador(),
             'url' => $url, 'qr' => $url !== null && $ligada ? QrCode::svg($url, t('Código QR com o endereço {url}', ['url' => $url])) : null,
             'porta' => $porta, 'sistema' => PHP_OS_FAMILY,
@@ -210,7 +210,7 @@ final class SistemaController
         Primeira::gravarConfig('ACESSO_REDE', $ligar ? '1' : '0');
         Rede::pedirReinicio();
         header('Refresh: 6; url=/rede');
-        View::render('sistema/reiniciando', ['pageTitle' => t('usar no celular · financeiro'), 'ligar' => $ligar], 'ajustes');
+        View::render('sistema/reiniciando', ['pageTitle' => t('usar no celular · MyMonetto'), 'ligar' => $ligar], 'ajustes');
     }
 
     /* ---- internos */
@@ -221,7 +221,7 @@ final class SistemaController
         csrfCheck();
         if (!Auth::podeAdministrar()) {
             flash('error', Auth::administrador()
-                ? t('Faça isso no computador onde o Financeiro está instalado.')
+                ? t('Faça isso no computador onde o MyMonetto está instalado.')
                 : t('Só a primeira conta criada neste site pode fazer isso.'));
             redirecionar('/sistema', 303);
         }

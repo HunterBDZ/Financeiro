@@ -31,7 +31,7 @@ final class CartaoController
         unset($_SESSION['cartao_erro']);
         $contas  = ContaModel::varias() ? ContaModel::ativas() : [];
         if ($cartoes === [] || isset($_GET['novo'])) {
-            View::render('cartao/index', ['pageTitle' => t('cartão · financeiro'), 'cartao' => null, 'erro' => $erro, 'hoje' => $hoje,
+            View::render('cartao/index', ['pageTitle' => t('cartão · MyMonetto'), 'cartao' => null, 'erro' => $erro, 'hoje' => $hoje,
                 'cartoes' => $cartoes, 'contas' => $contas], 'cartao');
             return;
         }
@@ -55,7 +55,7 @@ final class CartaoController
                                         array_map(static fn(array $f): string => $f['ultimo'], $pagas));
         $sel     = is_string($_GET['fatura'] ?? null) && preg_match('/^\d{4}-\d{2}-01$/D', $_GET['fatura']) ? $_GET['fatura'] : $aberta;
         View::render('cartao/index', [
-            'pageTitle' => t('cartão · financeiro'), 'cartao' => $cartao, 'painel' => $painel, 'hoje' => $hoje,
+            'pageTitle' => t('cartão · MyMonetto'), 'cartao' => $cartao, 'painel' => $painel, 'hoje' => $hoje,
             'sel' => $sel, 'erro' => $erro, 'temCompras' => $compras !== [], 'cartoes' => $cartoes, 'contas' => $contas,
             'lancadoTodos' => $lancadoTodos, 'temFatura' => $cat !== null,
             // como ordenar a lista da fatura e a dos parcelamentos (como no Extrato); '' = o padrão de cada uma
@@ -246,7 +246,7 @@ final class CartaoController
             $meses[] = CartaoFatura::somaMeses($aberta, $i);
         }
         View::render('cartao/editar', [
-            'pageTitle' => t('compra no cartão · financeiro'), 'compra' => $c, 'cartao' => $cartao, 'meses' => $meses,
+            'pageTitle' => t('compra no cartão · MyMonetto'), 'compra' => $c, 'cartao' => $cartao, 'meses' => $meses,
             'categorias' => self::categoriasDeGasto(), 'erro' => $erro, 'aberta' => $aberta, 'volta' => self::url($cartao['id'], 'fatura=' . $c['primeira_fatura']),
         ], 'cartao');
     }

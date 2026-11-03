@@ -37,7 +37,7 @@ final class DashboardController
             ? MotorFinanceiro::calcularPlano()
             : MotorFinanceiro::calcular(MotorFinanceiro::dados(), ['hoje' => $hoje]);
         if ($plano === []) {
-            View::render('dashboard/vazio', ['pageTitle' => t('início · financeiro')], 'inicio');
+            View::render('dashboard/vazio', ['pageTitle' => t('início · MyMonetto')], 'inicio');
             return;
         }
 
@@ -87,7 +87,7 @@ final class DashboardController
         $fimSemAdiantar = $previsaoFim !== null ? self::fimSemAdiantar($linhaPrev, $mesPrev, $hoje) : null;
 
         View::render('dashboard/index', [
-            'pageTitle'      => t('início · financeiro'),
+            'pageTitle'      => t('início · MyMonetto'),
             'hoje'           => $hoje,
             'mesRef'         => $mesRef,
             'mesCal'         => $mesCal,
@@ -119,7 +119,7 @@ final class DashboardController
         Auth::requireLogin();
         $hoje = self::hoje();
         View::render('dashboard/atencao', [
-            'pageTitle' => t('precisa de atenção · financeiro'),
+            'pageTitle' => t('precisa de atenção · MyMonetto'),
             'avisos'    => Atencao::avisos($hoje, self::conferenciaAtual($hoje)),
         ], 'inicio');
     }

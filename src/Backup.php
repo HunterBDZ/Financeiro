@@ -71,7 +71,7 @@ final class Backup
     {
         $inicio = @file_get_contents($arquivo, false, null, 0, 16);
         if ($inicio !== "SQLite format 3\0") {
-            throw new \RuntimeException('Esse arquivo não é um backup do Financeiro.');
+            throw new \RuntimeException('Esse arquivo não é um backup do MyMonetto.');
         }
         try {
             $pdo = new SqliteConexao($arquivo);
@@ -79,13 +79,13 @@ final class Backup
             $ok = $pdo->query('PRAGMA quick_check(1)')->fetchColumn();
             $tem = $pdo->query("SELECT name FROM sqlite_master WHERE type = 'table'")->fetchAll(PDO::FETCH_COLUMN);
         } catch (\PDOException) {
-            throw new \RuntimeException('Esse arquivo não é um backup do Financeiro.');
+            throw new \RuntimeException('Esse arquivo não é um backup do MyMonetto.');
         }
         if ($ok !== 'ok') {
             throw new \RuntimeException('Esse backup está danificado.');
         }
         if (array_diff(self::TABELAS, $tem) !== []) {
-            throw new \RuntimeException('Esse arquivo não é um backup do Financeiro.');
+            throw new \RuntimeException('Esse arquivo não é um backup do MyMonetto.');
         }
         $pdo = null;
     }
@@ -188,7 +188,7 @@ final class Backup
     {
         $pdo = new SqliteConexao($tmp);
         if (Migrador::desconhecidas($pdo, $migracoes) !== []) {
-            throw new \RuntimeException('Esse backup veio de uma versão mais nova do Financeiro. Atualize o Financeiro antes de restaurar.');
+            throw new \RuntimeException('Esse backup veio de uma versão mais nova do MyMonetto. Atualize o MyMonetto antes de restaurar.');
         }
         if ($pdo->query('PRAGMA main.foreign_key_check')->fetch() !== false) {
             throw new \RuntimeException('Esse backup está danificado.');
@@ -208,7 +208,7 @@ final class Backup
             foreach ($tabelas as $t) {
                 $colunas = self::colunas($pdo, 'main', $t);
                 if ($colunas !== self::colunas($pdo, 'restaurar', $t)) {
-                    throw new \RuntimeException('Esse arquivo não é um backup do Financeiro.');
+                    throw new \RuntimeException('Esse arquivo não é um backup do MyMonetto.');
                 }
                 $lista = '"' . implode('", "', $colunas) . '"';
                 $pdo->exec('DELETE FROM main."' . $t . '"');

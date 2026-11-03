@@ -70,7 +70,7 @@ final class LancamentosController
         $categorias = CategoriaModel::ativas();
 
         View::render('lancamentos/index', [
-            'pageTitle'  => $b['modo'] === '' ? t('extrato · {mes} · financeiro', ['mes' => monthLabel($mes)]) : t('extrato · {periodo} · financeiro', ['periodo' => $b['rotulo']]),
+            'pageTitle'  => $b['modo'] === '' ? t('extrato · {mes} · MyMonetto', ['mes' => monthLabel($mes)]) : t('extrato · {periodo} · MyMonetto', ['periodo' => $b['rotulo']]),
             'mes'        => $mes,
             'meses'      => $meses,
             'situacao'   => $situacao,
@@ -300,7 +300,7 @@ final class LancamentosController
         }
 
         View::render('lancamentos/lancar', [
-            'pageTitle'        => t('lançar · financeiro'),
+            'pageTitle'        => t('lançar · MyMonetto'),
             'semDialogoLancar' => true,
             'form'             => LancarForm::dados() + ['modo' => 'pagina', 'pref' => 'pg', 'volta' => $volta, 'antigo' => $antigo],
         ], '');
@@ -455,7 +455,7 @@ final class LancamentosController
         $volta = voltaSegura(self::get('volta'), '/lancamentos?mes=' . substr($l['data'], 0, 8) . '01');
 
         View::render('lancamentos/editar', [
-            'pageTitle'  => t('editar · financeiro'),
+            'pageTitle'  => t('editar · MyMonetto'),
             'lancamento' => $l,
             'volta'      => $volta,
             'form'       => LancarForm::dados() + [

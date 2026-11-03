@@ -7,9 +7,9 @@ $css = ['/assets/css/style.css', '/assets/css/lancar.css', '/assets/css/temas.cs
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#f4f5f7" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0a0b0f" media="(prefers-color-scheme: dark)">
-<title><?= e(t('ajuda · financeiro')) ?></title>
+<meta name="theme-color" content="#F6F8FB" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0A1020" media="(prefers-color-scheme: dark)">
+<title><?= e(t('ajuda · MyMonetto')) ?></title>
 <?= \Financeiro\SiteIcone::tags() ?>
 <script src="<?= e(asset('/assets/js/theme.js')) ?>"></script>
 <?php foreach ($css as $c): ?>
@@ -20,7 +20,7 @@ $css = ['/assets/css/style.css', '/assets/css/lancar.css', '/assets/css/temas.cs
 <main class="lg lg-texto">
     <div class="lg-topo">
         <span class="marca"><img src="<?= e(\Financeiro\SiteIcone::url()) ?>" alt="" width="96" height="96"></span>
-        <b translate="no">financeiro</b>
+        <b translate="no">MyMonetto</b>
     </div>
     <div class="lg-card lg-card-sem-espia">
         <h1 class="titulo"><?= e(t('Por que o navegador diz que a conexão não é segura?')) ?></h1>

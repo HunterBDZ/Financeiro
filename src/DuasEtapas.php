@@ -108,8 +108,8 @@ final class DuasEtapas
     /** O endereço do QR, que o app autenticador lê. Login longo demais para o QR: só o nome do app. */
     public static function enderecoQr(string $segredo, string $login): string
     {
-        $base = 'otpauth://totp/Financeiro:' . rawurlencode($login) . '?secret=' . self::base32($segredo) . '&issuer=Financeiro';
-        return strlen($base) <= 200 ? $base : 'otpauth://totp/Financeiro?secret=' . self::base32($segredo) . '&issuer=Financeiro';
+        $base = 'otpauth://totp/MyMonetto:' . rawurlencode($login) . '?secret=' . self::base32($segredo) . '&issuer=MyMonetto';
+        return strlen($base) <= 200 ? $base : 'otpauth://totp/MyMonetto?secret=' . self::base32($segredo) . '&issuer=MyMonetto';
     }
 
     /** A chave para digitar no app, em grupos de 4. */

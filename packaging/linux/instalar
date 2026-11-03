@@ -53,7 +53,7 @@ ln -sf "$DESTINO/financeiro" "$HOME/.local/bin/financeiro"
 cat > "$HOME/.local/share/applications/financeiro.desktop" <<DESKTOP
 [Desktop Entry]
 Type=Application
-Name=Financeiro
+Name=MyMonetto
 Comment=Controle o dinheiro da sua casa
 Exec="$DESTINO/financeiro"
 Icon=$DESTINO/app/public/assets/img/marca.svg
@@ -66,7 +66,7 @@ if command -v systemctl >/dev/null 2>&1 && systemctl --user show-environment >/d
     mkdir -p "$(dirname "$UNIDADE")"
     cat > "$UNIDADE" <<SERVICO
 [Unit]
-Description=Financeiro
+Description=MyMonetto
 
 [Service]
 ExecStart="$DESTINO/financeiro" servir
@@ -87,7 +87,7 @@ fi
 
 cat <<MSG
 
-Pronto! O Financeiro $NOVA está instalado.
+Pronto! O MyMonetto $NOVA está instalado.
 
   1. Abra no navegador deste computador:  http://localhost:$PORTA
   2. Crie a sua conta na tela que aparecer.
@@ -95,7 +95,7 @@ Pronto! O Financeiro $NOVA está instalado.
 Depois, ele fica no menu de aplicativos. Para usar no celular: Ajustes, Usar no celular.
 MSG
 if [ "$SEM_SERVICO" = 1 ]; then
-    printf '\nEste sistema não tem systemd de usuário: depois de reiniciar, abra o Financeiro pelo menu ou com "%s".\n' "$DESTINO/financeiro"
+    printf '\nEste sistema não tem systemd de usuário: depois de reiniciar, abra o MyMonetto pelo menu ou com "%s".\n' "$DESTINO/financeiro"
 fi
 case ":$PATH:" in
     *":$HOME/.local/bin:"*) ;;

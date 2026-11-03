@@ -29,7 +29,7 @@ final class ImportacaoController
         $destinos = self::destinos();
         $pedido = is_string($_GET['destino'] ?? null) ? $_GET['destino'] : (string) ($_SESSION['importar_destino'] ?? '');
         View::render('importar/index', [
-            'pageTitle' => t('importar extrato · financeiro'),
+            'pageTitle' => t('importar extrato · MyMonetto'),
             'destinos'  => $destinos,
             'escolhido' => self::destino($pedido) !== null ? $pedido : 'conta:' . ContaModel::padrao(),
             'recentes'  => ImportacaoModel::recentes(),
@@ -125,7 +125,7 @@ final class ImportacaoController
         $mapa = $_SESSION['importar_mapa_erro'] ?? $estado['csv']['mapa'] ?? ExtratoArquivo::mapaSugerido($linhas);
         unset($_SESSION['importar_mapa_erro']);
         View::render('importar/colunas', [
-            'pageTitle' => t('importar extrato · financeiro'),
+            'pageTitle' => t('importar extrato · MyMonetto'),
             'estado'    => $estado,
             'mapa'      => $mapa,
             'cabecalho' => ExtratoArquivo::temCabecalho($linhas) ? $linhas[0] : null,
@@ -186,7 +186,7 @@ final class ImportacaoController
             $categorias[$tp] = Importacao::permitidas($tp);
         }
         View::render('importar/revisar', [
-            'pageTitle'  => t('revisar importação · financeiro'),
+            'pageTitle'  => t('revisar importação · MyMonetto'),
             'estado'     => $estado,
             'linhas'     => $rev,
             'categorias' => $categorias,

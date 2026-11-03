@@ -14,7 +14,7 @@ $senha = static function (string $id): void { ?>
 
     <?php if (!$pode): ?>
         <p class="aviso"><?= e($administrador
-            ? t('Faça isso no computador onde o Financeiro está instalado.')
+            ? t('Faça isso no computador onde o MyMonetto está instalado.')
             : t('Só {nome}, a primeira conta criada neste site, pode fazer backup, restaurar e atualizar.', ['nome' => $nomeAdministrador])) ?></p>
     <?php endif; ?>
 
@@ -26,7 +26,7 @@ $senha = static function (string $id): void { ?>
                 ? t('Programa que roda o site: FrankenPHP {frankenphp}, com PHP {php}.', ['frankenphp' => $programa['frankenphp'], 'php' => $programa['php']])
                 : t('Programa que roda o site: PHP {php}.', ['php' => $programa['php']])) ?></p>
             <?php if ($programa['instalar'] !== null): ?>
-                <p class="aviso aviso-warn" id="sis-programa-velho"><?= e(t('Há uma versão nova do programa que roda o Financeiro. Para instalar, baixe o instalador da versão {versao} e instale por cima. Os seus dados ficam.', ['versao' => $programa['instalar']])) ?>
+                <p class="aviso aviso-warn" id="sis-programa-velho"><?= e(t('Há uma versão nova do programa que roda o MyMonetto. Para instalar, baixe o instalador da versão {versao} e instale por cima. Os seus dados ficam.', ['versao' => $programa['instalar']])) ?>
                     <a href="<?= e($versoes) ?>" rel="noopener"><?= e(t('Abrir a página de versões')) ?></a></p>
             <?php endif; ?>
         <?php endif; ?>
@@ -57,7 +57,7 @@ docker compose up -d</pre>
                 <p class="sis-nova"><b><?= e(t('Versão {versao} disponível.', ['versao' => $consulta['versao']])) ?></b></p>
                 <?php if ($consulta['notas'] !== ''): ?><details class="sis-notas"><summary><?= e(t('O que muda')) ?></summary><pre><?= e($consulta['notas']) ?></pre></details><?php endif; ?>
                 <?php if ($pode && $tipo === 'pacote'): ?>
-                    <p class="aj-ajuda"><?= e(t('Antes de aplicar, o Financeiro testa a versão numa cópia dos seus dados e faz um backup. Se algo falhar, ele volta sozinho.')) ?></p>
+                    <p class="aj-ajuda"><?= e(t('Antes de aplicar, o MyMonetto testa a versão numa cópia dos seus dados e faz um backup. Se algo falhar, ele volta sozinho.')) ?></p>
                     <form method="post" action="/sistema/atualizar" data-espera="<?= e(t('Atualizando…')) ?>" data-confirm="<?= e(t('Atualizar para a versão {versao}? O site fica fora do ar por alguns instantes.', ['versao' => $consulta['versao']])) ?>">
                         <?= $csrf ?><input type="hidden" name="versao" value="<?= e($consulta['versao']) ?>">
                         <button type="submit" class="btn btn-primary aj-salvar"><?= e(t('Atualizar agora')) ?></button>
@@ -71,7 +71,7 @@ docker compose up -d</pre>
                 <?= $csrf ?>
                 <button type="submit" class="btn btn-ghost aj-salvar"><?= e(t('Procurar versão nova')) ?></button>
             </form>
-            <p class="aj-ajuda"><?= e(t('O Financeiro só consulta a internet quando você pede.')) ?></p>
+            <p class="aj-ajuda"><?= e(t('O MyMonetto só consulta a internet quando você pede.')) ?></p>
         <?php endif; ?>
     </section>
 
@@ -84,7 +84,7 @@ docker compose up -d</pre>
             <?php if ($backups !== []): ?>
                 <p><?= e(t('Último backup: {backup}.', ['backup' => $backups[0]['rotulo']])) ?></p>
             <?php endif; ?>
-            <p class="aj-ajuda"><?= e(t('O Financeiro faz uma cópia por dia, na primeira vez que você abre. Elas ficam neste computador: guarde de vez em quando uma cópia em outro lugar, como um pen drive.')) ?></p>
+            <p class="aj-ajuda"><?= e(t('O MyMonetto faz uma cópia por dia, na primeira vez que você abre. Elas ficam neste computador: guarde de vez em quando uma cópia em outro lugar, como um pen drive.')) ?></p>
             <?php if ($pastaBackups !== null): ?><p class="aj-ajuda sis-pasta"><?= e($pastaBackups) ?></p><?php endif; ?>
             <form method="post" action="/sistema/backup" data-espera="<?= e(t('Fazendo backup…')) ?>">
                 <?= $csrf ?>
@@ -103,7 +103,7 @@ docker compose up -d</pre>
                 <summary><?= e(t('Restaurar um backup')) ?></summary>
                 <form class="aj-form" method="post" action="/sistema/restaurar" enctype="multipart/form-data" data-espera="<?= e(t('Restaurando…')) ?>" data-confirm="<?= e(t('Trocar todos os dados do site pelos do backup? Quem estiver usando vai precisar entrar de novo.')) ?>">
                     <?= $csrf ?>
-                    <p class="aj-ajuda"><?= e(t('Todos os dados do site são trocados pelos do backup. Antes, o Financeiro guarda uma cópia do que há agora.')) ?></p>
+                    <p class="aj-ajuda"><?= e(t('Todos os dados do site são trocados pelos do backup. Antes, o MyMonetto guarda uma cópia do que há agora.')) ?></p>
                     <?php if ($backups !== []): ?>
                         <label class="campo" for="sis-nome"><span><?= e(t('Backup deste computador')) ?></span>
                             <select id="sis-nome" name="nome">

@@ -2,7 +2,9 @@
 
 <img src="public/assets/img/marca.svg" alt="" width="96">
 
-# Financeiro
+# MyMonetto
+
+<sub>Antes chamado Financeiro. Os comandos e as pastas continuam com o nome antigo.</sub>
 
 **Controle o dinheiro da sua casa no seu próprio computador: lance gastos em segundos, veja como o mês vai fechar e planeje compras, dívidas e investimentos.**
 
@@ -114,7 +116,7 @@ Windows 10 ou 11, de 64 bits. Não pede administrador.
 1. Baixe `financeiro-…-windows-x86_64.exe` em [Versões](https://github.com/HunterBDZ/Financeiro/releases/latest).
 2. Dê dois cliques no arquivo.
 3. Se aparecer **"O Windows protegeu o computador"**, clique em **Mais informações** e depois em **Executar assim mesmo**.
-4. No fim, deixe marcado **Abrir o Financeiro** e crie a sua conta no navegador.
+4. No fim, deixe marcado **Abrir o MyMonetto** e crie a sua conta no navegador.
 
 Depois, abra pelo ícone **Financeiro** na área de trabalho. Ele liga sozinho quando você entra no Windows.
 

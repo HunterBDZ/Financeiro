@@ -42,7 +42,7 @@ final class Manutencao
         if (self::ativa()) {
             header('Retry-After: 5');
             header('Refresh: 5');
-            Preflight::tela(503, t('Atualizando o Financeiro'), [t('Isso costuma levar menos de um minuto. Esta página abre sozinha quando terminar.')]);
+            Preflight::tela(503, t('Atualizando o MyMonetto'), [t('Isso costuma levar menos de um minuto. Esta página abre sozinha quando terminar.')]);
         }
     }
 }

@@ -39,7 +39,7 @@ final class WishlistController
         $pedido = is_string($_GET['mes'] ?? null) ? $_GET['mes'] : '';
         $mes = $prev === null ? '' : (isset($prev['meses'][$pedido]) ? $pedido : ($prev['melhor'] ?? (string) array_key_first($prev['meses'])));
 
-        $data = ['pageTitle' => t('wishlist') . ' · financeiro', 'itens' => $itens, 'prev' => $prev, 'mes' => $mes, 'parcelas' => $parcelas];
+        $data = ['pageTitle' => t('wishlist') . ' · MyMonetto', 'itens' => $itens, 'prev' => $prev, 'mes' => $mes, 'parcelas' => $parcelas];
         if (($_GET['parcial'] ?? '') === '1') {
             View::partial('wishlist/_previsao', $data);
             return;

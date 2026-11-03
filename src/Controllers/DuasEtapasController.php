@@ -29,7 +29,7 @@ final class DuasEtapasController
         $erro = $_SESSION['duas_etapas_erro'] ?? null;
         unset($_SESSION['duas_etapas_erro']);
         View::render('ajustes/duas_etapas', [
-            'pageTitle' => t('verificação em duas etapas · financeiro'),
+            'pageTitle' => t('verificação em duas etapas · MyMonetto'),
             'qr'        => QrCode::svg(DuasEtapas::enderecoQr($segredo, $login), t('Código QR para o app autenticador')),
             'chave'     => DuasEtapas::chaveParaDigitar($segredo),
             'erro'      => is_string($erro) ? $erro : null,
@@ -48,7 +48,7 @@ final class DuasEtapasController
         $codigo = DuasEtapas::limpar(is_string($_POST['codigo'] ?? null) ? $_POST['codigo'] : '');
         $passo = DuasEtapas::conferirCodigo($segredo, $codigo, DuasEtapas::passo(), null);
         if ($passo === null) {
-            $_SESSION['duas_etapas_erro'] = t('O código não confere. Confira se o app mostra o Financeiro e digite o código que está na tela agora.');
+            $_SESSION['duas_etapas_erro'] = t('O código não confere. Confira se o app mostra o MyMonetto e digite o código que está na tela agora.');
             redirecionar('/ajustes/duas-etapas', 303);
         }
         try {
@@ -80,7 +80,7 @@ final class DuasEtapasController
         }
         header('Cache-Control: no-store');
         View::render('ajustes/duas_etapas_codigos', [
-            'pageTitle' => t('códigos de recuperação · financeiro'),
+            'pageTitle' => t('códigos de recuperação · MyMonetto'),
             'codigos'   => array_map('strval', $codigos),
         ], 'ajustes');
     }

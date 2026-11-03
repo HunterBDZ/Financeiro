@@ -385,7 +385,7 @@ final class Documento
         $obj[$arvore - 1] = '<< /Type /Pages /Kids [' . $filhos . '] /Count ' . count($this->paginas) . ' >>';
         $obj[$catalogo - 1] = '<< /Type /Catalog /Pages ' . $arvore . ' 0 R /Lang ' . self::textoPdf($this->idioma) . ' /ViewerPreferences << /DisplayDocTitle true >> >>';
         $data = $this->data !== '' ? 'D:' . $this->data : '';
-        $info = $novo('<< /Title ' . self::textoPdf($this->titulo) . ' /Producer (financeiro)' . ($data !== '' ? ' /CreationDate ' . self::textoPdf($data) : '') . ' >>');
+        $info = $novo('<< /Title ' . self::textoPdf($this->titulo) . ' /Producer (MyMonetto)' . ($data !== '' ? ' /CreationDate ' . self::textoPdf($data) : '') . ' >>');
 
         $pdf = "%PDF-1.5\n%\xE2\xE3\xCF\xD3\n";
         $posicoes = [];

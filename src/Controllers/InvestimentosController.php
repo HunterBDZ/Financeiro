@@ -13,7 +13,7 @@ final class InvestimentosController
     {
         Auth::requireLogin();
         View::render('investimentos/index', [
-            'pageTitle' => t('investimentos · financeiro'),
+            'pageTitle' => t('investimentos · MyMonetto'),
             'resumo' => Investimentos::resumo(Relogio::hoje()),
         ], 'investimentos');
     }

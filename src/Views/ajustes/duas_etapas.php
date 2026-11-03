@@ -11,7 +11,7 @@
         <div class="sis-qr"><?= $qr ?></div>
         <details class="sis-acao">
             <summary><?= e(t('Não dá para usar a câmera?')) ?></summary>
-            <p class="aj-ajuda"><?= e(t('No app, escolha digitar a chave e copie esta, com o nome Financeiro:')) ?></p>
+            <p class="aj-ajuda"><?= e(t('No app, escolha digitar a chave e copie esta, com o nome MyMonetto:')) ?></p>
             <p class="de-chave num" translate="no"><?= e($chave) ?></p>
         </details>
     </section>

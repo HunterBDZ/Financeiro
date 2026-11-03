@@ -289,10 +289,10 @@ function gerenteNavegador(string $url): void
 function gerenteFalhou(array $lugar): void
 {
     $log = str_replace('\\', '/', $lugar['dados'] . '/log/programa.log');
-    $html = '<!doctype html><meta charset="utf-8"><title>Financeiro</title><body style="font:16px/1.5 system-ui;max-width:40em;margin:3em auto;padding:0 1em">'
-        . '<h1>O Financeiro não abriu</h1><p>Reinicie o computador e tente de novo. Se continuar, os detalhes estão em:</p>'
-        . '<h1 lang="en">Financeiro did not open</h1><p lang="en">Restart the computer and try again. If it keeps happening, the details are in:</p>'
-        . '<h1 lang="es">Financeiro no se abrió</h1><p lang="es">Reinicie el equipo e inténtelo de nuevo. Si continúa, los detalles están en:</p>'
+    $html = '<!doctype html><meta charset="utf-8"><title>MyMonetto</title><body style="font:16px/1.5 system-ui;max-width:40em;margin:3em auto;padding:0 1em">'
+        . '<h1>O MyMonetto não abriu</h1><p>Reinicie o computador e tente de novo. Se continuar, os detalhes estão em:</p>'
+        . '<h1 lang="en">MyMonetto did not open</h1><p lang="en">Restart the computer and try again. If it keeps happening, the details are in:</p>'
+        . '<h1 lang="es">MyMonetto no se abrió</h1><p lang="es">Reinicie el equipo e inténtelo de nuevo. Si continúa, los detalles están en:</p>'
         . '<p><code>' . htmlspecialchars($log) . '</code></p>';
     $arquivo = str_replace('\\', '/', $lugar['dados']) . '/nao-abriu.html';
     file_put_contents($arquivo, $html);
@@ -447,11 +447,11 @@ function gerente(array $argv): int
             return gerenteServir($lugar);
         case 'iniciar':
             $ok = gerenteIniciar($lugar);
-            echo $ok ? 'O Financeiro está em ' . gerenteUrl($lugar['porta']) . "\n" : "O Financeiro não abriu.\n";
+            echo $ok ? 'O MyMonetto está em ' . gerenteUrl($lugar['porta']) . "\n" : "O MyMonetto não abriu.\n";
             return $ok ? 0 : 1;
         case 'parar':
             gerenteParar($lugar);
-            echo "O Financeiro parou.\n";
+            echo "O MyMonetto parou.\n";
             return 0;
         case 'status':
             echo gerenteNoAr($lugar['porta']) ? 'No ar em ' . gerenteUrl($lugar['porta']) . "\n" : "Parado.\n";

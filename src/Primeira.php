@@ -8,7 +8,7 @@ namespace Financeiro;
 final class Primeira
 {
     private const CONFIG = <<<'ENV'
-        # Criado pelo Financeiro na primeira execução.
+        # Criado pelo MyMonetto na primeira execução.
         APP_ENV=production
         DB_DRIVER=sqlite
         DB_FILE=financeiro.sqlite
@@ -63,7 +63,7 @@ final class Primeira
             @chmod($arquivo, 0600);
             fwrite($f, $codigo . "\n");
             fclose($f);
-            $linha = 'Financeiro: código para criar a primeira conta: ' . $codigo;
+            $linha = 'MyMonetto: código para criar a primeira conta: ' . $codigo;
             error_log($linha);
             if (PHP_SAPI !== 'cli') {
                 // o log do app fica na pasta de dados; a saída de erro é o que o Docker e o Apache mostram
@@ -115,7 +115,7 @@ final class Primeira
         // duas primeiras páginas ao mesmo tempo: uma cria, a outra espera
         $trava = fopen($dados . '/primeira.trava', 'c');
         if ($trava === false || !flock($trava, LOCK_EX)) {
-            Preflight::tela(500, t('O Financeiro não pôde abrir'), [t('Não consigo gravar na pasta de dados.')]);
+            Preflight::tela(500, t('O MyMonetto não pôde abrir'), [t('Não consigo gravar na pasta de dados.')]);
         }
         try {
             if (!is_file(Paths::config())) {
