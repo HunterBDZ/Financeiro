@@ -1,5 +1,5 @@
 // Metas: mudar a meta só de um mês, pelo editor da própria linha, e ver o valor no Mês. Os outros meses não mudam.
-import { test, expect, contaSemPagamento } from './fixtures.js';
+import { test, expect, contaSemPagamento, contasPagas } from './fixtures.js';
 
 test('meta só para um mês aparece no Mês e não muda o mês seguinte', async ({ page }) => {
     await page.goto('/meta?mes=2026-12-01');
@@ -32,6 +32,7 @@ test('meta só para um mês aparece no Mês e não muda o mês seguinte', async 
 
 // "Para usar neste mês" desconta as contas fixas que ainda faltam pagar, e a conta aparece ao lado; a barra de "% livre" saiu
 test('"Para usar neste mês" desconta as contas fixas que faltam pagar', async ({ page, baseURL }) => {
+    await contasPagas(page, baseURL);                   // só a Luz fica por pagar, seja o que for que os testes anteriores desfizeram
     await contaSemPagamento(page, baseURL, 'Luz');
     await page.goto('/meta');
     const conta = page.locator('.mt-conta-dl dd').filter({ hasText: /238,40/ });

@@ -120,3 +120,18 @@ export async function contaSemPagamento(page, baseURL, nome) {
     });
     expect(r.ok(), `excluir o pagamento de ${nome}`).toBe(true);
 }
+
+/**
+ * Paga, pelo "Pagar" do Início, toda conta fixa do mês que está sem pagamento: devolve a demonstração ao estado em
+ * que as contas já foram pagas, para um teste que não pode depender do que os testes anteriores do processo desfizeram.
+ */
+export async function contasPagas(page, baseURL) {
+    await page.goto('/');
+    const ids = await page.locator('form[action="/lancamentos/pago"] input[name="categoria_id"]').evaluateAll((l) => l.map((i) => i.value));
+    for (const id of ids) {
+        const r = await page.request.post(`${baseURL}/lancamentos/pago`, {
+            form: { csrf_token: await token(page.request, baseURL + '/ajuda'), categoria_id: id, volta: '/' },
+        });
+        expect(r.ok(), `pagar a conta ${id}`).toBe(true);
+    }
+}
