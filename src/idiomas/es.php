@@ -2358,4 +2358,7 @@ return [
     'Gasto, com o cartão' => 'Gasto, con la tarjeta',
     'Gastou, com as compras no cartão' => 'Gastó, con las compras con tarjeta',
     'com o cartão' => 'con la tarjeta',
+    'Já existe uma conta fixa com esse nome.' => 'Ya existe una cuenta fija con ese nombre.',
+    'Digite o valor da conta por mês.' => 'Escriba el valor de la cuenta por mes.',
+    'sem valor' => 'sin valor',
 ];

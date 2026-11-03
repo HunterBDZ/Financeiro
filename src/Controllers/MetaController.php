@@ -255,6 +255,10 @@ final class MetaController
             [$desde] = self::periodo();
             $valor = self::valorPost($bruto);
             $cat = self::categoriaDaConta($nome);
+            // conta nova pede o valor (sem ele, a linha só dizia "falta 0,00"); a Fatura do cartão vem do Cartão
+            if (($valor === null || $valor <= 0.004) && ($cat === null || !self::doCartao($cat))) {
+                throw new \InvalidArgumentException(t('Digite o valor da conta por mês.'));
+            }
         } catch (\InvalidArgumentException $e) {
             self::voltarComErro($volta, -1, $e->getMessage(), $bruto, ['nome' => $nome, 'dia' => (string) ($_POST['dia'] ?? '')]);
         }
@@ -547,15 +551,21 @@ final class MetaController
 
     /**
      * A categoria de uma conta nova pelo nome digitado: uma das que podem ser conta (pelo nome ou pelo nome que
-     * aparece na tela, que pode estar traduzido), ou null para criar. Nome de outra categoria qualquer recusa.
+     * aparece na tela, que pode estar traduzido), ou null para criar. Nome de outra categoria qualquer recusa, e o de
+     * uma conta fixa ativa também (sem acento e sem caixa): ela não é sobrescrita.
      * @throws \InvalidArgumentException
      */
     private static function categoriaDaConta(string $nome): ?int
     {
         $chave = mb_strtolower($nome);
+        $ativas = array_flip(array_map('intval', array_column(ContaRecorrenteModel::ativas(), 'categoria_id')));
         foreach (ContaRecorrenteModel::categoriasElegiveis() as $c) {
             foreach ([$c['nome'], nomeCategoria($c['nome']), nomeCurto($c)] as $n) {
                 if (mb_strtolower((string) $n) === $chave) {
+                    // a conta que já existe não é sobrescrita: muda-se pela linha dela, que mostra o que vale hoje
+                    if (isset($ativas[(int) $c['id']])) {
+                        throw new \InvalidArgumentException(t('Já existe uma conta fixa com esse nome.'));
+                    }
                     return (int) $c['id'];
                 }
             }

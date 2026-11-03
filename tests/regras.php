@@ -1529,8 +1529,8 @@ $emTransacao('atenção e metas', static function () use ($check, $render, $mesH
         $aviso = new \ReflectionMethod(LancamentosController::class, 'avisoLancado');
         $naMeta = (string) $aviso->invoke(null, $cat, 10.0, $hoje, '/meta?mes=' . $mesHoje);
         $noInicio = (string) $aviso->invoke(null, $cat, 10.0, $hoje, '/');
-        $check('metas: com o cartão, o gasto e o que falta dizem "com o cartão"', str_contains($htmlM, 'Gastou, com as compras no cartão') && str_contains($htmlM, 'Gasto, com o cartão')
-            && preg_match('/id="c' . $comCartao[0] . '".*?, com o cartão<\/span>/s', $htmlM) === 1);
+        $check('metas: com o cartão, o gasto e o que falta dizem "com o cartão"', str_contains($htmlM, 'Gastou, com as compras no cartão') && str_contains($htmlM, 'Gasto<small class="mt-cartao">com o cartão</small>')
+            && preg_match('/id="c' . $comCartao[0] . '".*?<small class="mt-cartao">com o cartão<\/small><\/span>/s', $htmlM) === 1);
         $check('lançar: o aviso usa o número da tela para onde volta', str_contains($naMeta, num(round(99999.0 - $g[$comCartao[0]]['gasto'], 2)) . ' da meta, com o cartão')
             && str_contains($noInicio, num(round(99999.0 - LancamentoModel::somaPorCategoria($comCartao[0], $mesHoje), 2)) . ' da meta.'), $naMeta . ' | ' . $noInicio);
     } else {

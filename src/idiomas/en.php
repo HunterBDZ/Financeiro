@@ -2358,4 +2358,7 @@ return [
     'Gasto, com o cartão' => 'Spent, with the card',
     'Gastou, com as compras no cartão' => 'Spent, with card purchases',
     'com o cartão' => 'with the card',
+    'Já existe uma conta fixa com esse nome.' => 'There is already a fixed bill with that name.',
+    'Digite o valor da conta por mês.' => 'Enter the bill amount per month.',
+    'sem valor' => 'no amount',
 ];

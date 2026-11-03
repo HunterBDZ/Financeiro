@@ -1,5 +1,5 @@
 // Metas: mudar a meta só de um mês, pelo editor da própria linha, e ver o valor no Mês. Os outros meses não mudam.
-import { test, expect, contaSemPagamento, contasPagas } from './fixtures.js';
+import { test, expect, contaSemPagamento, contasPagas, token } from './fixtures.js';
 
 test('meta só para um mês aparece no Mês e não muda o mês seguinte', async ({ page }) => {
     await page.goto('/meta?mes=2026-12-01');
@@ -54,6 +54,27 @@ test('o número que conta o cartão diz "com o cartão"', async ({ page }) => {
     await expect(page.locator('.mt-conta-dl')).toContainText('Gastou, com as compras no cartão');
     const lazer = page.locator('details.mt-linha').filter({ has: page.locator('.mt-nome', { hasText: /^Lazer$/ }) });
     await expect(lazer.locator('.mt-c-falta')).toContainText('com o cartão');
+});
+
+// "Adicionar conta fixa" com o nome de uma conta que já existe não a sobrescreve (B-05), e conta nova pede o valor (B-15)
+test('conta fixa: nome repetido é recusado e conta nova pede o valor', async ({ page, baseURL }) => {
+    const csrf = await token(page.request, baseURL + '/ajuda');
+    for (const nome of ['Luz', 'luz']) {
+        const r = await page.request.post(baseURL + '/meta/contas', { form: { csrf_token: csrf, ver: '2026-11-01', nome, valor: '100', dia: '10', desde: '2026-11-01' } });
+        expect(await r.text()).toContain('Já existe uma conta fixa com esse nome.');
+    }
+    await page.goto('/meta');
+    const luz = page.locator('details.mt-linha').filter({ has: page.locator('.mt-nome', { hasText: /^Luz$/ }) });
+    await expect(luz).toHaveAttribute('data-valor', '238.40');
+    await expect(luz).toContainText('vence dia 10');
+
+    await page.getByText('Adicionar conta fixa').click();
+    const form = page.locator('#conta-nova form');
+    await form.getByLabel('Nome').fill('Teste vazio');
+    await form.getByLabel('Vence no dia').fill('10');
+    await form.getByRole('button', { name: 'Adicionar' }).click();
+    await expect(page.locator('#conta-nova-erro')).toHaveText('Digite o valor da conta por mês.');
+    await expect(page.locator('details.mt-linha').filter({ has: page.locator('.mt-nome', { hasText: /^Teste vazio$/ }) })).toHaveCount(0);
 });
 
 test.describe('no celular', () => {

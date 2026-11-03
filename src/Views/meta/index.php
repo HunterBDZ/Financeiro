@@ -106,10 +106,10 @@ $proprio = static fn(array $l): string => $l['proprio']
 /* -------- as colunas de uma linha: meta, gasto, a barra fina e o que falta -------- */
 // cartao: o gasto conta compras no cartão e difere do Mês e do Início, então embaixo de "falta" ou "passou" vem
 // "com o cartão". No celular, a meta aparece ao lado da barra ("meta 1.600,00")
-$colunas = static function (float $valor, float $gasto, bool $semMeta, string $falta = '', bool $cartao = false): void {
+$colunas = static function (float $valor, float $gasto, bool $semMeta, string $falta = '', bool $cartao = false, ?string $semTxt = null): void {
     $p = $valor > 0.004 ? min(1.0, $gasto / $valor) : 0.0;
     $passou = $valor > 0.004 && $gasto - $valor > 0.004; ?>
-    <span class="mt-c mt-c-meta num"><span class="sr-only mt-rot"><?= e(t('meta')) ?> </span><?= $semMeta ? '<span class="mt-sem">' . e(t('sem meta')) . '</span>' : e(num($valor)) ?></span>
+    <span class="mt-c mt-c-meta num"><span class="sr-only mt-rot"><?= e(t('meta')) ?> </span><?= $semMeta ? '<span class="mt-sem">' . e($semTxt ?? t('sem meta')) . '</span>' : e(num($valor)) ?></span>
     <span class="mt-c mt-c-gasto"><span class="sr-only"><?= e(t('gasto')) ?> </span><?= $gasto > 0.004 ? valor(-$gasto, 'saida', ['centavos' => false]) : '<span class="num fraco">' . e(num(0)) . '</span>' ?></span>
     <span class="mt-c mt-c-barra" aria-hidden="true"><span class="meta-barra<?= $passou ? ' passou' : '' ?>"><i style="--p:<?= e(number_format($p, 3, '.', '')) ?>"></i></span></span>
     <span class="mt-c mt-c-falta num<?= $passou ? ' alerta' : '' ?>"><?php
@@ -189,7 +189,7 @@ $linhaConta = static function (array $l) use ($editor, $proprio, $csrf, $mes, $h
     <details class="mt-linha mt-conta" id="conta-<?= (int) $l['id'] ?>" data-valor="<?= e(number_format($valor, 2, '.', '')) ?>" data-gasto="<?= e(number_format($gasto, 2, '.', '')) ?>" data-nome="<?= e($l['nome']) ?>"<?= !empty($l['aberta']) ? ' open' : '' ?>>
         <summary>
             <span class="mt-c mt-c-nome"><?= iconeCategoria((int) $l['id'], (string) $l['nome'], $l['grupo'], 20, 'mt-ic') ?><span class="mt-nome-txt"><span class="mt-nome"><?= e($l['nome']) ?></span><small class="num"><?= e(t('vence dia {dia}', ['dia' => $l['dia']])) ?></small><?= $proprio($l) ?></span></span>
-            <?php $colunas($valor, $gasto, false, $falta); ?>
+            <?php $colunas($valor, $gasto, $valor <= 0.004, $falta, false, t('sem valor')); ?>
         </summary>
         <?php $editor($l, '/meta/contas/' . $l['conta'], true); ?>
         <form class="mt-ed-fora" method="post" action="/meta/contas/<?= (int) $l['conta'] ?>/desativar">
