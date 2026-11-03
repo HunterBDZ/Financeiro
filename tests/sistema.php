@@ -139,6 +139,24 @@ $check('restaurar: leva o backup antigo à versão de agora', $erroDe(static fn(
 $pdo = Database::connection();
 $check('restaurar: a migração vale nos dados restaurados', $pdo->query("SELECT label FROM ajustes WHERE chave = 'teste_backup'")->fetchColumn() === 'migrado' && in_array('s9003_valor.sql', Migrador::feitas($pdo), true));
 $pdo->exec("DELETE FROM migracoes WHERE arquivo = 's9003_valor.sql'");
+// backup de antes da ordem do menu (s0003): restaurar traz a coluna, e as contas seguem iguais
+$semMenu = $dados . '/sem-menu.sqlite';
+copy(Backup::criar('manual'), $semMenu);
+$p = new SqliteConexao($semMenu);
+$p->exec('ALTER TABLE usuarios DROP COLUMN menu_ordem');
+$p->exec("DELETE FROM migracoes WHERE arquivo = 's0003_menu_ordem.sql'");
+$p = null;
+$check('restaurar: backup de antes da ordem do menu é aceito', $erroDe(static fn() => Backup::restaurar($semMenu)) === '');
+$pdo = Database::connection();
+$check('restaurar: a coluna da ordem do menu volta pela migração, e as contas seguem', in_array('menu_ordem', array_column($pdo->query('PRAGMA table_info(usuarios)')->fetchAll(PDO::FETCH_ASSOC), 'name'), true)
+    && in_array('s0003_menu_ordem.sql', Migrador::feitas($pdo), true) && (int) $pdo->query("SELECT COUNT(*) FROM usuarios WHERE login = 'pessoa'")->fetchColumn() === 1);
+$pdo->exec("UPDATE usuarios SET menu_ordem = '[\"meta\"]' WHERE login = 'pessoa'");
+sleep(1);
+$comMenu = Backup::criar('manual');
+$pdo->exec("UPDATE usuarios SET menu_ordem = NULL WHERE login = 'pessoa'");
+Backup::restaurar($comMenu);
+$pdo = Database::connection();
+$check('backup: a ordem do menu vai junto e volta', $pdo->query("SELECT menu_ordem FROM usuarios WHERE login = 'pessoa'")->fetchColumn() === '["meta"]');
 
 // ---- pacote .tar
 $tar = static function (array $itens): string {

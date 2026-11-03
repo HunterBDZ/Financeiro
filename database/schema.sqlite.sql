@@ -16,6 +16,7 @@ CREATE TABLE usuarios (
   idioma TEXT CHECK (length(idioma) <= 5),
   duas_etapas_segredo TEXT CHECK (length(duas_etapas_segredo) <= 255),
   duas_etapas_passo INTEGER CHECK (duas_etapas_passo >= 0),
+  menu_ordem TEXT CHECK (length(menu_ordem) <= 1000),
   UNIQUE (login)
 ) STRICT;
 
