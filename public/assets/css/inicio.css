@@ -1,167 +1,122 @@
 /* ==========================================================================
-   inicio.css — Início: saudação, cartão do saldo (style.css), o mês em três linhas,
-   para onde foi, conferir com o banco e últimos lançamentos. Prefixo .dash-*.
-   Celular: uma coluna na ordem do código. Computador: duas colunas; à esquerda o saldo, "precisa de atenção"
-   e os últimos lançamentos, à direita o mês, para onde foi e conferir.
+   inicio.css — Início e a lista de "Precisa de atenção". Prefixo .ini-*.
+   A tela é a grade da base (style.css): o topo, o painel com a resposta e a barra do dinheiro do mês, a faixa de
+   números, as contas do mês ao lado dos últimos lançamentos e, embaixo, para onde foi e conferir com o banco.
+   Nada de caixa: fio, espaço e tom. Sombra só no painel.
    ========================================================================== */
 
-.dash { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
-.dash > * { min-width: 0; }
+/* ---- o painel: o rótulo, o número grande, uma linha de apoio e a barra */
+.ini-painel .rot-resposta .dica { color: var(--tinta-3); }
+.ini-destino { margin-top: var(--e-6); padding-top: var(--e-5); border-top: 1px solid var(--fio); }
 
-.dash-head { padding: 4px 2px 2px; }
-.dash-ola { color: var(--text-2); font-size: 14px; font-weight: 650; }
-.dash-data { margin-top: 2px; color: var(--text-2); font-size: 14px; }
+/* ---- a faixa de números: o olho que esconde os valores fica ao lado de "Em conta hoje" */
+.ini-numeros dt { display: flex; align-items: center; gap: var(--e-2); min-height: 20px; }
+.ini-olho {
+    display: inline-grid; place-items: center; width: 28px; height: 28px; margin: -4px 0; padding: 0; border: 0;
+    border-radius: var(--raio-controle); background: none; color: var(--tinta-3);
+}
+.ini-olho:hover { background: var(--realce); color: var(--tinta); }
+.ini-olho .olho-fechado, .valores-ocultos .ini-olho .olho-aberto { display: none; }
+.valores-ocultos .ini-olho .olho-fechado { display: inline-block; }
+@media (pointer: coarse) { .ini-olho { width: var(--tap); height: var(--tap); margin: -12px -8px; } }
+.ini-contas { margin-top: var(--e-2); font: 400 var(--t-rotulo)/var(--lh-rotulo) var(--f-ui); letter-spacing: 0; }
+.ini-contas > summary { display: inline-flex; align-items: center; min-height: var(--tap); margin-block: -12px; color: var(--azul); font-weight: 600; cursor: pointer; }
+.ini-contas > summary:hover { text-decoration: underline; text-underline-offset: 3px; }
 
-/* precisa de atenção: logo abaixo do saldo, só quando há algo; um ponto âmbar, o texto e a ação à direita */
-.aten { padding-block: 14px 6px; }
-.aten-t { margin-bottom: 2px; }
-.aten-lista > li + li { border-top: 1px solid var(--line); }
-.aten-i { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 8px 0; }
-.aten-ponto { flex: none; width: 8px; height: 8px; border-radius: 50%; box-shadow: inset 0 0 0 1.6px var(--warn); }
-.aten-i.is-atrasado .aten-ponto { background: var(--warn); }
-.aten-txt { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
-.aten-txt b { font-weight: 650; line-height: 1.3; overflow-wrap: anywhere; }
-.aten-txt small { color: var(--text-2); font-size: 13px; overflow-wrap: anywhere; }
+/* várias contas: o saldo de cada uma */
+.saldo-contas { display: flex; flex-direction: column; margin-top: var(--e-2); color: var(--tinta-2); }
+.saldo-contas > li { display: flex; align-items: center; justify-content: space-between; gap: var(--e-3); min-height: 32px; }
+.saldo-contas > li + li { border-top: 1px solid var(--fio); }
+.saldo-contas .num { color: var(--tinta); }
+
+/* ---- "Precisa de atenção": discreto, uma linha por aviso, sem caixa */
+.ini-aten { padding-block: var(--e-4); }
+.aten { padding: 0; border-top: 0; }
+.aten-t { font: 600 var(--t-rotulo)/var(--lh-rotulo) var(--f-ui); color: var(--tinta-2); letter-spacing: 0; margin-bottom: var(--e-1); }
+.aten-lista > li + li { border-top: 1px solid var(--fio); }
+.aten-i { display: flex; align-items: center; gap: var(--e-3); min-height: 44px; padding: var(--e-1) 0; }
+.aten-ponto { flex: none; width: 8px; height: 8px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--atencao); }
+.aten-i.is-atrasado .aten-ponto { background: var(--atencao); }
+.aten-txt { flex: 1 1 auto; min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; column-gap: var(--e-2); font-size: var(--t-rotulo); line-height: var(--lh-rotulo); }
+.aten-txt b { font-weight: 600; color: var(--tinta); overflow-wrap: anywhere; }
+.aten-txt small { color: var(--tinta-3); font-size: var(--t-rotulo); overflow-wrap: anywhere; }
 .aten-acao, .aten-mais {
     flex: none; display: inline-flex; align-items: center; gap: 2px; min-height: var(--tap);
-    color: var(--text-2); font-size: 14px; font-weight: 700; white-space: nowrap;
+    color: var(--azul); font-size: var(--t-rotulo); font-weight: 600; white-space: nowrap;
 }
-.aten-acao:hover, .aten-mais:hover { color: var(--text); }
-.aten-mais { border-top: 1px solid var(--line); width: 100%; }
-.lf-topo.aten-topo { justify-content: flex-start; }
+.aten-acao:hover, .aten-mais:hover { text-decoration: underline; text-underline-offset: 3px; }
+.aten-mais { border-top: 1px solid var(--fio); width: 100%; }
+.aten-pg .aten-lista { margin-top: var(--e-2); }
 
-.dash-grade { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+/* ---- as contas do mês: Pagar com contorno; depois de paga, o carimbo */
+.ini-conta-nome { min-width: 0; }
+.ini-conta-nome:hover b { text-decoration: underline; text-decoration-color: var(--fio-forte); text-underline-offset: 3px; }
+.ini-conta .linha-acao { margin: 0; }
+.ini-conta.is-paga .linha-nome b { color: var(--tinta-2); }
+.ini-conta .carimbo { margin-right: var(--e-1); }
 
-/* cartão do saldo: uma frase que responde quanto dá para gastar; o resto fica em "Ver detalhes" */
-.saldo-frase { margin: -4px 0 14px; color: var(--cofre-txt); font-size: 16px; font-weight: 600; line-height: 1.45; text-wrap: pretty; }
-.saldo-frase b { font-weight: 800; white-space: nowrap; }
-.saldo-frase.is-abaixo b { color: var(--cofre-warn); }
-.saldo-frase.is-vermelho b { color: var(--cofre-neg); }
-.saldo-frase-2 { display: block; margin-top: 4px; color: var(--cofre-txt-2); font-size: 14px; font-weight: 600; }
-.saldo-frase-2 b { color: var(--cofre-txt); font-weight: 750; }
-.saldo :focus-visible { outline-color: var(--cofre-ok); }
-.saldo-det { margin-top: 8px; }
-.saldo-det > summary {
-    display: inline-flex; align-items: center; gap: 6px; min-height: var(--tap); margin-bottom: -10px;
-    color: var(--cofre-txt-2); font-size: 14px; font-weight: 700; list-style: none;
-}
-.saldo-det > summary::after {
-    content: ""; width: 7px; height: 7px; margin-left: 2px;
-    border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
-    transform: rotate(45deg) translateY(-2px); transition: transform .2s ease-out;
-}
-.saldo-det[open] > summary::after { transform: rotate(-135deg) translateY(-1px); }
-.saldo-det > summary:hover { color: var(--cofre-txt); }
-.saldo-det[open] > summary { margin-bottom: 0; }
-.saldo-det-c { padding: 2px 0 2px; }
-.saldo-det-c > :first-child { margin-top: 0; }
-.resumo-ponte { display: block; color: var(--text-2); font-size: 12.5px; font-weight: 600; }
+/* ---- para onde foi: a barra fina embaixo do nome */
+.ini-onde .linha-nome { display: flex; flex-direction: column; gap: var(--e-2); }
+.ini-onde .meta-barra { width: 100%; max-width: 240px; }
+.ini-onde-v small { display: inline-block; min-width: 3.5ch; margin-left: var(--e-2); color: var(--tinta-3); font-size: var(--t-meta); text-align: right; }
+.ini-nota { margin-top: var(--e-3); color: var(--tinta-2); font-size: var(--t-rotulo); line-height: var(--lh-rotulo); }
+.ini-nota .link { display: inline-block; padding-block: 12px; margin-block: -12px; }
+.ini-nada { display: flex; flex-direction: column; align-items: flex-start; gap: var(--e-3); padding: var(--e-4) 0; color: var(--tinta-2); font-size: var(--t-rotulo); line-height: var(--lh-rotulo); }
 
-/* o mês em três linhas */
-.resumo > li { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 8px 0; }
-.resumo > li + li { border-top: 1px solid var(--line); }
-.ri { display: grid; place-items: center; flex: none; width: 30px; height: 30px; border-radius: 10px; background: var(--card-2); color: var(--text-2); }
-.ri svg { stroke-width: 2.2; }
-.ri.pos { color: var(--pos); }
-.ri.neg { color: var(--neg); }
-.resumo-n { color: var(--text-2); font-weight: 650; }
-.resumo b { margin-left: auto; font-size: 16px; font-weight: 750; }
-.resumo-total .resumo-n { color: var(--text); font-weight: 750; }
-.resumo-total b { font-size: 18px; }
-.dash-tit-nota { color: var(--text-2); font-size: 12.5px; font-weight: 600; letter-spacing: 0; }
-.resumo-det { margin-top: 4px; }
-.resumo-det > summary {
-    display: inline-flex; align-items: center; gap: 6px; min-height: 40px;
-    color: var(--text-2); font-size: 14px; font-weight: 700; list-style: none;
+/* ---- conferir com o banco: uma linha discreta que abre o formulário */
+.ini-conf > summary {
+    display: flex; align-items: baseline; justify-content: space-between; gap: var(--e-4);
+    min-height: var(--tap); padding-bottom: var(--e-3); border-bottom: 1px solid var(--fio); list-style: none; cursor: pointer;
 }
-.resumo-det > summary::after {
-    content: ""; width: 7px; height: 7px; margin-left: 2px;
-    border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
-    transform: rotate(45deg) translateY(-2px); transition: transform .2s ease-out;
-}
-.resumo-det[open] > summary::after { transform: rotate(-135deg) translateY(-1px); }
-.resumo-det > summary:hover { color: var(--text); }
-.resumo-lista { display: grid; gap: 2px; padding: 4px 0 2px; white-space: normal; }
-.resumo-lista > div { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; min-height: 30px; }
-.resumo-lista dt { color: var(--text-2); }
-.resumo-lista dd { font-weight: 700; }
-.resumo-lista .resumo-sub { padding-left: 14px; font-size: 14px; }
-.dash-nota { margin-top: 6px; color: var(--text-2); font-size: 13px; }
+.ini-conf > summary::-webkit-details-marker { display: none; }
+.ini-conf-t { font: 400 var(--t-titulo)/var(--lh-titulo) var(--f-num); letter-spacing: -.01em; }
+.ini-conf-ult { color: var(--tinta-3); font-size: var(--t-rotulo); }
+.ini-conf-ult.atencao { color: var(--atencao); }
+.ini-conf > summary:hover .ini-conf-t { text-decoration: underline; text-decoration-color: var(--fio-forte); text-underline-offset: 4px; }
+.ini-conf-form { display: flex; flex-direction: column; align-items: stretch; gap: var(--e-4); padding-top: var(--e-4); }
+.ini-conf-btn { align-self: flex-start; }
 
-/* para onde foi */
+/* ---- o vazio: para que a tela serve e a ação que a preenche */
+.ini-vazio { display: flex; flex-direction: column; align-items: flex-start; gap: var(--e-4); padding-block: var(--e-8); }
+.ini-vazio h2 { font: 300 var(--t-numero)/var(--lh-numero) var(--f-num); letter-spacing: -.02em; }
+.ini-vazio p { max-width: 52ch; color: var(--tinta-2); }
+
+/* ---- primeiros passos */
+.ini .roteiro .secao-cab { margin-bottom: var(--e-2); }
+.ini .roteiro-lista a { color: var(--azul); font-weight: 600; }
+
+/* ---- "Para onde foi" no Relatório (até ele migrar) */
 .barras-i {
     display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 6px 12px;
-    margin: 0 -10px; padding: 8px 10px; border-radius: 12px; transition: background-color .12s ease-out;
+    margin: 0 -10px; padding: 8px 10px; border-radius: var(--raio-controle); transition: background-color var(--rapido) var(--curva);
 }
 .barras-ic { grid-row: 1 / span 2; }
-.barras-i:hover { background: var(--sel); }
-.barras-n { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 650; }
-.barras-v { font-weight: 750; text-align: right; }
-.barras-v small { margin-left: 6px; color: var(--text-3); font-size: 12.5px; font-weight: 650; }
+.barras-i:hover { background: var(--realce); }
+.barras-n { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.barras-v { font-weight: 600; text-align: right; }
+.barras-v small { margin-left: 6px; color: var(--tinta-3); font-size: var(--t-meta); font-weight: 600; }
 .barras-i .trilho { grid-column: 2 / -1; }
 .barras-i.is-fixo:hover { background: none; }
-/* atalho para categorizar e a troca entre a data da compra e a fatura (Início e Relatório) */
-.dash-gastos .dash-nota a, .rl-onde .rl-nota a {
+.dash-tit-nota { color: var(--tinta-2); font-size: var(--t-meta); font-weight: 600; letter-spacing: 0; }
+.rl-onde .rl-nota a {
     display: inline-block; padding-block: 13px; margin-block: -13px;
-    color: var(--text); font-weight: 750; text-decoration: underline; text-underline-offset: 3px;
+    color: var(--tinta); font-weight: 600; text-decoration: underline; text-underline-offset: 3px;
 }
 
-/* conferir com o banco */
-.dash-conf > summary { flex-wrap: nowrap; row-gap: 0; }
-.dash-conf > summary .titulo { min-width: 0; }
-.dash-conf-ult { color: var(--text-2); font-size: 13px; font-weight: 650; margin-left: auto; padding-right: 6px; }
-.dash-conf[open] > summary { margin-bottom: 10px; }
-.dash-conf-form { display: flex; flex-direction: column; gap: 12px; }
-.dash-conf-det { color: var(--text-2); font-size: 13px; }
-.dash-conf-btn { align-self: flex-start; min-width: 150px; }
-
-.dash-vazio { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; color: var(--text-2); padding: 4px 0; }
-
-/* ---------------------------------------------------------------- computador */
-@media (min-width: 1024px) {
-    .dash { gap: 18px; }
-    .dash-head { padding-top: 0; }
-    .dash-head .pg-titulo { font-size: 28px; }
-    .dash-grade {
-        grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 16px; align-items: start;
-        grid-template-areas: "saldo resumo" "ult gastos" "ult conf" "ult .";
-    }
-    .dash-grade.tem-aten { grid-template-areas: "saldo resumo" "aten gastos" "ult conf" "ult ."; }
-    .dash-grade > .aten { grid-area: aten; }
-    .dash-grade > .saldo { grid-area: saldo; align-self: stretch; display: flex; flex-direction: column; justify-content: space-between; }
-    .dash-resumo { grid-area: resumo; }
-    .dash-gastos { grid-area: gastos; }
-    .dash-conf { grid-area: conf; }
-    .dash-ult { grid-area: ult; }
-    /* com contas a pagar, elas ficam numa faixa logo abaixo do saldo e do mês */
-    .dash-grade.com-contas { grid-template-areas: "saldo resumo" "contas contas" "ult gastos" "ult conf" "ult ."; }
-    .dash-grade > .cm { grid-area: contas; }
-    /* com as duas, as contas vão na coluna do saldo, logo abaixo de "precisa de atenção" */
-    .dash-grade.tem-aten.com-contas { grid-template-areas: "saldo resumo" "aten gastos" "contas gastos" "ult conf" "ult ."; }
-}
-
-/* tela larga: três colunas (saldo e últimos | o mês e conferir | para onde foi) */
-@media (min-width: 1600px) {
-    .dash-grade {
-        grid-template-columns: minmax(0, 5fr) minmax(0, 4fr) minmax(0, 4fr);
-        grid-template-areas: "saldo resumo gastos" "ult conf gastos" "ult . .";
-    }
-    .dash-grade.tem-aten { grid-template-areas: "saldo resumo gastos" "aten conf gastos" "ult conf gastos" "ult . ."; }
-    .dash-grade.com-contas { grid-template-areas: "saldo resumo gastos" "contas contas gastos" "ult conf gastos" "ult . ."; }
-    .dash-grade.tem-aten.com-contas { grid-template-areas: "saldo resumo gastos" "aten conf gastos" "contas contas gastos" "ult . ."; }
-}
-
-/* várias contas: o saldo de cada uma em "Ver detalhes"; conferir pede o de cada uma */
-.saldo-contas { display: flex; flex-direction: column; margin: 6px 0 4px; color: var(--cofre-txt-2); font-size: 14px; }
-.saldo-contas > li { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 32px; }
-.saldo-contas > li + li { border-top: 1px solid rgba(255, 255, 255, .08); }
-.saldo-contas b { color: var(--cofre-txt); font-weight: 700; }
-.saldo-contas b.neg { color: var(--cofre-neg); }
-.conf-contas { display: flex; flex-direction: column; gap: 12px; }
-.conf-conta { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; }
-.conf-conta > label { color: var(--text-2); font-size: 13px; font-weight: 650; }
-.conf-app { color: var(--text-3); font-size: 12.5px; }
-.conf-dif { font-size: 13px; font-weight: 700; }
+/* ---- conferir com várias contas (Início e Fechar): um campo por conta, com a diferença para o app */
+.conf-contas { display: flex; flex-direction: column; gap: var(--e-3); }
+.conf-conta { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--e-1); }
+.conf-conta > label { color: var(--tinta-2); font-size: var(--t-rotulo); font-weight: 600; }
+.conf-app { color: var(--tinta-3); font-size: var(--t-meta); }
+.conf-dif { font-size: var(--t-rotulo); font-weight: 600; }
 .conf-dif:empty { display: none; }
-.conf-dif.pos { color: var(--pos); }
-.conf-dif.neg { color: var(--neg); }
+.conf-dif.pos { color: var(--entrada); }
+.conf-dif.neg { color: var(--saida); }
+
+/* ---- computador */
+@media (min-width: 1024px) {
+    .ini-destino { margin-top: var(--e-7); padding-top: 0; border-top: 0; }
+    .ini-aten { padding-block: var(--e-5); }
+    .ini-aten .aten-lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); column-gap: var(--e-6); }
+    .ini-aten .aten-lista > li + li { border-top: 0; }
+}

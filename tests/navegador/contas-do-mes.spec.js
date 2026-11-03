@@ -1,8 +1,8 @@
-// As "Contas do mês" do Início e do Extrato: o Pago lança a conta fixa com o valor previsto, na data de hoje, e o aviso
-// tem o desfazer. Na demonstração (dia 22), as contas fixas do mês já estão pagas: cada teste tira o pagamento de uma.
+// As "Contas do mês" do Início, do Mês e do Extrato: o Pagar (Pago no Extrato) lança a conta fixa com o valor previsto,
+// na data de hoje, e o aviso tem o desfazer. Na demonstração (dia 22), as contas fixas do mês já estão pagas: cada teste tira o pagamento de uma.
 import { test, expect, contaSemPagamento } from './fixtures.js';
 
-test('Pago no Início: a conta sai da lista, e desfazer a traz de volta', async ({ page, baseURL }) => {
+test('Pagar no Início: a conta ganha o carimbo, e desfazer a traz de volta', async ({ page, baseURL }) => {
     await contaSemPagamento(page, baseURL, 'Celular');
     await page.goto('/');
     const bloco = page.getByRole('region', { name: 'Contas do mês' });
@@ -11,16 +11,39 @@ test('Pago no Início: a conta sai da lista, e desfazer a traz de volta', async 
     await expect(conta).toContainText('venceu dia 15');
     // o nome leva ao Lançar com a categoria, para outro valor
     await expect(conta.getByRole('link')).toHaveAttribute('href', /^\/lancar\?categoria=\d+/);
+    const pagas = await bloco.locator('.secao-cab p').textContent();
 
-    await conta.getByRole('button', { name: /^Pago/ }).click();
+    await conta.getByRole('button', { name: /^Pagar/ }).click();
     const aviso = page.getByRole('status').filter({ hasText: 'Pago hoje' });
     await expect(aviso).toContainText('Celular');
     await expect(aviso).toContainText('89,90');
-    await expect(page.getByRole('region', { name: 'Contas do mês' }).getByRole('listitem').filter({ hasText: 'Celular' })).toHaveCount(0);
+    // a conta continua na lista, paga: o carimbo com o dia no lugar do Pagar, e o valor em vermelho com "−"
+    const paga = page.getByRole('region', { name: 'Contas do mês' }).getByRole('listitem').filter({ hasText: 'Celular' });
+    await expect(paga.locator('.carimbo')).toHaveText('pago 22/11');
+    await expect(paga.getByRole('button', { name: /^Pagar/ })).toHaveCount(0);
+    await expect(paga.locator('.num.v-saida')).toHaveText('−89,90');
+    await expect(page.getByRole('region', { name: 'Contas do mês' }).locator('.secao-cab p')).not.toHaveText(pagas);
 
     await aviso.getByRole('button', { name: 'desfazer' }).click();
     await expect(page.getByRole('status').filter({ hasText: 'excluído' })).toContainText('89,90');
-    await expect(page.getByRole('region', { name: 'Contas do mês' }).getByRole('listitem').filter({ hasText: 'Celular' })).toBeVisible();
+    const deNovo = page.getByRole('region', { name: 'Contas do mês' }).getByRole('listitem').filter({ hasText: 'Celular' });
+    await expect(deNovo.getByRole('button', { name: /^Pagar/ })).toBeVisible();
+    await expect(deNovo.locator('.carimbo')).toHaveCount(0);
+});
+
+test('Pagar no Mês: a linha da conta ganha o carimbo', async ({ page, baseURL }) => {
+    await contaSemPagamento(page, baseURL, 'Internet');
+    await page.goto('/mes');
+    const linha = page.getByRole('row').filter({ hasText: 'Internet' });
+    await expect(linha).toContainText('venceu dia 12');
+    await linha.getByRole('button', { name: /^Pagar/ }).click();
+    await expect(page).toHaveURL(/\/mes\?mes=2026-11-01/);
+    await expect(page.getByRole('status').filter({ hasText: 'Pago hoje' })).toContainText('Internet');
+    const paga = page.getByRole('row').filter({ hasText: 'Internet' });
+    await expect(paga.locator('.carimbo')).toHaveText('pago 22/11');
+    await expect(paga.getByRole('cell').nth(2)).toHaveText('−119,90');
+    await page.getByRole('status').getByRole('button', { name: 'desfazer' }).click();
+    await expect(page.getByRole('status').filter({ hasText: 'excluído' })).toContainText('119,90');
 });
 
 test('Pago no Extrato: o lançamento entra hoje com o valor previsto', async ({ page, baseURL }) => {

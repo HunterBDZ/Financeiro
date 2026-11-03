@@ -12,6 +12,7 @@ use Financeiro\Models\SaldoConferenciaModel;
 use Financeiro\Relogio;
 use Financeiro\Services\Atencao;
 use Financeiro\Services\ChecklistContas;
+use Financeiro\Services\Destino;
 use Financeiro\Services\GastoPorCategoria;
 use Financeiro\Services\GastosMensais;
 use Financeiro\Services\MotorFinanceiro;
@@ -70,7 +71,7 @@ final class DashboardController
         $painel = self::painel($matriz[$mesRef] ?? null, $mesRef, $estadoRef, self::ondePorFatura());
         // a sobra do cartão do mês, com o nome da base (a mesma conta do Mês, do Fechar e do Relatório)
         $sobra = $estadoRef === 'previsto' ? Sobra::prevista($linhaRef) : (Sobra::ateHoje($mesRef, $ehHoje ? null : $hoje) ?? Sobra::prevista($linhaRef));
-        $ultimos = LancamentoModel::listar($mesRef, ['limite' => 3]);
+        $ultimos = LancamentoModel::listar($mesRef, ['limite' => 6]);
 
         // "Precisa de atenção": contas e faturas vencendo ou atrasadas, mês anterior aberto, conferência, metas
         $avisos = Atencao::avisos($hoje, $conf);
@@ -109,8 +110,43 @@ final class DashboardController
             'avisos'         => $avisos,
             // as contas fixas de hoje ainda não pagas, com o botão Pago (só no dia de hoje: Pago lança com a data de hoje)
             'contasMes'      => $ehHoje ? ChecklistContas::fixasAPagar($hoje) : [],
+            // as já pagas, com o carimbo; a barra "para onde vai o dinheiro" do mês da previsão; o guardado do mês
+            'contasPagas'    => $ehHoje ? self::contasPagas($hoje) : [],
+            'destino'        => Destino::doMes(MotorFinanceiro::dados(), $linhaPrev, $mesCal),
+            'guardado'       => Destino::guardado(MotorFinanceiro::dados(), $mesRef),
+            'temLancamento'  => (bool) Database::connection()->query('SELECT 1 FROM lancamentos LIMIT 1')->fetchColumn(),
             'v2'             => MotorFinanceiro::v2(),
         ], 'inicio');
+    }
+
+    /**
+     * As contas fixas do mês de hoje já pagas, para o carimbo das "Contas do mês": a mesma regra de
+     * ChecklistContas::fixasAPagar (Fixos, ativa, com previsão no mês), mas com algo lançado. O dia é o do pagamento
+     * (o da conta recorrente) ou o do último lançamento dela no mês.
+     * @return list<array{categoria_id:int, nome:string, apelido:?string, grupo:string, pago:float, data:string}>
+     */
+    private static function contasPagas(string $hoje): array
+    {
+        $mes = substr($hoje, 0, 8) . '01';
+        $d = MotorFinanceiro::dados();
+        if ((array_column($d['meses'], 'situacao', 'mes')[$mes] ?? '') !== 'PREVISAO') {
+            return [];
+        }
+        $datas = [];
+        foreach (ChecklistContas::statusPorMes($mes, $hoje) as $s) {
+            $datas[(int) $s['categoria_id']] = $s['data_pagamento'];
+        }
+        $out = [];
+        foreach ($d['cats'] as $id => $c) {
+            $pago = round((float) ($d['real'][$mes][$id] ?? 0.0), 2);
+            if ($c['grupo'] !== 'Fixos' || $c['ativo'] !== 1 || (float) ($d['prev'][$mes][$id] ?? 0.0) <= 0.004 || $pago <= 0.004) {
+                continue;
+            }
+            $out[] = ['categoria_id' => $id, 'nome' => $c['nome'], 'apelido' => $c['apelido'], 'grupo' => $c['grupo'], 'pago' => $pago,
+                      'data' => (string) ($datas[$id] ?? ($d['ult'][$mes][$id] ?? $hoje))];
+        }
+        usort($out, static fn(array $a, array $b): int => [$a['data'], $a['nome']] <=> [$b['data'], $b['nome']]);
+        return $out;
     }
 
     /** GET /atencao — todos os avisos de "Precisa de atenção", quando são mais do que a faixa do Início mostra. */

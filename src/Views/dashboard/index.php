@@ -1,302 +1,344 @@
 <?php
-use Financeiro\Auth;
-
 /**
- * Início — o mês de referência pelo que aconteceu de verdade (lançamentos).
- * Saudação; o cartão do saldo (em conta hoje, uma frase que responde quanto dá para gastar e o resto
- * dobrado em "Ver detalhes", com o olho que esconde os valores); o mês em três linhas (entrou, saiu e a
- * sobra com o nome da base; o detalhe fica dobrado); "Precisa de atenção", logo abaixo do saldo e só quando há algo;
- * as contas do mês com o botão Pago; para onde foi; conferir com o banco; últimos lançamentos.
- * Com mais de uma conta, "Ver detalhes" mostra o saldo de cada uma, e conferir pede o saldo de cada uma.
+ * Início: a resposta. O topo é o contexto ("Novembro de 2026" e o dia); o painel responde quanto dá para gastar até o
+ * fim do mês, com a barra "para onde vai o dinheiro do mês" (Services\Destino); a faixa de números diz o que já
+ * aconteceu (em conta hoje, entrou, gasto e guardado); as contas do mês com Pagar e o carimbo, ao lado dos últimos
+ * lançamentos por dia; embaixo, para onde foi o gasto e conferir com o banco. "Precisa de atenção" só aparece quando
+ * há algo, sem repetir o que as contas do mês já mostram.
+ * Sem nenhum lançamento e sem dinheiro previsto, a tela diz para que serve e oferece o primeiro lançamento.
  * Variáveis: $hoje, $mesRef, $mesCal, $estadoRef, $reserva, $conta, $contas (só com várias), $conf, $conferirAberto,
- * $conferirErro, $painel, $sobra (Sobra), $resposta (DashboardController::resposta), $ultimos, $avisos (Services\Atencao),
- * $contasMes (ChecklistContas::fixasAPagar: o bloco "Contas do mês", logo depois do saldo e da atenção).
+ * $conferirErro, $painel, $sobra (Sobra), $resposta (DashboardController::resposta), $mesPrevisao, $ultimos, $avisos,
+ * $contasMes (a pagar), $contasPagas, $destino (Destino::doMes), $guardado, $temLancamento, $roteiro.
  */
-use Financeiro\Services\Sobra;
+use Financeiro\Services\Destino;
 use Financeiro\View;
 
-$p        = $painel;
-$previsto = $p['base'] === 'previsto';
+$csrf     = csrfField();
 $mesNome  = mesExtenso($mesRef);
+$mesTit   = mb_convert_case($mesNome, MB_CASE_TITLE);
+$previsto = $sobra['base'] === 'prevista';
+$p        = $painel;
+$topMax   = $p['top'] !== [] ? max(array_column($p['top'], 'valor')) : 0.0;
 $share    = static fn(float $v, float $tot): int => $tot > 0.004 ? (int) round($v / $tot * 100) : 0;
 
-// distância até a reserva (o cartão do saldo mostra acima/abaixo/no vermelho)
-$dif      = $conta - $reserva;
-$abaixo   = $dif < -0.004;
-$vermelho = $conta < -0.004;
+// o topo: o dia da semana e o dia do mês
+$diasSem = [t('domingo'), t('segunda-feira'), t('terça-feira'), t('quarta-feira'), t('quinta-feira'), t('sexta-feira'), t('sábado')];
+$tsHoje  = (int) strtotime($hoje);
+$diaSem  = $diasSem[(int) date('w', $tsHoje)];
+$diaSem  = mb_strtoupper(mb_substr($diaSem, 0, 1)) . mb_substr($diaSem, 1);
+$apoio   = substr($hoje, 0, 7) === substr($mesRef, 0, 7)
+    ? $diaSem . ', ' . t('dia {dia} de {dias}', ['dia' => (int) date('j', $tsHoje), 'dias' => diasNoMes($mesRef)])
+    : $diaSem . ', ' . t('{dia} de {mes}', ['dia' => (int) date('j', $tsHoje), 'mes' => mesExtenso($hoje)]);
 
-$prog = null;
-if ($mesRef === $mesCal && $estadoRef !== 'real') {
-    $dia  = (int) substr($hoje, 8, 2);
-    $dias = diasNoMes($mesRef);
-    $prog = ['dia' => $dia, 'dias' => $dias, 'pct' => (int) round($dia / $dias * 100)];
-}
-
-// a sobra do mês com o nome da base; a renda é a sem a parcela (a ponte mostra a conta)
-$balanco  = (float) $sobra['sobra'];
-$topMax   = $p['top'] !== [] ? max(array_column($p['top'], 'valor')) : 0.0;
-
-// a frase do cartão do saldo: o mês da previsão, o dia em que ele termina e o valor em destaque
-$mesFrase  = $mesPrevisao === $mesCal ? t('Este mês') : mb_convert_case(mesExtenso($mesPrevisao), MB_CASE_TITLE);
-$diaFim    = diasNoMes($mesPrevisao);
-$valorB    = static fn(float $v): string => '<b class="num">' . e(money($v)) . '</b>';
-$frase     = null;
-$fraseMais = null;
+// a resposta: até quando, quanto e, numa linha, quanto dá por dia
+$noMesHoje = $mesPrevisao === $mesCal;
+$fimDia    = diasNoMes($mesPrevisao);
+$varsAte   = ['dia' => $fimDia, 'mes' => mesExtenso($mesPrevisao)];
+$mesFrase  = mb_convert_case(mesExtenso($mesPrevisao), MB_CASE_TITLE);
+$rotulo = t('Em conta hoje');
+$numero = valor($conta, 'neutro', ['moeda' => true]);
+$apoioResposta = '';
+$tipo = $resposta['tipo'] ?? 'conta';
 if ($resposta !== null) {
     $v = (float) $resposta['valor'];
-    $frase = match ($resposta['tipo']) {
-        'vermelho' => t('{mes} fecha no vermelho: faltam {valor} para zerar.', ['mes' => e($mesFrase), 'valor' => $valorB($v)]),
-        'abaixo'   => t('{mes} fecha abaixo da reserva: faltam {valor}.', ['mes' => e($mesFrase), 'valor' => $valorB($v)]),
-        'justo'    => e($reserva > 0.004 ? t('{mes} fecha na reserva, sem folga para gastar mais.', ['mes' => $mesFrase]) : t('{mes} fecha zerado, sem folga para gastar mais.', ['mes' => $mesFrase])),
-        default    => $mesPrevisao === $mesCal
-            ? ($reserva > 0.004
-                ? t('Dá para gastar {valor} até o dia {dia} sem passar da reserva.', ['valor' => $valorB($v), 'dia' => $diaFim])
-                : t('Dá para gastar {valor} até o dia {dia} sem ficar no vermelho.', ['valor' => $valorB($v), 'dia' => $diaFim]))
-            : ($reserva > 0.004
-                ? t('Dá para gastar {valor} até o fim de {mes} sem passar da reserva.', ['valor' => $valorB($v), 'mes' => e(mesExtenso($mesPrevisao))])
-                : t('Dá para gastar {valor} até o fim de {mes} sem ficar no vermelho.', ['valor' => $valorB($v), 'mes' => e(mesExtenso($mesPrevisao))])),
-    };
-    $a = (float) $resposta['adianta'];
-    if ($a > 0.004) {
-        $fraseMais = abs($a - $v) < 0.01
-            ? e(t('Pelo plano, esse valor vai adiantar o empréstimo, e o mês fecha na reserva.'))
-            : t('Pelo plano, {valor} disso vai adiantar o empréstimo.', ['valor' => $valorB($a)]);
+    switch ($tipo) {
+        case 'vermelho':
+            $rotulo = $noMesHoje ? t('Falta para zerar até dia {dia}', $varsAte) : t('Falta para zerar até o fim de {mes}', $varsAte);
+            $numero = valor($v, 'neutro', ['moeda' => true, 'classe' => 'alerta']);
+            $apoioResposta = e(t('{mes} fecha no vermelho.', ['mes' => $mesFrase]));
+            break;
+        case 'abaixo':
+            $rotulo = $noMesHoje ? t('Falta para a reserva até dia {dia}', $varsAte) : t('Falta para a reserva até o fim de {mes}', $varsAte);
+            $numero = valor($v, 'neutro', ['moeda' => true, 'classe' => 'atencao']);
+            $apoioResposta = e(t('{mes} fecha abaixo da reserva de {valor}.', ['mes' => $mesFrase, 'valor' => money($reserva)]));
+            break;
+        default:
+            $rotulo = $noMesHoje ? t('Dá para gastar até dia {dia}', $varsAte) : t('Dá para gastar até o fim de {mes}', $varsAte);
+            $numero = valor($v, 'neutro', ['moeda' => true]);
+            if ($tipo === 'justo') {
+                $apoioResposta = e($reserva > 0.004 ? t('{mes} fecha na reserva, sem folga.', ['mes' => $mesFrase]) : t('{mes} fecha sem folga.', ['mes' => $mesFrase]));
+            } else {
+                // os dias que faltam depois de hoje; num mês que ainda não começou, todos os dias dele
+                $dias = $noMesHoje ? $fimDia - (int) date('j', $tsHoje) : $fimDia;
+                $apoioResposta = $dias < 1
+                    ? e(t('Hoje é o último dia do mês.'))
+                    : tn($dias, 'Cerca de {valor} no 1 dia que falta.', 'Cerca de {valor} por dia nos {n} dias que faltam.',
+                        ['valor' => '<b class="num">' . e(money($v / $dias)) . '</b>']);
+            }
     }
 }
 
-// saudação e a data por extenso
-$hora      = (int) \Financeiro\Relogio::agora()->format('G');
-$saudacao  = $hora < 5 ? t('Boa noite') : ($hora < 12 ? t('Bom dia') : ($hora < 18 ? t('Boa tarde') : t('Boa noite')));
-$quem      = trim((string) (Auth::nome() ?? ''));
-$diasSem   = [t('domingo'), t('segunda-feira'), t('terça-feira'), t('quarta-feira'), t('quinta-feira'), t('sexta-feira'), t('sábado')];
-$tsHoje    = (int) strtotime($hoje);
-$diaSem    = $diasSem[(int) date('w', $tsHoje)];
-$dataLonga = mb_strtoupper(mb_substr($diaSem, 0, 1)) . mb_substr($diaSem, 1) . ', ' . t('{dia} de {mes}', ['dia' => (int) date('j', $tsHoje), 'mes' => mesExtenso($hoje)]);
+// "Precisa de atenção" sem repetir as contas do mês: a conta fixa vencida ou vencendo já está lá, com o Pagar
+$nasContas = array_flip(array_map(static fn(array $c): int => (int) $c['categoria_id'], $contasMes));
+$avisos = array_values(array_filter($avisos, static function (array $a) use ($nasContas): bool {
+    if (!in_array($a['tipo'], ['conta_atrasada', 'conta_vence'], true)) {
+        return true;
+    }
+    parse_str((string) parse_url((string) $a['href'], PHP_URL_QUERY), $q);
+    return !isset($nasContas[(int) ($q['categoria'] ?? 0)]);
+}));
 
-// cartão do saldo: estado e barra até a reserva
-$estadoSaldo = $vermelho ? t('No vermelho') : ($abaixo ? t('Abaixo da reserva') : '');
-$clsSaldo    = $vermelho ? 'is-vermelho' : ($abaixo ? 'is-abaixo' : 'is-acima');
-$pReserva    = $reserva > 0.004 ? max(0.0, min(1.0, $conta / $reserva)) * 100 : ($conta >= 0 ? 100.0 : 0.0);
-$txtConta    = num($conta);
-$virgula     = strrpos($txtConta, sepDecimal());
-$contaInt    = $virgula === false ? $txtConta : substr($txtConta, 0, $virgula);
-$contaCent   = $virgula === false ? '' : substr($txtConta, $virgula);
-$quandoFoi   = static function (string $data) use ($hoje): string {
+// as contas do mês: as que faltam (vencidas primeiro) e as pagas, com o carimbo
+$nContas = count($contasMes) + count($contasPagas);
+$vence = static function (array $c) use ($hoje): string {
+    $v = $c['vencimento'] !== null ? (string) $c['vencimento'] : null;
+    return match (true) {
+        $v === null => '',
+        $v === $hoje => t('vence hoje'),
+        $c['atrasado'] => t('venceu dia {dia}', ['dia' => (int) substr($v, 8, 2)]),
+        $v < $hoje => t('vence {data}, paga até {util}', ['data' => diaMes($v), 'util' => diaMes((string) $c['paga_ate'])]),
+        default => t('vence dia {dia}', ['dia' => (int) substr($v, 8, 2)]),
+    };
+};
+
+// os últimos lançamentos, por dia
+$porDia = [];
+foreach ($ultimos as $r) {
+    $porDia[(string) $r['data']][] = $r;
+}
+$nomeDia = static function (string $data) use ($hoje, $diasSem): string {
     if ($data === $hoje) {
         return t('Hoje');
     }
     if ($data === date('Y-m-d', strtotime($hoje . ' -1 day'))) {
         return t('Ontem');
     }
-    return diaMesCurto($data);
+    $ds = $diasSem[(int) date('w', (int) strtotime($data))];
+    $ds = mb_strtoupper(mb_substr($ds, 0, 1)) . mb_substr($ds, 1);
+    return t('{dia_semana}, {dia}', ['dia_semana' => explode('-', $ds)[0], 'dia' => (int) substr($data, 8, 2)]);
 };
-?>
-<div class="dash">
+$entra = static fn(array $r): bool => (int) $r['sinal'] > 0;
 
-    <header class="dash-head">
-        <p class="dash-ola"><?= e($saudacao) ?><?= $quem !== '' ? ',' : '' ?></p>
-        <h1 class="pg-titulo"><?= e($quem !== '' ? $quem : t('Início')) ?></h1>
-        <p class="dash-data"><?= e($dataLonga) ?></p>
-    </header>
+$vazio = !$temLancamento && ($destino === null || $destino['total'] < 0.005);
+?>
+<div class="grade ini">
+    <?php View::partial('partials/topo', ['mes' => $mesRef, 'apoio' => $apoio]); ?>
 
     <?php if (!empty($roteiro)): ?>
-    <section class="card roteiro" aria-labelledby="roteiro-t">
-        <h2 class="titulo" id="roteiro-t"><?= e(t('Primeiros passos')) ?></h2>
+    <section class="faixa-grade roteiro" aria-labelledby="roteiro-t">
+        <div class="secao-cab"><h2 id="roteiro-t"><?= e(t('Primeiros passos')) ?></h2></div>
         <ul class="roteiro-lista">
             <?php foreach ($roteiro as [$href, $texto, $feito]): ?>
                 <li class="<?= $feito ? 'is-feito' : '' ?>"><?= svgIcon($feito ? 'check' : 'plus', 16) ?><?= $feito ? '<span>' . e($texto) . '</span>' : '<a href="' . e($href) . '">' . e($texto) . '</a>' ?></li>
             <?php endforeach; ?>
         </ul>
         <div class="roteiro-fim">
-            <a href="/ajuda"><?= e(t('Ver a ajuda')) ?></a>
-            <form method="post" action="/roteiro/dispensar"><?= csrfField() ?><button type="submit" class="btn btn-ghost"><?= e(t('Dispensar')) ?></button></form>
+            <a class="link" href="/ajuda"><?= e(t('Ver a ajuda')) ?></a>
+            <form method="post" action="/roteiro/dispensar"><?= $csrf ?><button type="submit" class="btn-link"><?= e(t('Dispensar')) ?></button></form>
         </div>
     </section>
     <?php endif; ?>
 
-    <div class="dash-grade<?= $avisos !== [] ? ' tem-aten' : '' ?><?= !empty($contasMes) ? ' com-contas' : '' ?>">
+<?php if ($vazio): ?>
+    <section class="faixa-grade ini-vazio" aria-labelledby="ini-vazio-t">
+        <h2 id="ini-vazio-t"><?= e(t('O mês começa aqui')) ?></h2>
+        <p><?= e(t('Aqui você vai ver quanto dá para gastar até o fim do mês, as contas a pagar e o que entrou e saiu.')) ?></p>
+        <a class="btn btn-principal" href="/lancar?volta=%2F" data-lancar><?= svgIcon('plus', 16) ?><?= e(t('Lançar o primeiro valor')) ?></a>
+    </section>
+<?php else: ?>
 
-        <!-- o saldo de hoje contra a reserva -->
-        <section class="saldo <?= $clsSaldo ?>" aria-labelledby="saldo-t">
-            <div class="saldo-l1">
-                <h2 id="saldo-t"><?= e(t('Em conta hoje')) ?> <?= dica('em-conta', t('Em conta hoje')) ?></h2>
-                <button type="button" class="saldo-olho" data-ocultar aria-pressed="false" aria-label="<?= e(t('esconder valores')) ?>"><?= svgIcon('eye', 18, 'olho-aberto') ?><?= svgIcon('eye-off', 18, 'olho-fechado') ?></button>
-                <?php if ($estadoSaldo !== ''): ?><span class="saldo-estado"><?= e($estadoSaldo) ?></span><?php endif; ?>
-            </div>
-            <p class="saldo-v num"><small><?= e(moedaSimbolo()) ?></small><?= e($contaInt) ?><span><?= e($contaCent) ?></span></p>
-            <?php if ($frase !== null): ?>
-                <p class="saldo-frase is-<?= e((string) $resposta['tipo']) ?>" data-saldo-frase="<?= e((string) $resposta['tipo']) ?>"><?= $frase ?> <?= dica('gastar', t('esse valor')) ?><?php if ($fraseMais !== null): ?> <span class="saldo-frase-2"><?= $fraseMais ?></span><?php endif; ?></p>
-            <?php endif; ?>
-            <div class="saldo-medidor" aria-hidden="true"><i style="--p:<?= e(number_format($pReserva, 1, '.', '')) ?>%"></i></div>
-            <?php if ($reserva > 0.004 || $vermelho || $previsaoFim !== null || $contas !== []): ?>
-            <details class="saldo-det">
-                <summary><?= e(t('Ver detalhes')) ?></summary>
-                <div class="saldo-det-c">
-                    <?php if ($contas !== []): ?>
-                    <ul class="saldo-contas num" aria-label="<?= e(t('saldo de cada conta')) ?>">
-                        <?php foreach ($contas as $c): ?>
-                            <li><span><span aria-hidden="true"><?= e(\Financeiro\Models\ContaModel::TIPOS[$c['tipo']] ?? '') ?></span> <?= e(nomeConta($c)) ?></span><b class="<?= $c['saldo'] < -0.004 ? 'neg' : '' ?>"><?= e(num((float) $c['saldo'])) ?></b></li>
-                        <?php endforeach; ?>
-                    </ul>
-                    <?php endif; ?>
-                    <?php if ($reserva > 0.004 || $vermelho): ?>
-                    <p class="saldo-rod num">
-                        <span><?php if ($vermelho): ?><?= t('Faltam {valor} para zerar', ['valor' => '<b>' . e(num(abs($conta))) . '</b>']) ?><?php elseif ($abaixo): ?><?= t('Faltam {valor} para a reserva', ['valor' => '<b>' . e(num(abs($dif))) . '</b>']) ?><?php else: ?><?= t('{valor} acima da reserva', ['valor' => '<b>' . e(num($dif)) . '</b>']) ?><?php endif; ?></span>
-                        <span><?= t('Reserva {valor}', ['valor' => '<b>' . e(num($reserva)) . '</b>']) ?> <?= dica('reserva', t('Reserva')) ?></span>
-                    </p>
-                    <?php endif; ?>
-                    <?php if ($previsaoFim !== null): ?>
-                        <p class="saldo-prev num" data-previsao-fim><?= t('Previsão para o fim de {mes}: {valor}', ['mes' => e(mesExtenso($mesPrevisao)), 'valor' => '<b>' . e(num($previsaoFim)) . '</b>']) ?> <?= dica('previsao', t('previsão')) ?></p>
-                        <?php if (!empty($previsaoSemAdiantar)): ?><p class="saldo-prev num"><?= t('Sem adiantar o empréstimo: {valor}', ['valor' => '<b>' . e(num($previsaoSemAdiantar)) . '</b>']) ?></p><?php endif; ?>
-                    <?php endif; ?>
+    <!-- a resposta: quanto dá para gastar e para onde vai o dinheiro do mês -->
+    <section class="faixa-grade" aria-labelledby="ini-resposta-t">
+        <div class="painel ini-painel" data-resposta="<?= e($tipo) ?>">
+            <h2 class="rot-resposta" id="ini-resposta-t"><?= e($rotulo) ?> <?= dica('gastar', t('esse valor')) ?></h2>
+            <p class="resposta-num"><?= $numero ?></p>
+            <?php if ($apoioResposta !== ''): ?><p class="por-dia"><?= $apoioResposta ?></p><?php endif; ?>
+            <?php if ($destino !== null && $destino['total'] >= 0.005): ?>
+                <div class="ini-destino" data-destino data-total="<?= e(number_format($destino['total'], 2, '.', '')) ?>" data-gastar="<?= e(number_format($destino['gastar'], 2, '.', '')) ?>">
+                    <?php View::partial('partials/destino', [
+                        'titulo' => t('Para onde vai o dinheiro de {mes}', ['mes' => mesExtenso($mesPrevisao)]),
+                        'segmentos' => Destino::segmentos($destino), 'total' => $destino['total'], 'nivel' => 'h3',
+                    ]); ?>
                 </div>
-            </details>
             <?php endif; ?>
-        </section>
+        </div>
+    </section>
 
-        <!-- precisa de atenção: só quando há algo, no máximo três, do mais urgente para o menos -->
-        <?php if ($avisos !== []): ?>
-            <?php View::partial('partials/atencao', ['avisos' => $avisos, 'max' => \Financeiro\Services\Atencao::MAX]); ?>
-        <?php endif; ?>
-
-        <?php View::partial('partials/contas_mes', ['contas' => $contasMes ?? [], 'volta' => '/', 'hoje' => $hoje]); ?>
-
-        <!-- o mês em três linhas; o detalhe fica dobrado -->
-        <section class="card dash-resumo" aria-labelledby="dash-rec-t">
-            <div class="card-head">
-                <h2 class="titulo" id="dash-rec-t"><?= e($previsto ? t('{mes} previsto', ['mes' => mb_convert_case($mesNome, MB_CASE_TITLE)]) : t('{mes} até hoje', ['mes' => mb_convert_case($mesNome, MB_CASE_TITLE)])) ?></h2>
-                <?php if ($prog !== null): ?><span class="card-acao num"><?= e(t('dia {dia} de {dias}', ['dia' => $prog['dia'], 'dias' => $prog['dias']])) ?></span><?php else: ?><span class="estado estado-<?= e($estadoRef) ?>"><?= e(estadoLabel($estadoRef)) ?></span><?php endif; ?>
-            </div>
-            <ul class="resumo">
-                <li><span class="ri pos"><?= svgIcon('arrow-up', 16) ?></span><span class="resumo-n"><?= e(t('Entrou')) ?></span><b class="num pos"><?= e(num((float) $sobra['entrou'])) ?></b></li>
-                <li><span class="ri neg"><?= svgIcon('arrow-down', 16) ?></span><span class="resumo-n"><?= e(t('Saiu')) ?></span><b class="num neg"><?= e(num((float) $sobra['saiu'])) ?></b></li>
-                <li class="resumo-total"><span class="resumo-n"><?= e(Sobra::rotulo((string) $sobra['base'])) ?> <?= dica('numeros', Sobra::rotulo((string) $sobra['base'])) ?></span><b class="num <?= $balanco < -0.004 ? 'neg' : 'pos' ?>" data-sobra="<?= e((string) $sobra['base']) ?>"><?= e(num($balanco)) ?></b></li>
-            </ul>
-            <details class="resumo-det">
-                <summary><?= e(t('Ver o detalhe')) ?></summary>
-                <dl class="resumo-lista num">
-                    <div><dt><?= e(t('Salário')) ?></dt><dd><?= e(num($p['sal'])) ?></dd></div>
-                    <div><dt><?= e(t('Outras entradas')) ?></dt><dd><?= e(num($p['outras'])) ?></dd></div>
-                    <?php if (count($p['outrasItens']) > 1): ?>
-                        <?php foreach ($p['outrasItens'] as $it): ?>
-                            <div class="resumo-sub"><dt><?= e($it['nome']) ?></dt><dd><?= e(num($it['valor'])) ?></dd></div>
-                        <?php endforeach; ?>
+    <?php if ($temLancamento): ?>
+    <!-- o que já aconteceu no mês -->
+    <section class="faixa-grade" aria-labelledby="ini-mes-t">
+        <h2 class="sr-only" id="ini-mes-t"><?= e($previsto ? t('{mes} previsto', ['mes' => $mesTit]) : t('{mes} até hoje', ['mes' => $mesTit])) ?></h2>
+        <dl class="numeros ini-numeros">
+            <div>
+                <dt><?= e(t('Em conta hoje')) ?> <button type="button" class="ini-olho" data-ocultar aria-pressed="false" aria-label="<?= e(t('esconder valores')) ?>"><?= svgIcon('eye', 16, 'olho-aberto') ?><?= svgIcon('eye-off', 16, 'olho-fechado') ?></button></dt>
+                <dd><?= valor($conta, 'neutro', ['classe' => $conta < -0.004 ? 'alerta' : '']) ?>
+                    <?php if ($conta < -0.004): ?><span class="nota alerta"><?= e(t('no vermelho')) ?></span><?php elseif ($reserva > 0.004 && $conta < $reserva - 0.004): ?><span class="nota atencao"><?= e(t('abaixo da reserva')) ?></span><?php endif; ?>
+                    <?php if ($contas !== []): ?>
+                        <details class="ini-contas">
+                            <summary><?= e(t('Ver cada conta')) ?></summary>
+                            <ul class="saldo-contas num" aria-label="<?= e(t('saldo de cada conta')) ?>">
+                                <?php foreach ($contas as $c): ?>
+                                    <li><span><?= e(nomeConta($c)) ?></span><?= valor((float) $c['saldo'], 'neutro', ['classe' => (float) $c['saldo'] < -0.004 ? 'alerta' : '', 'centavos' => false]) ?></li>
+                                <?php endforeach; ?>
+                            </ul>
+                        </details>
                     <?php endif; ?>
-                    <div><dt><?= e(t('Essenciais')) ?></dt><dd><?= e(num($p['ess'])) ?></dd></div>
-                    <div><dt><?= e(t('Não essenciais')) ?></dt><dd><?= e(num($p['naoess'])) ?></dd></div>
-                    <?php $movSai = (float) $sobra['saiu'] - (float) $sobra['saidas']; ?>
-                    <?php if ($movSai >= 0.005): ?><div><dt><?= e(t('Empréstimo e poupança')) ?></dt><dd><?= e(num($movSai)) ?></dd></div><?php endif; ?>
-                </dl>
-                <?php if ((float) $sobra['entrou'] > 0.004): ?>
-                    <p class="dash-nota"><?= e(t('As saídas foram {pct}% das entradas.', ['pct' => $share((float) $sobra['saiu'], (float) $sobra['entrou'])])) ?></p>
-                <?php endif; ?>
-            </details>
-        </section>
-
-        <!-- para onde foi -->
-        <section class="card dash-gastos" aria-labelledby="dash-top-t">
-            <div class="card-head">
-                <h2 class="titulo" id="dash-top-t"><?= e(t('Para onde foi')) ?> <small class="dash-tit-nota"><?= e(t('% dos gastos')) ?></small></h2>
-                <a class="card-acao" href="/lancamentos?mes=<?= e($mesRef) ?>"><?= e(t('Extrato')) ?> <?= svgIcon('chevron', 15) ?></a>
+                </dd>
             </div>
-            <?php $categorizar = $p['semCategoria'] !== null ? '/cartao/compras/' . (int) $p['semCategoria']['compras'][0] . '/editar' : null; ?>
-            <?php if ($p['top'] === []): ?>
-                <p class="dash-vazio"><?= e(t('Nada lançado em {mes} ainda.', ['mes' => $mesNome])) ?></p>
-            <?php else: ?>
-                <ol class="barras">
-                    <?php foreach ($p['top'] as $t): $semCat = $p['porCompra'] && (int) $t['id'] === \Financeiro\Services\GastoPorCategoria::SEM_CATEGORIA; ?>
-                        <li>
-                            <a class="barras-i" href="<?= $semCat ? e((string) $categorizar) : '/lancamentos?mes=' . e($mesRef) . '&amp;cat=' . (int) $t['id'] ?>">
-                                <?= iconeCategoria((int) $t['id'], (string) $t['nome_banco'], $semCat ? 'Cartao' : '', 20, 'barras-ic') ?>
-                                <span class="barras-n"><?= e($t['nome']) ?></span>
-                                <span class="barras-v num"><?= e(num($t['valor'])) ?><small><?= $share($t['valor'], $p['ondeTotal']) ?>%</small></span>
-                                <span class="trilho" aria-hidden="true"><i style="--w:<?= $topMax > 0 ? round($t['valor'] / $topMax * 100, 1) : 0 ?>%"></i></span>
+            <div><dt><?= e(t('Entrou')) ?></dt><dd data-entrou><?= valor((float) $sobra['renda'], $previsto ? 'previsto' : 'entrada') ?></dd></div>
+            <div><dt><?= e(t('Gasto')) ?></dt><dd data-gasto><?= valor((float) $sobra['saidas'], $previsto ? 'previsto' : 'saida') ?></dd></div>
+            <div><dt><?= e(t('Guardado')) ?></dt><dd data-guardado><?= $guardado >= 0 ? valor($guardado, 'saida') : valor(-$guardado, 'entrada') ?></dd></div>
+        </dl>
+    </section>
+    <?php endif; ?>
+
+    <?php if ($avisos !== []): ?>
+    <div class="faixa-grade ini-aten">
+        <?php View::partial('partials/atencao', ['avisos' => $avisos, 'max' => \Financeiro\Services\Atencao::MAX]); ?>
+    </div>
+    <?php endif; ?>
+
+    <div class="faixa-grade">
+        <div class="duas">
+            <section id="contas-mes" aria-labelledby="ini-contas-t">
+                <div class="secao-cab">
+                    <h2 id="ini-contas-t"><?= e(t('Contas do mês')) ?></h2>
+                    <?php if ($nContas > 0): ?><p class="num"><?= e(tn($nContas, '{pagas} de 1 paga', '{pagas} de {n} pagas', ['pagas' => count($contasPagas)])) ?></p><?php endif; ?>
+                </div>
+                <?php if ($nContas === 0): ?>
+                    <p class="ini-nada"><?= e(t('As contas fixas do mês aparecem aqui, com o dia de vencimento.')) ?> <a class="link" href="/meta"><?= e(t('Ver as contas fixas')) ?></a></p>
+                <?php else: ?>
+                <ul>
+                    <?php foreach ($contasMes as $c):
+                        $id = (int) $c['categoria_id'];
+                        $nome = nomeCurto($c);
+                        $quando = $vence($c); ?>
+                        <li class="linha-lista com-acao ini-conta<?= $c['atrasado'] ? ' is-vencida' : '' ?>">
+                            <?= iconeCategoria($id, (string) $c['nome'], (string) $c['grupo'], 20, 'linha-ic') ?>
+                            <a class="linha-nome ini-conta-nome" href="/lancar?categoria=<?= $id ?>&amp;volta=%2F" data-lancar data-categoria="<?= $id ?>">
+                                <b><?= e($nome) ?></b><?php if ($quando !== ''): ?><small class="<?= $c['atrasado'] ? 'atencao' : '' ?>"><?= e($quando) ?></small><?php endif; ?>
                             </a>
+                            <?= valor((float) $c['previsto'], 'previsto', ['centavos' => false]) ?>
+                            <form class="linha-acao" method="post" action="/lancamentos/pago" data-espera="<?= e(t('Lançando…')) ?>">
+                                <?= $csrf ?>
+                                <input type="hidden" name="categoria_id" value="<?= $id ?>">
+                                <input type="hidden" name="volta" value="/">
+                                <button type="submit" class="btn btn-contorno btn-sm btn-pagar"><span class="circ" aria-hidden="true"></span><?= e(t('Pagar')) ?><span class="sr-only"> <?= e($nome) ?></span></button>
+                            </form>
                         </li>
                     <?php endforeach; ?>
-                </ol>
-            <?php endif; ?>
-            <?php if ($categorizar !== null): ?>
-                <p class="dash-nota num"><?= t('Compras no cartão sem categoria: {valor}. {link}', ['valor' => e(num($p['semCategoria']['valor'])), 'link' => '<a href="' . e($categorizar) . '">' . e(t('Categorizar')) . '</a>']) ?></p>
-            <?php endif; ?>
-            <?php if ($p['cartaoAberto']): ?>
-                <p class="dash-nota dash-onde"><?= $p['porCompra']
-                    ? t('Cartão pela data da compra. {link}', ['link' => '<a href="/?onde=fatura#dash-top-t">' . e(t('Ver por fatura')) . '</a>'])
-                    : t('Cartão pela fatura paga. {link}', ['link' => '<a href="/?onde=compra#dash-top-t">' . e(t('Ver pela data da compra')) . '</a>']) ?></p>
-            <?php endif; ?>
-        </section>
-
-        <!-- conferir com o banco: o único jeito de validar o saldo calculado -->
-        <details class="card dobra dash-conf" id="conferir"<?= $conferirAberto ? ' open' : '' ?>>
-            <summary>
-                <span class="titulo"><?= e(t('Conferir com o banco')) ?></span>
-                <span class="dash-conf-ult num">
-                    <?php if ($conf !== null): ?>
-                        <?= e($conf['bate'] ? t('Bate, em {data}', ['data' => diaMes($conf['data'])]) : t('Diferença de {dif}, em {data}', ['dif' => moneySigned($conf['dif']), 'data' => diaMes($conf['data'])])) ?>
-                    <?php else: ?>
-                        <?= e(t('Nunca conferido')) . "\n" ?>
-                    <?php endif; ?>
-                </span>
-            </summary>
-            <form class="dash-conf-form" method="post" action="/conferir">
-                <?= csrfField() ?>
-                <input type="hidden" name="volta" value="/">
-                <?php if ($contas !== []): ?>
-                    <?php \Financeiro\View::partial('partials/saldos_contas', ['contas' => array_values(array_filter($contas, static fn(array $c): bool => $c['ativa'])), 'digitado' => (array) ($conferirErro['contas'] ?? []), 'pref' => 'conf', 'invalido' => $conferirErro !== null, 'confs' => $conf['contas'] ?? []]); ?>
-                <?php else: ?>
-                <label class="campo">
-                    <span><?= e(t('Saldo que o banco mostra')) ?></span>
-                    <input type="text" name="saldo_informado" inputmode="decimal" autocomplete="off" enterkeyhint="done" placeholder="<?= e(t('ex.: 1.546,00')) ?>"
-                           value="<?= e((string) ($conferirErro['valor'] ?? '')) ?>"<?= $conferirErro !== null ? ' aria-invalid="true" aria-describedby="conf-erro" data-autofocus' : '' ?>>
-                </label>
-                <?php endif; ?>
-                <?php if ($conferirErro !== null): ?><p class="aviso aviso-error" id="conf-erro" role="alert"><?= e((string) $conferirErro['msg']) ?></p><?php endif; ?>
-                <fieldset class="quando" data-quando>
-                    <legend class="sr-only"><?= e(t('quando')) ?></legend>
-                    <label class="chip-r"><input type="radio" name="quando" value="hoje"<?= ($conferirErro['quando'] ?? 'hoje') !== 'outro' ? ' checked' : '' ?>><span><?= e(t('Hoje')) ?></span></label>
-                    <label class="chip-r"><input type="radio" name="quando" value="outro"<?= ($conferirErro['quando'] ?? '') === 'outro' ? ' checked' : '' ?>><span><?= e(t('Outro dia')) ?></span></label>
-                    <input type="date" name="data" class="quando-data" value="<?= e((string) ($conferirErro['data'] ?? $hoje)) ?>" max="<?= e($hoje) ?>" aria-label="<?= e(t('data do saldo')) ?>">
-                </fieldset>
-                <?php if ($conf !== null && $contas === []): ?>
-                    <p class="dash-conf-det num"><?= e(t('Última conferência: {valor} em {data}.', ['valor' => num($conf['saldo']), 'data' => diaMes($conf['data'])])) ?></p>
-                <?php endif; ?>
-                <button type="submit" class="btn btn-primary dash-conf-btn"><?= e(t('Conferir')) ?></button>
-            </form>
-        </details>
-
-        <!-- últimos lançamentos -->
-        <section class="card dash-ult" aria-labelledby="dash-ult-t">
-            <div class="card-head">
-                <h2 class="titulo" id="dash-ult-t"><?= e(t('Últimos lançamentos')) ?></h2>
-                <a class="card-acao" href="/lancamentos"><?= e(t('Ver todos')) ?> <?= svgIcon('chevron', 15) ?></a>
-            </div>
-            <?php if ($ultimos === []): ?>
-                <div class="dash-vazio">
-                    <p><?= e(t('Nada lançado em {mes} ainda.', ['mes' => $mesNome])) ?></p>
-                    <a class="btn btn-primary btn-sm" href="/lancar?volta=%2F" data-lancar><?= svgIcon('plus', 16) ?><?= e(t('Lançar')) ?></a>
-                </div>
-            <?php else: ?>
-                <ul class="lista">
-                    <?php foreach ($ultimos as $r):
-                        $mov = (int) $r['operacional'] !== 1;
-                        $ent = !$mov && (int) $r['sinal'] > 0;
-                        $v   = (float) $r['valor'];
-                        $txt = $mov ? '⇄ ' . num($v) : ($ent ? '+' . num($v) : MENOS . num($v));
-                        $cls = $mov ? 'dim' : ($ent ? 'pos' : 'neg');
-                        $cat = ['nome' => $r['categoria_nome'], 'apelido' => $r['apelido']];
-                        $desc = descricaoTela(trim((string) $r['descricao']), $cat);
-                        ?>
-                        <li>
-                            <a class="lista-i" href="/lancamentos/<?= (int) $r['id'] ?>/editar?volta=%2F">
-                                <?= iconeCategoria((int) $r['categoria_id'], (string) $r['categoria_nome'], (string) ($r['grupo'] ?? ''), 20) ?>
-                                <span class="lista-n"><b><?= e($desc !== '' ? $desc : nomeCurto($cat)) ?></b><?php if ($desc !== '' && mb_strtolower($desc) !== mb_strtolower(nomeCurto($cat))): ?><small><?= e(nomeCurto($cat)) ?></small><?php endif; ?></span>
-                                <span class="lista-v"><b class="num <?= $cls ?>"><?= e($txt) ?></b><small><?= e($quandoFoi((string) $r['data'])) ?></small></span>
-                            </a>
+                    <?php foreach ($contasPagas as $c): ?>
+                        <li class="linha-lista com-acao ini-conta is-paga">
+                            <?= iconeCategoria((int) $c['categoria_id'], (string) $c['nome'], (string) $c['grupo'], 20, 'linha-ic') ?>
+                            <span class="linha-nome"><b><?= e(nomeCurto($c)) ?></b></span>
+                            <?= valor((float) $c['pago'], 'saida', ['centavos' => false]) ?>
+                            <span class="linha-acao"><?= carimbo((string) $c['data']) ?></span>
                         </li>
                     <?php endforeach; ?>
                 </ul>
-            <?php endif; ?>
-        </section>
+                <?php endif; ?>
+            </section>
 
+            <section aria-labelledby="ini-ult-t">
+                <div class="secao-cab">
+                    <h2 id="ini-ult-t"><?= e(t('Últimos lançamentos')) ?></h2>
+                    <p><?= e($mesNome) ?></p>
+                </div>
+                <?php if ($ultimos === []): ?>
+                    <div class="ini-nada">
+                        <p><?= e(t('Os lançamentos de {mes} aparecem aqui, do mais novo para o mais antigo.', ['mes' => $mesNome])) ?></p>
+                        <a class="btn btn-contorno btn-sm" href="/lancar?volta=%2F" data-lancar><?= svgIcon('plus', 16) ?><?= e(t('Lançar')) ?></a>
+                    </div>
+                <?php else: ?>
+                    <?php foreach ($porDia as $data => $linhas):
+                        $somaDia = 0.0;
+                        foreach ($linhas as $r) {
+                            $somaDia += $entra($r) ? (float) $r['valor'] : -(float) $r['valor'];
+                        } ?>
+                        <p class="razao-dia"><span><?= e($nomeDia((string) $data)) ?></span><span class="num"><?= e(($somaDia > 0.004 ? '+' : '') . num($somaDia)) ?></span></p>
+                        <ul>
+                            <?php foreach ($linhas as $r):
+                                $cat = ['nome' => $r['categoria_nome'], 'apelido' => $r['apelido']];
+                                $desc = descricaoTela(trim((string) $r['descricao']), $cat); ?>
+                                <li>
+                                    <a class="linha-lista" href="/lancamentos/<?= (int) $r['id'] ?>/editar?volta=%2F">
+                                        <?= iconeCategoria((int) $r['categoria_id'], (string) $r['categoria_nome'], (string) ($r['grupo'] ?? ''), 20, 'linha-ic') ?>
+                                        <span class="linha-nome"><b><?= e($desc !== '' ? $desc : nomeCurto($cat)) ?></b><small><?= e(nomeCurto($cat)) ?></small></span>
+                                        <?= valor((float) $r['valor'], $entra($r) ? 'entrada' : 'saida', ['centavos' => false]) ?>
+                                    </a>
+                                </li>
+                            <?php endforeach; ?>
+                        </ul>
+                    <?php endforeach; ?>
+                    <p class="secao-pe"><a href="/lancamentos?mes=<?= e(substr($mesRef, 0, 7)) ?>"><?= e(t('Ver o extrato de {mes}', ['mes' => $mesNome])) ?></a></p>
+                <?php endif; ?>
+            </section>
+        </div>
     </div>
+
+    <div class="faixa-grade">
+        <div class="duas">
+            <!-- para onde foi o gasto do mês -->
+            <section aria-labelledby="ini-onde-t">
+                <div class="secao-cab">
+                    <h2 id="ini-onde-t"><?= e(t('Para onde foi')) ?></h2>
+                    <p><?= e(t('% dos gastos')) ?></p>
+                </div>
+                <?php $categorizar = $p['semCategoria'] !== null ? '/cartao/compras/' . (int) $p['semCategoria']['compras'][0] . '/editar' : null; ?>
+                <?php if ($p['top'] === []): ?>
+                    <p class="ini-nada"><?= e(t('Os gastos de {mes} aparecem aqui, por categoria.', ['mes' => $mesNome])) ?></p>
+                <?php else: ?>
+                    <ol>
+                        <?php foreach ($p['top'] as $t): $semCat = $p['porCompra'] && (int) $t['id'] === \Financeiro\Services\GastoPorCategoria::SEM_CATEGORIA; ?>
+                            <li>
+                                <a class="linha-lista ini-onde" href="<?= $semCat ? e((string) $categorizar) : '/lancamentos?mes=' . e(substr($mesRef, 0, 7)) . '&amp;cat=' . (int) $t['id'] ?>">
+                                    <?= iconeCategoria((int) $t['id'], (string) $t['nome_banco'], $semCat ? 'Cartao' : '', 20, 'linha-ic') ?>
+                                    <span class="linha-nome"><b><?= e($t['nome']) ?></b><span class="meta-barra" aria-hidden="true"><i style="--p:<?= e(number_format($topMax > 0 ? $t['valor'] / $topMax : 0, 3, '.', '')) ?>"></i></span></span>
+                                    <span class="num ini-onde-v"><?= e(num($t['valor'])) ?><small><?= $share($t['valor'], $p['ondeTotal']) ?>%</small></span>
+                                </a>
+                            </li>
+                        <?php endforeach; ?>
+                    </ol>
+                <?php endif; ?>
+                <?php if ($categorizar !== null): ?>
+                    <p class="ini-nota num"><?= t('Compras no cartão sem categoria: {valor}. {link}', ['valor' => e(num($p['semCategoria']['valor'])), 'link' => '<a class="link" href="' . e($categorizar) . '">' . e(t('Categorizar')) . '</a>']) ?></p>
+                <?php endif; ?>
+                <?php if ($p['cartaoAberto']): ?>
+                    <p class="ini-nota"><?= $p['porCompra']
+                        ? t('Cartão pela data da compra. {link}', ['link' => '<a class="link" href="/?onde=fatura#ini-onde-t">' . e(t('Ver por fatura')) . '</a>'])
+                        : t('Cartão pela fatura paga. {link}', ['link' => '<a class="link" href="/?onde=compra#ini-onde-t">' . e(t('Ver pela data da compra')) . '</a>']) ?></p>
+                <?php endif; ?>
+            </section>
+
+            <!-- conferir com o banco: o único jeito de validar o saldo calculado -->
+            <details class="ini-conf" id="conferir"<?= $conferirAberto ? ' open' : '' ?>>
+                <summary>
+                    <span class="ini-conf-t"><?= e(t('Conferir com o banco')) ?></span>
+                    <span class="ini-conf-ult num<?= $conf !== null && !$conf['bate'] ? ' atencao' : '' ?>">
+                        <?php if ($conf !== null): ?>
+                            <?= e($conf['bate'] ? t('Bate, em {data}', ['data' => diaMes($conf['data'])]) : t('Diferença de {dif}, em {data}', ['dif' => moneySigned($conf['dif']), 'data' => diaMes($conf['data'])])) ?>
+                        <?php else: ?>
+                            <?= e(t('Nunca conferido')) ?>
+                        <?php endif; ?>
+                    </span>
+                </summary>
+                <form class="ini-conf-form" method="post" action="/conferir">
+                    <?= $csrf ?>
+                    <input type="hidden" name="volta" value="/">
+                    <?php if ($contas !== []): ?>
+                        <?php View::partial('partials/saldos_contas', ['contas' => array_values(array_filter($contas, static fn(array $c): bool => $c['ativa'])), 'digitado' => (array) ($conferirErro['contas'] ?? []), 'pref' => 'conf', 'invalido' => $conferirErro !== null, 'confs' => $conf['contas'] ?? []]); ?>
+                        <?php if ($conferirErro !== null): ?><p class="campo-erro" id="conf-erro" role="alert"><?= e((string) $conferirErro['msg']) ?></p><?php endif; ?>
+                    <?php else: ?>
+                    <label class="campo">
+                        <span><?= e(t('Saldo que o banco mostra')) ?></span>
+                        <input type="text" name="saldo_informado" inputmode="decimal" autocomplete="off" enterkeyhint="done" placeholder="<?= e(t('ex.: 1.546,00')) ?>"
+                               value="<?= e((string) ($conferirErro['valor'] ?? '')) ?>"<?= $conferirErro !== null ? ' aria-invalid="true" aria-describedby="conf-erro" data-autofocus' : '' ?>>
+                        <?php if ($conferirErro !== null): ?><span class="campo-erro" id="conf-erro" role="alert"><?= e((string) $conferirErro['msg']) ?></span><?php endif; ?>
+                    </label>
+                    <?php endif; ?>
+                    <fieldset class="quando" data-quando>
+                        <legend class="sr-only"><?= e(t('quando')) ?></legend>
+                        <label class="chip-r"><input type="radio" name="quando" value="hoje"<?= ($conferirErro['quando'] ?? 'hoje') !== 'outro' ? ' checked' : '' ?>><span><?= e(t('Hoje')) ?></span></label>
+                        <label class="chip-r"><input type="radio" name="quando" value="outro"<?= ($conferirErro['quando'] ?? '') === 'outro' ? ' checked' : '' ?>><span><?= e(t('Outro dia')) ?></span></label>
+                        <input type="date" name="data" class="quando-data" value="<?= e((string) ($conferirErro['data'] ?? $hoje)) ?>" max="<?= e($hoje) ?>" aria-label="<?= e(t('data do saldo')) ?>">
+                    </fieldset>
+                    <?php if ($conf !== null && $contas === []): ?>
+                        <p class="ini-nota num"><?= e(t('Última conferência: {valor} em {data}.', ['valor' => num($conf['saldo']), 'data' => diaMes($conf['data'])])) ?></p>
+                    <?php endif; ?>
+                    <button type="submit" class="btn btn-contorno ini-conf-btn"><?= e(t('Conferir')) ?></button>
+                </form>
+            </details>
+        </div>
+    </div>
+<?php endif; ?>
 </div>
