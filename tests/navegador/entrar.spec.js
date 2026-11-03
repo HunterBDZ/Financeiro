@@ -11,7 +11,9 @@ test('entra e sai', async ({ page }) => {
     await page.getByRole('button', { name: 'Entrar' }).click();
 
     await expect(page).toHaveURL('/');
-    await expect(page.getByRole('heading', { level: 1, name: 'Ana' })).toBeVisible();
+    // o Início abre com o mês como título; a pessoa que entrou aparece no pé do menu
+    await expect(page.getByRole('heading', { level: 1, name: 'Novembro de 2026' })).toBeVisible();
+    await expect(page.getByRole('complementary', { name: 'menu' }).getByText('Ana', { exact: true })).toBeVisible();
 
     await page.getByRole('button', { name: 'sair' }).click();
     await expect(page).toHaveURL('/login');

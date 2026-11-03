@@ -76,7 +76,9 @@ test('liga, entra com o código e desliga', async ({ page }) => {
     await page.getByLabel('Código de 6 dígitos', { exact: true }).fill(totp(segredo, 1));
     await page.getByRole('button', { name: 'Entrar' }).click();
     await expect(page).toHaveURL('/');
-    await expect(page.getByRole('heading', { level: 1, name: 'Bruno' })).toBeVisible();
+    // o Início abre com o mês como título; a pessoa que entrou aparece no pé do menu
+    await expect(page.getByRole('heading', { level: 1, name: 'Novembro de 2026' })).toBeVisible();
+    await expect(page.getByRole('complementary', { name: 'menu' }).getByText('Bruno', { exact: true })).toBeVisible();
 
     // desligar com a senha e um código de recuperação
     await page.goto('/ajustes?aberto=duasetapas');
