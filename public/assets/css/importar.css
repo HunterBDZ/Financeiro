@@ -1,136 +1,126 @@
+/* Hallmark · checked: 2026-11-03 · genre: modern-minimal · shape: stepped flow + review table · scope: app · built: Importar extrato do MyMonetto (design.md) · v1 */
 /* ==========================================================================
-   importar.css — Importar extrato: escolher o arquivo, ligar as colunas do CSV e revisar.
-   A revisão é uma tabela no computador e, no celular, um cartão por linha (marca, descrição e
-   valor em cima; data e avisos no meio; categoria embaixo, na largura toda).
+   importar.css — Importar extrato, na grade: os passos à vista (arquivo, colunas, revisar), o arquivo, ligar as
+   colunas do CSV e a revisão como tabela (o livro-razão). O erro fica junto do campo (.aj-erro). No celular, cada
+   linha da revisão vira um bloco com fio. Sem caixas, sem vidro.
    ========================================================================== */
 
-.imp { display: flex; flex-direction: column; gap: 14px; min-width: 0; max-width: 760px; }
-.imp > * { min-width: 0; }
-.imp--revisar { max-width: none; }
-.imp-topo { display: flex; align-items: center; gap: 12px; }
-.imp-sub { color: var(--text-2); font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
-.imp-sub a, .imp-pendente a { font-weight: 750; text-decoration: underline; text-underline-offset: 3px; }
-.imp-ajuda { color: var(--text-2); font-size: 13px; line-height: 1.45; }
+/* os passos */
+.imp-passos { display: flex; flex-wrap: wrap; gap: var(--e-2) var(--e-5); margin-bottom: var(--e-6); color: var(--tinta-3); font-size: var(--t-rotulo); line-height: var(--lh-rotulo); }
+.imp-passos li { display: inline-flex; align-items: center; gap: var(--e-2); }
+.imp-passo-n { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; box-shadow: inset 0 0 0 1px var(--fio-forte); font-size: var(--t-meta); font-weight: 600; }
+.imp-passos .is-agora { color: var(--tinta); font-weight: 600; }
+.imp-passos .is-agora .imp-passo-n { background: var(--azul); color: var(--sobre-azul); box-shadow: none; }
+.imp-passos .is-feito { color: var(--tinta-2); }
+.imp-passos .is-feito .imp-passo-n { color: var(--azul); box-shadow: inset 0 0 0 1.5px var(--azul); }
+
+.imp-ajuda { color: var(--tinta-3); font-size: var(--t-rotulo); line-height: var(--lh-rotulo); text-wrap: pretty; }
+.imp-ajuda.atencao { color: var(--atencao); }
 .imp-ajuda:empty { display: none; }
-.imp-vazio { color: var(--text-2); font-size: 14px; }
+.imp-vazio { color: var(--tinta-2); font-size: var(--t-rotulo); }
+.imp-pendente { margin-bottom: var(--e-5); color: var(--tinta-2); }
 
-/* formulários */
-.imp-form { display: grid; gap: 16px; }
-.imp-campo { display: block; min-width: 0; }
-.imp-campo > span { display: block; margin-bottom: 6px; color: var(--text-2); font-size: 13px; font-weight: 650; }
-.imp-campo .imp-ajuda { margin-top: 6px; }
-.imp-arquivo { gap: 8px; }
-.imp-continuar { justify-self: start; min-width: 160px; }
-.imp-check { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 650; cursor: pointer; }
-.imp-colunas { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); align-items: end; gap: 12px; }
-.imp-duas { display: grid; gap: 12px; }
-.imp-duas > summary { color: var(--text); font-size: 14px; font-weight: 700; min-height: var(--tap); display: flex; align-items: center; }
-.imp-duas[open] > summary { margin-bottom: 4px; }
+/* o arquivo e as colunas */
+.imp-form { display: grid; gap: var(--e-4); max-width: 560px; }
+.imp-arquivo { justify-self: start; gap: var(--e-2); }
+.imp-arquivo.is-erro { box-shadow: inset 0 0 0 2px var(--alerta); }
+.imp-continuar { justify-self: start; }
+.imp-check { display: flex; align-items: center; gap: var(--e-3); min-height: var(--tap); cursor: pointer; }
+.imp-colunas { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); align-items: end; gap: var(--e-3) var(--e-4); }
+.imp-colunas[data-erro] select { box-shadow: inset 0 0 0 1px var(--alerta); }
+.imp-duas { border-top: 1px solid var(--fio); border-bottom: 1px solid var(--fio); }
+.imp-duas > summary { font-weight: 400; }
+.imp-duas[open] > :last-child { margin-bottom: var(--e-4); }
+.imp-duas > .imp-colunas { margin-bottom: var(--e-3); }
+.imp-form:has(.imp-colunas) { max-width: 880px; }
 
-/* blocos de baixo: modelo, últimas importações, regras */
-.imp-bloco { display: grid; gap: 10px; }
-.imp-bloco h2, .imp-regra h2 { font-size: 16px; font-weight: 750; }
-.imp-bloco p { color: var(--text-2); font-size: 14px; line-height: 1.5; }
-.imp-modelo .btn { justify-self: start; }
-.imp-hist { display: grid; }
-.imp-hist-i { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); min-width: 0; }
-.imp-hist-i:first-child { border-top: 0; padding-top: 0; }
+/* embaixo do envio: o modelo, as últimas importações e as regras, em colunas sem caixa */
+.imp-blocos { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--e-7); }
+.imp-bloco { display: flex; flex-direction: column; gap: var(--e-3); min-width: 0; }
+.imp-bloco h2 { padding-bottom: var(--e-3); border-bottom: 1px solid var(--fio); font: 400 var(--t-titulo)/var(--lh-titulo) var(--f-num); letter-spacing: -.01em; }
+.imp-bloco > p { color: var(--tinta-2); font-size: var(--t-rotulo); line-height: var(--lh-rotulo); text-wrap: pretty; }
+.imp-modelo .btn { align-self: flex-start; }
+.imp-hist-i { display: flex; align-items: center; justify-content: space-between; gap: var(--e-3); min-height: var(--linha); padding: var(--e-2) 0; border-bottom: 1px solid var(--fio); min-width: 0; }
 .imp-hist-n { display: grid; gap: 2px; min-width: 0; }
-.imp-hist-n b { font-size: 14.5px; overflow-wrap: anywhere; }
-.imp-hist-n small, .imp-hist-v small { color: var(--text-2); }
-.imp-hist-v { display: flex; align-items: center; gap: 10px; flex: none; }
+.imp-hist-n b { font-weight: 400; overflow-wrap: anywhere; }
+.imp-hist-n small, .imp-hist-v small { color: var(--tinta-3); font-size: var(--t-meta); line-height: var(--lh-meta); }
+.imp-hist-v { display: flex; align-items: center; gap: var(--e-3); flex: none; }
 .imp-hist-v form { margin: 0; }
-.imp-hist-i.is-desfeita .imp-hist-n b { color: var(--text-2); text-decoration: line-through; }
+.imp-hist-i.is-desfeita .imp-hist-n b { color: var(--tinta-3); text-decoration: line-through; }
 
-/* prévia do CSV */
-.imp-previa { display: grid; gap: 10px; padding-bottom: 8px; }
-.imp-previa-t { font-size: 14px; font-weight: 700; color: var(--text-2); overflow-wrap: anywhere; }
-.imp-rolar { overflow-x: auto; margin-inline: -4px; padding: 0 4px 8px; }
-.imp-rolar:focus-visible { outline: 2px solid var(--foco); outline-offset: 2px; border-radius: 8px; }
-.imp-tabela-previa { font-size: 13px; }
-.imp-tabela-previa th, .imp-tabela-previa td { padding: 8px 10px; text-align: left; white-space: nowrap; border-bottom: 1px solid var(--line); }
-.imp-tabela-previa th { color: var(--text-2); font-weight: 700; }
-.imp-tabela-previa tr.is-cab td { font-weight: 750; background: var(--card-2); }
+/* a prévia do CSV */
+.imp-previa-t { margin-bottom: var(--e-3); color: var(--tinta-2); font-size: var(--t-rotulo); font-weight: 400; overflow-wrap: anywhere; }
+.imp-rolar { overflow-x: auto; }
+.imp-rolar:focus-visible { outline: 2px solid var(--azul); outline-offset: 2px; }
+.imp-tabela-previa { font-size: var(--t-rotulo); }
+.imp-tabela-previa th, .imp-tabela-previa td { height: 40px; padding: 0 var(--e-3); text-align: left; white-space: nowrap; border-bottom: 1px solid var(--fio); }
+.imp-tabela-previa th:first-child, .imp-tabela-previa td:first-child { padding-left: 0; }
+.imp-tabela-previa th { color: var(--tinta-3); font-weight: 400; border-bottom-color: var(--fio-forte); }
+.imp-tabela-previa tr.is-cab td { color: var(--tinta-2); font-weight: 600; }
 
-/* revisão: resumo */
-.imp-resumo { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.imp-resumo .chip { cursor: default; box-shadow: none; }
-.imp-resumo .chip:not(.is-on):hover { background: var(--card); }
-.imp-chip-aviso { background: var(--warn-bg); border-color: transparent; color: var(--text); }
-.imp-resumo .chip.imp-chip-aviso:hover { background: var(--warn-bg); }
-.imp-todas { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; font-size: 14px; font-weight: 700; cursor: pointer; }
+/* a revisão: o resumo numa linha de texto */
+.imp-resumo { display: flex; flex-wrap: wrap; align-items: center; gap: var(--e-2) var(--e-5); margin-bottom: var(--e-4); color: var(--tinta-2); font-size: var(--t-rotulo); }
+.imp-resumo b { color: var(--tinta); font-weight: 600; }
+.imp-todas { display: inline-flex; align-items: center; gap: var(--e-2); margin-left: auto; cursor: pointer; }
 
-/* revisão: a tabela */
-.imp-lista { padding: 0; overflow: hidden; }
-.imp-tabela { font-size: 14px; }
-.imp-tabela th { padding: 12px 10px; text-align: left; color: var(--text-2); font-size: 13px; font-weight: 700; border-bottom: 1px solid var(--line); }
-.imp-tabela td { padding: 12px 10px; vertical-align: top; border-bottom: 1px solid var(--line); }
-.imp-tabela tbody tr:last-child td { border-bottom: 0; }
-.imp-tabela th:first-child, .imp-tabela td:first-child { padding-left: 16px; }
-.imp-tabela th:last-child, .imp-tabela td:last-child { padding-right: 16px; }
-.imp-c-marca { width: 64px; }
-.imp-c-data { width: 96px; color: var(--text-2); font-weight: 650; }
+/* a revisão: a tabela */
+.imp-tabela { font-size: var(--t-rotulo); }
+.imp-tabela th { height: 40px; padding: 0 var(--e-3) var(--e-2); vertical-align: bottom; text-align: left; color: var(--tinta-3); font-weight: 400; border-bottom: 1px solid var(--fio-forte); }
+.imp-tabela td { padding: var(--e-3); vertical-align: top; border-bottom: 1px solid var(--fio); }
+.imp-tabela th:first-child, .imp-tabela td:first-child { padding-left: 0; }
+.imp-tabela th:last-child, .imp-tabela td:last-child { padding-right: 0; }
+.imp-c-marca { width: 56px; }
+.imp-c-data { width: 88px; color: var(--tinta-2); }
 .imp-c-data label { cursor: pointer; }
 .imp-c-cat { width: 280px; }
-.imp-c-valor { width: 130px; text-align: right !important; }
-.imp-c-valor b { font-size: 15px; font-weight: 750; }
-.imp-desc { display: block; font-weight: 700; overflow-wrap: anywhere; cursor: pointer; }
-.imp-nota, .imp-aviso, .imp-origem { display: block; margin-top: 3px; color: var(--text-2); font-size: 12.5px; line-height: 1.4; }
-.imp-aviso { display: flex; align-items: flex-start; gap: 5px; color: var(--warn); font-weight: 650; }
-.imp-aviso svg { margin-top: 1px; }
-.imp-c-cat select { min-height: 42px; font-size: 15px; }
-.imp-cat-pe { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 8px; }
+.imp-c-valor { width: 132px; text-align: right !important; }
+.imp-c-valor b { font-size: var(--t-corpo); font-weight: 400; }
+.imp-desc { display: block; font-size: var(--t-corpo); overflow-wrap: anywhere; cursor: pointer; }
+.imp-nota, .imp-aviso, .imp-origem { display: block; margin-top: var(--e-1); color: var(--tinta-3); font-size: var(--t-meta); line-height: var(--lh-meta); }
+.imp-aviso { display: flex; align-items: flex-start; gap: var(--e-1); color: var(--atencao); font-weight: 600; }
+.imp-aviso svg { margin-top: 1px; flex: none; }
+.imp-c-cat select { min-height: 40px; }
+.imp-cat-pe { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 var(--e-2); }
 .imp-cat-pe:empty { display: none; }
-.imp-sempre { min-height: 32px; padding: 0 2px; font-size: 12.5px; font-weight: 700; color: var(--text-2); }
-.imp-sempre:hover { color: var(--text); }
-.imp-l.is-aviso td:first-child { box-shadow: inset 3px 0 0 var(--warn); }
-.imp-l.is-fora td:not(:first-child) { opacity: .62; }
-.imp-l:not(.is-marcada) .imp-desc { color: var(--text-2); }
-.imp-l.is-sem-cat select { box-shadow: inset 0 0 0 2px var(--warn); }
+.imp-sempre { min-height: 32px; padding: 0; font-size: var(--t-meta); }
+.imp-l.is-fora td:not(:first-child) { color: var(--tinta-3); }
+.imp-l:not(.is-marcada) .imp-desc { color: var(--tinta-2); }
+.imp-l.is-sem-cat select { box-shadow: inset 0 0 0 2px var(--atencao); }
 
-/* revisão: regra e botões */
-.imp-regra { display: grid; gap: 10px; scroll-margin-top: 16px; }
-.imp-regra-campos { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; align-items: end; gap: 12px; }
-.imp-acoes {
-    position: sticky; z-index: 30; bottom: calc(88px + env(safe-area-inset-bottom, 0px));
-    display: flex; justify-content: flex-end; gap: 10px;
-    padding: 10px; border-radius: 18px; border: 1px solid var(--line);
-    background: color-mix(in srgb, var(--card) 94%, transparent);
-    -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
-    box-shadow: var(--sombra-flutua);
+/* a revisão: a regra e os botões */
+.imp-rev-form { display: flex; flex-direction: column; gap: var(--e-5); min-width: 0; }
+.imp-regra { display: grid; gap: var(--e-3); max-width: 880px; padding-top: var(--e-5); scroll-margin-top: var(--e-4); }
+.imp-regra h2 { font: 400 var(--t-titulo)/var(--lh-titulo) var(--f-num); letter-spacing: -.01em; }
+.imp-regra-campos { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; align-items: end; gap: var(--e-3); }
+.imp-acoes {          /* parado embaixo enquanto a lista rola: "Lançar todos" sempre à mão */
+    position: sticky; z-index: 30; bottom: calc(68px + env(safe-area-inset-bottom, 0px));
+    display: flex; flex-wrap: wrap; align-items: center; gap: var(--e-3); padding: var(--e-3) 0; border-top: 1px solid var(--fio); background: var(--fundo);
 }
-.imp-lancar { min-width: 180px; }
-.imp-acoes-dica { text-align: right; }
-.imp-rev-form { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 
 /* o Extrato: "Importar extrato" fica à direita, junto da planilha */
 .ex-resumo-linha .ex-importar { margin-left: auto; }
 .ex-resumo-linha .ex-importar + .ex-csv { margin-left: 0; }
 
 @media (min-width: 1024px) {
-    .imp-acoes { bottom: 16px; }
+    .imp-acoes { bottom: 0; }
+    .imp-blocos { grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: var(--e-7); align-items: start; }
 }
 
-/* celular: cada linha da revisão vira um cartão */
+/* celular: cada linha da revisão vira um bloco com fio */
 @media (max-width: 760px) {
-    .imp-tabela thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+    .imp-tabela thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
     .imp-tabela, .imp-tabela tbody { display: block; }
     .imp-tabela tr {
         display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
         grid-template-areas: "m data valor" "m desc desc" "cat cat cat";
-        gap: 2px 12px; padding: 14px 16px; border-bottom: 1px solid var(--line);
+        gap: 2px var(--e-3); padding: var(--e-3) 0; border-bottom: 1px solid var(--fio);
     }
-    .imp-tabela tbody tr:last-child { border-bottom: 0; }
     .imp-tabela td, .imp-tabela td:first-child, .imp-tabela td:last-child { display: block; width: auto; padding: 0; border: 0; }
     .imp-c-marca { grid-area: m; padding-top: 2px !important; }
     .imp-c-desc { grid-area: desc; }
     .imp-c-valor { grid-area: valor; }
-    .imp-c-data { grid-area: data; align-self: center; font-size: 13px; }
-    .imp-c-cat { grid-area: cat; margin-top: 8px; }
-    .imp-l.is-aviso td:first-child { box-shadow: none; }
-    .imp-l.is-aviso { box-shadow: inset 3px 0 0 var(--warn); }
-    .imp-regra-campos { grid-template-columns: 1fr; }
-    .imp-acoes { justify-content: stretch; }
+    .imp-c-data { grid-area: data; align-self: center; }
+    .imp-c-cat { grid-area: cat; margin-top: var(--e-2); }
+    .imp-regra-campos { grid-template-columns: minmax(0, 1fr); }
     .imp-acoes .btn { flex: 1 1 0; min-width: 0; }
-    .imp-continuar { justify-self: stretch; }
 }
