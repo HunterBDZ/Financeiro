@@ -202,11 +202,11 @@ As regras do app e o porquê de cada uma. Para instalar e operar, veja o [manual
 
 ## Temas
 
-- **Tela `/temas`:** tocar num cartão mostra o tema no app inteiro, e ele só fica ao salvar; sem JS, o toque já salva.
-- **Onde fica:** `usuarios.tema`, por conta; NULL é automático. Ele vem no HTML, então não pisca. O `localStorage` guarda só a cópia para a tela de login.
-- **Como é feito:** `tools/temas/gerar.py` lê `temas.json`, confere o contraste e gera `temas.css` e `src/temas_lista.php`. Claro e Escuro ficam em `style.css`. Um teste mede o contraste de cada tema.
-- **Atalho claro/escuro:** `Temas::lados()` diz os dois lados de cada tema, e o atalho alterna entre eles, para um toque não desfazer a escolha. Tema de um modo só mostra o nome, que leva à tela Temas.
-- **Portátil:** entrada e saída têm a mesma cor, e só o sinal + e − separa. Créditos em `tools/temas/CREDITOS.md`.
+- **Redesenho (de 32 para 7):** a paleta padrão (Claro e Escuro) e 5 da casa (Calçadão, Azulejo, Papel, Ameixa e Petróleo), cada uma em claro, escuro e automático, que segue o aparelho. Alto contraste e Daltônico ficam no grupo Acessibilidade.
+- **O que um tema muda:** só o fundo, a superfície, a lateral, o realce, os fios, as tintas e o azul. Entrada, saída, atenção e alerta são do app; só a Acessibilidade troca essas cores, porque existe para isso. Fontes, forma e layout nunca mudam.
+- **Tela `/temas`:** cada paleta com Claro, Escuro e Automático. Escolher mostra o tema no app inteiro, e ele só fica ao salvar; sem JS, a escolha já salva. Temas abre por Ajustes; a casca não tem mais o atalho claro/escuro.
+- **Onde fica:** `usuarios.tema`, por conta; NULL é o automático da padrão. Ele vem no HTML, então não pisca: `data-tema` com a paleta e, fora do automático, `data-theme` com o lado. Um id que saiu da lista volta ao automático, e o layout marca `data-tema-auto` para o `theme.js` apagar a cópia antiga do aparelho. O `localStorage` guarda só a cópia para a tela de login (`id:light|dark|auto`).
+- **Como é feito:** `tools/temas/gerar.py` lê `temas.json`, confere o contraste (4,5:1 nas tintas, no azul e nas cores com função; 3:1 no contorno de campo) e gera `temas.css` e `src/temas_lista.php`. A paleta padrão fica em `style.css`. Um teste mede o contraste dos dois lados de cada tema.
 
 ## Ícones
 

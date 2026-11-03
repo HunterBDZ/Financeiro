@@ -1,5 +1,5 @@
 // app.js: comportamento da casca. Sem nada inline (CSP script-src 'self').
-// - alterna o tema ([data-theme-toggle]) ou escolhe um ([data-tema="light|dark"], o seletor do menu lateral);
+// - alterna o tema ([data-theme-toggle], nas telas de entrar) ou escolhe um ([data-tema="light|dark"]);
 // - esconde/mostra os valores ([data-ocultar], o olho do cartão do saldo; só nesta aba);
 // - [data-ic-sugerir]: no form de nova categoria, o ícone acompanha o nome digitado até a pessoa escolher um;
 // - fecha details.menu ao clicar fora (e com Esc);
@@ -26,7 +26,7 @@
         var comToken = document.querySelector('[data-tema-csrf]');
         var lado = novo === 'light' ? 'claro' : 'escuro';
         var id = (comToken && comToken.getAttribute('data-lado-' + lado)) || lado;
-        var cor = (comToken && comToken.getAttribute('data-bg-' + lado)) || (novo === 'light' ? '#f4f5f7' : '#0a0b0f');
+        var cor = (comToken && comToken.getAttribute('data-bg-' + lado)) || (novo === 'light' ? '#F6F8FB' : '#0A1020');
         root.setAttribute('data-theme', novo);
         root.setAttribute('data-tema', id);
         try { localStorage.setItem('tema', id + ':' + novo); } catch (e) {}

@@ -84,4 +84,4 @@ Os testes de navegador, em `tests/navegador`, abrem as telas no Chromium e no Fi
 
 ## Acessibilidade
 
-32 temas com contraste AA, entre eles dois de alto contraste e um para daltonismo. As telas passam por varredura do [axe](https://github.com/dequelabs/axe-core) em cada tema, e os testes medem o contraste das cores. Créditos e licenças das paletas: [`tools/temas/CREDITOS.md`](../tools/temas/CREDITOS.md).
+7 temas com contraste AA, cada um em claro, escuro e automático, mais alto contraste e daltônico no grupo Acessibilidade. As telas passam por varredura do [axe](https://github.com/dequelabs/axe-core) em cada tema, e os testes medem o contraste das cores. Créditos e licenças das paletas: [`tools/temas/CREDITOS.md`](../tools/temas/CREDITOS.md).

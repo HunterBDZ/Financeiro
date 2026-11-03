@@ -1,70 +1,62 @@
-// Temas: o escolhido vale em todas as telas, e o atalho claro/escuro troca só de lado dentro do mesmo tema.
-// Antes da 1.5.1, o atalho voltava ao tema padrão.
+// Temas: cada paleta em claro, escuro ou automático. Escolher mostra antes de salvar; o salvo vale em todas as telas e
+// em outro aparelho; o automático de uma paleta segue o aparelho; a casca não tem mais atalho de tema.
 import { test, expect, escolherTema } from './fixtures.js';
-
-// o atalho grava o lado novo na conta sem trocar de página: a resposta do POST /temas
-const gravacao = (page) => page.waitForResponse((r) => r.request().method() === 'POST' && new URL(r.url()).pathname === '/temas');
 
 test.afterEach(async ({ page, baseURL }) => {
     await escolherTema(page, baseURL, 'auto');
 });
 
-test('o atalho claro/escuro continua no tema escolhido', async ({ page }) => {
+test('escolher mostra antes de salvar, Voltar desfaz e Salvar vale nas outras telas', async ({ page }) => {
     const html = page.locator('html');
     await page.goto('/temas');
-    await page.getByRole('button', { name: 'Gruvbox escuro' }).click();
-    await expect(html).toHaveAttribute('data-tema', 'gruvd');     // mostra antes de salvar
+    const azulejo = page.getByRole('group', { name: 'Azulejo' });
+    await azulejo.getByRole('button', { name: 'Escuro' }).click();
+    await expect(html).toHaveAttribute('data-tema', 'azulejoescuro');      // mostra antes de salvar
+    await expect(html).toHaveAttribute('data-theme', 'dark');
+    await page.getByRole('button', { name: 'Voltar' }).click();
+    await expect(html).not.toHaveAttribute('data-tema', /.+/);
+
+    await azulejo.getByRole('button', { name: 'Escuro' }).click();
     await page.getByRole('button', { name: 'Salvar tema' }).click();
-    await expect(page.getByRole('status').filter({ hasText: 'Tema salvo' })).toContainText('Gruvbox escuro');
+    await expect(page.getByRole('status').filter({ hasText: 'Tema salvo' })).toContainText('Azulejo, escuro');
+    await expect(azulejo.getByRole('button', { name: 'Escuro' })).toHaveAttribute('aria-current', 'true');
 
     await page.getByRole('navigation', { name: 'principal' }).getByRole('link', { name: 'Início' }).click();
     await expect(page).toHaveURL('/');
-    await expect(html).toHaveAttribute('data-tema', 'gruvd');
-    const atalho = page.getByRole('group', { name: 'tema' });
-    await expect(atalho.getByRole('button', { name: 'Escuro' })).toHaveAttribute('aria-pressed', 'true');
-
-    const gravou = gravacao(page);
-    await atalho.getByRole('button', { name: 'Claro' }).click();
-    expect((await gravou).status()).toBe(204);
-    await expect(html).toHaveAttribute('data-tema', 'gruvl');
-    await expect(html).toHaveAttribute('data-theme', 'light');
-
-    // o lado claro ficou na conta: outra tela já abre nele, e a tela Temas marca o Gruvbox claro
-    await page.getByRole('navigation', { name: 'principal' }).getByRole('link', { name: 'Temas' }).click();
-    await expect(html).toHaveAttribute('data-tema', 'gruvl');
-    await expect(page.getByRole('button', { name: 'Gruvbox claro' })).toHaveAttribute('aria-current', 'true');
-
-    const voltou = gravacao(page);
-    await page.getByRole('group', { name: 'tema' }).getByRole('button', { name: 'Escuro' }).click();
-    expect((await voltou).status()).toBe(204);
-    await page.reload();
-    await expect(html).toHaveAttribute('data-tema', 'gruvd');
-});
-
-test('tema de um modo só mostra o nome no lugar do atalho', async ({ page, baseURL }) => {
-    await escolherTema(page, baseURL, 'nord');
-    await page.goto('/');
-    const menu = page.getByRole('complementary', { name: 'menu' });
-    await expect(menu.getByRole('group', { name: 'tema' })).toHaveCount(0);
-    await menu.getByRole('link', { name: 'Nord' }).click();
-    await expect(page).toHaveURL('/temas');
-});
-
-test.describe('no celular', () => {
-    test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
-
-    test('o botão de tema da barra de cima também fica no tema escolhido', async ({ page, baseURL }) => {
-        await escolherTema(page, baseURL, 'soll');
-        await page.goto('/');
-        const html = page.locator('html');
-        await expect(html).toHaveAttribute('data-tema', 'soll');
-
-        const gravou = gravacao(page);
-        await page.getByRole('banner').getByRole('button', { name: 'trocar tema' }).tap();
-        expect((await gravou).status()).toBe(204);
-        await expect(html).toHaveAttribute('data-tema', 'sold');
-        await page.reload();
-        await expect(html).toHaveAttribute('data-tema', 'sold');
-        await expect(html).toHaveAttribute('data-theme', 'dark');
+    await expect(html).toHaveAttribute('data-tema', 'azulejoescuro');
+    // o fundo veio do tema, e a cor de saída é a do app
+    const cores = await page.evaluate(() => {
+        const s = getComputedStyle(document.documentElement);
+        return [s.getPropertyValue('--fundo').trim(), s.getPropertyValue('--saida').trim()];
     });
+    expect(cores).toEqual(['#0B1630', '#F2877F']);
+    await expect(page.getByRole('group', { name: 'tema' })).toHaveCount(0);   // sem atalho de tema na casca
+});
+
+test.describe('o automático de uma paleta segue o aparelho', () => {
+    for (const [esquema, fundo] of [['light', '#F4F4F1'], ['dark', '#121211']]) {
+        test.describe(esquema, () => {
+            test.use({ colorScheme: esquema });
+
+            test(`aparelho ${esquema}`, async ({ page, baseURL }) => {
+                await escolherTema(page, baseURL, 'calcadaoauto');
+                await page.goto('/mes');
+                const html = page.locator('html');
+                await expect(html).toHaveAttribute('data-tema', 'calcadaoauto');
+                await expect(html).not.toHaveAttribute('data-theme', /.+/);
+                expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--fundo').trim())).toBe(fundo);
+            });
+        });
+    }
+});
+
+test('o tema da conta no automático apaga a cópia guardada neste aparelho', async ({ page, baseURL }) => {
+    await page.goto('/');
+    await page.evaluate(() => localStorage.setItem('tema', 'gruvd:dark'));     // um tema que saiu da lista
+    await page.reload();
+    await expect(page.locator('html')).not.toHaveAttribute('data-tema', /.+/);
+    expect(await page.evaluate(() => localStorage.getItem('tema'))).toBeNull();
+    await escolherTema(page, baseURL, 'papel');
+    await page.reload();
+    expect(await page.evaluate(() => localStorage.getItem('tema'))).toBe('papel:light');
 });

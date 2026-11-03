@@ -1,5 +1,5 @@
-// Tela Temas: tocar num cartão mostra o tema no app inteiro; Salvar grava, Voltar desfaz. Sem JS, o cartão é um
-// POST que já salva. Arquivo externo (CSP script-src 'self'); não faz nada nas outras páginas.
+// Tela Temas: escolher claro, escuro ou automático de uma paleta mostra o tema no app inteiro; Salvar grava, Voltar
+// desfaz. Sem JS, cada escolha é um POST que já salva. Arquivo externo (CSP script-src 'self'); não faz nada nas outras páginas.
 (function () {
     'use strict';
     var barra = document.querySelector('[data-tm-barra]');
@@ -34,7 +34,9 @@
             if (b.hasAttribute('data-tm-auto')) {
                 aplicar(null, null);
             } else {
-                aplicar(b.getAttribute('data-tm-modo'), b.getAttribute('data-tm-id'));
+                // automático: só a paleta; o lado segue o aparelho
+                var modo = b.getAttribute('data-tm-modo');
+                aplicar(modo === 'auto' ? null : modo, b.getAttribute('data-tm-id'));
                 metas.forEach(function (x) { x[0].setAttribute('content', b.getAttribute('data-tm-bg')); });
             }
             if (b.classList.contains('is-on')) {        // o tema que já está em uso: nada a salvar

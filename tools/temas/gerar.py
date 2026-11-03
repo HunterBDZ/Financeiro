@@ -1,16 +1,32 @@
 #!/usr/bin/env python3
 """Gera os temas do app a partir de tools/temas/temas.json, só com a biblioteca padrão:
   public/assets/css/temas.css e src/temas_lista.php.
-Cada cor de texto é conferida contra os fundos em que aparece (WCAG AA, 4,5:1) e, se não passar, vai para
-o preto ou o branco só o necessário. Rodar da raiz do repositório: python3 tools/temas/gerar.py
+
+Cada paleta tem o lado claro e o escuro, e vira três temas: claro, escuro e automático (segue o aparelho).
+A paleta "padrao" é a do app (os tokens ficam em style.css; aqui só entra na lista).
+Um tema muda só o fundo, a superfície, a lateral, o realce, os fios, as tintas e o azul. Entrada, saída, atenção
+e alerta são do app e não mudam, salvo nas paletas de Acessibilidade (alto contraste e daltônico), que existem
+justamente para isso. Fontes, forma e layout nunca mudam.
+
+As contas de contraste (WCAG): as tintas e o azul com 4,5:1 sobre o fundo, a superfície, a lateral e o realce, indo
+para o preto ou o branco só o necessário; o contorno de campo (--fio-forte) com 3:1; o texto sobre o azul com 4,5:1;
+e as cores de entrada, saída, atenção e alerta com 4,5:1 (se não passar, o gerador para e diz onde).
+Rodar da raiz do repositório: python3 tools/temas/gerar.py
 """
 import json
 
-BASE = {'claro', 'escuro'}   # os tokens destes dois ficam em style.css
+BASE = 'padrao'          # os tokens da paleta padrão ficam em style.css
+# as cores com função, iguais em todos os temas (style.css); só a Acessibilidade troca
+FIXAS = {
+    'claro': {'entrada': '#127A4C', 'saida': '#C2261D', 'atencao': '#965800', 'alerta': '#B3261E'},
+    'escuro': {'entrada': '#5FD39A', 'saida': '#F2877F', 'atencao': '#E7AE57', 'alerta': '#F28B84'},
+}
+MUDAM = ['fundo', 'superficie', 'lateral', 'realce', 'fio', 'fio-forte', 'tinta', 'tinta-2', 'tinta-3',
+         'azul', 'azul-hover', 'azul-fundo', 'sobre-azul']
 
 
 def lum(h):
-    h = h.lstrip('#')
+    h = h.lstrip('#')[:6]
     r, g, b = [int(h[i:i + 2], 16) / 255 for i in (0, 2, 4)]
     f = lambda c: c / 12.92 if c <= .03928 else ((c + .055) / 1.055) ** 2.4
     return .2126 * f(r) + .7152 * f(g) + .0722 * f(b)
@@ -23,19 +39,15 @@ def contraste(a, b):
 
 def mix(a, b, p):
     a, b = a.lstrip('#'), b.lstrip('#')
-    return '#' + ''.join('%02x' % round(int(a[i:i + 2], 16) * (1 - p) + int(b[i:i + 2], 16) * p) for i in (0, 2, 4))
+    return '#' + ''.join('%02X' % round(int(a[i:i + 2], 16) * (1 - p) + int(b[i:i + 2], 16) * p) for i in (0, 2, 4))
 
 
-def rgba(h, a):
-    h = h.lstrip('#')
-    return 'rgba(%d, %d, %d, %s)' % (int(h[:2], 16), int(h[2:4], 16), int(h[4:], 16), a)
-
-
-def ajusta(cor, fundos, alvo=4.5):
+def ajusta(cor, fundos, alvo=4.5, destinos=('#000000', '#FFFFFF')):
+    """A cor mais perto da original que passa no contraste com todos os fundos."""
     if all(contraste(cor, f) >= alvo for f in fundos):
-        return cor
+        return cor.upper()
     melhor = None
-    for destino in ('#000000', '#ffffff'):
+    for destino in destinos:
         for i in range(1, 101):
             c = mix(cor, destino, i / 100)
             if all(contraste(c, f) >= alvo for f in fundos):
@@ -47,68 +59,80 @@ def ajusta(cor, fundos, alvo=4.5):
     return melhor[1]
 
 
-def tokens(t):
-    fundos = [t['bg'], t['card'], t['c2']]
-    escuro = t['modo'] == 'escuro'
-    text = ajusta(t['text'], fundos + [t['c3']])
-    t2 = ajusta(t['t2'], fundos + [t['c3']])
-    cores = {}
-    for k in ('pos', 'neg', 'warn'):
-        # folga acima de 4,5: o selo de estado pinta um tom da própria cor por baixo do texto
-        cores[k] = ajusta(t[k], fundos + [mix(t['card'], t[k], .14), mix(t['bg'], t[k], .14)], 4.9)
-    ct = ajusta(t['ct'], [t['cofre']])
-    ct2 = ajusta(t['ct2'], [t['cofre'], mix(t['cofre'], '#ffffff', .08)])
-    no_cofre = lambda c: ajusta(c, [t['cofre'], mix(t['cofre'], c, .16)])
-    v = {
-        'bg': t['bg'], 'card': t['card'], 'card-2': t['c2'], 'card-3': t['c3'],
-        'line': rgba('#ffffff', '.09') if escuro else rgba(text, '.1'),
-        'line-2': rgba('#ffffff', '.16') if escuro else rgba(text, '.18'),
-        'text': text, 'text-2': t2, 'text-3': t2,
-        'acc': t['acc'], 'acc-hover': mix(t['acc'], t['on'], .12), 'on-acc': t['on'],
-        'pos': cores['pos'], 'neg': cores['neg'], 'warn': cores['warn'],
-        'pos-bg': rgba(cores['pos'], '.14'), 'neg-bg': rgba(cores['neg'], '.14'), 'warn-bg': rgba(cores['warn'], '.14'),
-        'barra': text, 'foco': ajusta(t['acc'], [t['bg'], t['card']], 3) if escuro else text,
-        'sel': rgba('#ffffff', '.05') if escuro else rgba(text, '.04'),
-        'sombra': 'none' if escuro else '0 1px 2px rgba(16, 24, 40, .04), 0 8px 24px -14px rgba(16, 24, 40, .16)',
-        'sombra-flutua': '0 18px 50px -18px rgba(0, 0, 0, %s)' % ('.7' if escuro else '.35'),
-        'cofre': t['cofre'], 'cofre-txt': ct, 'cofre-txt-2': ct2, 'cofre-mut': ct2,
-        'cofre-ok': no_cofre(t['acc']), 'cofre-ok-bg': rgba(no_cofre(t['acc']), '.16'),
-        'cofre-warn': no_cofre(t['warn']), 'cofre-warn-bg': rgba(no_cofre(t['warn']), '.16'),
-        'cofre-neg': no_cofre(t['neg']), 'cofre-neg-bg': rgba(no_cofre(t['neg']), '.16'),
-        'cofre-pos': no_cofre(t['pos']), 'cofre-saida': no_cofre(t['neg']),
-        'toast': t['cofre'], 'toast-txt': ct, 'toast-txt-2': ct2,
-        'ic-halo': 'drop-shadow(0 0 1px rgba(255, 255, 255, .45))' if escuro else 'none',
-    }
-    if t['id'] == 'portatil':       # sem vermelho nas 4 cores do tema
-        v['perigo'] = text
-    if t.get('fam'):
-        v['f'] = v['fn'] = "'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace"
-    return v
+def lado(p, modo):
+    """Os tokens de um lado (claro ou escuro) da paleta, já conferidos."""
+    t = dict(p[modo])
+    nome = '%s (%s)' % (p['id'], modo)
+    fundos = [t['fundo'], t['superficie'], t['lateral'], t['realce']]
+    for k in ('tinta', 'tinta-2', 'tinta-3', 'azul'):
+        t[k] = ajusta(t[k], fundos)
+    t['fio-forte'] = ajusta(t.get('fio-forte', t['fio']), [t['fundo'], t['superficie'], t['realce']], 3, (t['tinta'],))
+    t['azul-fundo'] = t['azul'] + ('14' if modo == 'claro' else '1F')
+    for k in ('azul', 'azul-hover'):
+        if contraste(t['sobre-azul'], t[k]) < 4.5:
+            raise SystemExit('%s: o texto sobre --%s não passa (%.2f)' % (nome, k, contraste(t['sobre-azul'], t[k])))
+    acessibilidade = p['grupo'] == 'Acessibilidade'
+    for k, cor in FIXAS[modo].items():
+        if k in t and not acessibilidade:
+            raise SystemExit('%s: --%s é do app e não muda com o tema' % (nome, k))
+        c = t.get(k, cor)
+        pior = min(contraste(c, f) for f in fundos)
+        if pior < 4.5:
+            raise SystemExit('%s: --%s %s não passa sobre o fundo do tema (%.2f)' % (nome, k, c, pior))
+        t[k] = c
+    return t
+
+
+def corpo(t, modo):
+    chaves = MUDAM + [k for k in FIXAS[modo] if k in t and t[k] != FIXAS[modo][k]]
+    return ' '.join('--%s: %s;' % (k, t[k]) for k in chaves) + ' color-scheme: %s;' % ('light' if modo == 'claro' else 'dark')
+
+
+def amostra(t):
+    return {'fundo': t['fundo'], 'superficie': t['superficie'], 'tinta': t['tinta'], 'tinta2': t['tinta-2'], 'fio': t['fio'],
+            'azul': t['azul'], 'sobre': t['sobre-azul'], 'entrada': t['entrada'], 'saida': t['saida']}
 
 
 def main():
-    temas = json.load(open('tools/temas/temas.json', encoding='utf-8'))
+    paletas = json.load(open('tools/temas/temas.json', encoding='utf-8'))
     css = ['/* Gerado por tools/temas/gerar.py a partir de tools/temas/temas.json. Não edite à mão. */',
-           "@font-face { font-family: 'JetBrains Mono'; font-style: normal; font-weight: 100 800; font-display: swap; src: url('/assets/fonts/jetbrains-mono-var-latin.woff2') format('woff2'); }",
-           '/* o desenho de linhas do cartão de saldo pega a cor do tema */',
-           ":root[data-tema]:not([data-tema=\"claro\"]):not([data-tema=\"escuro\"]) .saldo::before { background: var(--cofre-ok); -webkit-mask: url('/assets/img/linhas-cartao.svg') right -40px top -10px / 120% auto no-repeat; mask: url('/assets/img/linhas-cartao.svg') right -40px top -10px / 120% auto no-repeat; opacity: .5; }",
+           '/* Cada paleta: o lado claro, o escuro e o automático, que segue o aparelho. */',
            ":root[data-tema]:not([data-tema=\"claro\"]):not([data-tema=\"escuro\"]) .ct-plastico:not([data-visual]) { background-image: none; }"]
-    php = ['<?php', '// Gerado por tools/temas/gerar.py a partir de tools/temas/temas.json. Não edite à mão.', 'return [']
+    php = ['<?php', '// Gerado por tools/temas/gerar.py a partir de tools/temas/temas.json. Não edite à mão.',
+           '// id => o tema: a paleta, o modo (light, dark ou auto), o fundo para a barra do navegador e as amostras dos dois lados.',
+           'return [']
     esc = lambda s: "'" + str(s).replace('\\', '\\\\').replace("'", "\\'") + "'"
-    for t in temas:
-        v = tokens(t)
-        if t['id'] not in BASE:
-            corpo = ' '.join('--%s: %s;' % kv for kv in v.items())
-            css.append(':root[data-tema="%s"] { %s color-scheme: %s; }' % (t['id'], corpo, 'dark' if t['modo'] == 'escuro' else 'light'))
-            if t.get('raio') is not None:
-                css.append(':root[data-tema="%s"] * { border-radius: %s !important; }' % (t['id'], '0' if t['raio'] == '0' else t['raio']))
-        campos = {'nome': t['nome'], 'grupo': t['grupo'], 'modo': 'dark' if t['modo'] == 'escuro' else 'light', 'bg': t['bg'], 'card': v['card'], 'text': v['text'], 'text2': v['text-2'],
-                  'acc': t['acc'], 'on': t['on'], 'pos': v['pos'], 'neg': v['neg'], 'warn': v['warn'], 'cofre': t['cofre'], 'ct': v['cofre-txt'], 'mono': bool(t.get('fam')), 'reto': t.get('raio') == '0'}
-        php.append('    %s => [%s],' % (esc(t['id']), ', '.join('%s => %s' % (esc(k), ('true' if x is True else 'false' if x is False else esc(x))) for k, x in campos.items())))
+
+    def arr(d):
+        return '[' + ', '.join('%s => %s' % (esc(k), esc(v)) for k, v in d.items()) + ']'
+
+    vistos = set()
+    for p in paletas:
+        claro, escuro = lado(p, 'claro'), lado(p, 'escuro')
+        ids = p['ids']
+        for i in ids.values():
+            if i is not None:
+                if i in vistos or not i.isalnum() or i != i.lower():
+                    raise SystemExit('id de tema repetido ou fora do padrão [a-z0-9]: %s' % i)
+                vistos.add(i)
+        if p['id'] != BASE:
+            claros = ', '.join(':root[data-tema="%s"]' % i for i in (ids['claro'], ids['auto']))
+            css.append('%s { %s }' % (claros, corpo(claro, 'claro')))
+            css.append(':root[data-tema="%s"] { %s }' % (ids['escuro'], corpo(escuro, 'escuro')))
+            css.append('@media (prefers-color-scheme: dark) { :root[data-tema="%s"] { %s } }' % (ids['auto'], corpo(escuro, 'escuro')))
+        for modo, i in (('light', ids['claro']), ('dark', ids['escuro']), ('auto', ids['auto'])):
+            if i is None:
+                continue
+            campos = [('nome', esc(p['nome'])), ('paleta', esc(p['id'])), ('grupo', esc(p['grupo'])), ('modo', esc(modo)),
+                      ('bg', esc(escuro['fundo'] if modo == 'dark' else claro['fundo']))]
+            if modo == 'auto':
+                campos.append(('bgEscuro', esc(escuro['fundo'])))
+            campos += [('claro', arr(amostra(claro))), ('escuro', arr(amostra(escuro)))]
+            php.append('    %s => [%s],' % (esc(i), ', '.join('%s => %s' % (esc(k), v) for k, v in campos)))
     php.append('];')
     open('public/assets/css/temas.css', 'w', encoding='utf-8').write('\n'.join(css) + '\n')
     open('src/temas_lista.php', 'w', encoding='utf-8').write('\n'.join(php) + '\n')
-    print(len(temas), 'temas')
+    print(len(paletas), 'paletas,', len(vistos), 'temas')
 
 
 main()

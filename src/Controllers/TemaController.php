@@ -6,16 +6,16 @@ use Financeiro\Models\UsuarioModel;
 use Financeiro\Temas;
 use Financeiro\View;
 
-/** Tela Temas: cartões com a prévia de cada tema. O tema escolhido fica na conta de cada um. */
+/** Tela Temas: as paletas, cada uma em claro, escuro ou automático. O tema escolhido fica na conta de cada um. */
 final class TemaController
 {
     public function index(): void
     {
         Auth::requireLogin();
-        View::render('temas/index', ['pageTitle' => t('temas · financeiro'), 'temas' => Temas::todos(), 'atual' => Temas::doUsuario()], 'temas');
+        View::render('temas/index', ['pageTitle' => t('temas · MyMonetto'), 'paletas' => Temas::paletas(), 'atual' => Temas::doUsuario()], 'temas');
     }
 
-    /** POST /temas: `auto` volta a seguir o aparelho. Com silencioso=1 (o atalho claro/escuro) não muda de página. */
+    /** POST /temas: `auto` volta à paleta padrão, seguindo o aparelho. Com silencioso=1 responde 204, sem mudar de página. */
     public function salvar(): void
     {
         Auth::requireLogin();
@@ -30,9 +30,7 @@ final class TemaController
             http_response_code(204);
             return;
         }
-        // Só os nomes descritivos têm tradução; os próprios (Nord, Dracula, Gruvbox...) passam como estão.
-        // i18n: t('Gruvbox escuro') t('Gruvbox claro') t('Solarized escuro') t('Solarized claro') t('Everforest escuro') t('Everforest claro') t('Automático') t('Claro') t('Escuro') t('Noite') t('Terminal') t('Âmbar') t('Portátil') t('Janela 95') t('Papel') t('Caramelo') t('Calçadão') t('Azulejo') t('Tropical') t('Cordel') t('Festa Junina') t('Alto contraste escuro') t('Alto contraste claro') t('Daltônico')
-        flash('success', t('Tema salvo: {nome}', ['nome' => $pedido === 'auto' ? t('Automático') : t(Temas::todos()[$pedido]['nome'])]));
+        flash('success', t('Tema salvo: {nome}', ['nome' => Temas::nome($pedido === 'auto' ? null : $pedido)]));
         redirecionar('/temas', 303);
     }
 }
