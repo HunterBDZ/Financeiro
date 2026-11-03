@@ -188,7 +188,7 @@ function conferencia(callable $check): void
         ['/',              DashboardController::class,     'index',      [],                  'saldo-v'],
         ['/lancamentos',   LancamentosController::class,   'index',      [],                  'ext-livro'],
         ['/lancar',        LancamentosController::class,   'lancarForm', [],                  'data-lf'],
-        ['/meta',          MetaController::class,          'index',      [],                  'meta-listas'],
+        ['/meta',          MetaController::class,          'index',      [],                  'mt-tabelas'],
         ['/mes',           MesController::class,           'index',      [],                  'mes-resumo'],
         ['/mes/fechar',    MesController::class,           'fecharForm', [],                  'fe-topo'],
         ['/futuro',        FuturoController::class,        'index',      [],                  'fu-meses'],

@@ -701,9 +701,15 @@ if (count($prevMeses) < 5 || $realUlt === null || $catDia === 0) {
     $emTransacao('metas: a tela', static function () use ($check, $pdo, $catDia, $mA, $mB, $render, $preparar): void {
         $preparar();
         $html = $render(MetaController::class, 'index', ['mes' => $mB]);
-        $c = (string) (preg_match('#<details class="mes-linha mes-ed meta-cat[^"]*" id="c' . $catDia . '".*?</details>#s', $html, $mm) ? $mm[0] : '');
+        $c = (string) (preg_match('#<details class="mt-linha[^"]*" id="c' . $catDia . '".*?</details>#s', $html, $mm) ? $mm[0] : '');
         $check('metas: o seletor de meses e o valor que vale no mês escolhido', str_contains($html, 'data-mes-picker') && str_contains($html, 'href="/meta?mes=' . $mA . '"')
-            && str_contains($c, num(1200.0)) && str_contains($c, 'só em dezembro · meta ' . num(1500.0)));
+            && str_contains($c, num(1200.0)) && str_contains($c, 'só em dezembro, a meta é ' . num(1500.0)));
+        // § 7.4 do redesenho: "Para usar" desconta as contas fixas que ainda faltam pagar (as mesmas do Mês e do Início)
+        $porPagarM = round(array_sum(array_column(\Financeiro\Services\ChecklistContas::aPagar($mB, \Financeiro\Relogio::hoje()), 'falta')), 2);
+        preg_match('#data-renda="([\d.-]+)" data-gasto-total="([\d.-]+)" data-por-pagar="([\d.-]+)"#', $html, $mP);
+        $check('metas: "Para usar" desconta as contas fixas que faltam pagar', $porPagarM > 0.004 && isset($mP[3]) && (float) $mP[3] === $porPagarM
+            && str_contains($html, 'data-para-usar>' . valor(round((float) $mP[1] - (float) $mP[2] - $porPagarM, 2), 'neutro', ['moeda' => true]) . '<')
+            && !str_contains($html, 'data-meta-aloc'), json_encode([$porPagarM, $mP]));
         $check('metas: o editor tem valor, a partir de e até', str_contains($c, 'action="/meta/editar"') && str_contains($c, 'name="desde"')
             && str_contains($c, '<option value="' . $mB . '" selected') && str_contains($c, 'Sem fim') && str_contains($c, 'Só este mês'));
         $check('metas: sem texto solto de aviso', !str_contains($html, 'meta-previsao') && !str_contains($html, 'Mude só ele na tela'));
@@ -926,8 +932,8 @@ $emTransacao('gasto por categoria', static function () use ($pdo, $check, $catFa
         $gastoTotal += max(0.0, $g[(int) $c['id']] ?? 0.0);
     }
     $gastoTotal += $g[GastoPorCategoria::SEM_CATEGORIA];
-    $check('metas: a meta estoura só por causa do cartão', str_contains($hMeta, 'meta-cat is-over" id="c' . $catL . '"')
-        && str_contains($hMeta, 'data-gasto="190.00"') && str_contains($hMeta, 'meta-cat is-ok" id="c' . $catD . '"'));
+    $check('metas: a meta estoura só por causa do cartão', str_contains($hMeta, 'mt-linha is-over" id="c' . $catL . '"')
+        && str_contains($hMeta, 'data-gasto="190.00"') && str_contains($hMeta, 'mt-linha is-ok" id="c' . $catD . '"'));
     $check('metas: "Resta para usar" conta o cartão pela data da compra, com o sem categoria', str_contains($hMeta, 'data-gasto-total="' . number_format($gastoTotal, 2, '.', '') . '"'), number_format($gastoTotal, 2, '.', ''));
     $check('metas: diz que o cartão conta pela data da compra e leva a categorizar', str_contains($hMeta, 'O cartão conta pela data da compra.')
         && str_contains($hMeta, 'href="/cartao/compras/' . $semCat . '/editar"'));
