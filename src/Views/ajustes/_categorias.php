@@ -28,7 +28,7 @@ $tipo = static function (array $c) use ($dias): string {
 };
 $item = static function (array $c) use ($tipo): void { ?>
     <li><a class="aj-cat" href="/categorias/<?= (int) $c['id'] ?>">
-        <?= iconeCategoria((int) $c['id'], (string) $c['nome'], (string) ($c['grupo'] ?? ''), 40) ?>
+        <?= iconeCategoria((int) $c['id'], (string) $c['nome'], (string) ($c['grupo'] ?? ''), 20) ?>
         <span class="aj-cat-txt"><span class="aj-cat-nome"><?= e(nomeCurto($c)) ?></span><?php if ($tipo($c) !== ''): ?><span class="aj-cat-tipo"><?= e($tipo($c)) ?></span><?php endif; ?></span>
         <?= svgIcon('chevron', 16, 'ajs-seta') ?>
     </a></li>

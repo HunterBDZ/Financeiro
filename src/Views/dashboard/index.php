@@ -207,7 +207,7 @@ $quandoFoi   = static function (string $data) use ($hoje): string {
                     <?php foreach ($p['top'] as $t): $semCat = $p['porCompra'] && (int) $t['id'] === \Financeiro\Services\GastoPorCategoria::SEM_CATEGORIA; ?>
                         <li>
                             <a class="barras-i" href="<?= $semCat ? e((string) $categorizar) : '/lancamentos?mes=' . e($mesRef) . '&amp;cat=' . (int) $t['id'] ?>">
-                                <?= iconeCategoria((int) $t['id'], (string) $t['nome_banco'], $semCat ? 'Cartao' : '', 40, 'barras-ic') ?>
+                                <?= iconeCategoria((int) $t['id'], (string) $t['nome_banco'], $semCat ? 'Cartao' : '', 20, 'barras-ic') ?>
                                 <span class="barras-n"><?= e($t['nome']) ?></span>
                                 <span class="barras-v num"><?= e(num($t['valor'])) ?><small><?= $share($t['valor'], $p['ondeTotal']) ?>%</small></span>
                                 <span class="trilho" aria-hidden="true"><i style="--w:<?= $topMax > 0 ? round($t['valor'] / $topMax * 100, 1) : 0 ?>%"></i></span>
@@ -288,7 +288,7 @@ $quandoFoi   = static function (string $data) use ($hoje): string {
                         ?>
                         <li>
                             <a class="lista-i" href="/lancamentos/<?= (int) $r['id'] ?>/editar?volta=%2F">
-                                <?= iconeCategoria((int) $r['categoria_id'], (string) $r['categoria_nome'], (string) ($r['grupo'] ?? ''), 40) ?>
+                                <?= iconeCategoria((int) $r['categoria_id'], (string) $r['categoria_nome'], (string) ($r['grupo'] ?? ''), 20) ?>
                                 <span class="lista-n"><b><?= e($desc !== '' ? $desc : nomeCurto($cat)) ?></b><?php if ($desc !== '' && mb_strtolower($desc) !== mb_strtolower(nomeCurto($cat))): ?><small><?= e(nomeCurto($cat)) ?></small><?php endif; ?></span>
                                 <span class="lista-v"><b class="num <?= $cls ?>"><?= e($txt) ?></b><small><?= e($quandoFoi((string) $r['data'])) ?></small></span>
                             </a>

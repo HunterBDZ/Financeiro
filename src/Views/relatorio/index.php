@@ -144,7 +144,7 @@ $itens = [['bom', t('O que foi bom'), t('Nada relevante neste período.')], ['ru
                             $tag = $href !== null ? 'a' : 'div'; ?>
                             <li>
                                 <<?= $tag ?> class="barras-i<?= $href === null ? ' is-fixo' : '' ?>"<?= $href !== null ? ' href="' . e($href) . '"' : '' ?>>
-                                    <?= iconeCategoria((int) $l['id'], (string) ($l['nome_banco'] ?? ''), $semCat ? 'Cartao' : '', 40, 'barras-ic') ?>
+                                    <?= iconeCategoria((int) $l['id'], (string) ($l['nome_banco'] ?? ''), $semCat ? 'Cartao' : '', 20, 'barras-ic') ?>
                                     <span class="barras-n"><?= e($l['nome']) ?></span>
                                     <span class="barras-v num"><?= e(num($l['real'])) ?><small><?= $pct($l['real']) ?>%</small></span>
                                     <span class="trilho" aria-hidden="true"><i style="--w:<?= $ondeMax > 0 ? round($l['real'] / $ondeMax * 100, 1) : 0 ?>%"></i></span>
@@ -154,7 +154,7 @@ $itens = [['bom', t('O que foi bom'), t('Nada relevante neste período.')], ['ru
                         <?php if ($onde['outros'] !== null): ?>
                             <li>
                                 <div class="barras-i is-fixo">
-                                    <?= iconeCategoria(-1, '', '', 40, 'barras-ic') ?>
+                                    <?= iconeCategoria(-1, '', '', 20, 'barras-ic') ?>
                                     <span class="barras-n"><?= e(tn($onde['outros']['n'], 'Outra 1 categoria', 'Outras {n} categorias')) ?></span>
                                     <span class="barras-v num"><?= e(num($onde['outros']['real'])) ?><small><?= $pct($onde['outros']['real']) ?>%</small></span>
                                     <span class="trilho" aria-hidden="true"><i style="--w:<?= $ondeMax > 0 ? round(min(1.0, $onde['outros']['real'] / $ondeMax) * 100, 1) : 0 ?>%"></i></span>

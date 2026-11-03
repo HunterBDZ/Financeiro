@@ -64,3 +64,33 @@ test.describe('no celular', () => {
         await expect(page.getByRole('link', { name: /Contas fixas/ })).toHaveAttribute('href', '/meta#contas-fixas');
     });
 });
+
+test('o seletor mostra os ícones de traço com nome, e o escolhido aparece na lista', async ({ page }) => {
+    await page.goto('/ajustes?aberto=categorias');
+    await page.locator('#categorias').getByRole('link', { name: /Combustível/ }).click();
+    await page.getByText('Trocar o ícone').click();
+    const seletor = page.getByRole('group', { name: 'Ícone' });
+    // cada opção é um rádio com o nome do ícone; o desenho é o símbolo do sprite, sem emoji
+    await expect(seletor.getByRole('radio', { name: 'Bomba de combustível' })).toBeChecked();
+    await expect(seletor.locator('.ic-opcao svg.ci use')).toHaveCount(await seletor.getByRole('radio').count());
+    await expect(seletor.locator('.ic-opcao').first().locator('svg.ci')).toHaveAttribute('aria-hidden', 'true');
+    await seletor.locator('label.ic-opcao[title="Carro"]').click();         // clica no desenho, como a pessoa
+    await expect(seletor.getByRole('radio', { name: 'Carro', exact: true })).toBeChecked();
+    await page.getByRole('button', { name: 'Salvar' }).click();
+    await expect(page).toHaveURL(/\/ajustes\?aberto=categorias/);
+    const item = page.locator('#categorias').getByRole('link', { name: /Combustível/ });
+    await expect(item.locator('svg.ci use')).toHaveAttribute('href', /^\/assets\/img\/categorias\.svg\?v=\d+#cat-carro$/);
+});
+
+test('as telas desenham o ícone de traço do sprite, sem o círculo e sem o emoji', async ({ page }) => {
+    for (const url of ['/mes', '/lancamentos', '/ajustes?aberto=categorias']) {
+        await page.goto(url);
+        const icone = page.locator('svg.ci:visible').first();
+        await expect(icone).toBeVisible();
+        await expect(icone.locator('use')).toHaveAttribute('href', /categorias\.svg\?v=\d+#cat-[a-z]+$/);
+        // o símbolo carregou (a CSP deixou) e tem desenho; o fundo é transparente, sem o círculo de antes
+        await expect.poll(() => icone.evaluate((el) => el.querySelector('use').getBBox().width)).toBeGreaterThan(0);
+        expect(await icone.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgba(0, 0, 0, 0)');
+        expect(await page.locator('.ci > i, [style*="icones.webp"], [style*="--ic-sprite"]').count()).toBe(0);
+    }
+});

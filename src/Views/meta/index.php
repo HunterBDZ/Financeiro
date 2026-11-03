@@ -110,7 +110,7 @@ $linha = static function (array $l) use ($pct, $editor, $proprio): void {
     } ?>
     <details class="mes-linha mes-ed meta-cat <?= $cls ?>" id="c<?= (int) $l['id'] ?>" data-valor="<?= e(number_format($valor, 2, '.', '')) ?>" data-gasto="<?= e(number_format($gasto, 2, '.', '')) ?>" data-nome="<?= e($l['nome']) ?>"<?= !empty($l['aberta']) ? ' open' : '' ?>>
         <summary>
-            <?= iconeCategoria((int) $l['id'], (string) $l['nome'], $l['grupo'], 40, 'mes-ic') ?>
+            <?= iconeCategoria((int) $l['id'], (string) $l['nome'], $l['grupo'], 20, 'mes-ic') ?>
             <span class="mes-sum">
                 <span class="mes-l1">
                     <span class="mes-nome"><?= e($l['nome']) ?></span>
@@ -146,7 +146,7 @@ $grupo = static function (string $titulo, array $cats, float $meta, float $gasto
 $linhaConta = static function (array $l) use ($editor, $proprio, $csrf, $mes, $hoje): void {
     if ($l['do_cartao']) { ?>
         <a class="mes-linha mes-ro mes-do-cartao meta-cat" id="conta-<?= (int) $l['id'] ?>" href="/cartao#fatura" data-valor="<?= e(number_format($l['valor'], 2, '.', '')) ?>" data-gasto="<?= e(number_format($l['gasto'], 2, '.', '')) ?>" data-nome="<?= e($l['nome']) ?>">
-            <?= iconeCategoria((int) $l['id'], (string) $l['nome'], $l['grupo'], 40, 'mes-ic') ?>
+            <?= iconeCategoria((int) $l['id'], (string) $l['nome'], $l['grupo'], 20, 'mes-ic') ?>
             <span class="mes-sum"><span class="mes-l1"><span class="mes-nome"><?= e($l['nome']) ?></span><span class="mes-val num"><?= e(num($l['valor'])) ?></span></span>
             <span class="mes-l2"><span class="mes-status mes-status-previsto"><?= e(t('Vem do Cartão · ver a fatura')) ?></span></span></span>
         </a>
@@ -155,7 +155,7 @@ $linhaConta = static function (array $l) use ($editor, $proprio, $csrf, $mes, $h
     $desativarDe = max($mes, substr($hoje, 0, 7) . '-01'); ?>
     <details class="mes-linha mes-ed meta-cat meta-conta" id="conta-<?= (int) $l['id'] ?>" data-valor="<?= e(number_format($l['valor'], 2, '.', '')) ?>" data-gasto="<?= e(number_format($l['gasto'], 2, '.', '')) ?>" data-nome="<?= e($l['nome']) ?>"<?= !empty($l['aberta']) ? ' open' : '' ?>>
         <summary>
-            <?= iconeCategoria((int) $l['id'], (string) $l['nome'], $l['grupo'], 40, 'mes-ic') ?>
+            <?= iconeCategoria((int) $l['id'], (string) $l['nome'], $l['grupo'], 20, 'mes-ic') ?>
             <span class="mes-sum">
                 <span class="mes-l1">
                     <span class="mes-nome"><?= e($l['nome']) ?></span>

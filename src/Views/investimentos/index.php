@@ -25,7 +25,7 @@ $parte = static function (string $titulo, string $rotEntra, string $rotSai, stri
                     $sub = $desc !== '' && mb_strtolower($desc) !== mb_strtolower(nomeCurto($cat)) ? nomeCurto($cat) : ''; ?>
                     <li>
                         <a class="lista-i" href="/lancamentos/<?= (int) $r['id'] ?>/editar?volta=<?= e($volta) ?>">
-                            <?= iconeCategoria((int) $r['categoria_id'], (string) $r['categoria_nome'], (string) $r['grupo'], 40) ?>
+                            <?= iconeCategoria((int) $r['categoria_id'], (string) $r['categoria_nome'], (string) $r['grupo'], 20) ?>
                             <span class="lista-n"><b><?= e($desc !== '' ? $desc : nomeCurto($cat)) ?></b><?php if ($sub !== ''): ?><small><?= e($sub) ?></small><?php endif; ?></span>
                             <span class="lista-v"><b class="num"><?= (int) $r['sinal'] === -1 ? '+' : MENOS ?><?= e(num((float) $r['valor'])) ?></b><small><?= e(diaMes((string) $r['data'])) ?></small></span>
                         </a>

@@ -175,7 +175,7 @@ $painel = static function (array $l, string $tipo) use ($csrf, $mes, $mesLbl, $e
 $abreLinha = static function (array $l) use ($erroDe): void { ?>
     <details class="mes-linha mes-ed" id="cat-<?= (int) $l['id'] ?>"<?= $erroDe($l) !== null ? ' open' : '' ?>>
         <summary>
-            <?= iconeCategoria((int) $l['id'], (string) ($l['nome_completo'] ?? $l['nome']), (string) ($l['grupo'] ?? ''), 40, 'mes-ic') ?>
+            <?= iconeCategoria((int) $l['id'], (string) ($l['nome_completo'] ?? $l['nome']), (string) ($l['grupo'] ?? ''), 20, 'mes-ic') ?>
 <?php };
 
 /* ---------------------------------------------------------------- linhas */
@@ -205,7 +205,7 @@ $linhaConta = static function (array $l) use ($estado, $valorConta, $fmt, $metaB
     if (!empty($l['do_cartao'])) {          // vem das compras do Cartão: só leitura, leva à fatura
         $v = $valorConta($l); ?>
         <a class="mes-linha mes-ro mes-do-cartao" href="/cartao?fatura=<?= e($mes) ?>#fatura">
-            <?= iconeCategoria((int) $l['id'], (string) ($l['nome_completo'] ?? $l['nome']), (string) ($l['grupo'] ?? ''), 40, 'mes-ic') ?>
+            <?= iconeCategoria((int) $l['id'], (string) ($l['nome_completo'] ?? $l['nome']), (string) ($l['grupo'] ?? ''), 20, 'mes-ic') ?>
             <span class="mes-sum"><span class="mes-l1"><span class="mes-nome"><?= e(nomeCategoria($l['nome_completo'])) ?></span><span class="mes-val num"><?= e(num($v)) ?></span></span>
             <span class="mes-l2"><span class="mes-status mes-status-previsto"><?= e(t('Vem do Cartão · ver a fatura')) ?></span></span></span>
         </a>
@@ -319,7 +319,7 @@ $incluirConta = static function () use ($incluir, $csrf, $mes, $mesLbl, $erroLin
 // ou a que a aba Metas gravou depois)
 $linhaLeitura = static function (array $l, float $v, string $l2 = ''): void { ?>
     <li class="mes-ro">
-        <?= iconeCategoria((int) $l['id'], (string) ($l['nome_completo'] ?? $l['nome']), (string) ($l['grupo'] ?? ''), 40, 'mes-ic') ?>
+        <?= iconeCategoria((int) $l['id'], (string) ($l['nome_completo'] ?? $l['nome']), (string) ($l['grupo'] ?? ''), 20, 'mes-ic') ?>
         <span class="mes-nome"><?= e(in_array($l['grupo'] ?? '', ['Fixos', 'Cartao', 'Ano'], true) ? nomeCategoria($l['nome_completo']) : $l['nome']) ?><?= $l2 ?></span>
         <span class="num<?= $l2 !== '' && str_contains($l2, 'mes-status-venceu') ? ' fora-meta' : '' ?>"><?= e(num($v)) ?></span>
     </li>
@@ -419,7 +419,7 @@ $linhaLeitura = static function (array $l, float $v, string $l2 = ''): void { ?>
             <?php if ($inicioMes !== null): // não é categoria: vem do plano, o que ficou na conta no fim do mês anterior ?>
                 <ul class="mes-ros mes-saldo-ant">
                     <li class="mes-ro" data-saldo-anterior>
-                        <?= iconeCategoria(0, 'Guardar na poupança', 'Poupanca', 40, 'mes-ic') ?>
+                        <?= iconeCategoria(0, 'Guardar na poupança', 'Poupanca', 20, 'mes-ic') ?>
                         <span class="mes-nome"><?= e(t('Saldo do mês anterior')) ?></span>
                         <span class="num<?= $inicioMes < -0.004 ? ' neg' : '' ?>"><?= e(num($inicioMes)) ?></span>
                     </li>

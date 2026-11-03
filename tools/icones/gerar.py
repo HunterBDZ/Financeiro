@@ -1,84 +1,53 @@
-"""Gera o sprite dos ícones de categoria (public/assets/img/icones.webp) e a lista em PHP
-(src/icones_lista.php) a partir de tools/icones/icones.json.
+#!/usr/bin/env python3
+"""Gera o sprite dos ícones de categoria (public/assets/img/categorias.svg) e a lista em PHP
+(src/icones_lista.php) a partir de tools/icones/icones.json, só com a biblioteca padrão.
 
-Os desenhos são o Noto Emoji (Apache-2.0), em PNG de 512 px reduzidos a 112 px, de um commit fixo do repositório
-oficial. Cada arquivo baixado é conferido com o SHA-256 guardado em tools/icones/noto.sha256,
-e nada baixado fica no repositório: o cache é uma pasta temporária (troque com --cache).
-Cada emoji ocupa uma célula de 160 px com 8 px transparentes à direita e embaixo: vários
-encostam na borda, e sem esse respiro o vizinho vaza quando o navegador reduz a imagem.
-
-Rodar fora do servidor:
-    python3 tools/icones/gerar.py              (precisa de Pillow com WebP)
-    python3 tools/icones/gerar.py --atualizar-hashes    (só depois de acrescentar um emoji
-                                               ou trocar o commit; revise o diff do noto.sha256)
+Cada ícone vira um <symbol id="cat-<chave>"> de 24×24, em traço de 1,5 com pontas e cantos
+redondos, sem preenchimento e na cor do texto (currentColor). O desenho de um ícone pode repetir
+o de outro com "=outra-chave". Rodar da raiz do repositório: python3 tools/icones/gerar.py
 """
-import argparse, hashlib, json, pathlib, tempfile, urllib.request
-from PIL import Image
+import json, pathlib, xml.etree.ElementTree as ET
 
 AQUI = pathlib.Path(__file__).resolve().parent
 RAIZ = AQUI.parent.parent
-# Último commit em que o LICENSE da raiz do projeto é o Apache-2.0: ver CREDITOS.md antes de trocar.
-COMMIT = '41e31b110b4eb929dffb410264694a06205b7ad7'
-URL = f'https://raw.githubusercontent.com/googlefonts/noto-emoji/{COMMIT}/png/512/emoji_u{{}}.png'
-HASHES = AQUI / 'noto.sha256'
-RESPIRO = 8
-
-
-def ler_hashes():
-    if not HASHES.exists():
-        return {}
-    return {nome: h for h, nome in (linha.split() for linha in HASHES.read_text().splitlines() if linha.strip())}
-
-
-def imagem(codigo, n, cache, hashes, atualizar):
-    """O emoji centralizado em n×n, conferido antes de abrir: o arquivo vem de fora."""
-    nome = f'emoji_u{codigo}.png'
-    arq = cache / nome
-    dados = arq.read_bytes() if arq.exists() else urllib.request.urlopen(URL.format(codigo), timeout=60).read()
-    resumo = hashlib.sha256(dados).hexdigest()
-    if atualizar:
-        hashes[nome] = resumo
-    elif hashes.get(nome) != resumo:
-        raise SystemExit(f'{nome}: SHA-256 diferente do esperado em {HASHES.name} ({resumo})')
-    arq.write_bytes(dados)
-    im = Image.open(arq).convert('RGBA')
-    im.thumbnail((n, n), Image.LANCZOS)
-    celula = Image.new('RGBA', (n, n), (0, 0, 0, 0))
-    celula.paste(im, ((n - im.width) // 2, (n - im.height) // 2))
-    return celula
+ATRIBUTOS = ('viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" '
+             'stroke-linecap="round" stroke-linejoin="round"')
 
 
 def main():
-    args = argparse.ArgumentParser()
-    args.add_argument('--cache', type=pathlib.Path, default=pathlib.Path(tempfile.gettempdir()) / f'financeiro-noto-{COMMIT[:12]}')
-    args.add_argument('--atualizar-hashes', action='store_true')
-    opcoes = args.parse_args()
-    opcoes.cache.mkdir(parents=True, exist_ok=True)
-    hashes = ler_hashes()
-
     cfg = json.loads((AQUI / 'icones.json').read_text())
-    n, cols = cfg['tamanho'], cfg['colunas']
-    passo = n + RESPIRO
-    itens = [(chave, rot, cod, g) for g, _, lista in cfg['grupos'] for chave, rot, cod in lista]
-    linhas = (len(itens) + cols - 1) // cols
-    folha = Image.new('RGBA', (cols * passo, linhas * passo), (0, 0, 0, 0))
-    php = []
-    for i, (chave, rot, cod, g) in enumerate(itens):
-        c, l = i % cols, i // cols
-        folha.paste(imagem(cod, n, opcoes.cache, hashes, opcoes.atualizar_hashes), (c * passo, l * passo))
-        php.append(f"    {chave!r} => [{json.dumps(rot, ensure_ascii=False)}, {c}, {l}, {g!r}],")
-    if opcoes.atualizar_hashes:
-        HASHES.write_text(''.join(f'{h}  {nome}\n' for nome, h in sorted(hashes.items())))
-    # WebP com perda: célula de 112 px (o maior uso é o círculo de 80 px, em tela 2×) e qualidade 80
-    # na cor e na transparência. Ficou em ~200 KB, contra 433 KB com 160 px; à vista, igual
-    folha.save(RAIZ / 'public/assets/img/icones.webp', quality=80, alpha_quality=80, method=6)
+    itens = [(chave, rot, desenho, g) for g, _, lista in cfg['grupos'] for chave, rot, desenho in lista]
+    desenhos = {chave: desenho for chave, _, desenho, _ in itens}
+    if len(desenhos) != len(itens):
+        raise SystemExit('chave repetida em icones.json')
+    if cfg['padrao'] not in desenhos:
+        raise SystemExit(f"o ícone padrão {cfg['padrao']!r} não está na lista")
+
+    simbolos, php, compartilhados = [], [], 0
+    for chave, rot, desenho, g in itens:
+        if desenho.startswith('='):
+            compartilhados += 1
+            desenho = desenhos.get(desenho[1:], '')
+            if desenho == '' or desenho.startswith('='):
+                raise SystemExit(f'{chave}: aponta para um desenho que não existe')
+        # o desenho tem de ser XML válido: um erro aqui quebraria o sprite inteiro no navegador
+        ET.fromstring(f'<svg xmlns="http://www.w3.org/2000/svg">{desenho}</svg>')
+        if 'fill="currentColor"' in desenho or 'style=' in desenho:
+            raise SystemExit(f'{chave}: só traço, sem preenchimento nem estilo')
+        simbolos.append(f'<symbol id="cat-{chave}" {ATRIBUTOS}>{desenho}</symbol>')
+        php.append(f"    {chave!r} => [{json.dumps(rot, ensure_ascii=False)}, {g!r}],")
+
+    (RAIZ / 'public/assets/img/categorias.svg').write_text(
+        '<svg xmlns="http://www.w3.org/2000/svg">\n'
+        '<!-- GERADO por tools/icones/gerar.py a partir de tools/icones/icones.json: não editar à mão. -->\n'
+        + '\n'.join(simbolos) + '\n</svg>\n')
     grupos = ',\n'.join(f"    {g!r} => {json.dumps(r, ensure_ascii=False)}" for g, r, _ in cfg['grupos'])
     (RAIZ / 'src/icones_lista.php').write_text(
         "<?php\n// GERADO por tools/icones/gerar.py a partir de tools/icones/icones.json: não editar à mão.\n"
-        f"// Ícones: {cfg['fonte']}\n"
-        f"return [\n  'tamanho' => {n},\n  'passo' => {passo},\n  'colunas' => {cols},\n  'linhas' => {linhas},\n"
+        "// Os desenhos ficam em public/assets/img/categorias.svg, um <symbol id=\"cat-<chave>\"> por ícone.\n"
+        f"return [\n  'padrao' => {cfg['padrao']!r},\n"
         f"  'grupos' => [\n{grupos},\n  ],\n  'icones' => [\n" + '\n'.join(php) + "\n  ],\n];\n")
-    print(len(itens), 'ícones,', f'{cols}×{linhas},', folha.size)
+    print(len(itens), 'ícones,', compartilhados, 'com o desenho de outro')
 
 
 if __name__ == '__main__':

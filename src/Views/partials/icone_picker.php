@@ -1,6 +1,6 @@
 <?php
 /**
- * Escolher o ícone de uma categoria: os ícones em pixel art, por grupo, como opções de rádio
+ * Escolher o ícone de uma categoria: os ícones de traço, por grupo, como opções de rádio
  * (name="icone"). Funciona sem JS; com JS, em [data-ic-sugerir] o ícone acompanha o nome que
  * se digita até a pessoa escolher um (app.js).
  * Variáveis: $selecionado (?string, a chave marcada), $sugerir (bool), $semDica (bool: a dica já está à vista), $legenda (string).
@@ -20,7 +20,7 @@ $legenda     = (string) ($legenda ?? t('Ícone'));
             <?php foreach ($grupo['chaves'] as $k): ?>
                 <label class="ic-opcao" title="<?= e(Icones::rotulo($k)) ?>">
                     <input type="radio" name="icone" value="<?= e($k) ?>"<?= $k === $selecionado ? ' checked' : '' ?>>
-                    <?= Icones::html($k, 40) ?>
+                    <?= Icones::html($k, 24) ?>
                     <span class="sr-only"><?= e(Icones::rotulo($k)) ?></span>
                 </label>
             <?php endforeach; ?>
