@@ -193,4 +193,4 @@ Em servidor, o mesmo caminho roda com `sudo financeiro-atualizar`. As mudanças 
 
 **Licença:** © 2026 Hunter. Distribuído sob a [AGPL-3.0-or-later](LICENSE).
 
-**Componentes de terceiros:** fontes Manrope, Sora e JetBrains Mono sob a licença OFL e ícones Noto Emoji sob a Apache-2.0. Veja os [avisos de terceiros](THIRD_PARTY_NOTICES.md).
+**Componentes de terceiros:** fontes Manrope, Sora e JetBrains Mono sob a licença OFL. Veja os [avisos de terceiros](THIRD_PARTY_NOTICES.md).

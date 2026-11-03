@@ -12,12 +12,6 @@ O código do Financeiro é distribuído sob a [AGPL-3.0-or-later](LICENSE). Os c
 
 **Modificações:** as versões web foram recortadas e convertidas para WOFF2. As do PDF são instâncias estáticas em TTF, geradas por `tools/pdf-fontes/gerar.py`. Os avisos de copyright estão nos textos da licença, e uma cópia acompanha `src/Pdf/fontes/`.
 
-## Ícones de categoria
-
-`public/assets/img/icones.webp` usa imagens do [Noto Emoji](https://github.com/googlefonts/noto-emoji), © Google LLC, sob a licença Apache-2.0 ([`tools/icones/LICENSE-Noto-Emoji.txt`](tools/icones/LICENSE-Noto-Emoji.txt)).
-
-**Modificações:** os PNGs de 512 px foram reduzidos para 160 px e reunidos em um sprite WebP. Origem, commit e hashes em [`tools/icones/CREDITOS.md`](tools/icones/CREDITOS.md).
-
 ## Paletas de temas
 
 Os temas consagrados usam as cores de projetos sob as licenças MIT e Apache-2.0, ajustadas onde o contraste não passava. A lista completa, com links, está em [`tools/temas/CREDITOS.md`](tools/temas/CREDITOS.md).
@@ -27,6 +21,7 @@ Os temas consagrados usam as cores de projetos sob as licenças MIT e Apache-2.0
 Estas imagens foram criadas para o Financeiro e seguem a licença do projeto:
 
 - `public/assets/img/marca.svg`, `icone-*.png` e `linhas-*.svg`;
+- `public/assets/img/categorias.svg`, os ícones de categoria (fonte em `tools/icones/icones.json`);
 - `database/demo/*.jpg`, desenhos dos itens da demonstração;
 - `docs/img/*.webp`, capturas do app com dados fictícios. Elas mostram os ícones e as fontes acima, sob as respectivas licenças.
 

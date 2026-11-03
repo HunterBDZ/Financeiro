@@ -107,4 +107,4 @@ The detailed documentation is in Portuguese:
 
 © 2026 Hunter. Released under the [AGPL-3.0-or-later](LICENSE).
 
-Third-party components: Manrope, Sora and JetBrains Mono fonts under the OFL and Noto Emoji icons under Apache-2.0. See the [third-party notices](THIRD_PARTY_NOTICES.md).
+Third-party components: Manrope, Sora and JetBrains Mono fonts under the OFL. See the [third-party notices](THIRD_PARTY_NOTICES.md).
