@@ -167,7 +167,7 @@ $difContrato = $feitos === [] && $sit['contrato'] !== null && $sit['quita'] !== 
                     <?php $aParte = (int) round((float) ($aj['parcela_modo']['valor'] ?? 1)) === 2; ?>
                     <fieldset class="aj-grupo-modo emp-modo">
                         <legend><?= e(t('Como a parcela é paga?')) ?></legend>
-                        <label class="aj-marcar"><input type="radio" name="parcela_modo" value="1"<?= $aParte ? '' : ' checked' ?>><span><?= e(t('Descontada do salário (consignado em folha)')) ?></span></label>
+                        <label class="aj-marcar"><input type="radio" name="parcela_modo" value="1"<?= $aParte ? '' : ' checked' ?>><span><?= e(t('Descontada do salário, antes de cair na conta')) ?></span></label>
                         <label class="aj-marcar"><input type="radio" name="parcela_modo" value="2"<?= $aParte ? ' checked' : '' ?>><span><?= e(t('Paga à parte, com o dinheiro da conta')) ?></span></label>
                     </fieldset>
                     <?php $campoDado('n_parcelas', t('Número de parcelas'), '', 0); ?>

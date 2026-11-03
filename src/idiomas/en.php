@@ -1675,7 +1675,7 @@ return [
     'Saídas previstas' => 'Expected outflows',
     'Incluir categoria em {mes}' => 'Include category in {mes}',
     'Como a parcela é paga?' => 'How is the installment paid?',
-    'Descontada do salário (consignado em folha)' => 'Deducted from the salary (payroll loan)',
+    'Descontada do salário, antes de cair na conta' => 'Deducted from the salary, before it reaches the account',
     'Paga à parte, com o dinheiro da conta' => 'Paid separately, with money from the account',
     'No computador onde o app foi instalado. A internet só é usada para a cotação de moedas, os links colados na Wishlist e a busca por versão nova. Detalhes em Privacidade, no fim desta página.' => 'On the computer where the app is installed. The internet is only used for currency rates, links pasted into the Wishlist and checking for a new version. Details in Privacy, at the end of this page.',
     'Privacidade, aviso e contato' => 'Privacy, notice and contact',

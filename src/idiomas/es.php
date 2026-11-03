@@ -1675,7 +1675,7 @@ return [
     'Saídas previstas' => 'Salidas previstas',
     'Incluir categoria em {mes}' => 'Incluir categoría en {mes}',
     'Como a parcela é paga?' => '¿Cómo se paga la cuota?',
-    'Descontada do salário (consignado em folha)' => 'Descontada del salario (préstamo por nómina)',
+    'Descontada do salário, antes de cair na conta' => 'Descontada del salario, antes de llegar a la cuenta',
     'Paga à parte, com o dinheiro da conta' => 'Pagada aparte, con el dinero de la cuenta',
     'No computador onde o app foi instalado. A internet só é usada para a cotação de moedas, os links colados na Wishlist e a busca por versão nova. Detalhes em Privacidade, no fim desta página.' => 'En el ordenador donde se instaló la app. Internet solo se usa para la cotización de monedas, los enlaces pegados en la Wishlist y la búsqueda de una versión nueva. Detalles en Privacidad, al final de esta página.',
     'Privacidade, aviso e contato' => 'Privacidad, aviso y contacto',
