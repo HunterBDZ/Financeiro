@@ -53,7 +53,7 @@ for (const tema of ['claro', 'escuro']) {
         test('editar categoria', async ({ page }) => {
             await page.goto('/ajustes?aberto=categorias');
             await page.locator('#categorias').getByRole('link', { name: /Mercado/ }).click();
-            await expect(page.getByRole('heading', { level: 1, name: 'Editar categoria' })).toBeVisible();
+            await expect(page.getByRole('heading', { level: 1, name: 'Mercado' })).toBeVisible();      // o título é o nome
             expect(await graves(page)).toEqual([]);
         });
 
@@ -128,6 +128,14 @@ for (const tema of ['claro', 'escuro']) {
 
         test('Login', async ({ page }) => {
             await page.goto('/login');
+            expect(await graves(page)).toEqual([]);
+        });
+
+        test('aviso do navegador e página que não existe', async ({ page, erros }) => {
+            erros.permitir(/status of 404/);
+            await page.goto('/ajuda/conexao');
+            expect(await graves(page)).toEqual([]);
+            await page.goto('/nao-existe');
             expect(await graves(page)).toEqual([]);
         });
     });

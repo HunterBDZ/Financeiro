@@ -192,7 +192,7 @@ function conferencia(callable $check): void
         ['/mes',           MesController::class,           'index',      [],                  'mes-resumo'],
         ['/mes/fechar',    MesController::class,           'fecharForm', [],                  'fe-topo'],
         ['/futuro',        FuturoController::class,        'index',      [],                  'fu-meses'],
-        ['/ajustes',       AjustesController::class,       'index',      [],                  'aj-titulo'],
+        ['/ajustes',       AjustesController::class,       'index',      [],                  'ajs-cols'],
         ['/investimentos', InvestimentosController::class, 'index',      [],                  'inv-total'],
         ['/cartao',        CartaoController::class,        'index',      [],                  'ct-topo'],
         ['/emprestimo',    EmprestimoController::class,    'index',      [],                  'emp-topo'],

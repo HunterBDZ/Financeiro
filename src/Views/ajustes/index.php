@@ -5,10 +5,10 @@ use Financeiro\Temas;
 
 /**
  * Ajustes, como uma lista agrupada por assunto: dinheiro e planejamento (com as contas, onde o dinheiro está),
- * aparência e idioma, conta e segurança,
- * sistema e sobre. Cada linha tem ícone, nome e o estado atual à direita; ao tocar, abre ali mesmo (<details>,
- * o id é o mesmo de ?aberto=) ou leva a outra tela (seta para a direita). O perigoso fica no fim de cada grupo.
- * No computador largo, os grupos vão em duas colunas que crescem cada uma por si.
+ * aparência e idioma, conta e segurança, sistema e sobre. Sem caixa em volta dos grupos: o título e o espaço
+ * separam um do outro. Cada linha (48px) tem o nome e o estado atual à direita; ao tocar, abre ali mesmo
+ * (<details>, o id é o mesmo de ?aberto=, com a seta para baixo) ou leva a outra tela (seta para a direita).
+ * O perigoso fica no fim de cada grupo. No computador, os grupos vão em duas colunas que crescem cada uma por si.
  * Todo value de dinheiro sai de numInput() (hífen ASCII): parseMoedaBr() lê de volta sem perder o sinal.
  * Variáveis: $aj, $contas (quantas contas fixas), $dias (categoria => dia do vencimento), $categorias, $arquivadas,
  * $abertos, $erro, $login, $contasDinheiro (ContaModel::todas()), $saldosContas (conta => saldo de hoje).
@@ -39,9 +39,10 @@ $campo = static function (string $chave, string $rotulo, string $un = '', int $d
         </span>
     </div>
 <?php };
-// o miolo de uma linha: ícone, nome e o estado atual (texto já pronto, ou HTML em $valorHtml)
+// o miolo de uma linha: o nome e o estado atual (texto já pronto, ou HTML em $valorHtml). O ícone ($icone) saiu da
+// linha: o nome basta, e o ladrilho cinza em cada linha só pesava; o parâmetro fica para não mudar quem chama
 $linha = static function (string $icone, string $rotulo, string $valor = '', string $valorHtml = ''): string {
-    return '<span class="ajs-ic">' . svgIcon($icone, 20) . '</span><span class="ajs-rot">' . e($rotulo) . '</span>'
+    return '<span class="ajs-rot">' . e($rotulo) . '</span>'
         . ($valorHtml !== '' ? $valorHtml : ($valor !== '' ? '<span class="ajs-val">' . e($valor) . '</span>' : ''));
 };
 // uma linha que leva a outra tela
@@ -50,6 +51,10 @@ $ir = static function (string $href, string $icone, string $rotulo, string $valo
 <?php };
 
 $duasLigada = \Financeiro\DuasEtapas::ligada((int) \Financeiro\Auth::id());
+// usar no celular: no instalador, o acesso pela rede liga e desliga; nas outras instalações, o site já está na rede
+$redeLigada = \Financeiro\Primeira::modo() !== 'instalador' || \Financeiro\Rede::acessoLigado();
+// o tipo de cada conta, com um ícone de traço (sem emoji)
+$iconeConta = static fn(string $tipo): string => svgIcon(['corrente' => 'emprestimo', 'digital' => 'celular', 'dinheiro' => 'carteira'][$tipo] ?? 'tag', 18);
 $pessoas = \Financeiro\Models\UsuarioModel::todos();
 $usa = static fn(string $k): bool => (float) ($aj[$k]['valor'] ?? 1) >= 1;
 $usos = array_values(array_filter([$usa('usa_cartao') ? t('Cartão') : '', $usa('usa_emprestimo') ? t('Empréstimo') : '', $usa('usa_carro') ? t('Carro') : '']));
@@ -76,9 +81,11 @@ $formConta = static function (?array $c) use ($csrf, $erroConta, $tiposD, $inici
         <label class="campo"><span><?= e(t('Nome')) ?></span><input type="text" name="nome" maxlength="60" required autocomplete="off" value="<?= e($nome) ?>" placeholder="<?= e(t('ex.: Carteira')) ?>"></label>
         <fieldset class="aj-conta-tipo">
             <legend><?= e(t('Tipo')) ?></legend>
+            <div class="seg">
             <?php foreach (\Financeiro\Models\ContaModel::TIPOS as $k => $icone): ?>
-                <label class="chip-r"><input type="radio" name="tipo" value="<?= e($k) ?>"<?= $k === $tipo ? ' checked' : '' ?>><span><span aria-hidden="true"><?= e($icone) ?></span> <?= e($tiposD[$k]) ?></span></label>
+                <label class="chip-r"><input type="radio" name="tipo" value="<?= e($k) ?>"<?= $k === $tipo ? ' checked' : '' ?>><span><?= e($tiposD[$k]) ?></span></label>
             <?php endforeach; ?>
+            </div>
         </fieldset>
         <div class="aj-campo">
             <label for="<?= e($pre) ?>-saldo"><?= $inicioPlano !== null ? e(t('Saldo em {data}, no início do controle', ['data' => diaMesAno($inicioPlano)])) : e(t('Saldo no início do controle')) ?></label>
@@ -88,9 +95,10 @@ $formConta = static function (?array $c) use ($csrf, $erroConta, $tiposD, $inici
     </form>
 <?php };
 ?>
-<div class="aj ajs">
-    <h1 class="aj-titulo"><?= e(t('Ajustes')) ?></h1>
+<div class="grade ajs">
+    <?php \Financeiro\View::partial('partials/topo', ['titulo' => t('Ajustes')]); ?>
 
+    <section class="faixa-grade">
     <div class="ajs-cols">
     <div class="ajs-col">
     <!-- o que mais se mexe: o dinheiro e as categorias -->
@@ -108,7 +116,7 @@ $formConta = static function (?array $c) use ($csrf, $erroConta, $tiposD, $inici
                             <li>
                                 <details class="aj-cd-i"<?= $aberta ? ' open' : '' ?>>
                                     <summary>
-                                        <span class="aj-cd-ic" aria-hidden="true"><?= e(\Financeiro\Models\ContaModel::TIPOS[$c['tipo']] ?? '') ?></span>
+                                        <span class="aj-cd-ic"><?= $iconeConta((string) $c['tipo']) ?></span>
                                         <span class="aj-cd-nome"><?= e(nomeConta($c)) ?></span>
                                         <span class="aj-cd-saldo num"><?= e(money((float) ($saldosContas[$c['id']] ?? 0.0))) ?></span>
                                     </summary>
@@ -128,13 +136,13 @@ $formConta = static function (?array $c) use ($csrf, $erroConta, $tiposD, $inici
                         <p class="aj-ess-grupo"><?= e(t('Arquivadas')) ?></p>
                         <ul class="aj-cd aj-cd-arq">
                             <?php foreach ($arquivadasD as $c): ?>
-                                <li><span class="aj-cd-ic" aria-hidden="true"><?= e(\Financeiro\Models\ContaModel::TIPOS[$c['tipo']] ?? '') ?></span><span class="aj-cd-nome"><?= e(nomeConta($c)) ?></span>
+                                <li><span class="aj-cd-ic"><?= $iconeConta((string) $c['tipo']) ?></span><span class="aj-cd-nome"><?= e(nomeConta($c)) ?></span>
                                     <form method="post" action="/contas/<?= (int) $c['id'] ?>/reativar"><?= $csrf ?><button type="submit" class="btn-link"><?= e(t('Trazer de volta')) ?></button></form></li>
                             <?php endforeach; ?>
                         </ul>
                     <?php endif; ?>
                     <details class="aj-cd-nova"<?= $erroConta !== null && (int) ($erroConta['conta'] ?? -1) === 0 ? ' open' : '' ?>>
-                        <summary class="btn btn-ghost"><?= svgIcon('plus', 16) ?><?= e(t('Nova conta')) ?></summary>
+                        <summary class="btn btn-contorno"><?= svgIcon('plus', 16) ?><?= e(t('Nova conta')) ?></summary>
                         <?php $formConta(null); ?>
                     </details>
                     <?php $erroDe('carteira'); ?>
@@ -159,7 +167,7 @@ $formConta = static function (?array $c) use ($csrf, $erroConta, $tiposD, $inici
                 </div>
             </details>
 
-            <?php $ir('/meta#contas-fixas', 'calendar', t('Contas fixas'), t('Em Metas')); ?>
+            <?php $ir('/meta#contas-fixas', 'calendar', t('Contas fixas'), $contas > 0 ? tn((int) $contas, '1 conta, em Metas', '{n} contas, em Metas') : t('Em Metas')); ?>
 
             <details class="ajs-item" id="recursos"<?= $aberto('recursos') ?>>
                 <summary class="ajs-linha"><?= $linha('check', t('O que você usa'), $usos !== [] ? implode(', ', $usos) : t('Nada marcado')) ?></summary>
@@ -190,7 +198,7 @@ $formConta = static function (?array $c) use ($csrf, $erroConta, $tiposD, $inici
                             <span class="aj-input aj-input-mes"><input id="aj-data_inicio" type="date" name="data_inicio" value="<?= e((string) $inicioPlano) ?>" max="<?= e(\Financeiro\Relogio::hoje()) ?>" required></span>
                         </div>
                         <p class="aj-ajuda"><?= e(t('Os valores abaixo são o que você tinha no início desse dia. Lançamentos valem a partir dele.')) ?></p>
-                        <button type="submit" class="btn btn-ghost aj-salvar"><?= e(t('Salvar início')) ?></button>
+                        <button type="submit" class="btn btn-contorno aj-salvar"><?= e(t('Salvar início')) ?></button>
                     </form>
                     <form class="aj-form" method="post" action="/ajustes/salvar">
                         <?= $csrf ?><input type="hidden" name="grupo" value="partida">
@@ -223,7 +231,7 @@ $formConta = static function (?array $c) use ($csrf, $erroConta, $tiposD, $inici
             </details>
 
             <details class="ajs-item" id="regional"<?= $aberto('regional') ?>>
-                <summary class="ajs-linha"><?= $linha('emprestimo', t('Moeda e fuso horário'), Site::moeda() . ' · ' . $cidade) ?></summary>
+                <summary class="ajs-linha"><?= $linha('emprestimo', t('Moeda e fuso horário'), t('{moeda}, {cidade}', ['moeda' => moedaSimbolo(), 'cidade' => $cidade])) ?></summary>
                 <div class="ajs-corpo">
                     <form class="aj-form" method="post" action="/ajustes/regional">
                         <?= $csrf ?>
@@ -232,7 +240,7 @@ $formConta = static function (?array $c) use ($csrf, $erroConta, $tiposD, $inici
                         <p class="aj-ajuda"><?= e(t('Muda só o símbolo: os valores já lançados não são convertidos.')) ?></p>
                         <label class="campo"><span><?= e(t('Fuso horário')) ?></span>
                             <select name="fuso" data-fuso><?php foreach (Site::opcoesFuso() as $nome => $rotulo): ?><option value="<?= e($nome) ?>"<?= $nome === $fuso ? ' selected' : '' ?>><?= e($rotulo) ?></option><?php endforeach; ?></select></label>
-                        <p class="aj-ajuda" data-fuso-dica hidden><?= e(t('Seu navegador está em outro fuso:')) ?> <b data-fuso-nome></b> <button type="button" class="btn btn-ghost btn-sm" data-fuso-usar><?= e(t('Usar este')) ?></button></p>
+                        <p class="aj-ajuda" data-fuso-dica hidden><?= e(t('Seu navegador está em outro fuso:')) ?> <b data-fuso-nome></b> <button type="button" class="btn btn-contorno btn-sm" data-fuso-usar><?= e(t('Usar este')) ?></button></p>
                         <button type="submit" class="btn btn-primary aj-salvar"><?= e(t('Salvar')) ?></button>
                     </form>
                 </div>
@@ -286,7 +294,7 @@ $formConta = static function (?array $c) use ($csrf, $erroConta, $tiposD, $inici
             </details>
 
             <details class="ajs-item" id="duasetapas"<?= $aberto('duasetapas') ?>>
-                <summary class="ajs-linha"><?= $linha('escudo', t('Verificação em duas etapas'), '', '<span class="aj-estado' . ($duasLigada ? ' is-on' : '') . '">' . e($duasLigada ? t('Ligada') : t('Desligada')) . '</span>') ?></summary>
+                <summary class="ajs-linha"><?= $linha('escudo', t('Verificação em duas etapas'), $duasLigada ? t('Ligada') : t('Desligada')) ?></summary>
                 <div class="ajs-corpo">
                 <?php if ($duasLigada): ?>
                     <p class="aj-ajuda"><?= e(t('Ao entrar, depois da senha, o MyMonetto pede o código do app autenticador. Os aparelhos lembrados continuam entrando direto.')) ?></p>
@@ -297,7 +305,7 @@ $formConta = static function (?array $c) use ($csrf, $erroConta, $tiposD, $inici
                         <label class="campo"><span><?= e(t('Senha')) ?></span><input type="password" name="senha" autocomplete="current-password" required></label>
                         <label class="campo"><span><?= e(t('Código do app ou de recuperação')) ?></span><input type="text" name="codigo" maxlength="40" autocomplete="one-time-code" autocapitalize="characters" spellcheck="false" required></label>
                         <?php $erroDe('duasetapas'); ?>
-                        <button type="submit" class="btn btn-ghost aj-salvar"><?= e(t('Desligar')) ?></button>
+                        <button type="submit" class="btn btn-contorno aj-salvar"><?= e(t('Desligar')) ?></button>
                     </form>
                 <?php else: ?>
                     <p class="aj-ajuda"><?= e(t('Protege a conta mesmo se alguém descobrir a senha: ao entrar, o MyMonetto pede também um código de 6 dígitos que muda a cada 30 segundos.')) ?></p>
@@ -305,7 +313,7 @@ $formConta = static function (?array $c) use ($csrf, $erroConta, $tiposD, $inici
                     <?php if (\Financeiro\DuasEtapas::disponivel()): ?>
                         <a class="btn btn-primary aj-salvar" href="/ajustes/duas-etapas"><?= e(t('Ligar')) ?></a>
                     <?php else: ?>
-                        <p class="aviso aviso-warn"><?= e(t('Falta a extensão sodium do PHP neste computador. Sem ela, a verificação não pode ser ligada.')) ?></p>
+                        <p class="aj-ajuda atencao"><?= e(t('Falta a extensão sodium do PHP neste computador. Sem ela, a verificação não pode ser ligada.')) ?></p>
                     <?php endif; ?>
                 <?php endif; ?>
                 </div>
@@ -343,7 +351,7 @@ $formConta = static function (?array $c) use ($csrf, $erroConta, $tiposD, $inici
                     <form method="post" action="/ajustes/aparelhos/sair" class="aj-form" data-confirm="<?= e(t('Sair de todos os aparelhos? Cada um vai pedir login de novo.')) ?>">
                         <?= $csrf ?>
                         <p class="aj-ajuda"><?= e(t('Perdeu um aparelho ou entrou num que não é seu? Saia de todos; cada um vai pedir login de novo.')) ?></p>
-                        <button type="submit" class="btn btn-ghost aj-sair"><?= svgIcon('logout', 16) ?><?= e(t('Sair de todos os aparelhos')) ?></button>
+                        <button type="submit" class="btn btn-contorno aj-sair"><?= svgIcon('logout', 16) ?><?= e(t('Sair de todos os aparelhos')) ?></button>
                     </form>
                 </div>
             </details>
@@ -354,7 +362,7 @@ $formConta = static function (?array $c) use ($csrf, $erroConta, $tiposD, $inici
     <section class="ajs-sec" aria-labelledby="ajs-g-sistema">
         <h2 class="ajs-sec-t" id="ajs-g-sistema"><?= e(t('Sistema')) ?></h2>
         <div class="ajs-lista">
-            <?php $ir('/rede', 'celular', t('Usar no celular')); ?>
+            <?php $ir('/rede', 'celular', t('Usar no celular'), $redeLigada ? t('Ligado') : t('Desligado')); ?>
             <?php $ir('/sistema', 'download', t('Backup e atualização')); ?>
         </div>
     </section>
@@ -373,4 +381,5 @@ $formConta = static function (?array $c) use ($csrf, $erroConta, $tiposD, $inici
     </section>
     </div>
     </div>
+    </section>
 </div>

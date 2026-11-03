@@ -2,6 +2,8 @@
 /**
  * Editar uma categoria (GET/POST /categorias/{id}): nome, apelido, tipo, fixa ou varia, vencimento, essencial,
  * ativa e o ícone. O valor e a meta ficam em Metas. Sem JS, todos os campos aparecem; com :has(), só os do tipo.
+ * Subtela de Ajustes (ajustes/_sub_topo): o título é o nome da categoria; um formulário em uma coluna, os rótulos
+ * acima e as escolhas em seleção segmentada. O tipo travado aparece como texto, com o motivo ao lado.
  * Variáveis: $cat (linha de categorias), $icone (chave em vigor), $dia (?int, vencimento), $doApp (o app depende
  * do tipo e do grupo), $historico (tem lançamentos), $erros (campo => mensagem), $valores (?array, o que foi digitado), $volta.
  */
@@ -28,14 +30,12 @@ $erroDe = static function (string $campo) use ($erros): string {
 };
 $invalido = static fn(string $campo): string => isset($erros[$campo]) ? ' aria-invalid="true" aria-describedby="cat-erro-' . e($campo) . '"' : '';
 ?>
-<div class="ic-pagina cat-pagina">
-    <header class="lf-topo">
-        <a class="lf-x lf-voltar" href="<?= e($volta) ?>" aria-label="<?= e(t('voltar')) ?>"><?= svgIcon('chevron', 20, 'lf-seta') ?></a>
-        <h1 class="lf-titulo"><?= e(t('Editar categoria')) ?></h1>
-    </header>
-
+<div class="grade aj-subtela">
+    <?php View::partial('ajustes/_sub_topo', ['titulo' => nomeCurto($cat), 'apoio' => t('Editar categoria'), 'volta' => $volta]); ?>
+    <section class="faixa-grade">
+    <div class="aj-sub cat-pagina">
     <?php if ($erros !== []): ?>
-        <p class="aviso aviso-error" role="alert"><?= e(t('Confira os campos marcados.')) ?></p>
+        <p class="aj-erro" role="alert"><?= e(t('Confira os campos marcados.')) ?></p>
     <?php endif; ?>
 
     <form class="cat-form" method="post" action="/categorias/<?= $id ?>" novalidate>
@@ -43,8 +43,8 @@ $invalido = static fn(string $campo): string => isset($erros[$campo]) ? ' aria-i
         <input type="hidden" name="volta" value="<?= e($volta) ?>">
 
         <div class="cat-sec">
-            <details class="cat-ic"<?= isset($erros['icone']) ? ' open' : '' ?>>
-                <summary><?= Icones::html($icone, 28) ?><span><?= e(t('Trocar o ícone')) ?></span></summary>
+            <details class="dobra cat-ic"<?= isset($erros['icone']) ? ' open' : '' ?>>
+                <summary><?= Icones::html($icone, 24) ?><span><?= e(t('Trocar o ícone')) ?></span></summary>
                 <?php View::partial('partials/icone_picker', ['selecionado' => $val('icone', $icone), 'legenda' => t('Ícone')]); ?>
             </details>
             <?= $erroDe('icone') ?>
@@ -65,13 +65,16 @@ $invalido = static fn(string $campo): string => isset($erros[$campo]) ? ' aria-i
             <?php $descTipo = trim(($tipoTravado ? 'cat-tipo-dica' : '') . (isset($erros['tipo']) ? ' cat-erro-tipo' : '')); ?>
             <fieldset class="cat-opts"<?= $descTipo !== '' ? ' aria-describedby="' . $descTipo . '"' : '' ?>>
                 <legend><?= e(t('Tipo')) ?></legend>
-                <div class="chip-row">
-                    <label class="chip-r"><input type="radio" name="tipo" value="saida"<?= !$entrada ? ' checked' : '' ?><?= $tipoTravado ? ' disabled' : '' ?>><span><?= e(t('Saída')) ?></span></label>
-                    <label class="chip-r"><input type="radio" name="tipo" value="entrada"<?= $entrada ? ' checked' : '' ?><?= $tipoTravado ? ' disabled' : '' ?>><span><?= e(t('Entrada')) ?></span></label>
-                </div>
                 <?php if ($tipoTravado): ?>
+                    <?php // travado: o tipo vira texto, com o cadeado e o motivo; um controle que não responde parecia quebrado ?>
+                    <p class="cat-fixo"><?= svgIcon('lock', 16) ?><?= e((int) $cat['sinal'] === 1 ? t('Entrada') : t('Saída')) ?></p>
                     <input type="hidden" name="tipo" value="<?= (int) $cat['sinal'] === 1 ? 'entrada' : 'saida' ?>">
                     <p class="cat-dica" id="cat-tipo-dica"><?= e($doApp ? t('O app usa esta categoria nos cálculos, então o tipo fica como está.') : t('Já tem lançamentos: trocar o tipo inverteria o histórico.')) ?></p>
+                <?php else: ?>
+                <div class="seg">
+                    <label class="chip-r"><input type="radio" name="tipo" value="saida"<?= !$entrada ? ' checked' : '' ?>><span><?= e(t('Saída')) ?></span></label>
+                    <label class="chip-r"><input type="radio" name="tipo" value="entrada"<?= $entrada ? ' checked' : '' ?>><span><?= e(t('Entrada')) ?></span></label>
+                </div>
                 <?php endif; ?>
                 <?= $erroDe('tipo') ?>
             </fieldset>
@@ -79,11 +82,12 @@ $invalido = static fn(string $campo): string => isset($erros[$campo]) ? ' aria-i
             <?php if ($escolheValor): ?>
                 <fieldset class="cat-opts cat-so-gasto">
                     <legend><?= e(t('O valor é')) ?></legend>
-                    <div class="chip-row">
-                        <label class="chip-r"><input type="radio" name="valor_tipo" value="varia"<?= $valorTipo === 'varia' ? ' checked' : '' ?>><span><?= e(t('Varia (gasto do dia a dia)')) ?></span></label>
-                        <label class="chip-r"><input type="radio" name="valor_tipo" value="fixo"<?= $valorTipo === 'fixo' ? ' checked' : '' ?>><span><?= e(t('Fixo todo mês (conta)')) ?></span></label>
-                        <label class="chip-r"><input type="radio" name="valor_tipo" value="pontual"<?= $valorTipo === 'pontual' ? ' checked' : '' ?>><span><?= e(t('De vez em quando (pontual)')) ?></span></label>
+                    <div class="seg">
+                        <label class="chip-r"><input type="radio" name="valor_tipo" value="varia"<?= $valorTipo === 'varia' ? ' checked' : '' ?>><span><?= e(t('Varia')) ?></span></label>
+                        <label class="chip-r"><input type="radio" name="valor_tipo" value="fixo"<?= $valorTipo === 'fixo' ? ' checked' : '' ?>><span><?= e(t('Fixo todo mês')) ?></span></label>
+                        <label class="chip-r"><input type="radio" name="valor_tipo" value="pontual"<?= $valorTipo === 'pontual' ? ' checked' : '' ?>><span><?= e(t('De vez em quando')) ?></span></label>
                     </div>
+                    <p class="cat-dica"><?= e(t('Varia: gasto do dia a dia, com meta. Fixo: uma conta todo mês, com vencimento. De vez em quando: um gasto que aparece em alguns meses.')) ?></p>
                     <?= $erroDe('valor_tipo') ?>
                 </fieldset>
             <?php endif; ?>
@@ -101,7 +105,7 @@ $invalido = static fn(string $campo): string => isset($erros[$campo]) ? ' aria-i
             <?php if (!$movimentacao): ?>
                 <fieldset class="cat-opts cat-so-gasto">
                     <legend><?= e(t('Classe')) ?></legend>
-                    <div class="chip-row">
+                    <div class="seg">
                         <label class="chip-r"><input type="radio" name="essencial" value="1"<?= $essencial ? ' checked' : '' ?>><span><?= e(t('Essencial')) ?></span></label>
                         <label class="chip-r"><input type="radio" name="essencial" value="0"<?= $essencial ? '' : ' checked' ?>><span><?= e(t('Não essencial')) ?></span></label>
                     </div>
@@ -110,7 +114,7 @@ $invalido = static fn(string $campo): string => isset($erros[$campo]) ? ' aria-i
 
             <fieldset class="cat-opts" aria-describedby="cat-ativa-dica">
                 <legend><?= e(t('Situação')) ?></legend>
-                <div class="chip-row">
+                <div class="seg">
                     <label class="chip-r"><input type="radio" name="ativo" value="1"<?= $ativa ? ' checked' : '' ?>><span><?= e(t('Ativa')) ?></span></label>
                     <label class="chip-r"><input type="radio" name="ativo" value="0"<?= $ativa ? '' : ' checked' ?>><span><?= e(t('Arquivada')) ?></span></label>
                 </div>
@@ -122,13 +126,15 @@ $invalido = static fn(string $campo): string => isset($erros[$campo]) ? ' aria-i
             <a class="cat-meta" href="/meta?add=<?= $id ?>#c<?= $id ?>"><?= svgIcon('target', 20) ?><span><?= e(t('Valor e recorrência')) ?><small><?= e(t('A meta de cada mês fica em Metas.')) ?></small></span><?= svgIcon('chevron', 16) ?></a>
         <?php endif; ?>
 
-        <button type="submit" class="btn btn-primary btn-block ic-salvar"><?= e(t('Salvar')) ?></button>
+        <button type="submit" class="btn btn-principal aj-salvar"><?= e(t('Salvar')) ?></button>
     </form>
 
     <form class="cat-remover" method="post" action="/categorias/<?= $id ?>/remover"
           data-confirm="<?= e(t('Remover a categoria {nome}? Se ela tiver lançamentos, só sai das listas.', ['nome' => nomeCurto($cat)])) ?>">
         <?= csrfField() ?>
         <input type="hidden" name="volta" value="<?= e($volta) ?>">
-        <button type="submit" class="btn btn-ghost cat-remover-btn"><?= svgIcon('x', 16) ?><?= e(t('Remover categoria')) ?></button>
+        <button type="submit" class="btn-link cat-remover-btn"><?= e(t('Remover categoria')) ?></button>
     </form>
+    </div>
+    </section>
 </div>
