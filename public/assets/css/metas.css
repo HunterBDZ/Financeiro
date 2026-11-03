@@ -41,6 +41,8 @@
 .mt-c-falta { color: var(--tinta-2); font-size: var(--t-rotulo); }
 .mt-c-falta.alerta { color: var(--alerta); font-weight: 600; }
 .mt-c-meta { color: var(--tinta-2); }
+/* o número que conta as compras no cartão diz isso numa linha embaixo (o Mês e o Início contam a fatura) */
+.mt-cartao { display: block; color: var(--tinta-3); font-size: var(--t-meta); line-height: var(--lh-meta); font-weight: 400; }
 .mt-sem { color: var(--tinta-3); font-size: var(--t-rotulo); }
 .mt-paga { color: var(--tinta-2); }
 
@@ -80,11 +82,13 @@
 @media (max-width: 1023px) {
     .mt-cab { display: none; }
     .mt-linha > summary, a.mt-linha {
-        grid-template-columns: minmax(0, 1fr) 128px; grid-template-areas: "nome gasto" "barra falta"; row-gap: var(--e-1);
+        grid-template-columns: minmax(0, 1fr) auto 128px; grid-template-areas: "nome nome gasto" "barra meta falta"; row-gap: var(--e-1);
         min-height: 56px;
     }
     .mt-c-nome { grid-area: nome; }
-    .mt-c-meta { display: none; }
+    /* a meta continua à vista, ao lado da barra: "meta 1.600,00" */
+    .mt-c-meta { grid-area: meta; font-size: var(--t-meta); color: var(--tinta-3); }
+    .mt-c-meta .mt-rot { position: static !important; width: auto; height: auto; margin: 0; overflow: visible; clip-path: none; }
     .mt-c-gasto { grid-area: gasto; }
     .mt-c-barra { grid-area: barra; padding-left: 32px; }
     .mt-c-falta { grid-area: falta; font-size: var(--t-meta); }

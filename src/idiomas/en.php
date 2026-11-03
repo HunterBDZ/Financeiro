@@ -2350,4 +2350,12 @@ return [
     'Abrir o Mês' => 'Open Month',
     'A compra cai na fatura de {mes}, e esse mês está fechado. Para mudar, reabra o mês no Mês.' => 'The purchase falls on the {mes} statement, and that month is closed. To change it, reopen the month in Month.',
     'Dá para fechar {mes} a partir de {data}.' => '{mes} can be closed from {data}.',
+    '{texto} · Passou {valor} da meta de {nome}, com o cartão.' => '{texto} · {valor} over the {nome} goal, with the card.',
+    '{texto} · Ainda dá para gastar {valor} da meta, com o cartão.' => '{texto} · You can still spend {valor} of the goal, with the card.',
+    '{gasto} de {meta}, passou {resto}, com o cartão' => '{gasto} of {meta}, over by {resto}, with the card',
+    'passou {valor}, com o cartão' => 'over by {valor}, with the card',
+    'falta {valor}, com o cartão' => '{valor} left, with the card',
+    'Gasto, com o cartão' => 'Spent, with the card',
+    'Gastou, com as compras no cartão' => 'Spent, with card purchases',
+    'com o cartão' => 'with the card',
 ];

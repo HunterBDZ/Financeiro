@@ -348,7 +348,7 @@ final class LancamentosController
         $id = LancamentoModel::criar($d['data'], $d['descricao'], $d['categoria_id'], $d['valor'], (int) Auth::id(), $d['conta_id']);
 
         $destino = $volta !== '' ? $volta : '/lancamentos?mes=' . substr($d['data'], 0, 8) . '01';
-        flash('success', self::avisoLancado($d['cat'], $d['valor'], $d['data']), [
+        flash('success', self::avisoLancado($d['cat'], $d['valor'], $d['data'], $destino), [
             'url'    => '/lancamentos/' . $id . '/excluir',
             'label'  => t('desfazer'),
             'campos' => ['volta' => $destino],
@@ -682,29 +682,41 @@ final class LancamentosController
     }
 
     /**
-     * Aviso depois de lançar: `Delivery −56,80 · Ainda dá para gastar 343,20 da meta.`; mês fechado:
-     * `Delivery −56,80 · set/26 fechado`; categoria sem previsão no mês: só `Salário +3.000,00`.
+     * Aviso depois de lançar: `Delivery −56,80 · Ainda dá para gastar 343,20 da meta.`; categoria sem previsão no mês:
+     * só `Salário +3.000,00`. O número é o da tela para onde a pessoa volta: nas Metas, o gasto como elas contam (com o
+     * cartão, pela data da compra, e a frase diz "com o cartão" quando isso muda o número); nas outras (Início, Mês,
+     * Extrato), o lançado na conta, como o Mês.
      */
-    private static function avisoLancado(array $cat, float $valor, string $data): string
+    private static function avisoLancado(array $cat, float $valor, string $data, string $destino = ''): string
     {
         $txt = self::valorTexto($cat, $valor, true);
         $mes = substr($data, 0, 8) . '01';
-        if (MesModel::situacao($mes) === 'REAL') {
-            return t('{texto} · {mes} já está fechado.', ['mes' => mesAno($mes), 'texto' => $txt]);
-        }
         if ((int) $cat['operacional'] === 1 && (int) $cat['sinal'] < 0) {
             $previsto = PrevisaoModel::valor((int) $cat['id'], $mes);
             if ($previsto > 0) {
-                $resta = round($previsto - LancamentoModel::somaPorCategoria((int) $cat['id'], $mes), 2);
+                $gasto = LancamentoModel::somaPorCategoria((int) $cat['id'], $mes);
+                $cartao = false;
+                if (preg_match('#^/meta(?:[?\#]|$)#', $destino)) {
+                    $m = MetaController::gastosDoMes($mes)[(int) $cat['id']] ?? null;
+                    $gasto = $m['gasto'] ?? $gasto;
+                    $cartao = $m['cartao'] ?? false;
+                }
+                $resta = round($previsto - $gasto, 2);
                 $nome = nomeCurto(['apelido' => $cat['apelido'] ?? null, 'nome' => $cat['nome'] ?? $cat['categoria_nome'] ?? '']);
+                $vars = ['valor' => num(abs($resta)), 'nome' => $nome, 'texto' => $txt];
                 if (MetaModel::valor((int) $cat['id']) !== null) {   // a previsão vem da meta; sem meta, é só uma estimativa
+                    if ($cartao) {
+                        return $resta < -0.004
+                            ? t('{texto} · Passou {valor} da meta de {nome}, com o cartão.', $vars)
+                            : t('{texto} · Ainda dá para gastar {valor} da meta, com o cartão.', $vars);
+                    }
                     return $resta < -0.004
-                        ? t('{texto} · Passou {valor} da meta de {nome}.', ['valor' => num(-$resta), 'nome' => $nome, 'texto' => $txt])
-                        : t('{texto} · Ainda dá para gastar {valor} da meta.', ['valor' => num($resta), 'texto' => $txt]);
+                        ? t('{texto} · Passou {valor} da meta de {nome}.', $vars)
+                        : t('{texto} · Ainda dá para gastar {valor} da meta.', $vars);
                 }
                 return $resta < -0.004
-                    ? t('{texto} · Passou {valor} do previsto para {nome}.', ['valor' => num(-$resta), 'nome' => $nome, 'texto' => $txt])
-                    : t('{texto} · Ainda restam {valor} do previsto.', ['valor' => num($resta), 'texto' => $txt]);
+                    ? t('{texto} · Passou {valor} do previsto para {nome}.', $vars)
+                    : t('{texto} · Ainda restam {valor} do previsto.', $vars);
             }
         }
         return $txt;

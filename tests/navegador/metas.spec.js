@@ -47,3 +47,24 @@ test('"Para usar neste mês" desconta as contas fixas que faltam pagar', async (
     // na linha da conta, o que falta é o mesmo
     await expect(page.locator('details.mt-linha').filter({ has: page.locator('.mt-nome', { hasText: /^Luz$/ }) }).locator('.mt-c-falta')).toHaveText('falta 238,40');
 });
+
+// o gasto das Metas conta as compras no cartão pela data da compra: onde isso muda o número, a linha diz (B-04)
+test('o número que conta o cartão diz "com o cartão"', async ({ page }) => {
+    await page.goto('/meta');
+    await expect(page.locator('.mt-conta-dl')).toContainText('Gastou, com as compras no cartão');
+    const lazer = page.locator('details.mt-linha').filter({ has: page.locator('.mt-nome', { hasText: /^Lazer$/ }) });
+    await expect(lazer.locator('.mt-c-falta')).toContainText('com o cartão');
+});
+
+test.describe('no celular', () => {
+    test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
+
+    // a meta de cada categoria continua à vista, ao lado da barra (B-17)
+    test('a linha mostra a meta junto com o gasto', async ({ page }) => {
+        await page.goto('/meta');
+        const linha = page.locator('details.mt-linha').filter({ has: page.locator('.mt-nome', { hasText: /^Mercado$/ }) });
+        await expect(linha.locator('.mt-c-meta')).toBeVisible();
+        await expect(linha.locator('.mt-c-meta')).toHaveText(/^meta \d/);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+    });
+});

@@ -104,10 +104,12 @@ $proprio = static fn(array $l): string => $l['proprio']
     : '';
 
 /* -------- as colunas de uma linha: meta, gasto, a barra fina e o que falta -------- */
-$colunas = static function (float $valor, float $gasto, bool $semMeta, string $falta = ''): void {
+// cartao: o gasto conta compras no cartão e difere do Mês e do Início, então embaixo de "falta" ou "passou" vem
+// "com o cartão". No celular, a meta aparece ao lado da barra ("meta 1.600,00")
+$colunas = static function (float $valor, float $gasto, bool $semMeta, string $falta = '', bool $cartao = false): void {
     $p = $valor > 0.004 ? min(1.0, $gasto / $valor) : 0.0;
     $passou = $valor > 0.004 && $gasto - $valor > 0.004; ?>
-    <span class="mt-c mt-c-meta num"><span class="sr-only"><?= e(t('meta')) ?> </span><?= $semMeta ? '<span class="mt-sem">' . e(t('sem meta')) . '</span>' : e(num($valor)) ?></span>
+    <span class="mt-c mt-c-meta num"><span class="sr-only mt-rot"><?= e(t('meta')) ?> </span><?= $semMeta ? '<span class="mt-sem">' . e(t('sem meta')) . '</span>' : e(num($valor)) ?></span>
     <span class="mt-c mt-c-gasto"><span class="sr-only"><?= e(t('gasto')) ?> </span><?= $gasto > 0.004 ? valor(-$gasto, 'saida', ['centavos' => false]) : '<span class="num fraco">' . e(num(0)) . '</span>' ?></span>
     <span class="mt-c mt-c-barra" aria-hidden="true"><span class="meta-barra<?= $passou ? ' passou' : '' ?>"><i style="--p:<?= e(number_format($p, 3, '.', '')) ?>"></i></span></span>
     <span class="mt-c mt-c-falta num<?= $passou ? ' alerta' : '' ?>"><?php
@@ -119,6 +121,9 @@ $colunas = static function (float $valor, float $gasto, bool $semMeta, string $f
             echo e(t('passou {valor}', ['valor' => num($gasto - $valor)]));
         } else {
             echo e(t('falta {valor}', ['valor' => num(max(0.0, $valor - $gasto))]));
+        }
+        if ($cartao && !$semMeta && $falta === '') {
+            echo '<small class="mt-cartao">' . e(t('com o cartão')) . '</small>';
         } ?></span>
 <?php };
 
@@ -131,18 +136,19 @@ $linha = static function (array $l) use ($editor, $proprio, $colunas): void {
     <details class="mt-linha <?= $cls ?>" id="c<?= (int) $l['id'] ?>" data-valor="<?= e(number_format($valor, 2, '.', '')) ?>" data-gasto="<?= e(number_format($gasto, 2, '.', '')) ?>" data-nome="<?= e($l['nome']) ?>"<?= !empty($l['aberta']) ? ' open' : '' ?>>
         <summary>
             <span class="mt-c mt-c-nome"><?= iconeCategoria((int) $l['id'], (string) $l['nome'], $l['grupo'], 20, 'mt-ic') ?><span class="mt-nome-txt"><span class="mt-nome"><?= e($l['nome']) ?></span><?= $proprio($l) ?></span></span>
-            <?php $colunas($valor, $gasto, $valor <= 0.004 && !$l['proprio']); ?>
+            <?php $colunas($valor, $gasto, $valor <= 0.004 && !$l['proprio'], '', !empty($l['cartao'])); ?>
         </summary>
         <?php $editor($l, '/meta/editar', false); ?>
     </details>
 <?php };
 
 /* -------- o cabeçalho das colunas e o total do grupo -------- */
-$cabecalho = static function (string $primeira, float $meta, float $gasto): void { ?>
+// com o cartão, o gasto das Metas é outro número que o do Mês e do Início: o rótulo diz isso
+$cabecalho = static function (string $primeira, float $meta, float $gasto) use ($porCompra): void { ?>
     <div class="mt-cab" aria-hidden="true">
         <span class="mt-c mt-c-nome"><?= e($primeira) ?></span>
         <span class="mt-c mt-c-meta"><?= e(t('Meta')) ?></span>
-        <span class="mt-c mt-c-gasto"><?= e(t('Gasto')) ?></span>
+        <span class="mt-c mt-c-gasto"><?= e(t('Gasto')) ?><?php if ($porCompra): ?><small class="mt-cartao"><?= e(t('com o cartão')) ?></small><?php endif; ?></span>
         <span class="mt-c mt-c-barra"></span>
         <span class="mt-c mt-c-falta"></span>
     </div>
@@ -230,7 +236,7 @@ $gastoContas = round(array_sum(array_column($contas, 'gasto')), 2);
             </div>
             <dl class="mt-conta-dl num" aria-label="<?= e(t('A conta do valor para usar')) ?>">
                 <div><dt><?= e(t('Entrou e já estava na conta')) ?></dt><dd><?= valor($renda, 'neutro', ['centavos' => false]) ?></dd></div>
-                <div><dt><?= e(t('Gastou')) ?></dt><dd><?= valor(-$gastoTotal, 'saida', ['centavos' => false]) ?></dd></div>
+                <div><dt><?= e($porCompra ? t('Gastou, com as compras no cartão') : t('Gastou')) ?></dt><dd><?= valor(-$gastoTotal, 'saida', ['centavos' => false]) ?></dd></div>
                 <?php if (!$fechado): ?>
                     <div><dt><?= e(t('Contas fixas a pagar')) ?></dt><dd><?= valor(-$porPagar, 'previsto', ['centavos' => false]) ?></dd></div>
                 <?php endif; ?>

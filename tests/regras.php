@@ -1495,6 +1495,49 @@ $check('fechar: só a partir do último dia do mês, o mesmo dia que a tela most
 $htmlMesHoje = $render(MesController::class, 'index', ['mes' => $mesHoje]);
 $check('fechar: o botão do Mês segue a mesma regra', str_contains($htmlMesHoje, 'href="/mes/fechar?mes=' . $mesHoje . '"') === MesModel::podeFechar($mesHoje, $hoje));
 
+// ---- 9f. "Precisa de atenção" e Metas dizem o mesmo (B-03); onde o cartão muda o número, o rótulo diz (B-04)
+$emTransacao('atenção e metas', static function () use ($check, $render, $mesHoje, $hoje): void {
+    $passaram = static function () use ($render, $hoje): array {
+        MotorFinanceiro::limparCache();
+        preg_match_all('/<details class="mt-linha is-over" id="c(\d+)"/', $render(MetaController::class, 'index', []), $m);
+        $metas = array_map('intval', $m[1]);
+        $aten = [];
+        foreach (\Financeiro\Services\Atencao::avisos($hoje) as $a) {
+            if ($a['tipo'] === 'meta') {
+                $aten[] = (int) substr((string) $a['href'], strlen('/meta#c'));
+            }
+        }
+        sort($metas);
+        sort($aten);
+        return [$metas, $aten];
+    };
+    [$metas, $aten] = $passaram();
+    $check('atenção: as categorias acima da meta são as mesmas das Metas, com o cartão contado igual', $metas !== [] && $metas === $aten, json_encode([$metas, $aten]));
+    // a meta do mês (um valor só deste mês, como o editor de recorrência grava) vale nos dois
+    PrevisaoModel::setValor($metas[0], $mesHoje, 99999.0);
+    [$metas2, $aten2] = $passaram();
+    $check('atenção: a meta do mês vale, e o aviso some junto com o vermelho das Metas', !in_array($metas[0], $aten2, true) && $metas2 === $aten2, json_encode([$metas2, $aten2]));
+
+    // os números que contam o cartão dizem isso; o aviso do Lançar usa o número da tela para onde a pessoa volta
+    $g = MetaController::gastosDoMes($mesHoje);
+    $comCartao = array_keys(array_filter($g, static fn(array $x): bool => $x['cartao']));
+    $htmlM = $render(MetaController::class, 'index', []);
+    if (GastoPorCategoria::ativo() && $comCartao !== []) {
+        $cat = CategoriaModel::find($comCartao[0]);
+        PrevisaoModel::setValor($comCartao[0], $mesHoje, 99999.0);
+        MotorFinanceiro::limparCache();
+        $aviso = new \ReflectionMethod(LancamentosController::class, 'avisoLancado');
+        $naMeta = (string) $aviso->invoke(null, $cat, 10.0, $hoje, '/meta?mes=' . $mesHoje);
+        $noInicio = (string) $aviso->invoke(null, $cat, 10.0, $hoje, '/');
+        $check('metas: com o cartão, o gasto e o que falta dizem "com o cartão"', str_contains($htmlM, 'Gastou, com as compras no cartão') && str_contains($htmlM, 'Gasto, com o cartão')
+            && preg_match('/id="c' . $comCartao[0] . '".*?, com o cartão<\/span>/s', $htmlM) === 1);
+        $check('lançar: o aviso usa o número da tela para onde volta', str_contains($naMeta, num(round(99999.0 - $g[$comCartao[0]]['gasto'], 2)) . ' da meta, com o cartão')
+            && str_contains($noInicio, num(round(99999.0 - LancamentoModel::somaPorCategoria($comCartao[0], $mesHoje), 2)) . ' da meta.'), $naMeta . ' | ' . $noInicio);
+    } else {
+        $check('metas: a demonstração tem compra no cartão contada nas Metas', false);
+    }
+});
+
 // ---- 9d. Mês fechado não muda (B-01): lançar, editar, excluir, transferir, pagar e a compra cuja fatura é de mês fechado
 $emTransacao('mês fechado não muda', static function () use ($pdo, $check, $render, $catDia, $mesHoje, $hoje, $uid): void {
     $fechado = (string) $pdo->query("SELECT MAX(mes) FROM meses WHERE situacao = 'REAL'")->fetchColumn();

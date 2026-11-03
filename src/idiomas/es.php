@@ -2350,4 +2350,12 @@ return [
     'Abrir o Mês' => 'Abrir Mes',
     'A compra cai na fatura de {mes}, e esse mês está fechado. Para mudar, reabra o mês no Mês.' => 'La compra cae en la factura de {mes}, y ese mes está cerrado. Para cambiarlo, reabra el mes en Mes.',
     'Dá para fechar {mes} a partir de {data}.' => 'Se puede cerrar {mes} a partir del {data}.',
+    '{texto} · Passou {valor} da meta de {nome}, com o cartão.' => '{texto} · Pasó {valor} de la meta de {nome}, con la tarjeta.',
+    '{texto} · Ainda dá para gastar {valor} da meta, com o cartão.' => '{texto} · Aún puede gastar {valor} de la meta, con la tarjeta.',
+    '{gasto} de {meta}, passou {resto}, com o cartão' => '{gasto} de {meta}, se pasó {resto}, con la tarjeta',
+    'passou {valor}, com o cartão' => 'se pasó {valor}, con la tarjeta',
+    'falta {valor}, com o cartão' => 'faltan {valor}, con la tarjeta',
+    'Gasto, com o cartão' => 'Gasto, con la tarjeta',
+    'Gastou, com as compras no cartão' => 'Gastó, con las compras con tarjeta',
+    'com o cartão' => 'con la tarjeta',
 ];
