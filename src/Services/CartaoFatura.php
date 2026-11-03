@@ -221,11 +221,9 @@ final class CartaoFatura
         }
         // parcelamentos que ainda têm parcela da aberta em diante, do que acaba antes para o que acaba depois
         $parc = [];
-        $comprometido = 0.0;
         foreach ($compras as $c) {
             $ps = self::parcelas((float) $c['valor_total'], (int) $c['parcelas'], (string) $c['primeira_fatura']);
             $futuras = array_values(array_filter($ps, static fn($p) => $p[0] >= $aberta));
-            $comprometido += array_sum(array_column($futuras, 2));
             if ((int) $c['parcelas'] < 2 || $futuras === []) {
                 continue;
             }
@@ -235,6 +233,7 @@ final class CartaoFatura
                        'ultima' => $ps[count($ps) - 1][0], 'comeca' => $futuras[0][0]];
         }
         usort($parc, static fn($a, $b) => [$a['ultima'], $a['compra']['id']] <=> [$b['ultima'], $b['compra']['id']]);
+        $comprometido = self::comprometido($porFatura, $pagas, $aberta);
         $limite = $cartao['limite'] ?? null;
         return [
             'aberta' => $aberta, 'faturas' => $faturas, 'parcelamentos' => $parc,
@@ -242,6 +241,27 @@ final class CartaoFatura
             'comprometido' => round($comprometido, 2),
             'livre' => $limite !== null ? round($limite - $comprometido, 2) : null,
         ];
+    }
+
+    /**
+     * O que ainda ocupa o limite: de cada fatura, as parcelas menos o que já foi pago dela. Entram a aberta e as
+     * seguintes e as fechadas a pagar (no todo ou o que falta), então pagar a fatura libera o limite. As fechadas
+     * contam a partir da mais antiga que recebeu pagamento no app, ou da última fechada: a compra antiga traz
+     * parcelas de faturas pagas antes de a pessoa usar o app, e essas não ocupam nada.
+     * @param array<string, list<array{valor:float}>> $porFatura porFatura()
+     * @param array<string, float> $pagas fatura => total pago
+     */
+    public static function comprometido(array $porFatura, array $pagas, string $aberta): float
+    {
+        $comPagamento = array_keys(array_filter($pagas, static fn($v) => (float) $v > 0.004));
+        $desde = min([self::somaMeses($aberta, -1), ...$comPagamento]);
+        $soma = 0.0;
+        foreach ($porFatura as $f => $itens) {
+            if ($f >= $desde) {
+                $soma += max(0.0, round(array_sum(array_column($itens, 'valor')) - (float) ($pagas[$f] ?? 0.0), 2));
+            }
+        }
+        return round($soma, 2);
     }
 
     /**

@@ -3678,5 +3678,19 @@ $htmlAj = $render(AjustesController::class, 'index', []);
 $htmlEm = $render(EmprestimoController::class, 'index', []);
 $check('consignado: a escolha de como a parcela é paga saiu de Ajustes e está no Empréstimo', !str_contains($htmlAj, 'name="parcela_modo"') && str_contains($htmlEm, 'name="parcela_modo"'));
 
+// ---- QA de 2026-11 (área C): cartão, relatório, importar, investimentos, wishlist, empréstimo e simular
+// C-01: o limite livre desconta a fatura fechada que falta pagar (no todo ou o que falta), a aberta e as seguintes
+$cartL = ['fecha' => 10, 'vence' => 20, 'limite' => 5000.50];
+$compL = [['id' => 1, 'valor_total' => 100.0, 'parcelas' => 1, 'primeira_fatura' => '2026-11-01', 'descricao' => 'Antes de fechar', 'data' => '2026-11-09'],
+          ['id' => 2, 'valor_total' => 1570.0, 'parcelas' => 2, 'primeira_fatura' => '2026-12-01', 'descricao' => 'Depois fecha', 'data' => '2026-11-11']];
+$livreL = static fn(array $pagas, array $compras = []): ?float => CartaoFatura::painel($cartL, $compras ?: $compL, '2026-11-22', $pagas)['livre'];
+$antigaL = [['id' => 3, 'valor_total' => 600.0, 'parcelas' => 6, 'primeira_fatura' => '2026-08-01', 'descricao' => 'Compra antiga', 'data' => '2026-11-01']];
+$check('C-01 cartão: o limite livre desconta a fatura fechada por pagar, e pagar a fatura libera o limite',
+    abs($livreL([]) - 3330.50) < 0.005 && abs($livreL(['2026-11-01' => 40.0]) - 3370.50) < 0.005 && abs($livreL(['2026-11-01' => 100.0]) - 3430.50) < 0.005
+    && abs($livreL(['2026-11-01' => 100.0, '2026-12-01' => 785.0]) - 4215.50) < 0.005
+    // a compra antiga não ocupa o limite com as parcelas de antes da última fechada (pagas antes de usar o app)
+    && abs($livreL([], $antigaL) - (5000.50 - 300.0)) < 0.005,
+    json_encode([$livreL([]), $livreL(['2026-11-01' => 40.0]), $livreL(['2026-11-01' => 100.0]), $livreL([], $antigaL)]));
+
 echo "\n{$ok} ok, {$falhas} falha(s)\n";
 exit($falhas > 0 ? 1 : 0);
