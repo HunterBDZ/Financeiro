@@ -94,3 +94,34 @@ test('a mesma regra de senha em todo lugar: 8 caracteres e não só espaços (A-
     await page.request.post(baseURL + '/logout');
     await entrar(page.request, baseURL);
 });
+
+test('erro em Pessoas e em Criar categoria volta com o que foi digitado (A-09)', async ({ page }) => {
+    // Pessoas: senha curta (o campo pede 8; sem a regra do navegador, o servidor confere)
+    await page.goto('/ajustes?aberto=pessoas');
+    const pessoas = page.locator('#pessoas');
+    await pessoas.getByLabel('Nome', { exact: true }).fill('Eva');
+    await pessoas.getByLabel('Nome de usuário').fill('eva');
+    await pessoas.getByLabel('Senha', { exact: true }).fill('1234567');
+    await pessoas.locator('form').first().evaluate((f) => { f.noValidate = true; });
+    await pessoas.getByRole('button', { name: 'Adicionar pessoa' }).click();
+    await expect(pessoas).toContainText('A senha precisa de pelo menos 8 caracteres.');
+    await expect(pessoas.getByLabel('Nome', { exact: true })).toHaveValue('Eva');
+    await expect(pessoas.getByLabel('Nome de usuário')).toHaveValue('eva');
+    await expect(pessoas.getByLabel('Senha', { exact: true })).toHaveValue('');
+
+    // Criar categoria: o formulário volta aberto, com a mensagem e o que foi digitado
+    await page.goto('/ajustes?aberto=categorias');
+    const cats = page.locator('#categorias');
+    await cats.getByText('Criar categoria').first().click();
+    await cats.getByLabel('Nome da categoria').fill('Pet de teste');
+    await cats.getByText('Não essencial').click();
+    await cats.getByLabel('Meta de gasto por mês (opcional)').fill('-50');
+    await cats.getByRole('button', { name: 'Criar categoria' }).click();
+    const form = cats.locator('form.aj-cn');
+    await expect(form).toBeVisible();
+    await expect(form.getByRole('alert')).toHaveText('Valor inválido. Use só números, como 150 ou 150,90.');
+    await expect(form.getByLabel('Nome da categoria')).toHaveValue('Pet de teste');
+    await expect(form.getByLabel('Meta de gasto por mês (opcional)')).toHaveValue('-50');
+    await expect(form.locator('input[name="essencial"][value="0"]')).toBeChecked();
+    await expect(cats).not.toContainText('Pet de teste criada');
+});

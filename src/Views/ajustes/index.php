@@ -108,7 +108,8 @@ $formConta = static function (?array $c) use ($csrf, $erroConta, $tiposD, $inici
     <section class="ajs-sec" aria-labelledby="ajs-g-plano">
         <h2 class="ajs-sec-t" id="ajs-g-plano"><?= e(t('Dinheiro e planejamento')) ?></h2>
         <div class="ajs-lista">
-            <?php \Financeiro\View::partial('ajustes/_categorias', ['categorias' => $categorias, 'arquivadas' => $arquivadas, 'dias' => $dias, 'aberto' => $aberto('categorias'), 'linha' => $linha]); ?>
+            <?php \Financeiro\View::partial('ajustes/_categorias', ['categorias' => $categorias, 'arquivadas' => $arquivadas, 'dias' => $dias, 'aberto' => $aberto('categorias'), 'linha' => $linha,
+                'erro' => $erro !== null && ($erro['grupo'] ?? '') === 'categorias' ? $erro : null]); ?>
 
             <details class="ajs-item" id="carteira"<?= $aberto('carteira') ?>>
                 <summary class="ajs-linha"><?= $linha('carteira', t('Contas'), tn(count($ativasD), '1 conta', '{n} contas')) ?></summary>
@@ -333,8 +334,9 @@ $formConta = static function (?array $c) use ($csrf, $erroConta, $tiposD, $inici
                     <p class="aj-ajuda"><?= e(implode(', ', array_column($pessoas, 'nome'))) ?></p>
                     <form class="aj-form" method="post" action="/ajustes/pessoas">
                         <?= $csrf ?>
-                        <label class="campo"><span><?= e(t('Nome')) ?></span><input type="text" name="nome" maxlength="100" autocomplete="off" required></label>
-                        <label class="campo"><span><?= e(t('Nome de usuário')) ?></span><input type="text" name="login" maxlength="100" autocomplete="off" autocapitalize="none" spellcheck="false" required></label>
+                        <?php $pessoaDigitada = $erro !== null && ($erro['grupo'] ?? '') === 'pessoas' ? (array) ($erro['pessoa'] ?? []) : []; ?>
+                        <label class="campo"><span><?= e(t('Nome')) ?></span><input type="text" name="nome" maxlength="100" autocomplete="off" value="<?= e((string) ($pessoaDigitada['nome'] ?? '')) ?>" required></label>
+                        <label class="campo"><span><?= e(t('Nome de usuário')) ?></span><input type="text" name="login" maxlength="100" autocomplete="off" autocapitalize="none" spellcheck="false" value="<?= e((string) ($pessoaDigitada['login'] ?? '')) ?>" required></label>
                         <label class="campo"><span><?= e(t('Senha')) ?></span><input type="password" name="senha" autocomplete="new-password" minlength="8" required></label>
                         <?php $erroDe('pessoas'); ?>
                         <button type="submit" class="btn btn-primary aj-salvar"><?= e(t('Adicionar pessoa')) ?></button>

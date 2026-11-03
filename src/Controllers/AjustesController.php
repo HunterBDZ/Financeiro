@@ -378,7 +378,7 @@ final class AjustesController
 
         $erro = UsuarioModel::erroNovaConta($nome, $login, $senha);
         if ($erro !== null) {
-            $_SESSION['aj_erro'] = ['grupo' => 'pessoas', 'msg' => $erro];
+            $_SESSION['aj_erro'] = ['grupo' => 'pessoas', 'msg' => $erro, 'pessoa' => ['nome' => $nome, 'login' => $login]];   // a senha não volta
             redirecionar('/ajustes?aberto=pessoas#pessoas', 303);
         }
         UsuarioModel::criar($nome, $login, $senha);
