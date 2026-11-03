@@ -2155,4 +2155,12 @@ return [
     'Com estes dados, a parcela não cobre os juros e não dá para dizer quando termina. Confira os dados do empréstimo.' => 'Con estos datos, la cuota no cubre los intereses y no se puede decir cuándo termina. Revise los datos del préstamo.',
     'Simular um adiantamento' => 'Simular un adelanto',
     'Pagamentos e dados do empréstimo' => 'Pagos y datos del préstamo',
+    'Pelo que você lançou e pelo valor de partida. Rendimentos não entram.' => 'Según lo que registró y el valor inicial. Los rendimientos no entran.',
+    'O que você guarda e investe aparece aqui' => 'Lo que usted ahorra e invierte aparece aquí',
+    'Cada vez que você guardar na poupança ou aplicar num investimento, lance o valor: ele sai da conta e entra aqui, na posição certa.' => 'Cada vez que ahorre o invierta, registre el valor: sale de la cuenta y entra aquí, en la posición correcta.',
+    'Lançar o primeiro valor guardado' => 'Registrar el primer valor ahorrado',
+    'Posições' => 'Posiciones',
+    'Posição' => 'Posición',
+    'Ações' => 'Acciones',
+    'Nada lançado ainda. Use {acao} quando guardar um valor.' => 'Nada registrado todavía. Use {acao} cuando guarde un valor.',
 ];

@@ -236,6 +236,8 @@ $htmlInv = $pagina(InvestimentosController::class, 'index', '/investimentos');
 $pdo->rollBack();
 MotorFinanceiro::limparCache();
 $check('investimentos: o lançamento soma em outros investimentos e no total', abs($depoisInv['outros']['saldo'] - $antesInv['outros']['saldo'] - 700) < 0.01 && abs($depoisInv['total'] - $antesInv['total'] - 700) < 0.01 && abs($depoisInv['poupanca']['saldo'] - $antesInv['poupanca']['saldo']) < 0.01);
+$check('investimentos: o total é a resposta e as posições ficam numa tabela, sem cartão', str_contains($htmlInv, 'class="faixa-grade inv-total"') && str_contains($htmlInv, 'class="livro inv-tabela"')
+    && str_contains($htmlInv, 'class="total-final"') && !str_contains($htmlInv, 'class="saldo ') && !str_contains($htmlInv, 'card inv-parte'));
 $check('investimentos: o dinheiro sai da conta', abs($saldoAntes - $saldoDepois - 700) < 0.01);
 $check('investimentos: não muda entradas nem gastos do plano', abs($linhaDepois['entra'] - $linhaAntes['entra']) < 0.01 && abs($linhaDepois['sai'] - $linhaAntes['sai']) < 0.01);
 $check('investimentos: o plano registra a aplicação', abs($linhaDepois['invest_liquido'] - $linhaAntes['invest_liquido'] - 700) < 0.01 && abs($linhaDepois['invest_saldo'] - $linhaAntes['invest_saldo'] - 700) < 0.01);

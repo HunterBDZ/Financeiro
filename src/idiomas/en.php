@@ -2155,4 +2155,12 @@ return [
     'Com estes dados, a parcela não cobre os juros e não dá para dizer quando termina. Confira os dados do empréstimo.' => 'With these details, the installment does not cover the interest, so the end cannot be told. Check the loan details.',
     'Simular um adiantamento' => 'Simulate a prepayment',
     'Pagamentos e dados do empréstimo' => 'Payments and loan details',
+    'Pelo que você lançou e pelo valor de partida. Rendimentos não entram.' => 'From what you recorded and the starting amount. Returns are not included.',
+    'O que você guarda e investe aparece aqui' => 'What you save and invest shows up here',
+    'Cada vez que você guardar na poupança ou aplicar num investimento, lance o valor: ele sai da conta e entra aqui, na posição certa.' => 'Each time you put money into savings or an investment, record the amount: it leaves the account and shows up here, in the right position.',
+    'Lançar o primeiro valor guardado' => 'Record the first amount saved',
+    'Posições' => 'Positions',
+    'Posição' => 'Position',
+    'Ações' => 'Actions',
+    'Nada lançado ainda. Use {acao} quando guardar um valor.' => 'Nothing recorded yet. Use {acao} when you put money aside.',
 ];
