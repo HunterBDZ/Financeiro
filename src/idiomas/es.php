@@ -2114,4 +2114,5 @@ return [
     '{pagas} de {n} pagas' => '{pagas} de {n} pagadas',
     'O previsto para {mes}. Mude se foi outro valor.' => 'Lo previsto para {mes}. Cámbielo si fue otro valor.',
     'Usadas por último' => 'Usadas por último',
+    'Voltar ao Início' => 'Volver al Inicio',
 ];

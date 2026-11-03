@@ -2114,4 +2114,5 @@ return [
     '{pagas} de {n} pagas' => '{pagas} of {n} paid',
     'O previsto para {mes}. Mude se foi outro valor.' => 'The forecast for {mes}. Change it if it was a different amount.',
     'Usadas por último' => 'Used last',
+    'Voltar ao Início' => 'Back to Home',
 ];
