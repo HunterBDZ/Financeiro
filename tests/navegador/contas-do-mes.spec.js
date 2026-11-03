@@ -1,4 +1,4 @@
-// As "Contas do mês" do Início e do Extrato: o Pago lança a conta fixa com o valor previsto, na data de hoje, e o aviso
+// As "Contas do mês" do Início (o Extrato não repete a lista: mostra só a linha da conta vencida): o Pago lança a conta fixa com o valor previsto, na data de hoje, e o aviso
 // tem o desfazer. Na demonstração (dia 22), as contas fixas do mês já estão pagas: cada teste tira o pagamento de uma.
 import { test, expect, contaSemPagamento } from './fixtures.js';
 
@@ -23,18 +23,14 @@ test('Pago no Início: a conta sai da lista, e desfazer a traz de volta', async 
     await expect(page.getByRole('region', { name: 'Contas do mês' }).getByRole('listitem').filter({ hasText: 'Celular' })).toBeVisible();
 });
 
-test('Pago no Extrato: o lançamento entra hoje com o valor previsto', async ({ page, baseURL }) => {
-    await contaSemPagamento(page, baseURL, 'Seguro do carro');
+test('o Extrato não repete as Contas do mês: só avisa a vencida e leva ao Mês', async ({ page, baseURL }) => {
+    await contaSemPagamento(page, baseURL, 'Luz');           // vence dia 10: no dia 22, vencida
     await page.goto('/lancamentos');
-    const conta = page.getByRole('region', { name: 'Contas do mês' }).getByRole('listitem').filter({ hasText: 'Seguro do carro' });
-    await expect(conta).toContainText('210,00');
-    await conta.getByRole('button', { name: /^Pago/ }).click();
-
-    await expect(page).toHaveURL(/\/lancamentos/);
-    await expect(page.getByRole('status').filter({ hasText: 'Pago hoje' })).toContainText('Seguro do carro');
-    await expect(page.getByRole('region', { name: 'Contas do mês' }).getByRole('listitem').filter({ hasText: 'Seguro do carro' })).toHaveCount(0);
-    const hoje = page.getByRole('heading', { name: 'Hoje' }).locator('xpath=following-sibling::ul[1]');
-    await expect(hoje.getByRole('link', { name: /Seguro do carro/ })).toContainText('210,00');
+    await expect(page.getByRole('region', { name: 'Contas do mês' })).toHaveCount(0);
+    const aviso = page.locator('.ext-vencida');
+    await expect(aviso).toContainText(/contas? vencidas?: .*Luz/);
+    await aviso.getByRole('link', { name: 'Ver no Mês' }).click();
+    await expect(page).toHaveURL('/mes');
 });
 
 test('outro valor: o nome da conta abre o Lançar com a categoria escolhida', async ({ page, baseURL }) => {

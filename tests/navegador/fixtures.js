@@ -105,11 +105,11 @@ export async function escolherCategoria(escopo, nome) {
 
 /**
  * Deixa uma conta fixa do mês sem pagamento, excluindo o lançamento dela (na demonstração, com o relógio no dia 22,
- * todas já foram pagas): assim ela aparece nas "Contas do mês" do Início e do Extrato. Sem o pagamento, não faz nada.
+ * todas já foram pagas): assim ela aparece nas "Contas do mês" do Início (e, vencida, na linha de aviso do Extrato). Sem o pagamento, não faz nada.
  */
 export async function contaSemPagamento(page, baseURL, nome) {
     await page.goto('/lancamentos');
-    const linha = page.locator('a.ex-linha', { hasText: nome });
+    const linha = page.locator('.ext-linha .ext-c-desc > a', { hasText: nome });
     if (await linha.count() === 0) {
         return;                                         // já estava sem pagamento (outro teste do mesmo processo)
     }

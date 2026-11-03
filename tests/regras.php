@@ -1400,8 +1400,10 @@ $emTransacao('contas do mês: Pago', static function () use ($pdo, $check, $rend
     MotorFinanceiro::limparCache();
     $htmlExt = $render(LancamentosController::class, 'index', ['mes' => $mesHoje]);
     $botao = 'name="categoria_id" value="' . $catPago . '"';
-    $check('contas do mês: no Início e no Extrato, com o botão Pago e o outro valor', str_contains($htmlIni, 'id="contas-mes"') && str_contains($htmlExt, 'id="contas-mes"')
-        && str_contains($htmlIni, $botao) && str_contains($htmlExt, $botao) && str_contains($htmlIni, 'action="/lancamentos/pago"')
+    // o Extrato não repete a lista: só a linha discreta da conta vencida, que leva ao Mês
+    $check('contas do mês: no Início, com o botão Pago e o outro valor; no Extrato, só a vencida', str_contains($htmlIni, 'id="contas-mes"') && !str_contains($htmlExt, 'id="contas-mes"')
+        && str_contains($htmlExt, 'class="ext-vencida') && !str_contains($htmlExt, $botao)
+        && str_contains($htmlIni, $botao) && str_contains($htmlIni, 'action="/lancamentos/pago"')
         && str_contains($htmlIni, 'data-categoria="' . $catPago . '"') && str_contains($htmlIni, 'venceu dia 5'));
     MotorFinanceiro::limparCache();
     $check('contas do mês: o Extrato com filtro não mostra o bloco', !str_contains($render(LancamentosController::class, 'index', ['mes' => $mesHoje, 'q' => 'x']), 'id="contas-mes"'));
@@ -2935,8 +2937,13 @@ $emTransacao('busca em período', static function () use ($pdo, $check, $render,
     $check('busca: a planilha lê em lotes, do mais antigo ao mais novo, sem repetir', count($lotes) === 4 && count(array_unique($lotes)) === 4 && $lotes[0] === '2001-03-05#10.50' && $lotes[3] === '2002-01-01#30.00', json_encode($lotes));
     $htmlB = $render(LancamentosController::class, 'index', ['periodo' => 'ano', 'mes' => '2001-01-01', 'q' => 'zzbusca']);
     $htmlT = $render(LancamentosController::class, 'index', ['periodo' => 'tudo', 'q' => 'zzbusca']);
-    $check('busca: a tela responde com o total no topo', str_contains($htmlT, 'data-ex-total="gasto">' . e(money(61.75)) . '<') && str_contains($htmlT, 'href="/lancamentos/planilha?'));
-    $check('busca: o período pedido vale (datas)', str_contains($render(LancamentosController::class, 'index', ['periodo' => 'datas', 'de' => '2001-07-01', 'ate' => '2001-07-31', 'q' => 'zzbusca']), 'data-ex-total="gasto">' . e(money(21.25)) . '<'));
+    $check('busca: a tela responde com o total no topo', str_contains($htmlT, 'data-ex-total="gasto">' . valor(-61.75, 'saida') . '<') && str_contains($htmlT, 'href="/lancamentos/planilha?'));
+    $check('busca: o período pedido vale (datas)', str_contains($render(LancamentosController::class, 'index', ['periodo' => 'datas', 'de' => '2001-07-01', 'ate' => '2001-07-31', 'q' => 'zzbusca']), 'data-ex-total="gasto">' . valor(-21.25, 'saida') . '<'));
+    // o período do filtro por extenso, com a maiúscula só no mês ("Novembro de 2026", nunca "Novembro De 2026")
+    $check('extrato: o período do filtro vem inteiro e com a maiúscula só no mês', str_contains($htmlT, '>' . mb_convert_case(mesExtenso($mesB), MB_CASE_TITLE) . ' de ' . substr($mesB, 0, 4) . '</option>')
+        && preg_match('/>\p{Lu}\p{Ll}+ De \d{4}</u', $htmlT) === 0);
+    // o Extrato não tem mais o formulário de lançar na tela: o Lançar é o diálogo do layout
+    $check('extrato: sem o formulário de lançar na tela, a busca com a tecla /', !str_contains($htmlT, 'data-lf-modo="pagina"') && str_contains($htmlT, 'aria-keyshortcuts="/"'));
     $check('busca: valor que não dá para ler é avisado', str_contains($render(LancamentosController::class, 'index', ['periodo' => 'tudo', 'min' => 'abc']), 'id="ex-erro-valor"'));
     unset($htmlB);
 
@@ -3175,9 +3182,9 @@ if (Sql::sqlite()) {
         $check('várias contas: o Início mostra o total e, nos detalhes, cada conta; conferir pede cada uma', str_contains($hIni, 'class="saldo-contas num"')
             && str_contains($hIni, 'Carteira teste') && str_contains($hIni, 'name="saldo_conta[' . $id2 . ']"') && !str_contains($hIni, 'name="saldo_informado"'));
         $hExt = $render(LancamentosController::class, 'index', ['conta' => (string) $id2]);
-        $check('várias contas: o Extrato filtra pela conta, com o saldo dela e a transferência, fora dos totais', str_contains($hExt, 'class="ex-saldo-conta num"')
-            && str_contains($hExt, e(money(195.0))) && str_contains($hExt, 'saque teste') && str_contains($hExt, 'ex-transf') && str_contains($hExt, '↔ +80,00')
-            && str_contains($hExt, 'data-ex-total="gasto">' . e(money(35.0)) . '<'));
+        $check('várias contas: o Extrato filtra pela conta, com o saldo dela e a transferência, fora dos totais', str_contains($hExt, 'class="ext-saldo-conta"')
+            && str_contains($hExt, valor(195.0)) && str_contains($hExt, 'saque teste') && str_contains($hExt, 'ext-transf') && str_contains($hExt, '↔ +80,00')
+            && str_contains($hExt, 'data-ex-total="gasto">' . valor(-35.0, 'saida') . '<'));
         $hFe = $render(MesController::class, 'fecharForm', []);
         $check('várias contas: fechar o mês pede o saldo do banco de cada conta', str_contains($hFe, 'name="saldo_conta[' . ContaModel::PRINCIPAL . ']"')
             && str_contains($hFe, 'name="saldo_conta[' . $id2 . ']"') && str_contains($hFe, 'data-conf-app="195.00"'));

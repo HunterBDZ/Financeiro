@@ -186,7 +186,7 @@ function conferencia(callable $check): void
     // ---- 3. as telas abrem sem erro nem aviso do PHP, com o bloco principal, em português, inglês e espanhol
     $telas = [
         ['/',              DashboardController::class,     'index',      [],                  'saldo-v'],
-        ['/lancamentos',   LancamentosController::class,   'index',      [],                  'ex-main'],
+        ['/lancamentos',   LancamentosController::class,   'index',      [],                  'ext-livro'],
         ['/lancar',        LancamentosController::class,   'lancarForm', [],                  'data-lf'],
         ['/meta',          MetaController::class,          'index',      [],                  'meta-listas'],
         ['/mes',           MesController::class,           'index',      [],                  'mes-resumo'],

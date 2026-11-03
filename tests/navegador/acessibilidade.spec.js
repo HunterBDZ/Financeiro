@@ -75,13 +75,20 @@ for (const tema of ['claro', 'escuro']) {
             expect(await graves(page)).toEqual([]);
         });
 
-        test('Início e Extrato com contas do mês a pagar', async ({ page, baseURL }) => {
+        test('Início com contas do mês a pagar e o Extrato com a conta vencida', async ({ page, baseURL }) => {
             await contaSemPagamento(page, baseURL, 'Luz');
-            for (const caminho of ['/', '/lancamentos']) {
-                await page.goto(caminho);
-                await expect(page.getByRole('region', { name: 'Contas do mês' })).toBeVisible();
-                expect(await graves(page)).toEqual([]);
-            }
+            await page.goto('/');
+            await expect(page.getByRole('region', { name: 'Contas do mês' })).toBeVisible();
+            expect(await graves(page)).toEqual([]);
+            await page.goto('/lancamentos');
+            await expect(page.locator('.ext-vencida')).toContainText('Luz');
+            expect(await graves(page)).toEqual([]);
+        });
+
+        test('Extrato: busca sem resultado e filtros abertos', async ({ page }) => {
+            await page.goto('/lancamentos?q=nada-com-isso&min=1');
+            await expect(page.getByText(/Buscar em todos os meses|Nada encontrado/).first()).toBeVisible();
+            expect(await graves(page)).toEqual([]);
         });
 
         test.describe('no celular', () => {

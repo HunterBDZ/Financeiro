@@ -1,13 +1,14 @@
-// Lançar um gasto: no computador (a coluna do Extrato e o diálogo) e no celular (o "+" da barra de baixo).
+// Lançar um gasto: no computador (o diálogo, também no Extrato) e no celular (o "+" da barra de baixo).
 // Cada teste usa valor e categoria só seus: lançamento igual no mesmo dia pede confirmação antes de entrar.
 import { test, expect, escolherCategoria } from './fixtures.js';
 
 test.describe('no computador', () => {
     test('lança 45 no Extrato, vê o aviso e desfaz', async ({ page }) => {
         await page.goto('/lancamentos');
-        // no Extrato, o botão Lançar do menu leva ao formulário da coluna, sem abrir o diálogo
+        // o Extrato não tem mais o formulário na tela: o Lançar do menu abre o diálogo, como nas outras telas
+        await expect(page.getByRole('complementary', { name: 'lançar' })).toHaveCount(0);
         await page.getByRole('complementary', { name: 'menu' }).getByRole('link', { name: 'Lançar' }).click();
-        const form = page.getByRole('complementary', { name: 'lançar' });
+        const form = page.getByRole('dialog', { name: 'lançar' });
         const valor = form.getByRole('textbox', { name: 'valor' });
         await expect(valor).toBeFocused();
 
@@ -20,7 +21,8 @@ test.describe('no computador', () => {
 
         const aviso = page.getByRole('status').filter({ hasText: 'Mercado' });
         await expect(aviso).toContainText('45,00');
-        const linha = page.getByRole('link', { name: /Feira do teste/ });
+        // a linha do livro-razão: a descrição leva ao editar, o valor fica na coluna dele
+        const linha = page.getByRole('row').filter({ has: page.getByRole('link', { name: 'Feira do teste' }) });
         await expect(linha).toContainText('45,00');
 
         await aviso.getByRole('button', { name: 'desfazer' }).click();
@@ -119,6 +121,6 @@ test.describe('no celular', () => {
         await expect(dialogo).toBeHidden();
         await expect(page.getByRole('status').filter({ hasText: 'Lazer' })).toContainText('37,00');
         await barra.getByRole('link', { name: 'Extrato' }).tap();
-        await expect(page.getByRole('link', { name: /Cinema do teste/ })).toContainText('37,00');
+        await expect(page.getByRole('row').filter({ has: page.getByRole('link', { name: /Cinema do teste/ }) })).toContainText('37,00');
     });
 });
