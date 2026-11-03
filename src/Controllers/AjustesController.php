@@ -405,8 +405,7 @@ final class AjustesController
         }
         $erro = match (true) {
             $conferida !== 'ok'  => t('A senha atual não confere.'),
-            mb_strlen($nova) < 8 => t('A senha precisa de pelo menos 8 caracteres.'),
-            default              => null,
+            default              => UsuarioModel::erroSenha($nova),
         };
         if ($erro !== null) {
             $_SESSION['aj_erro'] = ['grupo' => 'pessoas', 'msg' => $erro];
@@ -437,7 +436,7 @@ final class AjustesController
         }
         $erro = match (true) {
             $conferida !== 'ok'   => t('A senha atual não confere.'),
-            mb_strlen($nova) < 6  => t('A nova senha precisa ter pelo menos 6 caracteres.'),
+            UsuarioModel::erroSenha($nova) !== null => UsuarioModel::erroSenha($nova),
             $nova !== $repetir    => t('As duas senhas novas não são iguais.'),
             default               => null,
         };

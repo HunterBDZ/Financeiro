@@ -1366,7 +1366,6 @@ return [
     'A senha atual foi digitada errada muitas vezes. Entre de novo em 10 minutos.' => 'La contraseña actual se escribió mal muchas veces. Entre de nuevo en 10 minutos.',
     'A senha atual não confere.' => 'La contraseña actual no coincide.',
     'Senha trocada.' => 'Contraseña cambiada.',
-    'A nova senha precisa ter pelo menos 6 caracteres.' => 'La nueva contraseña debe tener al menos 6 caracteres.',
     'As duas senhas novas não são iguais.' => 'Las dos contraseñas nuevas no son iguales.',
     'Digite como você fala: 45 é {valor}. Para centavos, use vírgula: {exemplo}.' => 'Escríbalo como lo dice: 45 es {valor}. Para los centavos, use coma: {exemplo}.',
     'A compra é convertida para {moeda} pela cotação comercial, sem impostos nem taxa do cartão. Em fim de semana e feriado, vale o último fechamento.' => 'La compra se convierte a {moeda} con la cotización comercial, sin impuestos ni comisión de la tarjeta. En fines de semana y feriados, vale el último cierre.',
@@ -2347,4 +2346,5 @@ return [
     'Colunas, se for CSV' => 'Columnas, si es CSV',
     'Revisar' => 'Revisar',
     'Outra pessoa mudou isto agora. Confira e salve de novo.' => 'Otra persona acaba de cambiar esto. Revísalo y guarda de nuevo.',
+    'A senha não pode ser só espaços.' => 'La contraseña no puede ser solo espacios.',
 ];

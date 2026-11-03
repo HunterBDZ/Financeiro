@@ -2100,6 +2100,12 @@ $loginT = (string) $pdo->query('SELECT login FROM usuarios ORDER BY id LIMIT 1')
 $check('conta nova: login repetido não passa', UsuarioModel::erroNovaConta('Alguém', $loginT, 'senha-longa') !== null);
 $check('conta nova: dados certos passam', UsuarioModel::erroNovaConta('Alguém', 'login-livre-' . bin2hex(random_bytes(3)), 'senha-longa') === null);
 $check('conta nova: com conta no banco, a tela de criar some', !UsuarioModel::nenhum());
+$check('senha: a mesma regra em todo lugar, 8 caracteres ou mais (A-07)', UsuarioModel::erroSenha('abcdef') !== null && UsuarioModel::erroSenha('abcdefg') !== null
+    && UsuarioModel::erroSenha('abcdefgh') === null && UsuarioModel::erroSenha('çãéíõúàü') === null);
+$check('senha: só espaços não serve, nem de outro tipo (A-08)', UsuarioModel::erroSenha(str_repeat(' ', 8)) !== null
+    && UsuarioModel::erroSenha(str_repeat("\u{00A0}", 8)) !== null && UsuarioModel::erroSenha("\t\t\t\t\t\t\t\t") !== null
+    && UsuarioModel::erroSenha('  senha  ') === null);
+$check('conta nova: senha só de espaços não passa (A-08)', UsuarioModel::erroNovaConta('Alguém', 'alguem-' . bin2hex(random_bytes(3)), str_repeat(' ', 8)) !== null);
 
 // ---- 18b2. duas pessoas em Ajustes (A-04): grava só o que a pessoa mudou; o campo que as duas mudaram não é gravado
 $mud = AjustesController::mudancas(['reserva_minima' => 1500.0, 'meta_final' => 30000.0], ['reserva_minima' => 1500.0, 'meta_final' => 25000.0], ['reserva_minima' => 2000.0, 'meta_final' => 25000.0]);

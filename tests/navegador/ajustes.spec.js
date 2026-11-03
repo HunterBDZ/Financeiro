@@ -1,7 +1,7 @@
 // Ajustes com mais de uma pessoa: o que uma salva não some quando a outra salva por cima, e as regras de conta
 // (senha, pessoas, categorias do app). Usa a ana (o contexto do teste) e o bruno (um contexto a mais) da
 // demonstração; cada teste devolve o que mudou, porque os outros testes do mesmo processo usam os mesmos dados.
-import { test, expect, entrar, SENHA } from './fixtures.js';
+import { test, expect, entrar, token, SENHA } from './fixtures.js';
 
 /** Um segundo navegador, com o bruno entrado. */
 async function bruno(browser, baseURL) {
@@ -72,4 +72,25 @@ test('duas pessoas em "O que você usa": desligar uma coisa não liga de novo a 
         await salvar(page);
         await outro.close();
     }
+});
+
+test('a mesma regra de senha em todo lugar: 8 caracteres e não só espaços (A-07, A-08)', async ({ page, baseURL }) => {
+    // o campo pede 8; o servidor confere também, para quem manda o formulário sem a tela
+    await page.goto('/ajustes?aberto=senha');
+    await expect(page.locator('#senha input[name="senha_nova"]')).toHaveAttribute('minlength', '8');
+    const enviar = async (url, campos) => page.request.post(baseURL + url, { form: { csrf_token: await token(page.request, baseURL + '/ajuda'), ...campos } });
+
+    // a resposta segue o redirecionamento: é a página de Ajustes com o aviso
+    let r = await enviar('/ajustes/senha', { senha_atual: SENHA, senha_nova: 'abcdef', senha_repetir: 'abcdef' });
+    expect(await r.text()).toContain('A senha precisa de pelo menos 8 caracteres.');
+    r = await enviar('/ajustes/senha', { senha_atual: SENHA, senha_nova: '        ', senha_repetir: '        ' });
+    expect(await r.text()).toContain('A senha não pode ser só espaços.');
+    r = await enviar('/ajustes/pessoas', { nome: 'Eva', login: 'eva-espacos', senha: '        ' });
+    expect(await r.text()).toContain('A senha não pode ser só espaços.');
+    await page.goto('/ajustes?aberto=pessoas');
+    await expect(page.locator('#pessoas')).not.toContainText('Eva');
+
+    // a senha da ana continua a mesma
+    await page.request.post(baseURL + '/logout');
+    await entrar(page.request, baseURL);
 });

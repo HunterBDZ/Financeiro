@@ -1366,7 +1366,6 @@ return [
     'A senha atual foi digitada errada muitas vezes. Entre de novo em 10 minutos.' => 'The current password was entered wrong too many times. Sign in again in 10 minutes.',
     'A senha atual não confere.' => 'The current password is not correct.',
     'Senha trocada.' => 'Password changed.',
-    'A nova senha precisa ter pelo menos 6 caracteres.' => 'The new password must have at least 6 characters.',
     'As duas senhas novas não são iguais.' => 'The two new passwords do not match.',
     'Digite como você fala: 45 é {valor}. Para centavos, use vírgula: {exemplo}.' => 'Type it the way you say it: 45 is {valor}. For cents, use a dot: {exemplo}.',
     'A compra é convertida para {moeda} pela cotação comercial, sem impostos nem taxa do cartão. Em fim de semana e feriado, vale o último fechamento.' => 'The purchase is converted to {moeda} at the commercial rate, without taxes or card fees. On weekends and holidays, the last closing rate applies.',
@@ -2347,4 +2346,5 @@ return [
     'Colunas, se for CSV' => 'Columns, if it is a CSV',
     'Revisar' => 'Review',
     'Outra pessoa mudou isto agora. Confira e salve de novo.' => 'Someone else just changed this. Check it and save again.',
+    'A senha não pode ser só espaços.' => 'The password can\'t be only spaces.',
 ];

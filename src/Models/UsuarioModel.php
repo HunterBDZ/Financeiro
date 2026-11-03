@@ -48,8 +48,21 @@ final class UsuarioModel
         return match (true) {
             $nome === '' => t('Informe o nome.'),
             $login === '' => t('Informe o login.'),
-            mb_strlen($senha) < 8 => t('A senha precisa de pelo menos 8 caracteres.'),
+            self::erroSenha($senha) !== null => self::erroSenha($senha),
             self::loginExiste($login) => t('Esse login já existe.'),
+            default => null,
+        };
+    }
+
+    /**
+     * A regra de senha, a mesma em todo lugar: criar conta, Pessoas e trocar a própria. Pelo menos 8 caracteres, e não
+     * só espaços (de qualquer tipo). null = serve.
+     */
+    public static function erroSenha(string $senha): ?string
+    {
+        return match (true) {
+            mb_strlen($senha) < 8 => t('A senha precisa de pelo menos 8 caracteres.'),
+            preg_match('/\A[\s\p{Z}]*\z/u', $senha) === 1 => t('A senha não pode ser só espaços.'),
             default => null,
         };
     }

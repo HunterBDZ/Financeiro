@@ -293,8 +293,8 @@ $formConta = static function (?array $c) use ($csrf, $erroConta, $tiposD, $inici
                         <?= $csrf ?>
                         <input type="text" name="username" value="<?= e((string) ($login ?? '')) ?>" autocomplete="username" hidden>
                         <label class="campo"><span><?= e(t('Senha atual')) ?></span><input type="password" name="senha_atual" autocomplete="current-password" required></label>
-                        <label class="campo"><span><?= e(t('Nova senha')) ?></span><input type="password" name="senha_nova" autocomplete="new-password" minlength="6" required></label>
-                        <label class="campo"><span><?= e(t('Repita a nova senha')) ?></span><input type="password" name="senha_repetir" autocomplete="new-password" minlength="6" required></label>
+                        <label class="campo"><span><?= e(t('Nova senha')) ?></span><input type="password" name="senha_nova" autocomplete="new-password" minlength="8" required></label>
+                        <label class="campo"><span><?= e(t('Repita a nova senha')) ?></span><input type="password" name="senha_repetir" autocomplete="new-password" minlength="8" required></label>
                         <?php $erroDe('senha'); ?>
                         <button type="submit" class="btn btn-primary aj-salvar"><?= e(t('Trocar senha')) ?></button>
                     </form>
