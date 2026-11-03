@@ -8,10 +8,10 @@ if ($sit['quitado']) {
     return;
 }
 if ($erro !== null): ?>
-    <p class="aviso aviso-error" role="alert"><?= e($erro) ?></p>
+    <p class="aj-erro emp-res-erro" role="alert"><?= e($erro) ?></p>
 <?php return; endif;
 if ($sim === null): ?>
-    <section class="card emp-convite"><p><?= e(t('Digite um valor para ver quanto falta depois, quando o empréstimo acaba e quanto de juros deixa de pagar.')) ?></p></section>
+    <section class="emp-convite"><p><?= e(t('Digite um valor para ver quanto falta depois, quando o empréstimo acaba e quanto de juros deixa de pagar.')) ?></p></section>
 <?php return; endif;
 
 $rot = mesAno($sim['mes']);
@@ -46,21 +46,21 @@ foreach ($curva as $i => $c) {
     }
 }
 ?>
-<section class="card emp-res" aria-labelledby="emp-res-t" data-anuncio="<?= e($anuncio) ?>">
+<section class="emp-res" aria-labelledby="emp-res-t" data-anuncio="<?= e($anuncio) ?>">
     <h2 class="emp-res-t" id="emp-res-t"><?= e(t('Adiantando {valor} em {mes}', ['valor' => money((float) $sim['aplicado']), 'mes' => $rot])) ?></h2>
     <?php if ($sim['ajustado']): ?>
-        <p class="aviso"><?= e(t('O valor passa da dívida de {mes}: considerei {valor}, que quita tudo.', ['mes' => $rot, 'valor' => money((float) $sim['aplicado'])])) ?></p>
+        <p class="aj-ajuda"><?= e(t('O valor passa da dívida de {mes}: considerei {valor}, que quita tudo.', ['mes' => $rot, 'valor' => money((float) $sim['aplicado'])])) ?></p>
     <?php endif; ?>
 
-    <p class="emp-res-v num"><small><?= e(t('Falta depois')) ?></small><b><?= $quitaAgora ? e(t('Nada: quitado')) : e(money((float) $sim['falta'])) ?></b></p>
+    <p class="emp-res-v"><small><?= e(t('Falta depois')) ?></small><b><?= $quitaAgora ? e(t('Nada: quitado')) : valor((float) $sim['falta'], 'neutro', ['moeda' => true]) ?></b></p>
     <dl class="emp-dl num">
-        <div><dt><?= e(t('Termina em')) ?></dt><dd><?= $sim['quita'] !== null ? e(monthLabel($sim['quita'])) : e(t('não dá para dizer')) ?><?php if ($antesTxt !== ''): ?><small class="pos"><?= e($antesTxt) ?></small><?php endif; ?></dd></div>
-        <div><dt><?= e(t('Juros a menos')) ?></dt><dd<?= $sim['jurosMenos'] !== null ? ' class="pos"' : '' ?>><?= $sim['jurosMenos'] !== null ? moedaSimbolo() . NBSP . e(num((float) $sim['jurosMenos'])) : '—' ?></dd></div>
+        <div><dt><?= e(t('Termina em')) ?></dt><dd><?= $sim['quita'] !== null ? e(monthLabel($sim['quita'])) : e(t('não dá para dizer')) ?><?php if ($antesTxt !== ''): ?><small><?= e($antesTxt) ?></small><?php endif; ?></dd></div>
+        <div><dt><?= e(t('Juros a menos')) ?></dt><dd><?= $sim['jurosMenos'] !== null ? moedaSimbolo() . NBSP . e(num((float) $sim['jurosMenos'])) : '—' ?></dd></div>
         <div><dt><?= e(t('Conta no fim de {mes}', ['mes' => $rot])) ?></dt><dd<?= $sim['contaDepois'] < -0.004 ? ' class="neg"' : '' ?>><?= e(num((float) $sim['contaDepois'])) ?><small><?= e(t('sem adiantar, {valor}', ['valor' => num((float) $sim['contaAntes'])])) ?></small></dd></div>
     </dl>
 
     <?php if ($sim['alerta'] !== null): ?>
-        <p class="aviso <?= $sim['alerta'] === 'neg' ? 'aviso-error' : 'aviso-warn' ?>"><?= e($sim['alerta'] === 'neg' ? t('A conta fica no vermelho: {valor} em {mes}.', ['valor' => money((float) $sim['pior']['fica']), 'mes' => monthLabel($sim['pior']['mes'])]) : t('A conta fica abaixo da reserva: {valor} em {mes}.', ['valor' => money((float) $sim['pior']['fica']), 'mes' => monthLabel($sim['pior']['mes'])])) ?></p>
+        <p class="emp-aviso <?= $sim['alerta'] === 'neg' ? 'alerta' : 'atencao' ?>"><?= e($sim['alerta'] === 'neg' ? t('A conta fica no vermelho: {valor} em {mes}.', ['valor' => money((float) $sim['pior']['fica']), 'mes' => monthLabel($sim['pior']['mes'])]) : t('A conta fica abaixo da reserva: {valor} em {mes}.', ['valor' => money((float) $sim['pior']['fica']), 'mes' => monthLabel($sim['pior']['mes'])])) ?></p>
     <?php endif; ?>
 
     <?php if ($nC > 1): ?>
@@ -99,6 +99,6 @@ foreach ($curva as $i => $c) {
     <?php endif; ?>
 
     <?php if ($catAmort !== null): ?>
-        <a class="btn btn-ghost btn-block emp-ja-paguei" href="/emprestimo?<?= e(http_build_query(['valor' => numInput((float) $sim['aplicado']), 'mes' => $sim['mes'], 'pago' => numInput((float) $sim['aplicado'])])) ?>#emp-consolidar"><?= e(t('Já paguei: consolidar este adiantamento')) ?></a>
+        <a class="btn-link emp-ja-paguei" href="/emprestimo?<?= e(http_build_query(['valor' => numInput((float) $sim['aplicado']), 'mes' => $sim['mes'], 'pago' => numInput((float) $sim['aplicado'])])) ?>#emp-consolidar"><?= e(t('Já paguei: consolidar este adiantamento')) ?></a>
     <?php endif; ?>
 </section>

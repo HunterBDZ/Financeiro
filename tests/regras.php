@@ -1049,6 +1049,9 @@ $antesEmp = (int) $pdo->query('SELECT COUNT(*) FROM lancamentos')->fetchColumn()
 $htmlEmp = $render(EmprestimoController::class, 'index', []);
 $check('empréstimo: a aba abre, com o menu do M e fora da barra', str_contains($htmlEmp, '<h1>Empréstimo</h1>') && str_contains($htmlEmp, 'class="menu-item is-active" href="/emprestimo"')
     && !preg_match('#<nav class="tabbar"(?:(?!<details).)*?href="/emprestimo"#s', $htmlEmp));
+$check('empréstimo: a linha do tempo diz quantas parcelas faltam e dá nome a cada fim', preg_match('~Faltam \d+ parcelas~', $htmlEmp) === 1
+    && str_contains($htmlEmp, 'Fim das parcelas') && (!str_contains($htmlEmp, 'emp-t-plano') || str_contains($htmlEmp, 'Quitação prevista pelo plano'))
+    && !str_contains($htmlEmp, 'class="saldo '));
 $htmlErro = $render(EmprestimoController::class, 'index', ['valor' => '12a', 'parcial' => '1']);
 $check('empréstimo: valor inválido diz como corrigir', str_contains($htmlErro, 'Valor inválido') && !str_contains($htmlEmp, 'Empréstimo quitado'));
 $check('empréstimo: o pedaço do resultado vem sem o layout', !str_contains($htmlErro, '<html'));

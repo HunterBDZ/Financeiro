@@ -76,3 +76,12 @@ test('a Ajuda é um documento com índice, e o "?" de uma tela abre a resposta c
     await page.getByRole('link', { name: 'Os passos de cada navegador' }).click();
     await expect(page).toHaveURL('/ajuda/conexao');
 });
+
+test('Empréstimo: a linha do tempo das parcelas e um fim só, explicado', async ({ page }) => {
+    await page.goto('/emprestimo');
+    await expect(page.getByRole('figure', { name: /Faltam \d+ parcelas/ })).toBeVisible();
+    await expect(page.getByText('Fim das parcelas', { exact: true })).toBeVisible();
+    await expect(page.getByText('Quitação prevista pelo plano', { exact: true })).toBeVisible();
+    await page.getByLabel('Quanto quer adiantar?').fill('2000');
+    await expect(page.locator('#emp-resultado')).toContainText('Falta depois');
+});
