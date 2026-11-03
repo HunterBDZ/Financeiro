@@ -3,11 +3,15 @@
  * Ajustes > Categorias: a lista, por classe (entradas, essenciais, não essenciais, movimentações), com o tipo de cada
  * uma; tocar numa categoria abre o editar (/categorias/{id}). Em cima, criar uma; embaixo, as arquivadas. A lista do
  * Lançar tem um atalho para cá. Variáveis: $categorias (ativas, com grupo, sinal, essencial, operacional),
- * $arquivadas, $dias (categoria => dia do vencimento), $aberto (' open' ou ''), $linha (o miolo da linha de Ajustes).
+ * $arquivadas, $dias (categoria => dia do vencimento), $aberto (' open' ou ''), $linha (o miolo da linha de Ajustes) e
+ * $erro (?array: criar deu errado; o formulário volta aberto, com a mensagem e o que foi digitado em 'nova').
  */
 use Financeiro\View;
 
 $volta = '/ajustes?aberto=categorias#categorias';
+$nova = is_array($erro['nova'] ?? null) ? $erro['nova'] : null;
+$nv = static fn(string $k, string $padrao = ''): string => is_string($nova[$k] ?? null) ? $nova[$k] : $padrao;
+$marcado = static fn(string $k, string $valor, string $padrao): string => $nv($k, $padrao) === $valor ? ' checked' : '';
 $classes = [
     'entradas'   => ['rotulo' => t('Entradas'), 'cats' => []],
     'essenciais' => ['rotulo' => t('Essenciais'), 'cats' => []],
@@ -37,54 +41,55 @@ $item = static function (array $c) use ($tipo): void { ?>
 <details class="ajs-item" id="categorias"<?= $aberto ?>>
     <summary class="ajs-linha"><?= $linha('tag', t('Categorias'), tn(count($categorias), '1 ativa', '{n} ativas')) ?></summary>
     <div class="ajs-corpo">
-        <details class="aj-cat-nova">
+        <details class="aj-cat-nova"<?= $nova !== null ? ' open' : '' ?>>
             <summary class="btn btn-contorno"><?= svgIcon('plus', 16) ?><?= e(t('Criar categoria')) ?></summary>
             <form class="aj-cn" method="post" action="/categorias">
                 <?= csrfField() ?>
                 <input type="hidden" name="volta" value="<?= e($volta) ?>">
                 <label class="campo"><span><?= e(t('Nome da categoria')) ?></span>
-                    <input type="text" name="nome" maxlength="100" required autocomplete="off" placeholder="<?= e(t('ex.: Pet, Farmácia')) ?>">
+                    <input type="text" name="nome" maxlength="100" required autocomplete="off" value="<?= e($nv('nome')) ?>" placeholder="<?= e(t('ex.: Pet, Farmácia')) ?>">
                 </label>
                 <fieldset class="aj-cn-opts">
                     <legend><?= e(t('Tipo')) ?></legend>
                     <div class="seg">
-                        <label class="chip-r"><input type="radio" name="tipo" value="saida" checked><span><?= e(t('Saída')) ?></span></label>
-                        <label class="chip-r"><input type="radio" name="tipo" value="entrada"><span><?= e(t('Entrada')) ?></span></label>
+                        <label class="chip-r"><input type="radio" name="tipo" value="saida"<?= $marcado('tipo', 'saida', 'saida') ?>><span><?= e(t('Saída')) ?></span></label>
+                        <label class="chip-r"><input type="radio" name="tipo" value="entrada"<?= $marcado('tipo', 'entrada', 'saida') ?>><span><?= e(t('Entrada')) ?></span></label>
                     </div>
                 </fieldset>
                 <fieldset class="aj-cn-opts aj-cn-ess">
                     <legend><?= e(t('Classe')) ?></legend>
                     <div class="seg">
-                        <label class="chip-r"><input type="radio" name="essencial" value="1" checked><span><?= e(t('Essencial')) ?></span></label>
-                        <label class="chip-r"><input type="radio" name="essencial" value="0"><span><?= e(t('Não essencial')) ?></span></label>
+                        <label class="chip-r"><input type="radio" name="essencial" value="1"<?= $marcado('essencial', '1', '1') ?>><span><?= e(t('Essencial')) ?></span></label>
+                        <label class="chip-r"><input type="radio" name="essencial" value="0"<?= $marcado('essencial', '0', '1') ?>><span><?= e(t('Não essencial')) ?></span></label>
                     </div>
                 </fieldset>
                 <?php // só para gasto; o CSS mostra os campos da escolha (fixo ou varia) com :has(), sem JS ?>
                 <fieldset class="aj-cn-opts aj-cn-valor">
                     <legend><?= e(t('O valor é')) ?></legend>
                     <div class="seg">
-                        <label class="chip-r"><input type="radio" name="valor_tipo" value="varia" checked><span><?= e(t('Varia')) ?></span></label>
-                        <label class="chip-r"><input type="radio" name="valor_tipo" value="fixo"><span><?= e(t('Fixo todo mês')) ?></span></label>
+                        <label class="chip-r"><input type="radio" name="valor_tipo" value="varia"<?= $marcado('valor_tipo', 'varia', 'varia') ?>><span><?= e(t('Varia')) ?></span></label>
+                        <label class="chip-r"><input type="radio" name="valor_tipo" value="fixo"<?= $marcado('valor_tipo', 'fixo', 'varia') ?>><span><?= e(t('Fixo todo mês')) ?></span></label>
                     </div>
                     <p class="aj-ajuda"><?= e(t('Varia: gasto do dia a dia, com meta. Fixo: uma conta, com valor e vencimento.')) ?></p>
                     <div class="aj-cn-varia">
                         <label class="campo"><span><?= e(t('Meta de gasto por mês (opcional)')) ?></span>
-                            <input type="text" name="meta" inputmode="decimal" autocomplete="off" placeholder="<?= e(t('ex.: 400')) ?>">
+                            <input type="text" name="meta" inputmode="decimal" autocomplete="off" value="<?= e($nv('meta')) ?>" placeholder="<?= e(t('ex.: 400')) ?>">
                         </label>
                     </div>
                     <div class="aj-cn-fixo">
                         <label class="campo"><span><?= e(t('Valor por mês (opcional)')) ?></span>
-                            <input type="text" name="valor_fixo" inputmode="decimal" autocomplete="off" placeholder="<?= e(t('ex.: 159,90')) ?>">
+                            <input type="text" name="valor_fixo" inputmode="decimal" autocomplete="off" value="<?= e($nv('valor_fixo')) ?>" placeholder="<?= e(t('ex.: 159,90')) ?>">
                         </label>
                         <label class="campo"><span><?= e(t('Vence no dia (opcional)')) ?></span>
-                            <input type="number" name="dia_vencimento" min="1" max="31" inputmode="numeric" placeholder="<?= e(t('ex.: 10')) ?>">
+                            <input type="number" name="dia_vencimento" min="1" max="31" inputmode="numeric" value="<?= e($nv('dia_vencimento')) ?>" placeholder="<?= e(t('ex.: 10')) ?>">
                         </label>
                     </div>
                 </fieldset>
-                <details class="ic-escolher">
+                <details class="ic-escolher"<?= $nv('icone') !== '' ? ' open' : '' ?>>
                     <summary><span><?= e(t('Escolher ícone')) ?></span> <small><?= e(t('Sem escolher, o ícone vem do nome.')) ?></small></summary>
-                    <?php View::partial('partials/icone_picker', ['sugerir' => true, 'semDica' => true, 'legenda' => t('Ícone')]); ?>
+                    <?php View::partial('partials/icone_picker', ['sugerir' => true, 'semDica' => true, 'legenda' => t('Ícone'), 'selecionado' => $nv('icone') !== '' ? $nv('icone') : null]); ?>
                 </details>
+                <?php if ($nova !== null): ?><p class="aviso aviso-error" role="alert"><?= e((string) $erro['msg']) ?></p><?php endif; ?>
                 <button type="submit" class="btn btn-principal aj-salvar"><?= e(t('Criar categoria')) ?></button>
             </form>
         </details>

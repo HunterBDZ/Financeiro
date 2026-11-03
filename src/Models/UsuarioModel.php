@@ -6,12 +6,20 @@ use Financeiro\Sql;
 
 final class UsuarioModel
 {
-    /** @return array<int,array{id:int,nome:string,login:string}> */
+    /**
+     * A senha de quem teve o acesso removido em Pessoas: nenhum password_verify confere com ela. A pessoa continua no
+     * banco, porque os lançamentos dela ficam (e apontam para ela); o login continua reservado. Definir uma senha nova
+     * para ela, em Pessoas ou pelo tools/redefinir-senha.php, devolve o acesso. Sem migração: o banco não muda.
+     */
+    public const SEM_ACESSO = '!';
+
+    /** @return array<int,array{id:int,nome:string,login:string,acesso:int}> todas, também as sem acesso (o Extrato filtra por elas) */
     public static function todos(): array
     {
         $pdo = Database::connection();
-        $stmt = $pdo->query('SELECT id, nome, login FROM usuarios ORDER BY id');
-        return $stmt->fetchAll();
+        $stmt = $pdo->prepare('SELECT id, nome, login, CASE WHEN senha_hash = ? THEN 0 ELSE 1 END AS acesso FROM usuarios ORDER BY id');
+        $stmt->execute([self::SEM_ACESSO]);
+        return array_map(static fn(array $u): array => ['acesso' => (int) $u['acesso']] + $u, $stmt->fetchAll());
     }
 
     public static function find(int $id): ?array
@@ -28,11 +36,52 @@ final class UsuarioModel
         return (int) Database::connection()->query('SELECT COUNT(*) FROM usuarios')->fetchColumn() === 0;
     }
 
-    /** A conta mais antiga é a que administra o site: backup, atualização e acesso pela rede. */
+    /** A conta mais antiga com acesso é a que administra o site: backup, atualização e acesso pela rede. */
     public static function administradorId(): ?int
     {
-        $id = Database::connection()->query('SELECT MIN(id) FROM usuarios')->fetchColumn();
+        $st = Database::connection()->prepare('SELECT MIN(id) FROM usuarios WHERE senha_hash <> ?');
+        $st->execute([self::SEM_ACESSO]);
+        $id = $st->fetchColumn();
         return $id === null || $id === false ? null : (int) $id;
+    }
+
+    /**
+     * Remover o acesso de uma pessoa (Pessoas): ela não entra mais, e o que ela lançou fica. Não vale para quem está
+     * fazendo, nem para a última pessoa com acesso. Confere e grava numa transação, para duas remoções ao mesmo tempo
+     * não tirarem o acesso de todos. Quem chama derruba as sessões e os aparelhos dela (Auth::sairDeTodos).
+     * 'ok' | 'proprio' | 'ultimo' | 'inexistente'.
+     */
+    public static function removerAcesso(int $alvo, int $quem): string
+    {
+        if ($alvo === $quem) {
+            return 'proprio';
+        }
+        $pdo = Database::connection();
+        $pdo->beginTransaction();
+        try {
+            $st = $pdo->prepare('SELECT senha_hash FROM usuarios WHERE id = ?');
+            $st->execute([$alvo]);
+            $hash = $st->fetchColumn();
+            $st = $pdo->prepare('SELECT COUNT(*) FROM usuarios WHERE senha_hash <> ?');
+            $st->execute([self::SEM_ACESSO]);
+            $comAcesso = (int) $st->fetchColumn();
+            $r = match (true) {
+                $hash === false || $hash === self::SEM_ACESSO => 'inexistente',
+                $comAcesso <= 1                                => 'ultimo',
+                default                                        => 'ok',
+            };
+            if ($r === 'ok') {
+                $pdo->prepare('UPDATE usuarios SET senha_hash = ?, duas_etapas_segredo = NULL, duas_etapas_passo = NULL WHERE id = ?')->execute([self::SEM_ACESSO, $alvo]);
+                $pdo->prepare('DELETE FROM duas_etapas_recuperacao WHERE usuario_id = ?')->execute([$alvo]);
+            }
+            $pdo->commit();
+            return $r;
+        } catch (\Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $e;
+        }
     }
 
     public static function loginExiste(string $login): bool
@@ -48,8 +97,21 @@ final class UsuarioModel
         return match (true) {
             $nome === '' => t('Informe o nome.'),
             $login === '' => t('Informe o login.'),
-            mb_strlen($senha) < 8 => t('A senha precisa de pelo menos 8 caracteres.'),
+            self::erroSenha($senha) !== null => self::erroSenha($senha),
             self::loginExiste($login) => t('Esse login já existe.'),
+            default => null,
+        };
+    }
+
+    /**
+     * A regra de senha, a mesma em todo lugar: criar conta, Pessoas e trocar a própria. Pelo menos 8 caracteres, e não
+     * só espaços (de qualquer tipo). null = serve.
+     */
+    public static function erroSenha(string $senha): ?string
+    {
+        return match (true) {
+            mb_strlen($senha) < 8 => t('A senha precisa de pelo menos 8 caracteres.'),
+            preg_match('/\A[\s\p{Z}]*\z/u', $senha) === 1 => t('A senha não pode ser só espaços.'),
             default => null,
         };
     }

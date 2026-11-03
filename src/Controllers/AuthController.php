@@ -88,7 +88,8 @@ final class AuthController
     {
         csrfCheck();
 
-        $login   = is_string($_POST['login'] ?? null) ? trim($_POST['login']) : '';
+        // sem caractere de controle: nenhum login tem, e assim ninguém daqui chega ao contador de Auth::chaveDaAcao
+        $login   = is_string($_POST['login'] ?? null) ? trim((string) preg_replace('/[\x00-\x1F\x7F]+/', '', $_POST['login'])) : '';
         $senha   = is_string($_POST['senha'] ?? null) ? $_POST['senha'] : '';
         $lembrar = ($_POST['lembrar'] ?? '') === '1';
         $login   = mb_substr($login, 0, 100);
@@ -189,11 +190,14 @@ final class AuthController
      * vencida não há token na sessão, e barrar aqui (403 "sessão expirada") deixava o cookie de
      * lembrar de 60 dias valendo: o próximo a abrir o app entrava logado. Os dois cookies são
      * SameSite=Strict, então um POST forjado de outro site chega sem eles e não derruba ninguém;
-     * o pior que um POST válido faz é o que o botão promete.
+     * o pior que um POST válido faz é o que o botão promete. Só POST: a rota não existe em GET, então um link ou uma
+     * imagem não derruba ninguém.
      */
     public function logout(): void
     {
-        csrfCheck();
+        if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+            redirecionar('/', 303);
+        }
         Auth::logout();
         redirecionar('/login');
     }

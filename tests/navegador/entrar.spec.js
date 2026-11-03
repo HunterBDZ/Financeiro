@@ -1,4 +1,6 @@
 // Entrar e sair pela tela de login.
+import { readFileSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
 import { test, expect, LOGIN, SENHA } from './fixtures.js';
 
 test.use({ logado: false });
@@ -87,4 +89,87 @@ test('endereço que não existe: a página diz isso e volta ao Início', async (
     await expect(page.getByText('404')).toHaveCount(0);              // o número fica só no título da aba
     await page.getByRole('link', { name: 'Voltar ao Início' }).click();
     await expect(page).toHaveURL(/\/login/);
+});
+
+test('sair com a sessão de 8 h vencida também esquece o aparelho (A-01)', async ({ page, context }) => {
+    await page.goto('/login');
+    await page.getByLabel('Usuário').fill(LOGIN);
+    await page.getByLabel('Senha').fill(SENHA);
+    await page.getByLabel('Lembrar este aparelho').check();
+    await page.getByRole('button', { name: 'Entrar' }).click();
+    await expect(page).toHaveURL('/');
+    await page.goto('/ajustes');
+
+    // a sessão venceu com a página aberta: sobra só o cookie de lembrar
+    const cookies = await context.cookies();
+    expect(cookies.some((c) => c.name === 'financeiro_lembrar')).toBe(true);
+    await context.clearCookies({ name: 'financeiro_sid' });
+
+    await page.getByRole('button', { name: 'sair' }).click();
+    await expect(page).toHaveURL('/login');
+    expect((await context.cookies()).some((c) => c.name === 'financeiro_lembrar')).toBe(false);
+    await page.goto('/');
+    await expect(page).toHaveURL(/\/login/);
+});
+
+test('sair só por POST: um link para /logout não derruba ninguém (A-01)', async ({ page, erros }) => {
+    erros.permitir(/status of 404/);
+    await page.goto('/login');
+    await page.getByLabel('Usuário').fill(LOGIN);
+    await page.getByLabel('Senha').fill(SENHA);
+    await page.getByRole('button', { name: 'Entrar' }).click();
+    await expect(page).toHaveURL('/');
+    const r = await page.goto('/logout');
+    expect(r.status()).toBe(404);
+    await page.goto('/');
+    await expect(page).toHaveURL('/');
+});
+
+/** Entra pela tela, com ou sem "Lembrar este aparelho". */
+async function entrarPelaTela(page, lembrar = false) {
+    await page.goto('/login');
+    await page.getByLabel('Usuário').fill(LOGIN);
+    await page.getByLabel('Senha').fill(SENHA);
+    if (lembrar) {
+        await page.getByLabel('Lembrar este aparelho').check();
+    }
+    await page.getByRole('button', { name: 'Entrar' }).click();
+    await expect(page).toHaveURL('/');
+}
+
+test('sem "Lembrar", fechar o navegador sai: o cookie da sessão não tem data (A-06)', async ({ page, context, browser, baseURL }) => {
+    await entrarPelaTela(page);
+    const sessao = (await context.cookies()).find((c) => c.name === 'financeiro_sid');
+    expect(sessao.expires).toBe(-1);                     // cookie da sessão do navegador
+    expect((await context.cookies()).some((c) => c.name === 'financeiro_lembrar')).toBe(false);
+
+    // "fechar e abrir o navegador": um navegador novo, só com os cookies que têm data
+    const reaberto = await browser.newContext({ baseURL });
+    await reaberto.addCookies((await context.cookies()).filter((c) => c.expires > 0));
+    const p2 = await reaberto.newPage();
+    await p2.goto('/');
+    await expect(p2).toHaveURL(/\/login/);
+    await reaberto.close();
+});
+
+test('parada por mais de 8 h, a sessão acaba no servidor e a tela diz que expirou (A-06, A-10)', async ({ page, context, servidor }) => {
+    await entrarPelaTela(page);
+    const id = (await context.cookies()).find((c) => c.name === 'financeiro_sid').value;
+    const arq = path.join(servidor.pasta, 'sessoes', 'sess_' + id);
+    const nove = Math.floor(Date.now() / 1000) - 9 * 3600;
+    writeFileSync(arq, readFileSync(arq, 'utf8').replace(/ultimo_uso\|i:\d+;/, `ultimo_uso|i:${nove};`));
+    await page.goto('/ajustes');
+    await expect(page).toHaveURL('/login?expirou=1');
+    await expect(page.getByText('A sessão expirou. Entre de novo.')).toBeVisible();
+});
+
+test('depois de sair, a tela de entrar não diz que a sessão expirou (A-10)', async ({ page }) => {
+    await entrarPelaTela(page);
+    await page.getByRole('button', { name: 'sair' }).click();
+    await expect(page).toHaveURL('/login');
+    await page.goto('/ajuda');
+    await expect(page).toHaveURL('/login');
+    await expect(page.getByText('A sessão expirou. Entre de novo.')).toHaveCount(0);
+    await page.goBack();
+    await expect(page.getByText('A sessão expirou. Entre de novo.')).toHaveCount(0);
 });

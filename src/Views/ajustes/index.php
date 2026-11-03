@@ -9,7 +9,9 @@ use Financeiro\Temas;
  * separam um do outro. Cada linha (48px) tem o nome e o estado atual à direita; ao tocar, abre ali mesmo
  * (<details>, o id é o mesmo de ?aberto=, com a seta para baixo) ou leva a outra tela (seta para a direita).
  * O perigoso fica no fim de cada grupo. No computador, os grupos vão em duas colunas que crescem cada uma por si.
- * Todo value de dinheiro sai de numInput() (hífen ASCII): parseMoedaBr() lê de volta sem perder o sinal.
+ * Todo value de dinheiro sai de numInput() (hífen ASCII): parseMoedaBr() lê de volta sem perder o sinal. Cada campo
+ * que duas pessoas podem salvar leva ao lado o valor que a página mostrou ao abrir (orig[...]): o servidor grava só o
+ * que mudou (AjustesController::mudancas).
  * Variáveis: $aj, $contas (quantas contas fixas), $dias (categoria => dia do vencimento), $categorias, $arquivadas,
  * $abertos, $erro, $login, $contasDinheiro (ContaModel::todas()), $saldosContas (conta => saldo de hoje).
  */
@@ -27,7 +29,7 @@ $erroDe = static function (string $g) use ($erro): void {
         echo '<p class="aviso aviso-error">' . e((string) $erro['msg']) . '</p>';
     }
 };
-$campo = static function (string $chave, string $rotulo, string $un = '', int $dec = 2) use ($valorDe, $erro): void {
+$campo = static function (string $chave, string $rotulo, string $un = '', int $dec = 2) use ($valorDe, $erro, $aj): void {
     $id = 'aj-' . $chave;
     $inval = $erro !== null && ($erro['campo'] ?? '') === $chave; ?>
     <div class="aj-campo">
@@ -35,6 +37,7 @@ $campo = static function (string $chave, string $rotulo, string $un = '', int $d
         <span class="aj-input<?= $un !== '' ? ' tem-un' : '' ?>">
             <input id="<?= e($id) ?>" type="text" name="valores[<?= e($chave) ?>]" inputmode="<?= $dec === 0 ? 'numeric' : 'decimal' ?>" autocomplete="off"
                    value="<?= e($valorDe($chave, $dec)) ?>"<?= $inval ? ' aria-invalid="true" autofocus' : '' ?>>
+            <input type="hidden" name="orig[<?= e($chave) ?>]" value="<?= e(numInput((float) ($aj[$chave]['valor'] ?? 0.0), $dec)) ?>">
             <?php if ($un !== ''): ?><span class="aj-un"><?= e($un) ?></span><?php endif; ?>
         </span>
     </div>
@@ -56,12 +59,14 @@ $redeLigada = \Financeiro\Primeira::modo() !== 'instalador' || \Financeiro\Rede:
 // o tipo de cada conta, com um ícone de traço (sem emoji)
 $iconeConta = static fn(string $tipo): string => svgIcon(['corrente' => 'emprestimo', 'digital' => 'celular', 'dinheiro' => 'carteira'][$tipo] ?? 'tag', 18);
 $pessoas = \Financeiro\Models\UsuarioModel::todos();
+$comAcesso = array_values(array_filter($pessoas, static fn(array $p): bool => $p['acesso'] === 1));
+$semAcesso = array_values(array_filter($pessoas, static fn(array $p): bool => $p['acesso'] === 0));
 $usa = static fn(string $k): bool => (float) ($aj[$k]['valor'] ?? 1) >= 1;
 $usos = array_values(array_filter([$usa('usa_cartao') ? t('Cartão') : '', $usa('usa_emprestimo') ? t('Empréstimo') : '', $usa('usa_carro') ? t('Carro') : '']));
 $inicioPlano = \Financeiro\Models\AjusteModel::dataInicio();
 $temaConta = Temas::doUsuario();
 $fuso = Site::fuso();
-$cidade = str_replace('_', ' ', substr($fuso, (int) strrpos($fuso, '/') + (str_contains($fuso, '/') ? 1 : 0)));
+$cidade = Site::cidadeDoFuso($fuso);
 $arqVersao = __DIR__ . '/../../../VERSION';
 
 // onde o dinheiro está: banco, banco digital, dinheiro vivo
@@ -105,7 +110,8 @@ $formConta = static function (?array $c) use ($csrf, $erroConta, $tiposD, $inici
     <section class="ajs-sec" aria-labelledby="ajs-g-plano">
         <h2 class="ajs-sec-t" id="ajs-g-plano"><?= e(t('Dinheiro e planejamento')) ?></h2>
         <div class="ajs-lista">
-            <?php \Financeiro\View::partial('ajustes/_categorias', ['categorias' => $categorias, 'arquivadas' => $arquivadas, 'dias' => $dias, 'aberto' => $aberto('categorias'), 'linha' => $linha]); ?>
+            <?php \Financeiro\View::partial('ajustes/_categorias', ['categorias' => $categorias, 'arquivadas' => $arquivadas, 'dias' => $dias, 'aberto' => $aberto('categorias'), 'linha' => $linha,
+                'erro' => $erro !== null && ($erro['grupo'] ?? '') === 'categorias' ? $erro : null]); ?>
 
             <details class="ajs-item" id="carteira"<?= $aberto('carteira') ?>>
                 <summary class="ajs-linha"><?= $linha('carteira', t('Contas'), tn(count($ativasD), '1 conta', '{n} contas')) ?></summary>
@@ -156,10 +162,12 @@ $formConta = static function (?array $c) use ($csrf, $erroConta, $tiposD, $inici
                         <?= $csrf ?><input type="hidden" name="grupo" value="parametros">
                         <?php $campo('reserva_minima', t('Reserva mínima')); ?>
                         <?php $campo('meta_final', t('Meta de conta e poupança')); ?>
-                        <?php $metaInt = (int) round((float) ($aj['meta_mes']['valor'] ?? 0)); ?>
+                        <?php $metaInt = (int) round((float) ($aj['meta_mes']['valor'] ?? 0));
+                        $metaMes = $metaInt > 0 ? sprintf('%04d-%02d', intdiv($metaInt, 100), $metaInt % 100) : ''; ?>
                         <div class="aj-campo">
                             <label for="aj-meta_mes"><?= e(t('Até quando (opcional)')) ?></label>
-                            <span class="aj-input aj-input-mes"><input id="aj-meta_mes" type="month" name="valores[meta_mes]" value="<?= $metaInt > 0 ? e(sprintf('%04d-%02d', intdiv($metaInt, 100), $metaInt % 100)) : '' ?>"></span>
+                            <span class="aj-input aj-input-mes"><input id="aj-meta_mes" type="month" name="valores[meta_mes]" value="<?= e($metaMes) ?>"></span>
+                            <input type="hidden" name="orig[meta_mes]" value="<?= e($metaMes) ?>">
                         </div>
                         <?php $erroDe('parametros'); ?>
                         <button type="submit" class="btn btn-primary aj-salvar"><?= e(t('Salvar')) ?></button>
@@ -174,6 +182,7 @@ $formConta = static function (?array $c) use ($csrf, $erroConta, $tiposD, $inici
                 <div class="ajs-corpo">
                     <form class="aj-recursos-form" method="post" action="/ajustes/recursos">
                         <?= $csrf ?>
+                        <?php foreach (\Financeiro\Controllers\AjustesController::recursosAtuais() as $k => $v): ?><input type="hidden" name="orig[<?= e($k) ?>]" value="<?= (int) $v ?>"><?php endforeach; ?>
                         <label class="aj-marcar"><input type="checkbox" name="usa_cartao" value="1"<?= $usa('usa_cartao') ? ' checked' : '' ?>><span><?= e(t('Cartão de crédito')) ?></span></label>
                         <label class="aj-marcar"><input type="checkbox" name="usa_emprestimo" value="1"<?= $usa('usa_emprestimo') ? ' checked' : '' ?>><span><?= e(t('Empréstimo ou financiamento')) ?></span></label>
                         <label class="aj-marcar"><input type="checkbox" name="tem_carro" value="1"<?= $usa('usa_carro') ? ' checked' : '' ?>><span><?= e(t('Carro')) ?></span></label>
@@ -183,6 +192,7 @@ $formConta = static function (?array $c) use ($csrf, $erroConta, $tiposD, $inici
                             <label class="aj-marcar"><input type="radio" name="objetivo" value="3"<?= $naConta ? ' checked' : '' ?>><span><?= e(t('Deixar na conta')) ?></span></label>
                             <label class="aj-marcar"><input type="radio" name="objetivo" value="1"<?= $naConta ? '' : ' checked' ?>><span><?= e(t('Usar para adiantar o empréstimo')) ?></span></label>
                         </fieldset>
+                        <?php $erroDe('recursos'); ?>
                         <button type="submit" class="btn btn-primary aj-salvar"><?= e(t('Salvar')) ?></button>
                     </form>
                 </div>
@@ -234,13 +244,14 @@ $formConta = static function (?array $c) use ($csrf, $erroConta, $tiposD, $inici
                 <summary class="ajs-linha"><?= $linha('emprestimo', t('Moeda e fuso horário'), t('{moeda}, {cidade}', ['moeda' => moedaSimbolo(), 'cidade' => $cidade])) ?></summary>
                 <div class="ajs-corpo">
                     <form class="aj-form" method="post" action="/ajustes/regional">
-                        <?= $csrf ?>
+                        <?= $csrf ?><input type="hidden" name="orig[moeda]" value="<?= e(Site::moeda()) ?>"><input type="hidden" name="orig[fuso]" value="<?= e($fuso) ?>">
                         <label class="campo"><span><?= e(t('Moeda')) ?></span>
                             <select name="moeda"><?php foreach (Site::opcoesMoeda() as $cod => $rotulo): ?><option value="<?= e($cod) ?>"<?= $cod === Site::moeda() ? ' selected' : '' ?>><?= e($rotulo) ?></option><?php endforeach; ?></select></label>
                         <p class="aj-ajuda"><?= e(t('Muda só o símbolo: os valores já lançados não são convertidos.')) ?></p>
                         <label class="campo"><span><?= e(t('Fuso horário')) ?></span>
                             <select name="fuso" data-fuso><?php foreach (Site::opcoesFuso() as $nome => $rotulo): ?><option value="<?= e($nome) ?>"<?= $nome === $fuso ? ' selected' : '' ?>><?= e($rotulo) ?></option><?php endforeach; ?></select></label>
                         <p class="aj-ajuda" data-fuso-dica hidden><?= e(t('Seu navegador está em outro fuso:')) ?> <b data-fuso-nome></b> <button type="button" class="btn btn-contorno btn-sm" data-fuso-usar><?= e(t('Usar este')) ?></button></p>
+                        <?php $erroDe('regional'); ?>
                         <button type="submit" class="btn btn-primary aj-salvar"><?= e(t('Salvar')) ?></button>
                     </form>
                 </div>
@@ -285,8 +296,8 @@ $formConta = static function (?array $c) use ($csrf, $erroConta, $tiposD, $inici
                         <?= $csrf ?>
                         <input type="text" name="username" value="<?= e((string) ($login ?? '')) ?>" autocomplete="username" hidden>
                         <label class="campo"><span><?= e(t('Senha atual')) ?></span><input type="password" name="senha_atual" autocomplete="current-password" required></label>
-                        <label class="campo"><span><?= e(t('Nova senha')) ?></span><input type="password" name="senha_nova" autocomplete="new-password" minlength="6" required></label>
-                        <label class="campo"><span><?= e(t('Repita a nova senha')) ?></span><input type="password" name="senha_repetir" autocomplete="new-password" minlength="6" required></label>
+                        <label class="campo"><span><?= e(t('Nova senha')) ?></span><input type="password" name="senha_nova" autocomplete="new-password" minlength="8" required></label>
+                        <label class="campo"><span><?= e(t('Repita a nova senha')) ?></span><input type="password" name="senha_repetir" autocomplete="new-password" minlength="8" required></label>
                         <?php $erroDe('senha'); ?>
                         <button type="submit" class="btn btn-primary aj-salvar"><?= e(t('Trocar senha')) ?></button>
                     </form>
@@ -320,13 +331,15 @@ $formConta = static function (?array $c) use ($csrf, $erroConta, $tiposD, $inici
             </details>
 
             <details class="ajs-item" id="pessoas"<?= $aberto('pessoas') ?>>
-                <summary class="ajs-linha"><?= $linha('pessoas', t('Pessoas'), tn(count($pessoas), '1 pessoa', '{n} pessoas')) ?></summary>
+                <summary class="ajs-linha"><?= $linha('pessoas', t('Pessoas'), tn(count($comAcesso), '1 pessoa', '{n} pessoas')) ?></summary>
                 <div class="ajs-corpo">
-                    <p class="aj-ajuda"><?= e(implode(', ', array_column($pessoas, 'nome'))) ?></p>
+                    <p class="aj-ajuda"><?= e(implode(', ', array_column($comAcesso, 'nome'))) ?></p>
+                    <?php if ($semAcesso !== []): ?><p class="aj-ajuda"><?= e(t('Sem acesso: {nomes}. Para devolver, defina uma senha nova.', ['nomes' => implode(', ', array_column($semAcesso, 'nome'))])) ?></p><?php endif; ?>
                     <form class="aj-form" method="post" action="/ajustes/pessoas">
                         <?= $csrf ?>
-                        <label class="campo"><span><?= e(t('Nome')) ?></span><input type="text" name="nome" maxlength="100" autocomplete="off" required></label>
-                        <label class="campo"><span><?= e(t('Nome de usuário')) ?></span><input type="text" name="login" maxlength="100" autocomplete="off" autocapitalize="none" spellcheck="false" required></label>
+                        <?php $pessoaDigitada = $erro !== null && ($erro['grupo'] ?? '') === 'pessoas' ? (array) ($erro['pessoa'] ?? []) : []; ?>
+                        <label class="campo"><span><?= e(t('Nome')) ?></span><input type="text" name="nome" maxlength="100" autocomplete="off" value="<?= e((string) ($pessoaDigitada['nome'] ?? '')) ?>" required></label>
+                        <label class="campo"><span><?= e(t('Nome de usuário')) ?></span><input type="text" name="login" maxlength="100" autocomplete="off" autocapitalize="none" spellcheck="false" value="<?= e((string) ($pessoaDigitada['login'] ?? '')) ?>" required></label>
                         <label class="campo"><span><?= e(t('Senha')) ?></span><input type="password" name="senha" autocomplete="new-password" minlength="8" required></label>
                         <?php $erroDe('pessoas'); ?>
                         <button type="submit" class="btn btn-primary aj-salvar"><?= e(t('Adicionar pessoa')) ?></button>
@@ -341,6 +354,11 @@ $formConta = static function (?array $c) use ($csrf, $erroConta, $tiposD, $inici
                                 <button type="submit" class="btn btn-primary aj-salvar"><?= e(t('Definir senha')) ?></button>
                             </form>
                         </details>
+                        <?php if ($pessoa['acesso'] === 1 && count($comAcesso) > 1): ?>
+                            <form method="post" action="/ajustes/pessoas/<?= (int) $pessoa['id'] ?>/remover" data-confirm="<?= e(t('Remover o acesso de {nome}? A pessoa não entra mais, e os lançamentos dela ficam.', ['nome' => $pessoa['nome']])) ?>">
+                                <?= $csrf ?><button type="submit" class="btn-link aj-remover-pessoa"><?= e(t('Remover o acesso de {nome}', ['nome' => $pessoa['nome']])) ?></button>
+                            </form>
+                        <?php endif; ?>
                     <?php endforeach; ?>
                 </div>
             </details>

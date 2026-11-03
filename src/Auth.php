@@ -24,6 +24,8 @@ final class Auth
 {
     private const MAX_TENTATIVAS = 5;
     private const BLOQUEIO_MINUTOS = 10;
+    /** Quem já está logado e erra a senha ou o código (trocar senha, desligar as duas etapas): um bloqueio mais curto. */
+    private const ACAO_BLOQUEIO_MINUTOS = 5;
 
     public const COOKIE_LEMBRAR = 'financeiro_lembrar';
 
@@ -136,35 +138,61 @@ final class Auth
     }
 
     /**
-     * Senha e código de quem já está logado (desligar a verificação), contados juntos no limite do login: só zera
-     * se os dois conferem. O código só é testado com a senha certa, para não gastar um de recuperação à toa.
-     * 'ok' | 'errada' | 'bloqueado'.
+     * Senha e código de quem já está logado (desligar a verificação), contados juntos no limite das ações de quem está
+     * logado (chaveDaAcao): só zera se os dois conferem. O código só é testado com a senha certa, para não gastar um
+     * de recuperação à toa. 'ok' | 'errada' | 'bloqueado'.
      */
     public static function conferirSenhaECodigo(int $usuarioId, string $senha, string $codigo, ?int $instante = null): string
     {
-        $usuario = UsuarioModel::find($usuarioId);
+        return self::conferirLogado($usuarioId, static fn(string $hash): bool => password_verify($senha, $hash) && DuasEtapas::conferirDaConta($usuarioId, $codigo, $instante));
+    }
+
+    /**
+     * A conferência de quem já está logado, com o limite próprio: os erros contam à parte do login (chaveDaAcao), e
+     * o bloqueio, de 5 minutos, vale só para trocar a senha e desligar as duas etapas. Assim, quem chuta a senha na
+     * tela de entrar não derruba a sessão do dono, nem o impede de mudar a própria conta; e quem achou a sessão aberta
+     * também não chuta a senha à vontade. 'ok' | 'errada' | 'bloqueado'.
+     * @param callable(string): bool $confere recebe o hash da senha guardada
+     */
+    private static function conferirLogado(int $usuarioId, callable $confere): string
+    {
         $hash = UsuarioModel::senhaHash($usuarioId);
-        if ($usuario === null || $hash === null) {
+        if (UsuarioModel::find($usuarioId) === null || $hash === null) {
             return 'errada';
         }
-        $login = (string) $usuario['login'];
+        $chave = self::chaveDaAcao($usuarioId);
         if (!self::travarSenha()) {
             return 'bloqueado';
         }
         try {
-            if (self::segundosBloqueado($login) > 0) {
+            if (self::segundosBloqueado($chave) > 0) {
                 return 'bloqueado';
             }
-            if (password_verify($senha, $hash) && DuasEtapas::conferirDaConta($usuarioId, $codigo, $instante)) {
-                self::limparTentativas($login);
+            if ($confere($hash)) {
+                self::limparTentativas($chave);
                 return 'ok';
             }
             usleep(random_int(150000, 300000));
-            self::registrarFalha($login);
-            return self::segundosBloqueado($login) > 0 ? 'bloqueado' : 'errada';
+            self::registrarFalha($chave, self::ACAO_BLOQUEIO_MINUTOS);
+            return self::segundosBloqueado($chave) > 0 ? 'bloqueado' : 'errada';
         } finally {
             self::soltarSenha();
         }
+    }
+
+    /**
+     * Onde contam os erros de quem já está logado, em login_tentativas: começa com um caractere de controle, que a
+     * tela de entrar tira do login digitado (AuthController::login). Ninguém de fora chega a esse contador.
+     */
+    public static function chaveDaAcao(int $usuarioId): string
+    {
+        return "\x1F" . 'logado:' . $usuarioId;
+    }
+
+    /** Minutos que faltam no bloqueio das ações de quem está logado (0 = livre). */
+    public static function minutosBloqueadoLogado(int $usuarioId): int
+    {
+        return (int) ceil(self::segundosBloqueado(self::chaveDaAcao($usuarioId)) / 60);
     }
 
     /**
@@ -185,34 +213,12 @@ final class Auth
     }
 
     /**
-     * Senha atual de quem já está logado (troca de senha), com o mesmo limite do login,
-     * contado no login do usuário. 'ok' | 'errada' | 'bloqueado'.
+     * Senha atual de quem já está logado (troca de senha, a senha de outra pessoa), com o limite das ações de quem
+     * está logado (conferirLogado). 'ok' | 'errada' | 'bloqueado'.
      */
     public static function conferirSenhaAtual(int $usuarioId, string $senha): string
     {
-        $usuario = UsuarioModel::find($usuarioId);
-        $hash = UsuarioModel::senhaHash($usuarioId);
-        if ($usuario === null || $hash === null) {
-            return 'errada';
-        }
-        $login = (string) $usuario['login'];
-        if (!self::travarSenha()) {
-            return 'bloqueado';
-        }
-        try {
-            if (self::segundosBloqueado($login) > 0) {
-                return 'bloqueado';
-            }
-            if (password_verify($senha, $hash)) {
-                self::limparTentativas($login);
-                return 'ok';
-            }
-            usleep(random_int(150000, 300000));
-            self::registrarFalha($login);
-            return self::segundosBloqueado($login) > 0 ? 'bloqueado' : 'errada';
-        } finally {
-            self::soltarSenha();
-        }
+        return self::conferirLogado($usuarioId, static fn(string $hash): bool => password_verify($senha, $hash));
     }
 
     /** Segundos restantes de bloqueio por tentativas erradas (0 = não bloqueado). */
@@ -227,7 +233,7 @@ final class Auth
         return max(0, (int) $stmt->fetchColumn());
     }
 
-    private static function registrarFalha(string $login): void
+    private static function registrarFalha(string $login, int $minutos = self::BLOQUEIO_MINUTOS): void
     {
         // bloqueado_ate vem ANTES de tentativas: assim a conta usa o valor antigo em todo modo de
         // atribuição (MySQL da esquerda pra direita; MariaDB SIMULTANEOUS_ASSIGNMENT; SQLite, valores
@@ -236,7 +242,7 @@ final class Auth
         $pdo->prepare(
             'INSERT INTO login_tentativas (login, tentativas, bloqueado_ate) VALUES (:login, 1, NULL)
              ' . Sql::aoRepetir('login', [
-                'bloqueado_ate' => Sql::se('tentativas + 1 >= :max', Sql::agoraMais(self::BLOQUEIO_MINUTOS, 'MINUTE'), 'bloqueado_ate'),
+                'bloqueado_ate' => Sql::se('tentativas + 1 >= :max', Sql::agoraMais($minutos, 'MINUTE'), 'bloqueado_ate'),
                 'tentativas'    => Sql::menor('tentativas + 1', '250'),
             ])
         )->execute(['login' => $login, 'max' => self::MAX_TENTATIVAS]);
@@ -254,6 +260,7 @@ final class Auth
         if (session_status() === PHP_SESSION_ACTIVE) {
             session_regenerate_id(true);
         }
+        unset($_SESSION['sessao_expirou']);
         $_SESSION['usuario_id']    = (int) $usuario['id'];
         $_SESSION['usuario_nome']  = (string) $usuario['nome'];
         $_SESSION['sessao_versao'] = (int) $usuario['sessao_versao'];
@@ -435,7 +442,7 @@ final class Auth
         }
         if (!self::$versaoOk) {
             // "sair de todos os aparelhos" (ou usuário apagado): esta sessão morreu
-            $_SESSION = [];
+            $_SESSION = ['sessao_expirou' => true];
             if (session_status() === PHP_SESSION_ACTIVE) {
                 session_regenerate_id(true);
             }
@@ -494,7 +501,11 @@ final class Auth
             self::exigirConfiguracao();
             return;
         }
-        $expirou = isset($_COOKIE[session_name()]);
+        // "a sessão expirou" só para quem tinha uma: a que passou de 8 h, a derrubada de outro aparelho ou a que o
+        // servidor já não conhece. Depois de sair, o /login deixa uma sessão vazia, e ela não conta.
+        $cookie = $_COOKIE[session_name()] ?? null;
+        $expirou = !empty($_SESSION['sessao_expirou']) || (is_string($cookie) && $cookie !== session_id());
+        unset($_SESSION['sessao_expirou']);
         if (in_array($_SERVER['REQUEST_METHOD'] ?? 'GET', ['GET', 'HEAD'], true)) {
             $_SESSION['next'] = $_SERVER['REQUEST_URI'] ?? '/';
         }

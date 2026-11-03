@@ -60,3 +60,29 @@ test('o tema da conta no automático apaga a cópia guardada neste aparelho', as
     await page.reload();
     expect(await page.evaluate(() => localStorage.getItem('tema'))).toBe('papel:light');
 });
+
+test.describe('no celular, a página não rola para o lado (A-05)', () => {
+    for (const largura of [360, 390]) {
+        test.describe(`${largura} px`, () => {
+            test.use({ viewport: { width: largura, height: 800 }, hasTouch: true, isMobile: true });
+
+            test(`${largura} px, em português e em inglês`, async ({ page }) => {
+                for (const idioma of ['pt', 'en']) {
+                    await page.goto('/temas');
+                    if (idioma === 'en') {
+                        await page.goto('/ajustes?aberto=idioma');
+                        await page.locator('#idioma').getByRole('button', { name: 'English' }).click();
+                        await page.goto('/temas');
+                    }
+                    const medidas = await page.evaluate(() => ({ rola: document.documentElement.scrollWidth, cabe: document.documentElement.clientWidth }));
+                    expect(medidas.rola, idioma).toBeLessThanOrEqual(medidas.cabe);
+                    const auto = page.locator('.tm').last();
+                    const caixa = await auto.boundingBox();
+                    expect(caixa.x + caixa.width, idioma).toBeLessThanOrEqual(largura);
+                }
+                await page.goto('/ajustes?aberto=idioma');
+                await page.locator('#idioma').getByRole('button', { name: 'Português' }).click();
+            });
+        });
+    }
+});

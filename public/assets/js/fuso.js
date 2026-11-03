@@ -34,7 +34,7 @@
     var dica = document.querySelector('[data-fuso-dica]');
     var usar = document.querySelector('[data-fuso-usar]');
     if (dica && usar && sel.value !== achada.value) {
-        dica.querySelector('[data-fuso-nome]').textContent = achada.value.replace(/_/g, ' ');
+        dica.querySelector('[data-fuso-nome]').textContent = achada.text.replace(/ \(UTC[^)]*\)$/, '');   // o nome da lista, com acento
         dica.hidden = false;
         usar.addEventListener('click', function () { sel.value = achada.value; dica.hidden = true; });
     }

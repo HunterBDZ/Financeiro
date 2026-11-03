@@ -149,6 +149,7 @@ $router->post('/ajustes/salvar', [AjustesController::class, 'salvar']);
 $router->post('/ajustes/senha', [AjustesController::class, 'trocarSenha']);
 $router->post('/ajustes/pessoas', [AjustesController::class, 'criarPessoa']);
 $router->post('/ajustes/pessoas/{id}/senha', [AjustesController::class, 'senhaDePessoa']);
+$router->post('/ajustes/pessoas/{id}/remover', [AjustesController::class, 'removerPessoa']);
 $router->post('/contas', [ContaController::class, 'salvar']);
 $router->post('/contas/{id}/arquivar', [ContaController::class, 'arquivar']);
 $router->post('/contas/{id}/reativar', [ContaController::class, 'reativar']);

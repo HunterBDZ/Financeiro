@@ -35,28 +35,20 @@ final class CategoriaController
         $valorMes = $brutoValor === '' ? null : parseMoedaBr($brutoValor);
         $dia = (int) ($_POST['dia_vencimento'] ?? 0);
 
-        if ($nome === '') {
-            flash('error', t('Digite o nome da categoria.'));
-            redirecionar($volta, 303);
+        $erro = match (true) {
+            $nome === ''            => t('Digite o nome da categoria.'),
+            mb_strlen($nome) > 100  => t('Nome muito longo. Use até 100 letras.'),
+            $tipo === 'saida' && $brutoValor !== '' && ($valorMes === null || $valorMes < 0 || $valorMes > valorMaximo())
+                                    => t('Valor inválido. Use só números, como 150 ou 150,90.'),
+            $fixo && $dia !== 0 && ($dia < 1 || $dia > 31) => t('O dia do vencimento vai de 1 a 31.'),
+            default                 => null,
+        };
+        $id = $erro === null ? CategoriaModel::criar($nome, $tipo, $essencial, $icone, $fixo) : null;
+        if ($erro === null && $id === null) {
+            $erro = t('Já existe uma categoria chamada {nome}.', ['nome' => $nome]);
         }
-        if (mb_strlen($nome) > 100) {
-            flash('error', t('Nome muito longo. Use até 100 letras.'));
-            redirecionar($volta, 303);
-        }
-
-        if ($tipo === 'saida' && $brutoValor !== '' && ($valorMes === null || $valorMes < 0 || $valorMes > valorMaximo())) {
-            flash('error', t('Valor inválido. Use só números, como 150 ou 150,90.'));
-            redirecionar($volta, 303);
-        }
-        if ($fixo && $dia !== 0 && ($dia < 1 || $dia > 31)) {
-            flash('error', t('O dia do vencimento vai de 1 a 31.'));
-            redirecionar($volta, 303);
-        }
-
-        $id = CategoriaModel::criar($nome, $tipo, $essencial, $icone, $fixo);
-        if ($id === null) {
-            flash('error', t('Já existe uma categoria chamada {nome}.', ['nome' => $nome]));
-            redirecionar($volta, 303);
+        if ($erro !== null) {
+            self::voltarComErro($volta, $erro);
         }
         if ($tipo === 'saida' && $valorMes !== null && $valorMes > 0.004) {
             MetaModel::definir($id, round($valorMes, 2));    // a meta é a previsão padrão de todo mês
@@ -67,6 +59,24 @@ final class CategoriaController
 
         $rotulo = $tipo === 'entrada' ? t('entrada') : ($fixo ? t('conta fixa') : ($essencial ? t('gasto essencial') : t('gasto não essencial')));
         flash('success', t('{nome} criada · {tipo}', ['tipo' => $rotulo, 'nome' => $nome]));
+        redirecionar($volta, 303);
+    }
+
+    /**
+     * Criar com erro: em Ajustes, o formulário volta aberto, com a mensagem e o que foi digitado (ajustes/_categorias);
+     * vindo de outra tela, a mensagem vai no aviso.
+     */
+    private static function voltarComErro(string $volta, string $erro): never
+    {
+        if (!str_starts_with($volta, '/ajustes')) {
+            flash('error', $erro);
+            redirecionar($volta, 303);
+        }
+        $campos = [];
+        foreach (['nome', 'tipo', 'essencial', 'valor_tipo', 'meta', 'valor_fixo', 'dia_vencimento', 'icone'] as $k) {
+            $campos[$k] = is_string($_POST[$k] ?? null) ? mb_substr($_POST[$k], 0, 120) : '';
+        }
+        $_SESSION['aj_erro'] = ['grupo' => 'categorias', 'msg' => $erro, 'nova' => $campos];
         redirecionar($volta, 303);
     }
 
@@ -90,6 +100,7 @@ final class CategoriaController
             'icone'      => Icones::daCategoria((int) $cat['id'], (string) $cat['nome'], (string) $cat['grupo']),
             'dia'        => $conta !== null && (int) $conta['ativo'] === 1 ? (int) $conta['dia_vencimento'] : null,
             'doApp'      => CategoriaModel::doApp($cat),
+            'protegida'  => CategoriaModel::protegida($cat),
             'historico'  => CategoriaModel::temHistorico((int) $cat['id']),
             'erros'      => $erro['erros'] ?? [],
             'valores'    => $erro['valores'] ?? null,
@@ -132,7 +143,7 @@ final class CategoriaController
         redirecionar('/categorias/' . (int) $id . ($volta !== '' ? '?volta=' . rawurlencode($volta) : ''), 301);
     }
 
-    /** POST /categorias/{id}/remover — arquiva (se tem histórico) ou apaga (se vazia). */
+    /** POST /categorias/{id}/remover — arquiva (se tem histórico) ou apaga (se vazia); a que o app usa fica. */
     public function remover(string $id): void
     {
         Auth::requireLogin();
@@ -146,6 +157,7 @@ final class CategoriaController
         match ($r) {
             'apagada'   => flash('success', t('{nome} apagada', ['nome' => $nome])),
             'arquivada' => flash('success', t('{nome} arquivada · fora das listas, histórico mantido', ['nome' => $nome])),
+            'protegida' => flash('error', t('O app usa esta categoria nos cálculos, então ela não pode ser removida nem arquivada.')),
             default     => flash('error', t('Categoria não encontrada.')),
         };
         redirecionar($volta, 303);

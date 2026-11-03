@@ -116,7 +116,33 @@ final class Site
     }
 
     /**
-     * Para o <select>: nome => "America/Sao Paulo (UTC-03:00)". O fuso atual entra mesmo sendo um nome antigo.
+     * Cidades que o identificador do fuso escreve sem acento (o padrão da lista é ASCII). Só o nome mostrado muda: o
+     * valor gravado e o do <select> continuam o identificador.
+     */
+    private const CIDADES_COM_ACENTO = [
+        'Sao_Paulo' => 'São Paulo', 'Belem' => 'Belém', 'Maceio' => 'Maceió', 'Araguaina' => 'Araguaína', 'Cuiaba' => 'Cuiabá',
+        'Santarem' => 'Santarém', 'Eirunepe' => 'Eirunepé', 'Bogota' => 'Bogotá', 'Asuncion' => 'Asunción', 'Cordoba' => 'Córdoba',
+        'Tucuman' => 'Tucumán', 'Merida' => 'Mérida', 'Cancun' => 'Cancún',
+    ];
+
+    /** O fuso para mostrar: "America/São Paulo". */
+    public static function nomeFuso(string $fuso): string
+    {
+        $partes = explode('/', $fuso);
+        $cidade = (string) array_pop($partes);
+        $partes[] = self::CIDADES_COM_ACENTO[$cidade] ?? $cidade;
+        return str_replace('_', ' ', implode('/', $partes));
+    }
+
+    /** Só a cidade do fuso, para a linha de Ajustes: "São Paulo". */
+    public static function cidadeDoFuso(string $fuso): string
+    {
+        $nome = self::nomeFuso($fuso);
+        return substr($nome, (int) strrpos($nome, '/') + (str_contains($nome, '/') ? 1 : 0));
+    }
+
+    /**
+     * Para o <select>: nome => "America/São Paulo (UTC-03:00)". O fuso atual entra mesmo sendo um nome antigo.
      * @return array<string, string>
      */
     public static function opcoesFuso(): array
@@ -128,7 +154,7 @@ final class Site
         $agora = Relogio::agora();
         $out = [];
         foreach ($nomes as $nome) {
-            $out[$nome] = str_replace('_', ' ', $nome) . ' (UTC' . self::deslocamento($nome, $agora) . ')';
+            $out[$nome] = self::nomeFuso($nome) . ' (UTC' . self::deslocamento($nome, $agora) . ')';
         }
         return $out;
     }

@@ -2102,6 +2102,107 @@ $loginT = (string) $pdo->query('SELECT login FROM usuarios ORDER BY id LIMIT 1')
 $check('conta nova: login repetido não passa', UsuarioModel::erroNovaConta('Alguém', $loginT, 'senha-longa') !== null);
 $check('conta nova: dados certos passam', UsuarioModel::erroNovaConta('Alguém', 'login-livre-' . bin2hex(random_bytes(3)), 'senha-longa') === null);
 $check('conta nova: com conta no banco, a tela de criar some', !UsuarioModel::nenhum());
+$check('senha: a mesma regra em todo lugar, 8 caracteres ou mais (A-07)', UsuarioModel::erroSenha('abcdef') !== null && UsuarioModel::erroSenha('abcdefg') !== null
+    && UsuarioModel::erroSenha('abcdefgh') === null && UsuarioModel::erroSenha('çãéíõúàü') === null);
+$check('senha: só espaços não serve, nem de outro tipo (A-08)', UsuarioModel::erroSenha(str_repeat(' ', 8)) !== null
+    && UsuarioModel::erroSenha(str_repeat("\u{00A0}", 8)) !== null && UsuarioModel::erroSenha("\t\t\t\t\t\t\t\t") !== null
+    && UsuarioModel::erroSenha('  senha  ') === null);
+$check('conta nova: senha só de espaços não passa (A-08)', UsuarioModel::erroNovaConta('Alguém', 'alguem-' . bin2hex(random_bytes(3)), str_repeat(' ', 8)) !== null);
+
+// ---- 18b2. duas pessoas em Ajustes (A-04): grava só o que a pessoa mudou; o campo que as duas mudaram não é gravado
+$mud = AjustesController::mudancas(['reserva_minima' => 1500.0, 'meta_final' => 30000.0], ['reserva_minima' => 1500.0, 'meta_final' => 25000.0], ['reserva_minima' => 2000.0, 'meta_final' => 25000.0]);
+$check('ajustes: quem mudou só a meta não desfaz a reserva que a outra pessoa salvou', $mud === ['gravar' => ['meta_final' => 30000.0], 'conflito' => []], json_encode($mud));
+$mud = AjustesController::mudancas(['reserva_minima' => 1800.0], ['reserva_minima' => 1500.0], ['reserva_minima' => 2000.0]);
+$check('ajustes: o mesmo campo mudado pelas duas pessoas não é gravado e avisa', $mud === ['gravar' => [], 'conflito' => ['reserva_minima']], json_encode($mud));
+$check('ajustes: o mesmo valor que já está gravado não é conflito (duplo clique)', AjustesController::mudancas(['reserva_minima' => 2000.0], ['reserva_minima' => 1500.0], ['reserva_minima' => 2000.0])['conflito'] === []);
+$check('ajustes: diferença menor que meio centavo é o mesmo valor', AjustesController::mudancas(['reserva_minima' => 1500.0], ['reserva_minima' => 1500.0], ['reserva_minima' => 1500.0012])['gravar'] === []);
+$check('ajustes: sem o original, o campo conta como mudado', AjustesController::mudancas(['reserva_minima' => 10.0], [], ['reserva_minima' => 20.0]) === ['gravar' => ['reserva_minima' => 10.0], 'conflito' => []]);
+$mud = AjustesController::mudancas(['usa_carro' => 1.0, 'usa_emprestimo' => 0.0], ['usa_carro' => 1.0, 'usa_emprestimo' => 1.0], ['usa_carro' => 0.0, 'usa_emprestimo' => 1.0]);
+$check('ajustes: em "O que você usa", desligar o empréstimo não liga de novo o carro que a outra pessoa desligou', $mud === ['gravar' => ['usa_emprestimo' => 0.0], 'conflito' => []], json_encode($mud));
+$check('ajustes: moeda e fuso também', AjustesController::mudancas(['moeda' => 'EUR', 'fuso' => 'America/Sao_Paulo'], ['moeda' => 'BRL', 'fuso' => 'America/Sao_Paulo'], ['moeda' => 'BRL', 'fuso' => 'Europe/Lisbon'])
+    === ['gravar' => ['moeda' => 'EUR'], 'conflito' => []]);
+$htmlAj = $pagina(AjustesController::class, 'index', '/ajustes');
+$check('ajustes: cada formulário manda o valor que mostrou ao abrir', str_contains($htmlAj, 'name="orig[reserva_minima]" value="' . numInput(AjusteModel::valor('reserva_minima')) . '"')
+    && str_contains($htmlAj, 'name="orig[meta_mes]"') && str_contains($htmlAj, 'name="orig[usa_carro]"') && str_contains($htmlAj, 'name="orig[moeda]"'));
+
+// ---- 18b3. a vitrine da tela de entrar no formato do idioma (A-11)
+$vitrine = static function (string $idioma): string {
+    Idioma::usar($idioma);
+    ob_start();
+    \Financeiro\View::renderAuth('auth/login', ['erro' => null, 'expirou' => false, 'login' => '', 'lembrar' => false]);
+    $html = (string) ob_get_clean();
+    Idioma::usar('pt');
+    return $html;
+};
+$vitEn = $vitrine('en');
+$vitPt = $vitrine('pt');
+$check('tela de entrar: a vitrine usa o formato de número do idioma', str_contains($vitEn, '2,398<span class="cent">.66</span>') && str_contains($vitEn, '1,646<span class="cent">.70</span>')
+    && str_contains($vitEn, "\u{2212}2,350<span class=\"cent\">.00</span>") && !str_contains($vitEn, '2.398') && str_contains($vitPt, '2.398<span class="cent">,66</span>'));
+
+// ---- 18b4. categorias que o app usa nos cálculos não saem nem arquivam (A-12)
+$protegidasOk = true;
+foreach ([MotorFinanceiro::CAT_SALARIO, MotorFinanceiro::CAT_PARCELA, MotorFinanceiro::CAT_FATURA, MotorFinanceiro::CAT_GUARDAR, MotorFinanceiro::CAT_APLICAR] as $chaveP) {
+    $catP = CategoriaModel::porChave($chaveP);
+    $protegidasOk = $protegidasOk && $catP !== null && CategoriaModel::protegida($catP) && CategoriaModel::remover((int) $catP['id']) === 'protegida'
+        && (int) (CategoriaModel::find((int) $catP['id'])['ativo'] ?? 0) === 1;
+}
+$check('categorias do app: remover não apaga nem arquiva', $protegidasOk);
+$salP = CategoriaModel::porChave(MotorFinanceiro::CAT_SALARIO);
+$errosP = CategoriaModel::editar((int) $salP['id'], ['nome' => (string) $salP['nome'], 'apelido' => (string) ($salP['apelido'] ?? ''), 'icone' => '', 'tipo' => 'entrada',
+    'valor_tipo' => '', 'dia' => '', 'essencial' => false, 'ativo' => false]);
+$check('categorias do app: editar não arquiva', isset($errosP['ativo']) && (int) CategoriaModel::find((int) $salP['id'])['ativo'] === 1);
+$check('categorias do app: a comum continua saindo', !CategoriaModel::protegida(CategoriaModel::porNome('Mercado') ?? ['chave' => 'x']));
+ob_start();
+(new CategoriaController())->editarForm((string) $salP['id']);
+$htmlSal = (string) ob_get_clean();
+$check('categorias do app: a tela não oferece remover e diz o porquê', !str_contains($htmlSal, '/remover"') && str_contains($htmlSal, 'não pode ser removida nem arquivada')
+    && !str_contains($htmlSal, 'name="ativo" value="0"'));
+
+// ---- 18b5. Pessoas: remover o acesso (A-15). A pessoa não entra mais, o que ela lançou fica, e o site nunca fica sem ninguém
+$loginRA = 'remover-' . bin2hex(random_bytes(3));
+$idRA = UsuarioModel::criar('Teste remover', $loginRA, 'senha-remover');
+$idRB = UsuarioModel::criar('Teste fica', $loginRA . '-b', 'senha-remover');
+$hashesRA = $pdo->query('SELECT id, senha_hash FROM usuarios')->fetchAll(PDO::FETCH_KEY_PAIR);
+$sessaoRA = $_SESSION;
+try {
+    $versaoRA = (int) UsuarioModel::sessaoVersao($idRA);
+    Auth::lembrar($idRA);
+    $check('pessoas: ninguém remove o próprio acesso', UsuarioModel::removerAcesso($idRB, $idRB) === 'proprio');
+    $rRA = UsuarioModel::removerAcesso($idRA, $idRB);
+    Auth::sairDeTodos($idRA);
+    $_SESSION = [];
+    $check('pessoas: removido, não entra mais, nem pelo aparelho lembrado', $rRA === 'ok' && Auth::primeiroPasso($loginRA, 'senha-remover', false) === 'errada'
+        && !Auth::tentarLembrado() && (int) UsuarioModel::sessaoVersao($idRA) > $versaoRA);
+    $listaRA = array_column(UsuarioModel::todos(), 'acesso', 'id');
+    $check('pessoas: a pessoa continua no banco, sem acesso, e o login fica reservado', ($listaRA[$idRA] ?? null) === 0 && ($listaRA[$idRB] ?? null) === 1
+        && UsuarioModel::loginExiste($loginRA) && UsuarioModel::removerAcesso($idRA, $idRB) === 'inexistente');
+    UsuarioModel::trocarSenha($idRA, 'senha-de-volta');
+    $_SESSION = [];
+    $check('pessoas: uma senha nova devolve o acesso', Auth::primeiroPasso($loginRA, 'senha-de-volta', false) === 'entrou');
+    // só uma pessoa com acesso: ela não sai, e é ela quem administra
+    $pdo->prepare('UPDATE usuarios SET senha_hash = ? WHERE id <> ?')->execute([UsuarioModel::SEM_ACESSO, $idRB]);
+    $check('pessoas: a última pessoa com acesso não sai', UsuarioModel::removerAcesso($idRB, $idRA) === 'ultimo' && UsuarioModel::administradorId() === $idRB);
+} catch (\Throwable $e) {
+    $check('pessoas: remover o acesso', false, get_class($e) . ': ' . $e->getMessage());
+} finally {
+    $stRA = $pdo->prepare('UPDATE usuarios SET senha_hash = ? WHERE id = ?');
+    foreach ($hashesRA as $idH => $hashH) {
+        $stRA->execute([$hashH, $idH]);
+    }
+    $pdo->prepare('DELETE FROM sessoes_lembradas WHERE usuario_id IN (?, ?)')->execute([$idRA, $idRB]);
+    $pdo->prepare('DELETE FROM usuarios WHERE id IN (?, ?)')->execute([$idRA, $idRB]);
+    unset($_COOKIE[Auth::COOKIE_LEMBRAR]);
+    $_SESSION = $sessaoRA;
+}
+$check('pessoas: a conta mais antiga com acesso administra', UsuarioModel::administradorId() === $uid);
+
+// ---- 18b6. fuso com acento só no nome mostrado (A-16)
+$check('fuso: "São Paulo" com acento, e o identificador continua o mesmo', Site::nomeFuso('America/Sao_Paulo') === 'America/São Paulo'
+    && Site::cidadeDoFuso('America/Sao_Paulo') === 'São Paulo' && Site::nomeFuso('America/Argentina/Buenos_Aires') === 'America/Argentina/Buenos Aires'
+    && str_starts_with(Site::opcoesFuso()['America/Sao_Paulo'], 'America/São Paulo (UTC') && Site::nomeFuso('UTC') === 'UTC');
+$htmlFuso = $pagina(AjustesController::class, 'index', '/ajustes');
+$check('fuso: a linha de Ajustes e a lista mostram "São Paulo"', str_contains($htmlFuso, e(moedaSimbolo()) . ', São Paulo</span>')
+    && str_contains($htmlFuso, '<option value="America/Sao_Paulo" selected>America/São Paulo (UTC') && !str_contains($htmlFuso, 'Sao Paulo'));
 
 // ---- 18c. verificação em duas etapas: TOTP da RFC 6238, janela, reuso, recuperação, login, limite, desligar e o
 // comando que redefine a senha. Numa conta só do teste, com um instante fixo (o código não usa Relogio).
@@ -2138,7 +2239,13 @@ $sairDE = static function (): void {
     $_SESSION = [];
     unset($_COOKIE[Auth::COOKIE_LEMBRAR]);
 };
-$zerarDE = static fn() => $pdo->prepare('DELETE FROM login_tentativas WHERE login = ?')->execute([$loginDE]);
+$zerarDE = static fn() => $pdo->prepare('DELETE FROM login_tentativas WHERE login IN (?, ?)')->execute([$loginDE, Auth::chaveDaAcao($idDE)]);
+// os erros de quem já está logado (desligar, trocar a senha) contam à parte do login (A-13)
+$tentativasLogado = static function () use ($pdo, $idDE): int {
+    $st = $pdo->prepare('SELECT tentativas FROM login_tentativas WHERE login = ?');
+    $st->execute([Auth::chaveDaAcao($idDE)]);
+    return (int) $st->fetchColumn();
+};
 try {
     $sairDE();
     $check('duas etapas: desligada, a senha basta', Auth::primeiroPasso($loginDE, 'senha-do-teste', false) === 'entrou' && Auth::id() === $idDE
@@ -2217,12 +2324,32 @@ try {
     $check('duas etapas: bloqueado, nem o código certo entra', Auth::segundoPasso($cod($pT + 2), $instDE + 60) === 'bloqueado' && !Auth::check());
     $zerarDE();
 
-    // desligar: senha e código, contados no mesmo limite
+    // desligar: senha e código, contados juntos, à parte do login
     $sairDE();
     $_SESSION['usuario_id'] = $idDE;
     $check('duas etapas: desligar com a senha errada não passa nem gasta código', Auth::conferirSenhaECodigo($idDE, 'outra-senha', $recDE[5]) === 'errada' && DuasEtapas::codigosRestantes($idDE) === 8);
-    $check('duas etapas: desligar com o código errado não passa', Auth::conferirSenhaECodigo($idDE, 'senha-do-teste', $erradoDE, $instDE + 60) === 'errada' && $tentativasDE() === 2);
-    $check('duas etapas: senha e código certos conferem e zeram', Auth::conferirSenhaECodigo($idDE, 'senha-do-teste', $cod($pT + 2), $instDE + 60) === 'ok' && $tentativasDE() === 0);
+    $check('duas etapas: desligar com o código errado não passa', Auth::conferirSenhaECodigo($idDE, 'senha-do-teste', $erradoDE, $instDE + 60) === 'errada'
+        && $tentativasLogado() === 2 && $tentativasDE() === 0);
+    $check('duas etapas: senha e código certos conferem e zeram', Auth::conferirSenhaECodigo($idDE, 'senha-do-teste', $cod($pT + 2), $instDE + 60) === 'ok' && $tentativasLogado() === 0);
+
+    // A-13: o bloqueio da tela de entrar não vale para quem já está logado, e o de quem está logado não vale para entrar
+    for ($i = 0; $i < 5; $i++) {
+        Auth::primeiroPasso($loginDE, 'chute-errado', false);
+    }
+    $check('duas etapas: os chutes na tela de entrar não bloqueiam quem já está logado', Auth::segundosBloqueado($loginDE) > 0
+        && Auth::conferirSenhaECodigo($idDE, 'senha-do-teste', $cod($pT + 3), $instDE + 90) === 'ok' && Auth::conferirSenhaAtual($idDE, 'senha-do-teste') === 'ok');
+    $zerarDE();
+    $resLogado = [];
+    for ($i = 0; $i < 5; $i++) {
+        $resLogado[] = Auth::conferirSenhaAtual($idDE, 'chute-errado');
+    }
+    $check('duas etapas: 5 erros de quem está logado bloqueiam só essas ações, por alguns minutos', $resLogado === ['errada', 'errada', 'errada', 'errada', 'bloqueado']
+        && Auth::conferirSenhaAtual($idDE, 'senha-do-teste') === 'bloqueado' && Auth::conferirSenhaECodigo($idDE, 'senha-do-teste', $cod($pT + 4), $instDE + 120) === 'bloqueado'
+        && Auth::minutosBloqueadoLogado($idDE) === 5 && Auth::segundosBloqueado($loginDE) === 0, implode(',', $resLogado));
+    $sessaoLogado = $_SESSION;
+    $check('duas etapas: o bloqueio de quem está logado não impede de entrar', Auth::primeiroPasso($loginDE, 'senha-do-teste', false) === 'codigo');
+    $_SESSION = $sessaoLogado;
+    $zerarDE();
     DuasEtapas::desligar($idDE);
     $sairDE();
     $check('duas etapas: desligada, apaga o segredo e os códigos, e a senha volta a bastar', !DuasEtapas::ligada($idDE) && DuasEtapas::codigosRestantes($idDE) === 0

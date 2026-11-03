@@ -5,7 +5,8 @@
  * Subtela de Ajustes (ajustes/_sub_topo): o título é o nome da categoria; um formulário em uma coluna, os rótulos
  * acima e as escolhas em seleção segmentada. O tipo travado aparece como texto, com o motivo ao lado.
  * Variáveis: $cat (linha de categorias), $icone (chave em vigor), $dia (?int, vencimento), $doApp (o app depende
- * do tipo e do grupo), $historico (tem lançamentos), $erros (campo => mensagem), $valores (?array, o que foi digitado), $volta.
+ * do tipo e do grupo), $protegida (o app a acha pela chave: não sai nem arquiva), $historico (tem lançamentos), $erros
+ * (campo => mensagem), $valores (?array, o que foi digitado), $volta.
  */
 use Financeiro\Icones;
 use Financeiro\Models\CategoriaModel;
@@ -19,6 +20,8 @@ $valorTipo = $val('valor_tipo', (string) (array_search((string) $cat['grupo'], C
 $essencial = isset($v['essencial']) ? (bool) $v['essencial'] : (int) $cat['essencial'] === 1;
 $ativa = isset($v['ativo']) ? (bool) $v['ativo'] : (int) $cat['ativo'] === 1;
 $tipoTravado = $doApp || $historico;
+$protegida = !empty($protegida);
+$situacaoTravada = $protegida && (int) $cat['ativo'] === 1;     // a que já estava arquivada pode voltar
 $movimentacao = in_array((string) $cat['grupo'], ['Emprestimo', 'Poupanca', 'Investimento'], true);
 $escolheValor = !$doApp;                                     // a fatura e as movimentações têm grupo próprio
 $temVencimento = $doApp ? in_array((string) $cat['grupo'], \Financeiro\Models\ContaRecorrenteModel::GRUPOS, true) : true;
@@ -112,13 +115,20 @@ $invalido = static fn(string $campo): string => isset($erros[$campo]) ? ' aria-i
                 </fieldset>
             <?php endif; ?>
 
-            <fieldset class="cat-opts" aria-describedby="cat-ativa-dica">
+            <fieldset class="cat-opts" aria-describedby="cat-ativa-dica<?= isset($erros['ativo']) ? ' cat-erro-ativo' : '' ?>">
                 <legend><?= e(t('Situação')) ?></legend>
+                <?php if ($situacaoTravada): ?>
+                    <p class="cat-fixo"><?= svgIcon('lock', 16) ?><?= e(t('Ativa')) ?></p>
+                    <input type="hidden" name="ativo" value="1">
+                    <p class="cat-dica" id="cat-ativa-dica"><?= e(t('O app usa esta categoria nos cálculos, então ela não pode ser removida nem arquivada.')) ?></p>
+                <?php else: ?>
                 <div class="seg">
                     <label class="chip-r"><input type="radio" name="ativo" value="1"<?= $ativa ? ' checked' : '' ?>><span><?= e(t('Ativa')) ?></span></label>
                     <label class="chip-r"><input type="radio" name="ativo" value="0"<?= $ativa ? '' : ' checked' ?>><span><?= e(t('Arquivada')) ?></span></label>
                 </div>
                 <p class="cat-dica" id="cat-ativa-dica"><?= e(t('Arquivada sai das listas; os lançamentos ficam.')) ?></p>
+                <?php endif; ?>
+                <?= $erroDe('ativo') ?>
             </fieldset>
         </div>
 
@@ -129,12 +139,14 @@ $invalido = static fn(string $campo): string => isset($erros[$campo]) ? ' aria-i
         <button type="submit" class="btn btn-principal aj-salvar"><?= e(t('Salvar')) ?></button>
     </form>
 
+    <?php if (!$protegida): ?>
     <form class="cat-remover" method="post" action="/categorias/<?= $id ?>/remover"
           data-confirm="<?= e(t('Remover a categoria {nome}? Se ela tiver lançamentos, só sai das listas.', ['nome' => nomeCurto($cat)])) ?>">
         <?= csrfField() ?>
         <input type="hidden" name="volta" value="<?= e($volta) ?>">
         <button type="submit" class="btn-link cat-remover-btn"><?= e(t('Remover categoria')) ?></button>
     </form>
+    <?php endif; ?>
     </div>
     </section>
 </div>

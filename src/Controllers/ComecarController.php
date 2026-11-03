@@ -20,6 +20,8 @@ use Financeiro\View;
  * passo é obrigatório. Num início no meio do mês, o que venceu antes dele não entra na previsão daquele mês.
  * Ao lado das perguntas, a prévia do mês se monta com o que já foi respondido (previa()); no fim, a chegada mostra o
  * primeiro "Dá para gastar", com a mesma conta do Início (DashboardController::resposta).
+ * Os campos mostram o que foi digitado, depois de um erro, ou o que já está salvo, ao voltar um passo (campos()). Por
+ * isso, num passo já salvo, campo vazio não muda nada: "Voltar" e "Continuar" sem digitar não apagam o que havia.
  */
 final class ComecarController
 {
@@ -43,7 +45,8 @@ final class ComecarController
             'passo' => $passo, 'total' => self::PASSOS, 'hoje' => Relogio::hoje(),
             'inicio' => AjusteModel::dataInicio() ?? Relogio::hoje(),
             'contas' => $passo === 4 ? self::contasFixas() : [],
-            'usos' => is_array($_SESSION['comecar_usos'] ?? null) ? $_SESSION['comecar_usos'] : [],
+            'usos' => self::usos(),
+            'campos' => self::campos($passo),
             'moeda' => Site::moeda(), 'fuso' => Site::fuso(), 'fusoEscolhido' => Site::fusoGravado(),
             'erro' => self::erro(),
             'previa' => self::previa(),
@@ -80,9 +83,13 @@ final class ComecarController
         $data = is_string($_POST['data_inicio'] ?? null) ? $_POST['data_inicio'] : '';
         $ok = preg_match('/^(\d{4})-(\d{2})-(\d{2})$/D', $data, $m) === 1 && checkdate((int) $m[2], (int) $m[3], (int) $m[1]);
         $problema = $ok ? Horizonte::problemaNaData($data) : t('Escolha uma data válida.');
+        $jaSalvo = self::feito();
         $valores = [];
         foreach (['saldo_ini', 'poupanca_ini', 'investimentos_ini'] as $chave) {
-            $bruto = trim((string) ($_POST[$chave] ?? ''));
+            $bruto = trim(is_string($_POST[$chave] ?? null) ? $_POST[$chave] : '');
+            if ($bruto === '' && $jaSalvo) {
+                continue;                                       // voltou ao passo e deixou vazio: fica o que estava
+            }
             $v = $bruto === '' ? 0.0 : parseMoedaBr($bruto);
             if ($v === null || ($chave !== 'saldo_ini' && $v < 0)) {
                 $problema = t('Confira os valores: use números como 1.200,50.');
@@ -100,6 +107,13 @@ final class ComecarController
                 continue;
             }
             AjusteModel::setValor($chave, round($v, 4));
+        }
+        if (!$jaSalvo) {
+            // até o 3º passo, nada está marcado: a prévia não mostra cartão, empréstimo nem carro que ninguém escolheu
+            AjusteModel::setValor('usa_cartao', 0.0);
+            AjusteModel::setValor('usa_emprestimo', 0.0);
+            AjusteModel::setValor('usa_carro', 0.0);
+            CategoriaModel::marcarCarro(false);
         }
         Horizonte::mudarInicio($data);
     }
@@ -119,6 +133,7 @@ final class ComecarController
         if ($cat !== null) {
             self::preverEmTodos((int) $cat['id'], $v, $dia);
         }
+        $_SESSION['comecar_dia_renda'] = $dia;                  // o dia não fica gravado: Voltar o mostra daqui
     }
 
     private static function salvarContas(): void
@@ -194,6 +209,54 @@ final class ComecarController
         $_SESSION['comecar_usos'] = $usos;   // Voltar mostra o que foi marcado
     }
 
+    /**
+     * O que o 3º passo mostra marcado: o que a pessoa marcou (Voltar) ou o que vale agora, que o 1º passo deixou
+     * desligado. O que está na tela é o que se grava, também em "Pular este passo", que envia o formulário como está.
+     * @return array<string, bool|int>
+     */
+    private static function usos(): array
+    {
+        if (is_array($_SESSION['comecar_usos'] ?? null)) {
+            return $_SESSION['comecar_usos'];
+        }
+        return ['cartao' => AjusteModel::usa('usa_cartao'), 'emprestimo' => AjusteModel::usa('usa_emprestimo'), 'carro' => AjusteModel::usa('usa_carro')];
+    }
+
+    /**
+     * O valor de cada campo do passo: o que foi digitado, se o passo voltou com erro, ou o que já está salvo (o saldo,
+     * a poupança e os investimentos do 1º passo; a renda e o dia do 2º). Campo sem nada salvo fica vazio, com o exemplo.
+     * @return array<string, string|array<int|string, string>>
+     */
+    private static function campos(int $passo): array
+    {
+        $digitado = $_SESSION['comecar_digitado'] ?? null;
+        unset($_SESSION['comecar_digitado']);
+        if (is_array($digitado) && ($digitado['passo'] ?? 0) === $passo && is_array($digitado['campos'] ?? null)) {
+            return $digitado['campos'];
+        }
+        if (!self::feito()) {
+            return [];
+        }
+        if ($passo === 1) {
+            $outro = static fn(string $k): string => AjusteModel::valor($k) != 0.0 ? numInput(AjusteModel::valor($k)) : '';
+            return ['saldo_ini' => numInput(AjusteModel::valor('saldo_ini')), 'poupanca_ini' => $outro('poupanca_ini'), 'investimentos_ini' => $outro('investimentos_ini')];
+        }
+        if ($passo === 2) {
+            $renda = self::previa()['renda'];
+            $dia = $_SESSION['comecar_dia_renda'] ?? null;
+            return $renda !== null && $renda['valor'] > 0
+                ? ['renda' => numInput((float) $renda['valor']), 'dia' => is_int($dia) ? (string) $dia : '']
+                : [];
+        }
+        return [];
+    }
+
+    /** O 1º passo já foi salvo: o início e os meses existem. */
+    private static function feito(): bool
+    {
+        return MesModel::primeiro() !== null && AjusteModel::dataInicio() !== null;
+    }
+
     /** Último passo: as contas fixas (ou nada, em "Pular") e o caminho até o primeiro uso. */
     private static function concluir(): void
     {
@@ -201,7 +264,7 @@ final class ComecarController
             self::salvarContas();
         }
         AjusteModel::setValor('configurado', 1.0);
-        unset($_SESSION['comecar_usos']);
+        unset($_SESSION['comecar_usos'], $_SESSION['comecar_dia_renda'], $_SESSION['comecar_digitado']);
         // a chegada: o mês montado e o primeiro "Dá para gastar"; de lá, o Início (ou os dados do empréstimo)
         redirecionar('/comecar?pronto=1', 303);
     }
@@ -215,7 +278,7 @@ final class ComecarController
     private static function previa(): array
     {
         $inicio = AjusteModel::dataInicio();
-        $feito = MesModel::primeiro() !== null && $inicio !== null;
+        $feito = self::feito();
         $mes = substr($inicio ?? Relogio::hoje(), 0, 7) . '-01';
         $meses = array_column(MesModel::todos(), 'mes');
         $seguinte = $meses[array_search($mes, $meses, true) + 1] ?? $mes;     // o valor "de todo mês", sem o corte do início
@@ -310,9 +373,18 @@ final class ComecarController
         return $out;
     }
 
+    /** Volta ao passo com a mensagem e com o que foi digitado (só texto: o que veio de outro jeito é ignorado). */
     private static function voltarComErro(int $passo, string $msg): never
     {
         $_SESSION['comecar_erro'] = $msg;
+        $texto = static fn(mixed $v): string => is_string($v) ? mb_substr($v, 0, 100) : '';
+        $campos = [];
+        foreach (['data_inicio', 'saldo_ini', 'poupanca_ini', 'investimentos_ini', 'moeda', 'fuso', 'renda', 'dia', 'valor', 'nova_nome', 'nova_valor', 'nova_dia'] as $k) {
+            if (isset($_POST[$k])) {
+                $campos[$k] = is_array($_POST[$k]) ? array_map($texto, array_slice($_POST[$k], 0, 200, true)) : $texto($_POST[$k]);
+            }
+        }
+        $_SESSION['comecar_digitado'] = ['passo' => $passo, 'campos' => $campos];
         redirecionar('/comecar?passo=' . $passo, 303);
     }
 

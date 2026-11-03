@@ -95,14 +95,11 @@ final class DuasEtapasController
         }
         $senha = is_string($_POST['senha'] ?? null) ? $_POST['senha'] : '';
         $codigo = is_string($_POST['codigo'] ?? null) ? $_POST['codigo'] : '';
+        // os erros contam à parte do login: 5 bloqueiam só esta ação e a troca de senha, por alguns minutos
         $conferida = Auth::conferirSenhaECodigo($id, $senha, $codigo);
-        if ($conferida === 'bloqueado') {
-            // como na troca de senha: quem erra tanto provavelmente não é o dono
-            Auth::logout();
-            renderErro(429, t('Muitas tentativas'), t('A senha ou o código foram digitados errados muitas vezes. Entre de novo em 10 minutos.'));
-        }
         if ($conferida !== 'ok') {
-            $_SESSION['aj_erro'] = ['grupo' => 'duasetapas', 'msg' => t('A senha ou o código não conferem.')];
+            $msg = $conferida === 'bloqueado' ? AjustesController::muitasTentativas() : t('A senha ou o código não conferem.');
+            $_SESSION['aj_erro'] = ['grupo' => 'duasetapas', 'msg' => $msg];
             redirecionar(self::VOLTA, 303);
         }
         DuasEtapas::desligar($id);

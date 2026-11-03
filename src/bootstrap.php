@@ -44,7 +44,8 @@ if (PHP_SAPI !== 'cli') {
 }
 
 // Sessão: cookie sempre httponly + SameSite=Strict; secure ligado automaticamente
-// quando a requisição já chega via HTTPS (atrás do vhost :443).
+// quando a requisição já chega via HTTPS (atrás do vhost :443). O cookie é da sessão do navegador
+// (sem data): fechar o navegador sai. Quem quer continuar entrado marca "lembrar este aparelho".
 $https = Rede::https();
 
 // linha de comando sem cabeçalhos livres (frankenphp php-cli): não há navegador, nem sessão de verdade
@@ -52,7 +53,7 @@ if (PHP_SAPI === 'cli' && headers_sent()) {
     $_SESSION = [];
 } else {
     session_set_cookie_params([
-        'lifetime' => (int) Config::get('SESSION_LIFETIME', '28800'),
+        'lifetime' => 0,
         'path'     => '/',
         'secure'   => $https,
         'httponly' => true,
@@ -64,19 +65,15 @@ if (PHP_SAPI === 'cli' && headers_sent()) {
     session_start();
 }
 
-// Cookie de sessão rolante: quem está usando renova as 8 h a cada página (o arquivo da
-// sessão já é tocado a cada requisição; o gc_maxlifetime vira limite de inatividade).
-if (!empty($_SESSION['usuario_id']) && ($_COOKIE[session_name()] ?? null) === session_id() && !headers_sent()) {
-    $p = session_get_cookie_params();
-    setcookie(session_name(), session_id(), [
-        'expires'  => time() + (int) $p['lifetime'],
-        'path'     => $p['path'],
-        'domain'   => $p['domain'],
-        'secure'   => $p['secure'],
-        'httponly' => $p['httponly'],
-        'samesite' => $p['samesite'] ?: 'Strict',
-    ]);
-    unset($p);
+// O limite de 8 h sem uso fica no servidor: a cada página, a sessão parada há mais tempo que isso acaba (o
+// gc_maxlifetime só apaga o arquivo de vez em quando), e a tela de entrar diz que ela expirou.
+if (session_status() === PHP_SESSION_ACTIVE) {
+    if (!empty($_SESSION['usuario_id']) && isset($_SESSION['ultimo_uso'])
+        && time() - (int) $_SESSION['ultimo_uso'] > (int) Config::get('SESSION_LIFETIME', '28800')) {
+        $_SESSION = ['sessao_expirou' => true];
+        session_regenerate_id(true);
+    }
+    $_SESSION['ultimo_uso'] = time();
 }
 
 if (Config::get('APP_ENV', 'production') === 'production') {

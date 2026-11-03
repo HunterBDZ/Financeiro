@@ -2,6 +2,7 @@
 namespace Financeiro\Controllers;
 
 use Financeiro\Auth;
+use Financeiro\Database;
 use Financeiro\Relogio;
 use Financeiro\Services\Horizonte;
 use Financeiro\Services\LinkProduto;
@@ -19,6 +20,9 @@ use Financeiro\View;
  * Cada item é uma linha que abre (<details>) ou leva a outra tela, e cada formulário tem o seu SALVAR. As contas
  * fixas ficam em Metas; o essencial, em cada categoria. Os dados do empréstimo ficam na aba Empréstimo
  * (EmprestimoController::salvarDados), que usa a mesma validação.
+ * Duas pessoas podem estar com Ajustes aberto ao mesmo tempo: cada formulário manda também o valor que mostrava ao
+ * abrir (orig[...]), e o servidor grava só o que a pessoa mudou (mudancas()). Se outra pessoa mudou o mesmo campo
+ * nesse meio-tempo, nada é gravado, e a tela avisa com o valor de agora.
  */
 final class AjustesController
 {
@@ -101,9 +105,18 @@ final class AjustesController
         $moeda = (string) ($_POST['moeda'] ?? '');
         $fuso = (string) ($_POST['fuso'] ?? '');
         if (Site::moedaValida($moeda) && Site::fusoValido($fuso)) {
-            Site::salvarMoeda($moeda);
-            Site::salvarFuso($fuso);
-            flash('success', t('Ajustes salvos.'));
+            $orig = array_filter((array) ($_POST['orig'] ?? []), 'is_string');
+            ['gravar' => $gravar, 'conflito' => $conflito] = self::mudancas(['moeda' => $moeda, 'fuso' => $fuso], $orig, ['moeda' => Site::moeda(), 'fuso' => Site::fuso()]);
+            if ($conflito !== []) {
+                self::outraPessoa('regional', $conflito);
+            }
+            if (isset($gravar['moeda'])) {
+                Site::salvarMoeda($moeda);
+            }
+            if (isset($gravar['fuso'])) {
+                Site::salvarFuso($fuso);
+            }
+            flash('success', $gravar === [] ? t('Nada mudou.') : t('Ajustes salvos.'));
         }
         redirecionar('/ajustes?aberto=regional#regional', 303);
     }
@@ -112,19 +125,41 @@ final class AjustesController
     {
         Auth::requireLogin();
         csrfCheck();
-        AjusteModel::setValor('usa_cartao', ($_POST['usa_cartao'] ?? '') === '1' ? 1.0 : 0.0);
-        AjusteModel::setValor('usa_emprestimo', ($_POST['usa_emprestimo'] ?? '') === '1' ? 1.0 : 0.0);
-        $temCarro = ($_POST['tem_carro'] ?? '') === '1';
-        if ($temCarro !== AjusteModel::usa('usa_carro')) {     // só na mudança: não traz de volta o que a pessoa removeu à mão
-            AjusteModel::setValor('usa_carro', $temCarro ? 1.0 : 0.0);
-            CategoriaModel::marcarCarro($temCarro);
+        $novos = [
+            'usa_cartao' => ($_POST['usa_cartao'] ?? '') === '1' ? 1.0 : 0.0,
+            'usa_emprestimo' => ($_POST['usa_emprestimo'] ?? '') === '1' ? 1.0 : 0.0,
+            'usa_carro' => ($_POST['tem_carro'] ?? '') === '1' ? 1.0 : 0.0,
+            'objetivo' => ($_POST['objetivo'] ?? '') === '3' ? 3.0 : 1.0,
+        ];
+        $orig = array_map(static fn($v): float => (float) $v, array_filter((array) ($_POST['orig'] ?? []), static fn($v): bool => is_string($v) && is_numeric($v)));
+        $pdo = Database::connection();
+        $pdo->beginTransaction();
+        try {
+            // o objetivo 2 (só quitar) aparece como "adiantar" (1): só conta como mudança quem escolheu outra coisa
+            $atuais = self::recursosAtuais();
+            ['gravar' => $gravar, 'conflito' => $conflito] = self::mudancas($novos, $orig, $atuais);
+            if ($conflito === []) {
+                foreach (['usa_cartao', 'usa_emprestimo', 'objetivo'] as $k) {
+                    if (isset($gravar[$k])) {
+                        AjusteModel::setValor($k, $gravar[$k]);
+                    }
+                }
+                if (isset($gravar['usa_carro'])) {              // só na mudança: não traz de volta o que a pessoa removeu à mão
+                    AjusteModel::setValor('usa_carro', $gravar['usa_carro']);
+                    CategoriaModel::marcarCarro($gravar['usa_carro'] >= 1.0);
+                }
+            }
+            $pdo->commit();
+        } catch (\Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $e;
         }
-        // "adiantar" não troca o objetivo 2 (só quitar) por 1: só muda quem escolheu outra coisa
-        $objetivo = ($_POST['objetivo'] ?? '') === '3' ? 3 : 1;
-        if ($objetivo === 3 || (int) round(AjusteModel::valor('objetivo', 1.0)) === 3) {
-            AjusteModel::setValor('objetivo', (float) $objetivo);
+        if ($conflito !== []) {
+            self::outraPessoa('recursos', $conflito);
         }
-        flash('success', t('Ajustes salvos.'));
+        flash('success', $gravar === [] ? t('Nada mudou.') : t('Ajustes salvos.'));
         redirecionar('/ajustes?aberto=recursos#recursos', 303);
     }
 
@@ -191,12 +226,34 @@ final class AjustesController
             redirecionar('/ajustes?aberto=' . $grupo . '#' . $grupo, 303);
         }
 
-        foreach ($valores as $chave => $v) {
-            if ($chave === 'saldo_ini') {
-                ContaModel::saldoInicialDaUnica($v);            // com várias contas, cada uma tem o seu, em Contas
-                continue;
+        // só o que a pessoa mudou; o campo que outra pessoa mudou depois que a página abriu não é gravado por cima
+        $orig = self::lerValores((array) ($_POST['orig'] ?? []), array_keys($valores));
+        $pdo = Database::connection();
+        $pdo->beginTransaction();
+        try {
+            $atuais = [];
+            foreach (array_keys($valores) as $chave) {
+                $atuais[$chave] = AjusteModel::valor($chave);
             }
-            AjusteModel::setValor($chave, $v);                  // preserva `confirmado`
+            ['gravar' => $valores, 'conflito' => $conflito] = self::mudancas($valores, $orig['erro'] === null ? $orig['valores'] : [], $atuais);
+            if ($conflito === []) {
+                foreach ($valores as $chave => $v) {
+                    if ($chave === 'saldo_ini') {
+                        ContaModel::saldoInicialDaUnica($v);    // com várias contas, cada uma tem o seu, em Contas
+                        continue;
+                    }
+                    AjusteModel::setValor($chave, $v);          // preserva `confirmado`
+                }
+            }
+            $pdo->commit();
+        } catch (\Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $e;
+        }
+        if ($conflito !== []) {
+            self::outraPessoa($grupo, $conflito);
         }
 
         flash('success', $valores === [] ? t('Nada mudou.') : t('Ajustes salvos.'));
@@ -217,6 +274,60 @@ final class AjustesController
             'recebido_emprestimo', 'saldo_devedor' => t('Confira o campo "{campo}": use um valor positivo.', ['campo' => self::rotulo($chave)]),
             default          => t('Confira o campo "{campo}": o valor não é válido.', ['campo' => self::rotulo($chave)]),
         };
+    }
+
+    /**
+     * O que gravar de um formulário que outra pessoa pode ter salvo depois que a página abriu. $novos: o que a pessoa
+     * mandou; $originais: o que a página mostrava (orig[...]); $atuais: o que está gravado agora. Grava o campo que a
+     * pessoa mudou; o que ficou igual ao que a página mostrava não é tocado. Conflito: a pessoa mudou um campo que
+     * também mudou no banco, para outro valor. Campo sem original (formulário antigo) conta como mudado, sem conflito.
+     * Números são iguais até meio centavo, porque a tela mostra duas casas.
+     * @param array<string, float|string> $novos
+     * @param array<string, float|string> $originais
+     * @param array<string, float|string> $atuais
+     * @return array{gravar: array<string, float|string>, conflito: list<string>}
+     */
+    public static function mudancas(array $novos, array $originais, array $atuais): array
+    {
+        $igual = static fn(float|string $a, float|string $b): bool => is_string($a) || is_string($b)
+            ? (string) $a === (string) $b
+            : abs($a - $b) < 0.005;
+        $gravar = [];
+        $conflito = [];
+        foreach ($novos as $chave => $novo) {
+            if (!array_key_exists($chave, $originais)) {
+                $gravar[$chave] = $novo;
+                continue;
+            }
+            if ($igual($novo, $originais[$chave])) {
+                continue;                                       // a pessoa não mexeu neste campo
+            }
+            $atual = $atuais[$chave] ?? $originais[$chave];
+            if (!$igual($atual, $originais[$chave]) && !$igual($atual, $novo)) {
+                $conflito[] = (string) $chave;
+                continue;
+            }
+            $gravar[$chave] = $novo;
+        }
+        return ['gravar' => $gravar, 'conflito' => $conflito];
+    }
+
+    /** O que vale agora em "O que você usa", como a tela mostra (o objetivo é 3, deixar na conta, ou 1, adiantar). */
+    public static function recursosAtuais(): array
+    {
+        return [
+            'usa_cartao' => AjusteModel::usa('usa_cartao') ? 1.0 : 0.0,
+            'usa_emprestimo' => AjusteModel::usa('usa_emprestimo') ? 1.0 : 0.0,
+            'usa_carro' => AjusteModel::usa('usa_carro') ? 1.0 : 0.0,
+            'objetivo' => (int) round(AjusteModel::valor('objetivo', 1.0)) === 3 ? 3.0 : 1.0,
+        ];
+    }
+
+    /** Outra pessoa salvou o mesmo campo depois que a página abriu: nada foi gravado, e a tela mostra o valor de agora. */
+    private static function outraPessoa(string $grupo, array $campos): never
+    {
+        $_SESSION['aj_erro'] = ['grupo' => $grupo, 'msg' => t('Outra pessoa mudou isto agora. Confira e salve de novo.'), 'campo' => (string) $campos[0]];
+        redirecionar('/ajustes?aberto=' . $grupo . '#' . $grupo, 303);
     }
 
     /**
@@ -284,7 +395,7 @@ final class AjustesController
 
         $erro = UsuarioModel::erroNovaConta($nome, $login, $senha);
         if ($erro !== null) {
-            $_SESSION['aj_erro'] = ['grupo' => 'pessoas', 'msg' => $erro];
+            $_SESSION['aj_erro'] = ['grupo' => 'pessoas', 'msg' => $erro, 'pessoa' => ['nome' => $nome, 'login' => $login]];   // a senha não volta
             redirecionar('/ajustes?aberto=pessoas#pessoas', 303);
         }
         UsuarioModel::criar($nome, $login, $senha);
@@ -305,14 +416,10 @@ final class AjustesController
             redirecionar('/ajustes?aberto=pessoas#pessoas', 303);
         }
         $conferida = Auth::conferirSenhaAtual((int) Auth::id(), $atual);
-        if ($conferida === 'bloqueado') {
-            Auth::logout();
-            renderErro(429, t('Muitas tentativas'), t('A senha atual foi digitada errada muitas vezes. Entre de novo em 10 minutos.'));
-        }
         $erro = match (true) {
+            $conferida === 'bloqueado' => self::muitasTentativas(),
             $conferida !== 'ok'  => t('A senha atual não confere.'),
-            mb_strlen($nova) < 8 => t('A senha precisa de pelo menos 8 caracteres.'),
-            default              => null,
+            default              => UsuarioModel::erroSenha($nova),
         };
         if ($erro !== null) {
             $_SESSION['aj_erro'] = ['grupo' => 'pessoas', 'msg' => $erro];
@@ -321,6 +428,27 @@ final class AjustesController
         UsuarioModel::trocarSenha($alvo, $nova);
         Auth::sairDeTodos($alvo);
         flash('success', t('Senha trocada.'));
+        redirecionar('/ajustes?aberto=pessoas#pessoas', 303);
+    }
+
+    /**
+     * "Remover acesso" em Pessoas (a tela pede confirmação): a pessoa não entra mais, os aparelhos e as sessões dela
+     * caem, e os lançamentos ficam. Não vale para si mesmo nem para a última pessoa com acesso (UsuarioModel::removerAcesso).
+     */
+    public function removerPessoa(string $id): void
+    {
+        Auth::requireLogin();
+        csrfCheck();
+
+        $alvo = (int) $id;
+        $pessoa = UsuarioModel::find($alvo);
+        $r = UsuarioModel::removerAcesso($alvo, (int) Auth::id());
+        if ($r === 'ok') {
+            Auth::sairDeTodos($alvo);
+            flash('success', t('{nome} não entra mais. Os lançamentos ficam.', ['nome' => (string) ($pessoa['nome'] ?? '')]));
+        } elseif ($r !== 'inexistente') {
+            $_SESSION['aj_erro'] = ['grupo' => 'pessoas', 'msg' => $r === 'proprio' ? t('Você não pode remover o próprio acesso.') : t('É a última pessoa com acesso: alguém precisa continuar entrando.')];
+        }
         redirecionar('/ajustes?aberto=pessoas#pessoas', 303);
     }
 
@@ -334,16 +462,12 @@ final class AjustesController
         $nova    = $str('senha_nova');
         $repetir = $str('senha_repetir') !== '' ? $str('senha_repetir') : $str('senha_confirma');
 
-        // mesmo limite do login (5 erradas → 10 min), contado no login deste usuário:
-        // quem está chutando a senha atual provavelmente não é o dono → sai desta sessão
+        // 5 erradas bloqueiam só trocar a senha e desligar as duas etapas, por alguns minutos; a sessão continua
         $conferida = Auth::conferirSenhaAtual((int) Auth::id(), $atual);
-        if ($conferida === 'bloqueado') {
-            Auth::logout();
-            renderErro(429, t('Muitas tentativas'), t('A senha atual foi digitada errada muitas vezes. Entre de novo em 10 minutos.'));
-        }
         $erro = match (true) {
+            $conferida === 'bloqueado' => self::muitasTentativas(),
             $conferida !== 'ok'   => t('A senha atual não confere.'),
-            mb_strlen($nova) < 6  => t('A nova senha precisa ter pelo menos 6 caracteres.'),
+            UsuarioModel::erroSenha($nova) !== null => UsuarioModel::erroSenha($nova),
             $nova !== $repetir    => t('As duas senhas novas não são iguais.'),
             default               => null,
         };
@@ -356,6 +480,12 @@ final class AjustesController
         Auth::sairDeTodos((int) Auth::id());                    // os outros aparelhos precisam da senha nova
         flash('success', t('Senha trocada.'));
         redirecionar('/ajustes', 303);
+    }
+
+    /** O aviso do bloqueio das ações de quem está logado (Auth::conferirSenhaAtual), com os minutos que faltam. */
+    public static function muitasTentativas(): string
+    {
+        return t('Muitas tentativas. Tente de novo em {min} min.', ['min' => max(1, Auth::minutosBloqueadoLogado((int) Auth::id()))]);
     }
 
     public static function rotulo(string $chave): string

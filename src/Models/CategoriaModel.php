@@ -163,13 +163,18 @@ final class CategoriaModel
     /**
      * Remove uma categoria. Se ela tem lançamentos, só arquiva (ativo = 0) para não perder
      * o histórico; se não tem nenhum, apaga de vez (e limpa previsão/contas recorrentes;
-     * a meta sai por ON DELETE CASCADE). Devolve 'apagada', 'arquivada' ou 'inexistente'.
+     * a meta sai por ON DELETE CASCADE). A que o app usa nos cálculos fica (protegida()).
+     * Devolve 'apagada', 'arquivada', 'protegida' ou 'inexistente'.
      */
     public static function remover(int $id): string
     {
         $pdo = Database::connection();
-        if (self::find($id) === null) {
+        $cat = self::find($id);
+        if ($cat === null) {
             return 'inexistente';
+        }
+        if (self::protegida($cat)) {
+            return 'protegida';
         }
         $stmt = $pdo->prepare('SELECT COUNT(*) FROM lancamentos WHERE categoria_id = :id');
         $stmt->execute(['id' => $id]);
@@ -215,6 +220,16 @@ final class CategoriaModel
     public static function doApp(array $cat): bool
     {
         return in_array((string) $cat['grupo'], self::GRUPOS_DO_APP, true) || (string) ($cat['chave'] ?? '') !== '';
+    }
+
+    /**
+     * O app acha esta categoria pela chave nos cálculos (o salário, a parcela do empréstimo, a fatura do cartão, a
+     * poupança e os investimentos: MotorFinanceiro::CAT_*). Ela não pode ser apagada nem arquivada: uma nova com o
+     * mesmo nome não teria a chave, e o plano perderia a linha sem aviso.
+     */
+    public static function protegida(array $cat): bool
+    {
+        return (string) ($cat['chave'] ?? '') !== '';
     }
 
     /** Tem lançamento ou compra no cartão: trocar entrada por gasto inverteria esse histórico. */
@@ -284,6 +299,10 @@ final class CategoriaModel
             if ($grupo === '') {
                 $erros['valor_tipo'] = t('Escolha se o valor varia, é fixo ou é de vez em quando.');
             }
+        }
+
+        if (self::protegida($cat) && (int) $cat['ativo'] === 1 && empty($d['ativo'])) {
+            $erros['ativo'] = t('O app usa esta categoria nos cálculos, então ela não pode ser removida nem arquivada.');
         }
 
         $dia = null;
