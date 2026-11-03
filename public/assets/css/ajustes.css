@@ -1,6 +1,6 @@
 /* Hallmark · checked: 2026-11-03 · genre: modern-minimal · shape: settings list + subscreens · scope: app · built: Ajustes e as subtelas do MyMonetto (design.md) · v1 */
 /* ==========================================================================
-   temas-tela.css — Ajustes e as subtelas: a lista agrupada, Categorias e o editar categoria, Backup e atualização,
+   ajustes.css — Ajustes e as subtelas: a lista agrupada, Categorias e o editar categoria, Backup e atualização,
    Usar no celular, Duas etapas e Temas. (O nome é o da primeira tela que morou aqui; o layout carrega este arquivo
    em todas as páginas. Ao juntar o redesenho, vale renomear para ajustes.css na lista do layout.)
    Prefixos: .ajs-* (a lista), .aj-* (campos e peças de Ajustes, também no Empréstimo), .aj-sub* (as subtelas),

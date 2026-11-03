@@ -101,9 +101,6 @@ a.rl-barra-i:focus-visible, .rl-tipo-b:focus-visible { outline: 2px solid var(--
     a.rl-barra-i { transition: none; }
 }
 
-/* o link da nota: azul, como os outros (inicio.css ainda tem uma regra antiga para .rl-onde .rl-nota a) */
-.rl .rl-onde .rl-nota a.link { color: var(--azul); font-weight: 600; text-decoration: none; }
+/* o link da nota: azul, como os outros */
+.rl .rl-onde .rl-nota a.link { display: inline-block; padding-block: 12px; margin-block: -12px; color: var(--azul); font-weight: 600; text-decoration: none; }
 .rl .rl-onde .rl-nota a.link:hover { text-decoration: underline; }
-
-/* os centavos dos números na cor cheia: a opacidade de style.css (.v-entrada .cent) baixa o contraste */
-.rl .numeros .v-entrada .cent, .rl .numeros .v-saida .cent { opacity: 1; }

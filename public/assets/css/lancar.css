@@ -1,5 +1,5 @@
 /* ==========================================================================
-   lancar.css — Lançar (folha e página), Extrato e as Contas do mês. Prefixos .lf-*, .ex-*, .cm-*.
+   lancar.css — Lançar (folha e página), Extrato e as Contas do mês. Prefixos .lf-* e .cm-*.
    Lançar: a pergunta "Quanto foi?", o valor grande no centro, a categoria numa lista com busca
    e os campos arredondados. Todo campo tem 16 px ou mais (o iOS não amplia a tela).
    ========================================================================== */
@@ -44,10 +44,6 @@
 .lf-valor-in[data-lf-sugerido] { color: var(--tinta-2); }
 .lf-sugestao { margin-top: calc(-1 * var(--e-2)); text-align: center; color: var(--tinta-3); font-size: var(--t-meta); line-height: var(--lh-meta); }
 .lf-erro-valor { margin-top: calc(-1 * var(--e-2)); text-align: center; }
-
-/* o erro no campo: em vermelho, logo embaixo dele (Início, Mês, Fechar e Lançar) */
-.campo-erro { display: block; margin-top: var(--e-1); color: var(--alerta); font-size: var(--t-rotulo); font-weight: 600; line-height: var(--lh-rotulo); }
-.campo-erro[hidden] { display: none; }
 
 /* a categoria: as usadas por último num toque; sem JS, o <select>; com JS, a caixa com busca (combobox) */
 .lf-rot { color: var(--tinta-2); font-size: var(--t-rotulo); font-weight: 600; line-height: var(--lh-rotulo); }
@@ -146,122 +142,6 @@
 .lf-excluir { margin: 0; }
 .lf-meta { color: var(--tinta-2); font-size: var(--t-rotulo); }
 
-/* ---------------------------------------------------------------- extrato */
-.ex { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
-.ex-col { display: none; }
-.ex-main { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
-.ex-topo { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-
-.ex-filtros-wrap { display: flex; flex-direction: column; gap: 10px; }
-.ex-filtros-row {
-    display: grid; gap: 8px;
-    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) 48px;
-    grid-template-areas: "busca busca btn" "per per per" "datas datas datas" "cat ordem ordem" "mais mais mais";
-    --campo: var(--card);
-}
-.ex-periodo-select { grid-area: per; }
-/* "Entre datas": as duas datas aparecem (CSS, e o JS ajuda onde não há :has) */
-.ex-datas { grid-area: datas; display: none; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
-.ex-datas.is-on, .ex-filtros-row:has(.ex-periodo-select option[value="datas"]:checked) .ex-datas { display: grid; }
-.ex-campo { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.ex-campo > span { color: var(--text-2); font-size: 13px; font-weight: 650; }
-.ex-mais-filtros { grid-area: mais; }
-.ex-mais-filtros > summary { display: inline-flex; align-items: center; gap: 6px; min-height: var(--tap); color: var(--text-2); font-size: 14px; font-weight: 700; list-style: none; }
-.ex-mais-filtros > summary::after {
-    content: ""; width: 7px; height: 7px; margin-left: 2px;
-    border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
-    transform: rotate(45deg) translateY(-2px); transition: transform .2s ease-out;
-}
-.ex-mais-filtros[open] > summary::after { transform: rotate(-135deg) translateY(-1px); }
-.ex-mais-filtros > summary:hover { color: var(--text); }
-.ex-mais-c { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; padding-bottom: 4px; }
-.ex-campo-quem, .ex-erro { grid-column: 1 / -1; }
-.ex-periodo-topo { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px; width: 100%; }
-.ex-voltar-mes { display: inline-flex; align-items: center; min-height: var(--tap); color: var(--text-2); font-size: 14px; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
-.ex-voltar-mes:hover { color: var(--text); }
-.ex-resumo-linha { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 10px 16px; }
-.ex-csv { margin-left: auto; }
-.ex-busca-inline { grid-area: busca; position: relative; min-width: 0; }
-.ex-busca-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-3); pointer-events: none; display: grid; }
-.ex-busca-input { padding-left: 42px; }
-.ex-cat-select { grid-area: cat; }
-.ex-ordem-select { grid-area: ordem; }
-.ex-filtros-row select { padding-left: 12px; padding-right: 34px; background-position: right 12px center; }
-.ex-busca-btn { grid-area: btn; padding: 0; min-height: 48px; border-radius: 12px; }
-.ex-busca-txt { display: none; }
-.ex-filtros-ativos { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.ex-chip-x { max-width: 100%; }
-.ex-limpar { min-height: 40px; display: inline-flex; align-items: center; padding: 0 6px; color: var(--text); font-weight: 750; }
-.ex-limpar:hover { text-decoration: underline; text-underline-offset: 3px; }
-
-/* criar categoria: em temas-tela.css (Ajustes) */
-.ex-cats { margin-top: 18px; }
-.ex-cats-grupo { margin: 14px 0 2px; color: var(--text-2); font-size: 13px; font-weight: 700; }
-.ex-cats-lista { display: flex; flex-direction: column; }
-.ex-cat-item { display: flex; align-items: center; gap: 12px; min-height: 56px; }
-.ex-cat-item + .ex-cat-item { border-top: 1px solid var(--line); }
-.ex-cat-nome { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; font-weight: 600; }
-.ex-cat-ic {                         /* o ícone leva à troca de ícone; o lápis no canto avisa */
-    position: relative; display: grid; place-items: center; flex: none;
-    width: 48px; height: 48px; margin-left: -4px; border-radius: 14px;
-    transition: background-color .12s ease-out;
-}
-.ex-cat-ic:hover { background: var(--card-2); }
-.ex-cat-ic::after {
-    content: ""; position: absolute; right: 1px; bottom: 1px; width: 18px; height: 18px; border-radius: 50%;
-    background: var(--acc) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230c0d10' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 20h4L19 9l-4-4L4 16v4Z'/%3E%3C/svg%3E") center / 11px no-repeat;
-    box-shadow: 0 0 0 2px var(--card);
-}
-.ex-cat-rm { margin: 0; flex: none; }
-.ex-cat-x {
-    display: grid; place-items: center; width: var(--tap); height: var(--tap); padding: 0; border-radius: 50%;
-    background: none; border: 0; color: var(--text-2); transition: color .15s ease-out, background-color .15s ease-out;
-}
-.ex-cat-x:hover { color: var(--neg); background: var(--neg-bg); }
-
-/* resumo do filtro */
-.ex-resumo { display: flex; flex-wrap: wrap; gap: 10px 24px; padding: 4px 2px; }
-.ex-resumo-item { display: flex; flex-direction: column; gap: 2px; }
-.ex-resumo-num { font-family: var(--fn); font-size: 22px; font-weight: 600; letter-spacing: -0.02em; }
-.ex-resumo-label { color: var(--text-2); font-size: 13px; }
-.ex-v-mov { color: var(--text-2); }
-
-/* a lista agrupada por dia */
-.ex-lista { padding-top: 8px; }
-.ex-dia { margin: 16px 0 2px; color: var(--text-3); font-size: 12.5px; font-weight: 750; }
-.ex-dia:first-child { margin-top: 2px; }
-.ex-v-ent { color: var(--pos); }
-.ex-agendado { color: var(--warn) !important; font-weight: 700 !important; }
-.ex-mais { margin-top: 14px; }
-.ex-vazio { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; color: var(--text-2); }
-.ex-vazio p { color: var(--text); font-weight: 600; }
-
-@media (min-width: 1024px) {
-    .ex { grid-template-columns: 384px minmax(0, 1fr); gap: 20px; }
-    .ex-col { display: block; position: sticky; top: 28px; }
-    .ex-col .card { --campo: var(--card-2); }
-    .ex-filtros-row {
-        grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) minmax(0, 1fr);
-        grid-template-areas: "busca busca btn" "per cat ordem" "datas datas datas" "mais mais mais";
-    }
-    .ex-mais-c { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.3fr); }
-    .ex-campo-quem { grid-column: auto; }
-    .ex-busca-btn { padding: 0 18px; }
-    .ex-busca-txt { display: inline; }
-}
-
-/* entrar, criar conta e o código: em entrar.css (as páginas de fora do app) */
-
-/* tela larga: o extrato vira tabela (descrição | categoria | valor e dia) */
-@media (min-width: 1600px) {
-    .ex { grid-template-columns: 400px minmax(0, 1fr); }
-    .ex-lista .lista-i { grid-template-columns: auto minmax(0, 2fr) minmax(0, 1.3fr) minmax(120px, auto); }
-    .ex-lista .lista-n { display: contents; }
-    .ex-lista .lista-n small { font-size: 14px; }
-}
-
-/* ícones (escolher e trocar) e o editar categoria: em temas-tela.css (Ajustes e as subtelas) */
-
 /* ---------------------------------------------------------------- contas do mês (Início e Extrato) */
 /* as contas fixas ainda não pagas: o nome abre o Lançar (outro valor), o Pago lança o previsto */
 .cm .card-head { margin-bottom: 2px; }
@@ -305,10 +185,3 @@
 .lf-transf > label > span { color: var(--text-2); font-size: 13px; font-weight: 650; }
 .lf:has(input[name="modo"][value="transferir"]:checked) .lf-transf { display: grid; }
 .lf:has(input[name="modo"][value="transferir"]:checked) :is(.ct-pagou, .ct-bloco, .lf-rot-linha, .lf-cat) { display: none; }
-
-/* extrato: transferências e o saldo da conta filtrada */
-.ex-transf-ic { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: var(--card-2); color: var(--text-2); font-size: 18px; font-weight: 700; }
-.ex-saldo-conta { color: var(--text-2); font-size: 14px; font-weight: 650; }
-.ex-saldo-conta b { color: var(--text); font-weight: 800; }
-.ex-saldo-conta b.neg { color: var(--neg); }
-.ex-campo-conta { grid-column: 1 / -1; }

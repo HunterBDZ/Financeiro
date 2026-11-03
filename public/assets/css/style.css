@@ -448,7 +448,7 @@ dialog.sheet[open] { animation: folha-sobe var(--entra) var(--curva); }
 .v-entrada { color: var(--entrada); }               /* já entrou: verde, com "+" */
 .v-saida { color: var(--saida); }                   /* já saiu: vermelho, com "−" */
 .v-previsto, .v-previsto .cent { color: var(--tinta-2); }   /* ainda não aconteceu: sem cor */
-.v-entrada .cent, .v-saida .cent { color: inherit; opacity: .8; }
+.v-entrada .cent, .v-saida .cent { color: inherit; }   /* cor cheia: com opacidade, o verde e o vermelho ficam abaixo de 4,5:1 */
 .dim { color: var(--tinta-2); }
 .fraco { color: var(--tinta-3); }
 .pos { color: var(--entrada); }
@@ -743,6 +743,9 @@ details.dobra > summary:hover::after { border-color: var(--tinta); }
 /* campo */
 .campo { display: flex; flex-direction: column; gap: var(--e-2); min-width: 0; }
 .campo > label, .campo > span:first-child { font-size: var(--t-rotulo); font-weight: 600; color: var(--tinta-2); }
+/* o erro no campo: em vermelho, logo embaixo dele, em qualquer tela */
+.campo-erro { display: block; margin-top: var(--e-1); color: var(--alerta); font-size: var(--t-rotulo); font-weight: 600; line-height: var(--lh-rotulo); }
+.campo-erro[hidden] { display: none; }
 .input-grande {
     min-height: 64px; padding: 0 var(--e-3);
     font-family: var(--f-num); font-size: var(--t-frase); font-weight: 300; letter-spacing: -.025em; line-height: 1;

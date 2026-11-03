@@ -1,59 +1,32 @@
 /* ==========================================================================
-   mes.css — Mês, Metas, Fechar mês e Anual. Prefixos .mes-*, .meta-*, .fe-*, .fu-*; .aj e .aj-titulo (Metas). Ajustes: temas-tela.css.
+   mes.css — Mês, Metas e Fechar mês. Prefixos .mes-*, .meta-*, .fe-*; .aj (Metas). Ajustes: ajustes.css.
    Mesma linguagem do Início: cartões arredondados, o cartão escuro do saldo, linhas com nome à
    esquerda e valor à direita, situação em texto com ponto, barras finas, chaves no lugar de caixas.
    ========================================================================== */
 
 /* ---------------------------------------------------------------- 1. comum */
 
-.mes, .fe, .fu, .aj { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
-.mes > *, .fe > *, .fu > *, .aj > * { min-width: 0; }
-.aj-titulo, .fu-titulo, .fe-titulo { font-size: 24px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.15; }
+.mes, .fe, .aj { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.mes > *, .fe > *, .aj > * { min-width: 0; }
 
 /* seta de abrir (linhas e grupos) */
-details.mes-ed > summary::after, .mes-sub-titulo::after, .meta-grupo-cab::after, .fu-mes > summary::after, .fu-ese > summary::after {
+details.mes-ed > summary::after {
     content: ""; flex: none; width: 8px; height: 8px;
     border-right: 2px solid var(--text-3); border-bottom: 2px solid var(--text-3);
     transform: rotate(45deg) translateY(-2px);
     transition: transform .2s cubic-bezier(.16, 1, .3, 1), border-color .15s ease-out;
 }
-details.mes-ed[open] > summary::after, .mes-grupo[open] > .mes-sub-titulo::after,
-.meta-grupo[open] > .meta-grupo-cab::after, .fu-mes[open] > summary::after, .fu-ese[open] > summary::after { transform: rotate(-135deg) translateY(-1px); }
-details.mes-ed > summary:hover::after, .mes-sub-titulo:hover::after,
-.meta-grupo-cab:hover::after, .fu-mes > summary:hover::after, .fu-ese > summary:hover::after { border-color: var(--text); }
+details.mes-ed[open] > summary::after { transform: rotate(-135deg) translateY(-1px); }
+details.mes-ed > summary:hover::after { border-color: var(--text); }
 
 /* ---------------------------------------------------------------- 2. mês */
 
-.mes-topo { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .mes-menu > summary svg { display: block; }
 .mes-menu .menu-painel { min-width: 270px; }
 .menu-item > .mes-desfazer-txt { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; }
 .mes-desfazer-txt > small { color: var(--text-2); font-weight: 500; }
 
-/* resumo (cartão escuro; o componente .saldo está em style.css) */
-.mes-resumo .saldo-v { margin: 10px 0 14px; font-size: 34px; }
-.mes-resumo .saldo-v span { font-size: 20px; }
-
-.mes-grade { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
-.mes-col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
-.mes-sec > .card-head { margin-bottom: 4px; }
-.mes-sec > .card-head > .card-acao { color: var(--text); font-size: 15px; font-weight: 750; }
-.mes-sec > .card-head > .card-acao.pos { color: var(--pos); }
-.mes-sec > .card-head > .card-acao.neg { color: var(--neg); }
-
-/* grupo (essenciais / não essenciais) */
-.mes-grupo + .mes-grupo { margin-top: 10px; }
-.mes-nota { margin: -4px 0 8px; color: var(--text-2); font-size: 13px; }
-.mes-sub-titulo {
-    display: flex; align-items: center; gap: 10px;
-    min-height: 40px; list-style: none;
-    color: var(--text-2); font-size: 13px; font-weight: 750;
-}
-.mes-sub-titulo .num { margin-left: auto; color: var(--text-2); font-weight: 700; }
-
 /* linhas: nome e valor; embaixo a situação, a barra da meta ou de onde vem o previsto */
-.mes-linhas { display: flex; flex-direction: column; }
-.mes-linhas > .mes-linha + .mes-linha { border-top: 1px solid var(--line); }
 details.mes-ed > summary {
     display: flex; align-items: center; gap: 12px;
     min-height: 56px; padding: 10px 2px; list-style: none;
@@ -67,12 +40,8 @@ details.mes-ed[open] + .mes-linha { border-top-color: transparent; }
 details.mes-ed[open] .mes-nome { font-weight: 750; }
 details.mes-ed:target > summary { animation: mes-realce 1.6s ease-out 1; }   /* voltou do salvar (#cat-…) */
 @keyframes mes-realce { from { background: var(--pos-bg); } }
-.mes-sum { display: flex; flex-direction: column; gap: 5px; flex: 1 1 auto; min-width: 0; }
-.mes-l1 { display: flex; align-items: baseline; gap: 12px; min-width: 0; }
+
 .mes-nome { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 650; }
-.mes-val { flex: none; font-weight: 750; }
-.mes-val.fora-meta { color: var(--neg); }
-.mes-l2 { display: flex; align-items: center; gap: 10px; min-width: 0; color: var(--text-2); font-size: 13px; font-weight: 600; line-height: 1.3; }
 
 /* situação da conta: texto com ponto */
 .mes-status { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; color: var(--text-2); font-weight: 650; }
@@ -83,15 +52,9 @@ details.mes-ed:target > summary { animation: mes-realce 1.6s ease-out 1; }   /* 
 .mes-status-vence { color: var(--warn); }
 .mes-status-venceu { color: var(--neg); }
 .mes-status-previsto { color: var(--text-3); }
-.mes-status-data { color: var(--text-3); white-space: nowrap; }
+
 .mes-status-previsto::before { background: transparent; box-shadow: inset 0 0 0 1.4px currentColor; }
 
-/* barra da meta do mês */
-.meta-bar { flex: 0 1 120px; }
-.meta-barra.na-meta .bullet-fill { background: var(--barra); }
-.meta-barra.fora-meta .bullet-fill { background: var(--neg); opacity: 1; }
-.meta-ref { flex: none; }
-.meta-barra.fora-meta .meta-ref { color: var(--neg); font-weight: 700; }
 .mes-origem.is-ajuste { color: var(--text); }
 
 /* painel de edição da previsão */
@@ -104,14 +67,7 @@ details.mes-ed:target > summary { animation: mes-realce 1.6s ease-out 1; }   /* 
 .mes-form-info { font-size: 13px; color: var(--text-2); line-height: 1.45; }
 .mes-prop { display: flex; flex-direction: row-reverse; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; font-weight: 600; cursor: pointer; }
 .mes-tirar { color: var(--text-2); }
-.mes-fechar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 14px; padding: 12px 16px; border-radius: 18px; background: var(--warn-bg); font-weight: 650; }
-.mes-fechar-link { display: flex; align-items: center; justify-content: center; min-height: var(--tap); color: var(--text-2); font-size: 14px; font-weight: 650; text-decoration: underline; text-underline-offset: 3px; }
-.mes-fechar-link:hover { color: var(--text); }
-.mes-conta-rap { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-.mes-conta-rap div { min-width: 0; }
-.mes-conta-rap dt { color: var(--text-2); font-size: 12.5px; font-weight: 650; white-space: normal; overflow-wrap: anywhere; }
-.mes-conta-rap dd { font-family: var(--fn); font-size: 17px; font-weight: 600; letter-spacing: -0.02em; overflow-wrap: anywhere; }
-.mes-ponte { margin-top: 8px; color: var(--text-2); font-size: 12.5px; font-weight: 600; white-space: normal; }
+
 .mes-form-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .mes-form-acoes > .btn-link:not(.mes-tirar) {          /* voltar à meta: caixa neutra */
     min-height: var(--tap); padding: 0 16px; border-radius: 14px;
@@ -143,391 +99,46 @@ details.mes-ed:target > summary { animation: mes-realce 1.6s ease-out 1; }   /* 
 .mes-incluir[open] > summary { background: var(--text); color: var(--bg); }
 .mes-incluir > .mes-form { margin-top: 10px; padding: 12px; border-radius: 16px; background: var(--card-2); --campo: var(--card); }
 
-/* mês fechado: só leitura */
-.mes-ros { display: flex; flex-direction: column; }
-.mes-ro { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 8px 2px; }
-.mes-ro + .mes-ro { border-top: 1px solid var(--line); }
-.mes-saldo-ant { border-top: 1px solid var(--line); }
-.mes-ro > .mes-nome { flex: 1 1 auto; white-space: normal; line-height: 1.3; overflow-wrap: anywhere; font-weight: 600; }
-.mes-ro > .num { flex: none; font-weight: 750; }
-.mes-ro > .num.fora-meta { color: var(--neg); }
-.mes-ro > .mes-nome > .mes-l2 { margin-top: 4px; }
-
 /* ---------------------------------------------------------------- 3. metas */
 
-.meta-cab { display: flex; flex-direction: column; gap: 10px; }
-.meta-lado { display: contents; }   /* só vira coluna na tela larga */
-
-.meta-top { display: flex; flex-direction: column; gap: 12px; }
-.meta-top-head { display: flex; flex-direction: column; gap: 2px; }
-.meta-top-head .rotulo { font-size: 13px; }
-.meta-renda-nota { display: block; font-size: 12px; font-weight: 500; }
-.meta-renda { font-family: var(--fn); font-size: 30px; font-weight: 600; letter-spacing: -0.03em; line-height: 1.1; }
-
 /* barra: como a renda foi usada (toque para ver as metas) */
-.meta-aloc {
-    position: relative; display: flex; gap: 3px; width: 100%; height: 12px; padding: 0; border: 0;
-    background: none; cursor: pointer; -webkit-appearance: none; appearance: none;
-}
-.meta-aloc::before { content: ""; position: absolute; inset: -16px 0; }   /* a área de toque passa de 44px sem mudar o desenho */
-.meta-aloc-seg { width: var(--w); min-width: 0; height: 100%; border-radius: 5px; transition: width .3s cubic-bezier(.16, 1, .3, 1); }
-.meta-aloc-seg.seg-metas { display: flex; overflow: hidden; background: var(--barra); }
-.meta-aloc-seg.seg-gasto { background: var(--text-3); }
-.meta-aloc-seg.seg-conta { background: var(--pos); }
 .metas-sub { height: 100%; min-width: 0; }
 .metas-sub + .metas-sub { box-shadow: inset 2px 0 0 var(--card); }
 .meta-pg .dot { display: inline-block; flex: none; width: 9px; height: 9px; border-radius: 3px; }
-.dot-metas { background: var(--barra); }
-.dot-gasto { background: var(--text-3); }
-.dot-conta { background: var(--pos); }
-.meta-contas { display: flex; flex-direction: column; }
-.meta-conta-l { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 34px; }
-.meta-conta-nome { display: flex; align-items: center; gap: 10px; min-width: 0; font-weight: 600; }
-.meta-conta-val { font-weight: 750; white-space: nowrap; }
-.meta-conta-de { margin-left: 4px; color: var(--text-3); font-size: 13px; font-weight: 600; }
-.meta-conta-res .meta-conta-nome, .meta-conta-res .meta-conta-val { font-weight: 800; }
-.meta-conta-res.is-neg { color: var(--neg); }
-.meta-conta-res.is-neg .dot-conta { background: var(--neg); }
-.meta-aloc-det { display: flex; flex-direction: column; gap: 2px; padding-top: 2px; }
+
 .aloc-det-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; min-height: 30px; }
 .aloc-det-nome { display: flex; align-items: center; gap: 10px; min-width: 0; overflow: hidden; white-space: nowrap; font-weight: 600; }
 .aloc-det-pct { font-weight: 750; }
 .aloc-det-vazio { color: var(--text-2); font-size: 13px; }
 
-.meta-dica { color: var(--text-2); font-size: 13px; line-height: 1.5; padding: 0 2px; }
-
 /* adicionar categoria */
 .meta-add { display: flex; flex-direction: column; gap: 8px; }
-.meta-add-lbl { font-weight: 750; }
-.meta-add-ctl { display: flex; gap: 8px; min-width: 0; }
-.meta-add-sel { flex: 1 1 auto; min-width: 0; }
-.meta-add-btn { flex: none; }
 
-/* grupos e linhas: cada linha é um details.mes-ed (a mesma do Mês) que abre o editor */
-.meta-listas { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
-.meta-grupo { padding-top: 6px; padding-bottom: 6px; }
-.meta-grupo[open] { padding-bottom: 12px; }
-.meta-grupo-cab { display: flex; align-items: center; gap: 12px; min-height: 48px; list-style: none; }
-.meta-grupo-tit { font-size: 16px; font-weight: 750; }
-.meta-grupo-res { margin-left: auto; display: inline-flex; align-items: baseline; gap: 5px; color: var(--text-2); font-size: 13px; }
-.meta-grupo-meta, .meta-grupo-gasto { color: var(--text); font-weight: 750; }
-.meta-grupo-meta { margin-right: 8px; }
-.meta-lista { display: flex; flex-direction: column; }
 .meta-cat .mes-nome { white-space: normal; overflow-wrap: anywhere; line-height: 1.25; }
-.meta-sem { color: var(--text-3); font-size: 13px; font-weight: 600; }
-.meta-pbar { display: block; height: 5px; border-radius: 6px; background: var(--line); overflow: hidden; }
-.meta-pbar-fill { display: block; width: var(--pct); height: 100%; border-radius: 6px; background: var(--barra); opacity: .8; transition: width .3s cubic-bezier(.16, 1, .3, 1), background-color .2s ease-out; }
-.meta-cat.is-near .meta-pbar-fill { background: var(--warn); opacity: 1; }
-.meta-cat.is-over .meta-pbar-fill { background: var(--neg); opacity: 1; }
-.meta-cat.is-none .meta-pbar { opacity: .5; }
-.meta-l2 { flex-wrap: wrap; row-gap: 2px; column-gap: 8px; }
-.meta-cat-nums { color: var(--text-2); }
-.meta-cat.is-near .meta-cat-nums { color: var(--warn); }
-.meta-cat.is-over .meta-cat-nums { color: var(--neg); }
-.meta-proprio { flex-basis: 100%; color: var(--text); }   /* o mês tem valor próprio: diz a meta dos outros meses */
 
-/* editor: valor, a partir de, até (nas contas, o dia do vencimento) */
-.meta-ed-per { display: grid; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); gap: 8px; }
-.meta-ed-per > .mes-form-campo > select { width: 100%; min-height: var(--tap); }
-.mes-form-campo.meta-ed-dia > input, .meta-ed-per > .mes-form-campo > input { min-height: var(--tap); font-size: 17px; }
-.meta-ed-nome > input { min-height: var(--tap); text-align: left; font-family: inherit; font-size: 16px; font-weight: 600; letter-spacing: 0; }
-.meta-ed-fora { display: flex; margin: -4px 0 0; padding-bottom: 12px; }
-.meta-ed-fora > .btn-link { min-height: var(--tap); }
-
-/* contas fixas */
-.meta-contas-fixas > .card-head { margin-bottom: 4px; }
-.meta-contas-fixas > .card-head > .card-acao { color: var(--text); font-size: 15px; font-weight: 750; }
-.meta-contas-fixas > .mes-incluir { margin-top: 10px; }
-.meta-nova-btn { align-self: flex-start; min-height: var(--tap); }
-
-/* ---------------------------------------------------------------- 4. fechar mês: na seção 9 */
-
-/* ---------------------------------------------------------------- 5. anual */
-
-/* resumo: como o plano termina e os marcos, em ordem (uma sequência no tempo, ligada por um fio) */
-.fu-res { display: flex; flex-direction: column; gap: 4px; }
-.fu-res-t { color: var(--text-2); font-size: 13px; font-weight: 650; }
-.fu-res-v { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
-.fu-res-v b { font-family: var(--fn); font-size: 30px; font-weight: 600; letter-spacing: -0.03em; }
-.fu-res-v span { font-size: 14px; font-weight: 750; }
-.fu-res-meta { color: var(--text-2); font-size: 13px; }
-.fu-res-emp { display: inline-flex; align-items: center; min-height: var(--tap); margin-top: 4px; font-size: 14px; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
-.fu-marcos { position: relative; display: flex; flex-direction: column; margin: 12px 0 0; padding: 6px 0 0; border-top: 1px solid var(--line); list-style: none; }
-.fu-marcos::before { content: ""; position: absolute; left: 3.5px; top: 28px; bottom: 26px; width: 1px; background: var(--line-2); }
-.fu-marco {
-    --c: var(--text-3);
-    position: relative; display: grid; grid-template-columns: minmax(0, 1fr); gap: 1px;
-    margin: 0 -10px; padding: 9px 10px 9px 30px; border-radius: 12px; color: var(--text);
-    transition: background-color .12s ease-out;
-}
-.fu-marco:hover { background: var(--sel); }
-.fu-marco::before {
-    content: ""; position: absolute; left: 10px; top: 15px; width: 8px; height: 8px; border-radius: 50%;
-    background: var(--c); box-shadow: 0 0 0 3px var(--card);
-}
-.fu-marco.is-neg { --c: var(--neg); }
-.fu-marco.is-warn { --c: var(--warn); }
-.fu-marco.is-pos { --c: var(--pos); }
-.fu-marco-q { font-size: 14px; font-weight: 800; }
-.fu-marco-t { color: var(--text-2); font-size: 14px; line-height: 1.4; white-space: normal; }
-.fu-marco-t b { color: var(--text); font-weight: 750; }
-.fu-marco-t b.neg { color: var(--neg); }
-.fu-marco-t b.warn { color: var(--warn); }
-
-/* gráfico: conta no fim de cada mês */
-.fu-graf-t { font-size: 16px; font-weight: 750; line-height: 1.35; letter-spacing: -0.01em; }
-.fu-graf-sub { margin-top: 2px; color: var(--text-2); font-size: 13px; }
-.fu-fig { margin: 28px 0 0; }
-.fu-plot { position: relative; height: 200px; }
-.fu-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-.fu-faixa-warn { fill: var(--warn); opacity: .08; }
-.fu-faixa-neg { fill: var(--neg); opacity: .09; }
-.fu-grade { stroke: var(--line); stroke-width: 1; vector-effect: non-scaling-stroke; }
-.fu-zero { stroke: var(--line-2); stroke-width: 1.2; vector-effect: non-scaling-stroke; }
-.fu-reserva { stroke: var(--warn); stroke-width: 1.5; stroke-dasharray: 1 4; stroke-linecap: round; vector-effect: non-scaling-stroke; }
-.fu-meta-l { stroke: var(--text-3); stroke-width: 1.5; stroke-dasharray: 1 4; stroke-linecap: round; vector-effect: non-scaling-stroke; }
-.fu-hoje-l { stroke: var(--text-3); stroke-width: 1; stroke-dasharray: 2 3; vector-effect: non-scaling-stroke; }
-.fu-linha { fill: none; stroke: var(--text); stroke-width: 2.4; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
-.fu-linha.is-prev { stroke-dasharray: 7 5; stroke-linecap: butt; }   /* previsão tracejada; o que já fechou, sólido */
-.fu-div-l { fill: none; stroke: var(--text-3); stroke-width: 1.6; stroke-linejoin: round; vector-effect: non-scaling-stroke; opacity: .75; }
-.fu-div-l.is-prev { stroke-dasharray: 4 4; }
-.fu-serie { position: absolute; transform: translate(6px, calc(-100% - 4px)); color: var(--text-3); font-size: 12px; font-weight: 800; line-height: 1; white-space: nowrap; text-shadow: 0 0 3px var(--card), 0 0 3px var(--card); }
-.fu-serie.is-inicio { transform: translate(-4px, 8px); }   /* sem descida no plano: embaixo do começo da linha */
-.fu-gl { position: absolute; left: 0; transform: translateY(calc(-100% - 3px)); color: var(--text-3); font-size: 12px; font-weight: 650; line-height: 1; }
-.fu-ref { position: absolute; right: 0; transform: translateY(calc(-100% - 3px)); color: var(--warn); font-size: 12px; font-weight: 750; line-height: 1.2; white-space: nowrap; }
-.fu-gl, .fu-ref, .fu-hoje { padding: 1px 3px; border-radius: 4px; background: var(--card); }   /* fundo sólido: as linhas passam por trás do texto sem riscá-lo */
-.fu-reserva-rot { transform: translateY(4px); }   /* embaixo da linha: em cima, os pontos parados na reserva cobririam o texto */
-.fu-meta-rot { left: 0; right: auto; color: var(--text-3); }   /* à esquerda: na direita encosta no número do fim */
-.fu-hoje { position: absolute; top: 0; transform: translate(-50%, calc(-100% - 4px)); color: var(--text-2); font-size: 12px; font-weight: 750; line-height: 1; }
-.fu-pt {
-    --c: var(--text);
-    position: absolute; width: 10px; height: 10px; margin: -5px 0 0 -5px; box-sizing: border-box; border-radius: 50%;
-    box-shadow: 0 0 0 2.5px var(--card);
-}
-.fu-pt.is-real { background: var(--c); }
-.fu-pt.is-aberto { border: 2px solid var(--c); background: linear-gradient(90deg, var(--c) 50%, var(--card) 50%); }
-.fu-pt.is-prev { border: 2px solid var(--c); background: var(--card); }
-.fu-pt.is-warn { --c: var(--warn); }
-.fu-pt.is-neg { --c: var(--neg); }
-.fu-nota {
-    position: absolute; transform: translate(-50%, calc(-100% - 9px));
-    color: var(--text); font-size: 12px; font-weight: 800; line-height: 1.2; white-space: nowrap;
-    text-shadow: 0 0 3px var(--card), 0 0 3px var(--card), 0 0 6px var(--card);
-}
-.fu-nota.is-baixo { transform: translate(-50%, 9px); }
-.fu-nota.is-fim { transform: translate(calc(-100% + 5px), calc(-100% - 9px)); }
-.fu-nota.neg { color: var(--neg); }
-.fu-nota.warn { color: var(--warn); }
-.fu-eixo { position: relative; height: 40px; margin-top: 10px; }
-.fu-mx, .fu-ano { position: absolute; top: 0; transform: translateX(-50%); color: var(--text-3); font-size: 12px; font-weight: 650; line-height: 1.25; white-space: nowrap; }
-.fu-ano { top: 18px; font-variant-numeric: tabular-nums; }
-.fu-mx.is-ref { color: var(--text); font-weight: 800; }
-.fu-evento { color: var(--pos); font-weight: 750; font-variant-numeric: normal; }
-@media (max-width: 560px) {
-    .fu-fig.is-denso .fu-mx.is-salta { visibility: hidden; }
-    .fu-pt:not(.is-chave) { display: none; }   /* no celular, os 16 pontos embolam: só hoje, o mais apertado e o fim */
-    .fu-nota.is-plano { display: none; }       /* e o "plano" encostaria na dívida: o subtítulo explica as linhas */
-}
-
-/* mês a mês: tabela por ano. Celular: Mês | Balanço | Conta no fim; o resto ao abrir a linha */
-.fu-meses-cab { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 16px; margin-bottom: 8px; }
-.fu-unid { margin-left: 4px; color: var(--text-3); font-size: 13px; font-weight: 650; }
-.fu-leg { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--text-2); font-size: 12.5px; }
-.fu-leg > span { display: inline-flex; align-items: center; gap: 6px; }
-.fu-mk { --c: var(--text); display: inline-block; flex: none; width: 9px; height: 9px; box-sizing: border-box; border-radius: 50%; }
-.fu-mk.is-real { background: var(--c); }
-.fu-mk.is-aberto { border: 1.6px solid var(--c); background: linear-gradient(90deg, var(--c) 50%, transparent 50%); }
-.fu-mk.is-prev { border: 1.6px solid var(--c); }
-.fu-tab { display: flex; flex-direction: column; }
-.fu-cols { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(78px, auto) 12px; align-items: center; column-gap: 14px; }
-.fu-cab { padding: 2px 2px 8px; border-bottom: 1px solid var(--line); }
-.fu-lbl { text-align: right; color: var(--text-3); font-size: 12px; font-weight: 700; }
-.fu-lbl-m { text-align: left; }
-.fu-ano-cab { margin: 16px 2px 2px; color: var(--text-3); font-size: 12.5px; font-weight: 750; }
-.fu-ano-cab + .fu-mes { border-top: 0; }
-.fu-mes + .fu-mes { border-top: 1px solid var(--line); }
-.fu-mes > summary { min-height: 46px; padding: 4px 2px; list-style: none; font-size: 14px; }
-.fu-mes > summary::after { justify-self: end; }
-.fu-mes.is-ref > summary { margin: 0 -10px; padding: 4px 12px; border-radius: 12px; background: var(--card-2); }
-.fu-mes[open] { margin: 4px -10px; padding: 0 10px; border-radius: 14px; background: var(--card-2); border-top-color: transparent; }
-.fu-mes[open] + .fu-mes { border-top-color: transparent; }
-.fu-mes.is-ref[open] > summary { margin: 0; padding: 4px 2px; background: none; }
-.fu-m { display: inline-flex; align-items: center; gap: 8px; font-weight: 750; white-space: nowrap; }
-.fu-v { text-align: right; color: var(--text-2); white-space: nowrap; }
-.fu-bal { color: var(--text); font-weight: 650; }
-.fu-bal.neg { color: var(--neg); }
-.fu-fica { display: inline-flex; align-items: center; justify-content: flex-end; gap: 4px; color: var(--text); font-weight: 750; }
-.fu-fica.warn { color: var(--warn); }
-.fu-fica.neg { color: var(--neg); }
-.fu-al { flex: none; stroke-width: 2.4; }
-.fu-total { min-height: 44px; padding: 4px 2px; border-top: 1px solid var(--line-2); font-size: 14px; }
-.fu-total .fu-m { font-weight: 800; }
-.fu-total small { margin-left: 4px; color: var(--text-3); font-size: 12px; font-weight: 650; }
-.fu-total .fu-v { color: var(--text); font-weight: 750; }
-.fu-largo, .fu-cols > .fu-xl { display: none; }
-
-/* e se: aviso no topo, cartão com a comparação e o formulário (GET; nada é gravado) */
-.fu-sim {
-    display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 16px;
-    padding: 12px 16px; border-radius: 16px; border: 1px dashed var(--line-2); background: var(--card);
-    color: var(--text-2); font-size: 14px; line-height: 1.45;
-}
-.fu-sim b { color: var(--text); font-weight: 800; }
-.fu-sim > .btn-link { flex: none; }
-.fu-ese > summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; min-height: 28px; list-style: none; cursor: pointer; }
-.fu-ese > summary::after { margin-left: auto; align-self: center; }
-.fu-ese-t { font-size: 16px; font-weight: 800; }
-.fu-ese-dica { color: var(--text-2); font-size: 13px; }
-.fu-ese[open] > summary { margin-bottom: 14px; }
-.fu-ese-erro { margin: 0 0 12px; padding: 8px 12px; border-radius: 12px; background: var(--neg-bg); color: var(--neg); font-size: 13.5px; font-weight: 650; }
-.fu-cmp { width: 100%; max-width: 620px; margin: 0 0 16px; border-collapse: collapse; font-size: 14px; }   /* sem esticar: os números perto do nome */
-.fu-cmp th, .fu-cmp td { padding: 8px 0; border-bottom: 1px solid var(--line); text-align: right; vertical-align: baseline; }
-.fu-cmp thead th { padding-top: 0; color: var(--text-3); font-size: 12px; font-weight: 700; }
-.fu-cmp tbody th { padding-right: 12px; text-align: left; color: var(--text-2); font-weight: 600; }
-.fu-cmp td { padding-left: 14px; color: var(--text-2); font-weight: 650; }
-.fu-cmp td b { color: var(--text); font-weight: 800; }
-.fu-cmp small { margin-left: 6px; font-size: 12.5px; font-weight: 750; }
-@media (max-width: 560px) {
-    /* no celular a comparação vira um bloco por linha: o nome em cima, Plano e E se lado a lado */
-    .fu-cmp thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-    .fu-cmp tr { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 14px; padding: 9px 0; border-bottom: 1px solid var(--line); }
-    .fu-cmp th, .fu-cmp td { padding: 0; border: 0; }
-    .fu-cmp tbody th { grid-column: 1 / -1; padding: 0 0 3px; }
-    .fu-cmp td { text-align: left; }
-    .fu-cmp td::before { content: attr(data-rot); display: block; color: var(--text-3); font-size: 12px; font-weight: 700; }
-}
-.fu-ese-form { display: flex; flex-direction: column; gap: 12px; --campo: var(--card-2); }
-.fu-ese-l { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "rot rot" "tipo valor" "mes mes"; gap: 8px; align-items: center; }
-.fu-ese-rot { grid-area: rot; font-size: 14px; font-weight: 750; }
-.fu-ese-l > select { grid-area: tipo; }
-.fu-ese-l > input { grid-area: valor; text-align: right; }
-.fu-ese-mes { grid-area: mes; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 10px; color: var(--text-2); font-size: 14px; }
-.fu-ese-adi { display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: 14px; font-weight: 600; }
-.fu-ese-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-top: 2px; }
-.fu-ese-btn { min-width: 150px; }
-.fu-base-l { fill: none; stroke: var(--text-3); stroke-width: 1.5; opacity: .6; vector-effect: non-scaling-stroke; }
-.fu-nota.is-plano { transform: translate(calc(-100% - 10px), -50%); color: var(--text-3); font-weight: 750; }
-.fu-chip.is-sim { background: transparent; box-shadow: inset 0 0 0 1px var(--line-2); color: var(--text); }
-
-/* o que mudou em relação ao mês anterior: a seta diz se subiu ou caiu; a cor, se foi bom ou ruim */
-.fu-chips { display: flex; flex-wrap: wrap; gap: 4px 6px; min-width: 0; }
-.fu-chip {
-    display: inline-flex; align-items: center; gap: 3px; min-height: 22px; padding: 0 8px; border-radius: 999px;
-    background: var(--card-2); color: var(--text-2); font-size: 12px; font-weight: 700; white-space: nowrap;
-}
-.fu-chip svg { stroke-width: 2.6; }
-.fu-chip.is-pos svg { color: var(--pos); }
-.fu-chip.is-neg svg { color: var(--neg); }
-.fu-chip.is-ok { background: var(--pos-bg); color: var(--pos); }
-.fu-mes[open] .fu-chip:not(.is-ok) { background: var(--card); }
-
-/* linha aberta: a conta do mês, de cima para baixo, e ao lado o que mudou e o link para o mês */
-.fu-det { display: grid; gap: 14px; padding: 4px 2px 14px; }
-.fu-conta { display: flex; flex-direction: column; max-width: 380px; }
-.fu-conta > p { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 3px 0; font-weight: 700; }
-.fu-conta > p > span { color: var(--text-2); font-weight: 600; white-space: normal; }
-.fu-conta > .fu-conta-sub { padding-top: 0; font-size: 12.5px; }
-.fu-conta > .fu-conta-sub > span { padding-left: 14px; color: var(--text-3); }
-.fu-conta > .fu-conta-fim { margin-top: 4px; padding-top: 7px; border-top: 1px solid var(--line-2); font-weight: 800; }
-.fu-conta > .fu-conta-fim > span { color: var(--text); font-weight: 750; }
-.fu-conta > .fu-conta-fim.warn { color: var(--warn); }
-.fu-conta > .fu-conta-fim.neg { color: var(--neg); }
-.fu-conta > .fu-conta-div { color: var(--text-2); font-weight: 650; }
-.fu-det-lado { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; min-width: 0; }
-.fu-det-mudou { display: flex; flex-direction: column; gap: 6px; }
-.fu-det-mudou > span { color: var(--text-2); font-size: 12.5px; font-weight: 600; }
-.fu-det-lado > .fu-abrir { margin-left: -4px; }
-
-/* ---------------------------------------------------------------- 6. ajustes: em temas-tela.css (Ajustes e as subtelas) */
+/* ---------------------------------------------------------------- 6. ajustes: em ajustes.css (Ajustes e as subtelas) */
 
 /* ---------------------------------------------------------------- 7. computador */
 
 @media (min-width: 1024px) {
-    .mes, .fe, .fu, .aj { gap: 18px; }
-    .aj-titulo, .fu-titulo, .fe-titulo { font-size: 26px; }
-    .mes-grade { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 16px; align-items: start; }
-    .mes-col { gap: 16px; }
-    .fe-grade { grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 2fr); }
-    .fe-grade > .fe-conta { grid-column: auto; }
-    .fu-plot { height: 260px; }
-    .fu-res-v b { font-size: 36px; }
-    .fu-mes > summary, .fu-total { font-size: 15px; }
-    .fu-det { grid-template-columns: minmax(0, 380px) minmax(0, 1fr); column-gap: 40px; align-items: start; }
-    .fu-ese-l { grid-template-columns: 88px minmax(0, 170px) minmax(0, 150px) minmax(0, 1fr); grid-template-areas: "rot tipo valor mes"; }
-    .fu-ese-mes { max-width: 300px; }
+    .mes, .fe, .aj { gap: 18px; }
+    
     .meta-pg { max-width: 920px; }
-    .meta-listas { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
-    .meta-listas > .meta-contas-fixas { grid-column: 1 / -1; }
-}
-@media (max-width: 1023px) {
-    .meta-grupo-cab {
-        display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "tit seta" "res seta";
-        row-gap: 2px; padding: 8px 0;
-    }
-    .meta-grupo-tit { grid-area: tit; }
-    .meta-grupo-res { grid-area: res; margin-left: 0; }
-    .meta-grupo-cab::after { grid-area: seta; }
 }
 
 /* ---------------------------------------------------------------- 8. tela larga */
 
-/* anual: a tabela ganha entradas, saídas e dívida (no celular ficam no detalhe) sem esticar os
-   números; a partir de 1280 px o resumo vai para uma coluna à direita, parado enquanto a tabela rola;
-   a partir de 1600 px o "o que mudou" entra na própria linha */
-@media (min-width: 1024px) {
-    .fu-largo { display: block; }
-    .fu-largo.fu-fica, .fu-fica { display: inline-flex; }
-    .fu-tab { max-width: 820px; }
-    .fu-cols { grid-template-columns: minmax(96px, 1.3fr) repeat(5, minmax(76px, 1fr)) 12px; column-gap: 16px; }
-}
-@media (min-width: 1280px) {
-    .fu {
-        display: grid; grid-template-columns: minmax(0, 1fr) 340px; align-items: start; column-gap: 18px;
-        grid-template-areas: "tit tit" "ese res" "graf res" "meses res";
-    }
-    .fu.is-sim { grid-template-areas: "tit tit" "sim sim" "ese res" "graf res" "meses res"; }
-    .fu > .fu-sim { grid-area: sim; }
-    .fu > .fu-ese { grid-area: ese; }
-    .fu > .fu-titulo { grid-area: tit; }
-    .fu > .fu-graf { grid-area: graf; }
-    .fu > .fu-meses { grid-area: meses; }
-    .fu > .fu-res { grid-area: res; position: sticky; top: 24px; }
-}
-@media (min-width: 1600px) {
-    .fu { grid-template-columns: minmax(0, 1fr) 360px; }
-    .fu-cols > .fu-xl { display: block; }
-    .fu-cols > .fu-xl.fu-chips { display: flex; flex-wrap: wrap; height: 22px; overflow: hidden; }   /* só os chips que cabem inteiros */
-    .fu-tab { max-width: none; }
-    .fu-cols { grid-template-columns: 104px repeat(5, 92px) minmax(0, 1fr) 12px; column-gap: 18px; }
-    .fu-det-mudou { display: none; }
-}
-
 /* fechar mês: duas colunas de cartões (os números ocupam a largura toda) */
 @media (min-width: 1280px) {
     .fe { max-width: 1200px; }
-    .fe-blocos { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
-    .fe-blocos > .fe-bloco:first-child, .fe-blocos > .fe-bloco:last-child:nth-child(even) { grid-column: 1 / -1; }
 }
 
 @media (min-width: 1600px) {
-    /* mês: essenciais e não essenciais lado a lado */
-    .mes-grade { grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); }
     #saidas { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 28px; align-items: start; }
     #saidas > .card-head, #saidas > .mes-incluir { grid-column: 1 / -1; }
-    #saidas > .mes-grupo + .mes-grupo { margin-top: 0; }
-    #saidas > .mes-ros { grid-column: 1 / -1; display: block; column-count: 2; column-gap: 28px; }
-    #saidas > .mes-ros > .mes-ro { break-inside: avoid; }
 
-    /* metas: à esquerda a renda e o adicionar; à direita os grupos e as contas fixas */
     .meta-pg { max-width: 1560px; display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); gap: 16px; align-items: start; }
-    .meta-pg > .meta-cab { grid-column: 1 / -1; }
-    .meta-lado { display: flex; flex-direction: column; gap: 16px; position: sticky; top: 28px; }
 }
-
-/* Simular */
-.fu-sub { color: var(--text-2); font-size: 14px; line-height: 1.45; }
-.fu-tabela > summary { display: inline-flex; align-items: center; list-style: none; margin-bottom: 10px; cursor: pointer; }
-.fu-tabela > summary::-webkit-details-marker { display: none; }
 
 .fe-bloco .conf-contas { margin: 10px 0 14px; }
 
@@ -636,9 +247,6 @@ details.mes-ed[open] > .mes-ed-painel { animation: menu-abre var(--entra) var(--
     .mes-destino { margin-top: var(--e-7); padding-top: 0; border-top: 0; }
     .mes-acao { align-items: flex-end; text-align: right; }
 }
-
-/* os centavos de entrada e saída na cor cheia (a opacidade da base deixa o verde e o vermelho abaixo de 4,5:1) */
-.mes :is(.v-entrada, .v-saida) .cent, .fe :is(.v-entrada, .v-saida) .cent { opacity: 1; }
 
 /* o Fechar: as faixas da grade, a escada até o balanço como um livro curto e o botão no fim */
 .grade.fe { max-width: none; }

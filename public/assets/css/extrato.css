@@ -120,6 +120,3 @@
 @media (prefers-reduced-motion: reduce) {
     .ext-linha, .ext-mais > summary::after { transition: none; }
 }
-
-/* os centavos da faixa na cor cheia: a opacidade de style.css (.v-entrada .cent) baixa o contraste do texto pequeno */
-.ext-resumo .v-entrada .cent, .ext-resumo .v-saida .cent { opacity: 1; }
