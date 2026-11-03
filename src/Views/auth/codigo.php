@@ -6,14 +6,12 @@
  */
 $erro        = $erro ?? null;
 $recuperacao = !empty($recuperacao);
-$casca = ['titulo' => t('Código de verificação · MyMonetto'), 'classe' => 'pub-entrar', 'marca' => false, 'idiomas' => false];
+$casca = ['titulo' => t('Código de verificação · MyMonetto'), 'classe' => 'pub-entrar', 'marca' => false, 'vitrine' => true, 'idiomas' => false, 'js' => ['/assets/js/entrar.js']];
 require __DIR__ . '/_casca.php';
 ?>
-    <?php require __DIR__ . '/_apresenta.php'; ?>
-
     <div class="pub-lado">
         <form class="pub-form" method="post" action="/login/codigo" aria-labelledby="pub-form-t">
-            <h2 class="pub-form-t" id="pub-form-t"><?= e(t('Falta só o código')) ?></h2>
+            <h1 class="pub-form-t" id="pub-form-t"><?= e(t('Falta só o código')) ?></h1>
             <p class="pub-form-sub"><?= e($recuperacao
                 ? t('Digite um dos códigos de recuperação que você guardou ao ligar a verificação. Cada um vale uma vez.')
                 : t('Abra o app autenticador no celular e digite o código de 6 dígitos que aparece para o MyMonetto.')) ?></p>

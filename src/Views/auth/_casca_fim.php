@@ -3,6 +3,9 @@
 $jsCasca = array_filter(array_merge(['/assets/js/app.js'], (array) ($casca['js'] ?? [])), static fn(string $p): bool => is_file(__DIR__ . '/../../../public' . $p));
 ?>
 </main>
+<?php if (!empty($comVitrine)): ?>
+</div>
+<?php endif; ?>
 <?php foreach ($jsCasca as $j): ?>
 <script src="<?= e(asset($j)) ?>"></script>
 <?php endforeach; ?>

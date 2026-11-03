@@ -8,7 +8,8 @@
  *   ... o conteúdo ...
  *   require __DIR__ . '/../auth/_casca_fim.php'; // fecha o <main>, os scripts e o <html>
  * Chaves: titulo (o <title>), classe (classe do <main>), marca (bool, a marca no topo; padrão true),
- * idiomas (bool, padrão true), voltaIdioma (para onde a troca de idioma volta), css e js (arquivos a mais).
+ * idiomas (bool, padrão true), voltaIdioma (para onde a troca de idioma volta), css e js (arquivos a mais),
+ * vitrine (bool: a tela dividida das telas de entrar, com o MyMonetto mostrado à esquerda; auth/_vitrine.php).
  */
 use Financeiro\Idioma;
 use Financeiro\SiteIcone;
@@ -36,7 +37,12 @@ $marcaSinal = SiteIcone::personalizado() !== null
 <link rel="stylesheet" href="<?= e(asset($c)) ?>">
 <?php endforeach; ?>
 </head>
-<body class="pub">
+<?php $comVitrine = !empty($casca['vitrine']); ?>
+<body class="pub<?= $comVitrine ? ' pub-dividida' : '' ?>">
+<?php if ($comVitrine): ?>
+<aside class="pub-vitrine"><?php require __DIR__ . '/_vitrine.php'; ?></aside>
+<div class="pub-coluna">
+<?php endif; ?>
 <header class="pub-topo">
     <?php if (($casca['marca'] ?? true) !== false): ?>
         <a class="pub-marca" href="/"><?= $marcaSinal ?><b translate="no">MyMonetto</b></a>

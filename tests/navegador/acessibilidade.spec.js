@@ -156,6 +156,8 @@ for (const tema of ['claro', 'escuro']) {
 
         test('Login', async ({ page }) => {
             await page.goto('/login');
+            // a vitrine entra com opacidade: o contraste só vale depois que a cena parou
+            await page.waitForFunction(() => document.getAnimations().every((a) => a.playState !== 'running'));
             expect(await graves(page)).toEqual([]);
         });
 

@@ -1,4 +1,5 @@
-// entrar.js — as páginas de fora do app (auth/_casca.php): o olho da senha e a prévia do começo guiado.
+// entrar.js — as páginas de fora do app (auth/_casca.php): o olho da senha, a prévia do começo guiado e a inclinação
+// da vitrine.
 (function () {
     'use strict';
     // ---- [data-mostrar-senha]: o olho mostra e esconde o que foi digitado. Sem JS o botão nem aparece. Os rótulos vêm
@@ -191,5 +192,27 @@
             if (ev.target instanceof HTMLSelectElement && (ev.target.name === 'moeda' || ev.target.name === 'fuso')) { atualizarRegional(); }
         });
         window.addEventListener('load', atualizarRegional);      // o fuso.js troca o fuso pelo do navegador ao abrir
+    }
+    // ---- a vitrine das telas de entrar ([data-inclina]): a cena se inclina de leve para o lado do mouse, no máximo
+    // 4 graus. Só com mouse e sem "reduzir movimento"; o CSS faz a transição e, sem JS, a cena fica parada.
+    var cena = document.querySelector('[data-inclina]');
+    if (cena && window.matchMedia('(hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference)').matches) {
+        var palco = cena.parentElement;
+        var quadro = 0;
+        palco.addEventListener('pointermove', function (ev) {
+            if (quadro) { return; }
+            quadro = requestAnimationFrame(function () {
+                quadro = 0;
+                var r = palco.getBoundingClientRect();
+                var x = (ev.clientX - r.left) / r.width - 0.5;
+                var y = (ev.clientY - r.top) / r.height - 0.5;
+                cena.style.setProperty('--ry', (x * 8).toFixed(2) + 'deg');
+                cena.style.setProperty('--rx', (y * -6).toFixed(2) + 'deg');
+            });
+        });
+        palco.addEventListener('pointerleave', function () {
+            cena.style.setProperty('--ry', '0deg');
+            cena.style.setProperty('--rx', '0deg');
+        });
     }
 })();

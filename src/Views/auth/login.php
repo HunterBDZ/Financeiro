@@ -2,21 +2,19 @@
 /**
  * Login. Página sem o layout (auth/_casca). Variáveis: $erro (?string), $expirou (bool),
  * $login (string, o que foi digitado), $lembrar (bool; trocar o padrão é mudar o `checked`).
- * À esquerda, o nome e a frase do que o app faz; à direita, o formulário, com o título na altura do nome.
- * Embaixo do formulário, numa linha: esqueci a senha, o aviso do navegador e a privacidade.
+ * À esquerda, a vitrine (auth/_vitrine.php); à direita, só o formulário. Embaixo dele, numa linha: esqueci a
+ * senha, o aviso do navegador e a privacidade.
  */
 $erro    = $erro ?? null;
 $expirou = !empty($expirou) && empty($erro);
 $login   = (string) ($login ?? '');
 $lembrar = $lembrar ?? false;
-$casca = ['titulo' => t('Entrar · MyMonetto'), 'classe' => 'pub-entrar', 'marca' => false];
+$casca = ['titulo' => t('Entrar · MyMonetto'), 'classe' => 'pub-entrar', 'marca' => false, 'vitrine' => true, 'js' => ['/assets/js/entrar.js']];
 require __DIR__ . '/_casca.php';
 ?>
-    <?php require __DIR__ . '/_apresenta.php'; ?>
-
     <div class="pub-lado">
         <form class="pub-form" method="post" action="/login" aria-labelledby="pub-form-t">
-            <h2 class="pub-form-t" id="pub-form-t"><?= e(t('Entre na sua conta')) ?></h2>
+            <h1 class="pub-form-t" id="pub-form-t"><?= e(t('Entrar')) ?></h1>
             <?= csrfField() ?>
             <label class="campo">
                 <span><?= e(t('Usuário')) ?></span>

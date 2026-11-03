@@ -8,14 +8,12 @@ $erro  = $erro ?? null;
 $pedeCodigo = (bool) ($pedeCodigo ?? false);
 $nome  = (string) ($nome ?? '');
 $login = (string) ($login ?? '');
-$casca = ['titulo' => t('Criar conta · MyMonetto'), 'classe' => 'pub-entrar', 'marca' => false, 'js' => ['/assets/js/entrar.js']];
+$casca = ['titulo' => t('Criar conta · MyMonetto'), 'classe' => 'pub-entrar', 'marca' => false, 'vitrine' => true, 'js' => ['/assets/js/entrar.js']];
 require __DIR__ . '/_casca.php';
 ?>
-    <?php require __DIR__ . '/_apresenta.php'; ?>
-
     <div class="pub-lado">
         <form class="pub-form" method="post" action="/criar-conta" aria-labelledby="pub-form-t">
-            <h2 class="pub-form-t" id="pub-form-t"><?= e(t('Falta só a sua conta')) ?></h2>
+            <h1 class="pub-form-t" id="pub-form-t"><?= e(t('Falta só a sua conta')) ?></h1>
             <p class="pub-form-sub"><?= e(t('O MyMonetto está instalado. Depois, em Ajustes, você pode dar acesso a quem divide as contas com você.')) ?></p>
             <?= csrfField() ?>
             <label class="campo">

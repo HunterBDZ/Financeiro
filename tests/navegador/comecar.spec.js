@@ -19,7 +19,7 @@ test('cria a conta, monta o mês na prévia e chega ao primeiro "Dá para gastar
 
     await page.goto('/');
     await expect(page).toHaveURL('/criar-conta');
-    await expect(page.getByRole('heading', { level: 1, name: 'MyMonetto' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Falta só a sua conta' })).toBeVisible();
     await expect(page.getByText('Pelo menos 8 caracteres.')).toBeVisible();          // a regra da senha fica à vista
     await page.getByLabel('Seu nome').fill('Teste');
     await page.getByLabel('Nome de usuário').fill('teste');

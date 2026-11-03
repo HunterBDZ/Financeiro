@@ -25,6 +25,10 @@ Estas imagens foram criadas para o Financeiro e seguem a licença do projeto:
 - `database/demo/*.jpg`, desenhos dos itens da demonstração;
 - `docs/img/*.webp`, capturas do app com dados fictícios. Elas mostram os ícones e as fontes acima, sob as respectivas licenças.
 
+## Foto da tela de entrar
+
+`public/assets/img/entrar-casas-*.webp`: [Appartment building from Banner Street](https://commons.wikimedia.org/wiki/File:Appartment_building_from_Banner_Street_2024-01-11.jpg), de Tom Page, sob a [CC BY-SA 2.0](https://creativecommons.org/licenses/by-sa/2.0/). **Modificações:** reduzida e convertida para WebP; na tela, recortada e tingida de azul-marinho. O crédito aparece na própria tela, com o link.
+
 ## Serviços externos
 
 Nenhum código destes serviços acompanha o app. O que sai do servidor está descrito em [`docs/SEGURANCA.md`](docs/SEGURANCA.md).
