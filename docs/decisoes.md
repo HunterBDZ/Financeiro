@@ -24,7 +24,7 @@ As regras do app e o porquê de cada uma. Para instalar e operar, veja o [manual
 - **Ponto de partida do repositório:** o `schema.sql` atual contém todas as migrações até a versão 1.7.0. Um site anterior à 1.5.0 não sobe direto para uma versão sem essas migrações: o ensaio do atualizador falha, e o site fica como está.
 - **Código e banco andam juntos:** para voltar uma versão, restaure também o dump do mesmo momento. O código antigo sobre dados migrados dá uma previsão errada, sem erro aparente.
 - **Tabela antiga do cartão:** a `cartao_compras_v1` não nasce mais em instalação nova. Em site antigo, o importador traz as compras dela uma vez, quando o cartão é cadastrado (total = parcela × nº de parcelas; 1ª fatura = mês da 1ª parcela; sem categoria). Apagar a tabela é uma decisão de cada site, depois de conferir a importação.
-- **Categorias achadas pelo nome:** o motor e o Cartão acham pelo nome as de empréstimo, poupança, investimentos e o `Salário`, com o nome em constantes de `MotorFinanceiro`. Na interface não há como renomeá-las. Uma coluna de identificador exige migração e ainda não existe.
+- **Categorias achadas pelo nome:** o motor e o Cartão acham pelo nome as de empréstimo, poupança, investimentos e o `Salário`, com o nome em constantes de `MotorFinanceiro`. No editar da categoria, o nome delas fica só para ler (o apelido muda), e nenhum outro nome pode virar um desses. Uma coluna de identificador exige migração e ainda não existe.
 - **Nomes internos:** `consignado_inicio` é uma chave gravada em `ajustes`. Trocar exige migração.
 
 ## Versões e atualização
@@ -145,7 +145,8 @@ As regras do app e o porquê de cada uma. Para instalar e operar, veja o [manual
 - **Olho do saldo (`[data-ocultar]`):** borra os números e vale só para a aba aberta (`sessionStorage`).
 - **Menus:** a barra do celular tem 5 itens (Início, Extrato, +, Mês, Cartão), com o "+" no meio. O resto fica no botão Menu e no menu lateral. Simular tem item próprio.
 - **Telas grandes:** a partir de 1600 px, o conteúdo cresce até 1560 px e as telas ganham colunas; a partir de 1280 px, Fechar e Ajustes ficam em 2 colunas.
-- **Ajustes:** só Dinheiro abre sozinho. Os links antigos `?aberto=` continuam valendo. Categorias ficam em Ajustes, com o atalho "Criar categoria" no Lançar.
+- **Ajustes:** uma lista agrupada, como os ajustes do celular (iOS, Material 3 e a orientação do Android): poucos grupos com título, do mais usado ao do sistema (Dinheiro e planejamento, Aparência e idioma, Conta e segurança, Sistema, Sobre). Cada linha tem ícone, nome e o estado atual à direita, e abre ali mesmo ou leva a outra tela; nada abre sozinho. No computador largo, duas colunas que crescem cada uma por si. Os links antigos `?aberto=` continuam valendo (`contas` leva a Metas, `essenciais` abre Categorias). Categorias ficam em Ajustes, com o atalho "Criar categoria" no Lançar.
+- **Editar categoria (`CategoriaModel::editar`):** nome, apelido, ícone, entrada ou saída, fixa, que varia ou pontual (Fixos, Dia a dia, Ano), vencimento, essencial e ativa. O sinal acompanha o tipo, e com lançamento ou compra no cartão ele não troca, porque inverteria o histórico. Fatura, movimentações e as categorias achadas pelo nome não trocam de tipo nem de grupo. Entrada nunca é essencial nem tem vencimento. O valor e a meta ficam em Metas, e as contas fixas também.
 - **Aviso de conexão:** a explicação fica em `/ajuda/conexao`, que abre sem login, porque quem vê o aviso ainda não entrou.
 - **Acessibilidade:** 44 px nos botões redondos e nos links curtos, e nenhum texto abaixo de 12 px (um teste varre o CSS).
 
