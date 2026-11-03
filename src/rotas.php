@@ -53,8 +53,9 @@ $router->post('/lancamentos/{id}/excluir', [LancamentosController::class, 'destr
 $router->post('/lancamentos/{id}', [LancamentosController::class, 'update']);
 $router->post('/categorias', [CategoriaController::class, 'criar']);
 $router->post('/categorias/{id}/remover', [CategoriaController::class, 'remover']);
-$router->get('/categorias/{id}/icone', [CategoriaController::class, 'iconeForm']);
-$router->post('/categorias/{id}/icone', [CategoriaController::class, 'salvarIcone']);
+$router->get('/categorias/{id}/icone', [CategoriaController::class, 'iconeAntigo']);
+$router->get('/categorias/{id}', [CategoriaController::class, 'editarForm']);
+$router->post('/categorias/{id}', [CategoriaController::class, 'salvar']);
 
 // ---- meta (metas de gasto por categoria)
 $router->get('/meta', [MetaController::class, 'index']);
@@ -124,9 +125,6 @@ $router->post('/ajustes/salvar', [AjustesController::class, 'salvar']);
 $router->post('/ajustes/senha', [AjustesController::class, 'trocarSenha']);
 $router->post('/ajustes/pessoas', [AjustesController::class, 'criarPessoa']);
 $router->post('/ajustes/pessoas/{id}/senha', [AjustesController::class, 'senhaDePessoa']);
-$router->post('/ajustes/contas', [AjustesController::class, 'salvarConta']);
-$router->post('/ajustes/contas/{id}/remover', [AjustesController::class, 'removerConta']);
-$router->post('/ajustes/essenciais', [AjustesController::class, 'salvarEssenciais']);
 $router->post('/ajustes/inicio', [AjustesController::class, 'salvarInicio']);
 $router->post('/ajustes/regional', [AjustesController::class, 'salvarRegional']);
 $router->post('/ajustes/recursos', [AjustesController::class, 'salvarRecursos']);

@@ -720,13 +720,20 @@ $htmlEx = $render(LancamentosController::class, 'index', []);
 $htmlAjCat = $render(AjustesController::class, 'index', ['aberto' => 'categorias']);
 // o extrato abre no mês do calendário, que na demonstração já tem lançamentos
 $check('extrato: ícone em cada lançamento, sem o painel de categorias', str_contains($htmlEx, 'class="ci"') && !str_contains($htmlEx, 'action="/categorias"'));
-$check('ajustes: categorias, com o ícone dobrado em "Escolher ícone"', str_contains($htmlAjCat, 'id="categorias" open') && str_contains($htmlAjCat, 'action="/categorias"')
-    && str_contains($htmlAjCat, 'class="ic-escolher"') && str_contains($htmlAjCat, 'data-ic-sugerir') && str_contains($htmlAjCat, '/icone?volta='));
+$check('ajustes: categorias, com o ícone dobrado em "Escolher ícone" e cada uma levando ao editar', str_contains($htmlAjCat, 'id="categorias" open') && str_contains($htmlAjCat, 'action="/categorias"')
+    && str_contains($htmlAjCat, 'class="ic-escolher"') && str_contains($htmlAjCat, 'data-ic-sugerir') && str_contains($htmlAjCat, 'class="aj-cat" href="/categorias/' . $catDia . '"')
+    && !str_contains($htmlAjCat, '/icone?volta='));
 $check('lançar: atalho para criar categoria', str_contains($render(LancamentosController::class, 'lancarForm', []), 'class="lf-criar-cat" href="/ajustes?aberto=categorias#categorias"'));
-$check('ajustes: a conta vem primeiro e o Avançado por último', strpos($htmlAjCat, 'id="senha"') < strpos($htmlAjCat, 'aj-idioma')
-    && strpos($htmlAjCat, 'aj-idioma') < strpos($htmlAjCat, 'aj-recursos') && strpos($htmlAjCat, 'aj-recursos') < strpos($htmlAjCat, 'id="parametros"')
-    && strpos($htmlAjCat, 'id="parametros"') < strpos($htmlAjCat, 'id="contas"') && strpos($htmlAjCat, 'id="contas"') < strpos($htmlAjCat, 'aj-avancado')
-    && strpos($htmlAjCat, 'aj-avancado') < strpos($htmlAjCat, 'id="partida"') && strpos($htmlAjCat, 'id="partida"') < strpos($htmlAjCat, 'id="aparelhos"'));
+// os grupos, na ordem: dinheiro e planejamento, aparência e idioma, conta e segurança, sistema e sobre; o perigoso no fim de cada um
+$ordemAj = ['ajs-g-plano', 'id="categorias"', 'id="parametros"', 'ajs-ir" href="/meta#contas-fixas"', 'id="recursos"', 'id="partida"', 'ajs-g-aparencia', 'ajs-ir" href="/temas"', 'id="idioma"',
+    'id="regional"', 'id="icone"', 'ajs-g-conta', 'id="senha"', 'id="duasetapas"', 'id="pessoas"', 'id="aparelhos"', 'ajs-g-sistema', 'ajs-ir" href="/rede"', 'ajs-ir" href="/sistema"', 'ajs-g-sobre', 'ajs-ir" href="/privacidade"'];
+$posAj = array_map(static fn(string $x) => strpos($htmlAjCat, $x), $ordemAj);
+$check('ajustes: grupos por assunto, na ordem combinada', !in_array(false, $posAj, true) && $posAj === array_values(array_unique($posAj)) && (static function (array $p): bool { $q = $p; sort($q); return $q === $p; })($posAj),
+    implode(',', array_map(static fn($x) => var_export($x, true), $posAj)));
+$check('ajustes: contas fixas e essenciais saíram (contas em Metas, essencial em cada categoria)', !str_contains($htmlAjCat, '/ajustes/contas') && !str_contains($htmlAjCat, '/ajustes/essenciais')
+    && !str_contains($htmlAjCat, 'id="essenciais"') && !str_contains($htmlAjCat, 'id="contas"'));
+$check('ajustes: cada linha mostra o estado à direita', substr_count($htmlAjCat, 'class="ajs-val"') >= 10 && str_contains($htmlAjCat, '<span class="ajs-val">' . e(Idioma::LISTA['pt']['nome']) . '</span>'));
+$check('ajustes: só abre o item pedido', substr_count($htmlAjCat, '" open>') === 1);
 $check('ajustes: escolher a imagem do site num botão próprio', str_contains($htmlAjCat, 'class="btn btn-ghost aj-arquivo"') && str_contains($htmlAjCat, 'data-arquivo'));
 $check('lançar: só o select de categoria, sem atalhos', !str_contains($render(LancamentosController::class, 'lancarForm', []), 'lf-atalho'));
 
@@ -1241,17 +1248,83 @@ $emTransacao('categoria com ícone', static function () use ($check): void {
         && Icones::daCategoria((int) $id2, 'Farmácia teste', 'Dia a dia') === 'pilula');
 });
 Icones::limpar();
-$_SERVER['REQUEST_URI'] = '/categorias/' . $catDia . '/icone';
+$_SERVER['REQUEST_URI'] = '/categorias/' . $catDia;
 $_GET = [];
 ob_start();
 try {
-    (new CategoriaController())->iconeForm((string) $catDia);
+    (new CategoriaController())->editarForm((string) $catDia);
     $htmlIc = (string) ob_get_clean();
 } catch (\Throwable $e) {
     ob_end_clean();
     $htmlIc = '';
 }
-$check('trocar ícone: a página abre com o atual marcado', str_contains($htmlIc, 'ic-picker') && str_contains($htmlIc, ' checked>'));
+$check('editar categoria: a página abre com o ícone, o tipo e a situação marcados', str_contains($htmlIc, 'ic-picker') && str_contains($htmlIc, ' checked>')
+    && str_contains($htmlIc, 'action="/categorias/' . $catDia . '"') && str_contains($htmlIc, 'name="apelido"') && str_contains($htmlIc, 'name="ativo" value="1" checked')
+    && str_contains($htmlIc, 'href="/meta?add=' . $catDia . '#c' . $catDia . '"'));
+
+// ---- 11b. editar tudo numa categoria: nome, apelido, tipo, fixa ou varia, vencimento, essencial, ativa
+$emTransacao('editar categoria', static function () use ($check, $pdo, $uid, $hoje): void {
+    $base = ['apelido' => '', 'icone' => '', 'tipo' => 'saida', 'valor_tipo' => 'varia', 'dia' => '', 'essencial' => false, 'ativo' => true];
+    $id = (int) CategoriaModel::criar('Teste editar ' . bin2hex(random_bytes(3)), 'saida', false);
+    $novoNome = 'Academia teste ' . bin2hex(random_bytes(3));
+    $erros = CategoriaModel::editar($id, ['nome' => $novoNome, 'apelido' => 'Academia', 'icone' => 'gato', 'valor_tipo' => 'fixo', 'dia' => '7', 'essencial' => true] + $base);
+    $c = CategoriaModel::find($id);
+    $conta = ContaRecorrenteModel::daCategoria($id);
+    $check('editar: nome, apelido, ícone, fixa com vencimento e essencial', $erros === [] && $c['nome'] === $novoNome && $c['apelido'] === 'Academia' && $c['icone'] === 'gato'
+        && $c['grupo'] === 'Fixos' && (int) $c['sinal'] === -1 && (int) $c['essencial'] === 1 && $conta !== null && (int) $conta['dia_vencimento'] === 7 && (int) $conta['ativo'] === 1,
+        json_encode($erros));
+    $erros = CategoriaModel::editar($id, ['nome' => $novoNome, 'valor_tipo' => 'varia', 'dia' => '7'] + $base);
+    $c = CategoriaModel::find($id);
+    $check('editar: voltar a variar tira o vencimento e o essencial', $erros === [] && $c['grupo'] === 'Dia a dia' && (int) $c['essencial'] === 0 && $c['apelido'] === null
+        && (int) ContaRecorrenteModel::daCategoria($id)['ativo'] === 0 && $c['icone'] === 'gato');
+    $erros = CategoriaModel::editar($id, ['nome' => $novoNome, 'valor_tipo' => 'pontual', 'dia' => '32'] + $base);
+    $check('editar: dia fora de 1 a 31 é recusado, junto do campo', $erros === ['dia' => t('O dia do vencimento vai de 1 a 31.')] && CategoriaModel::find($id)['grupo'] === 'Dia a dia');
+    $erros = CategoriaModel::editar($id, ['nome' => $novoNome, 'tipo' => 'entrada', 'essencial' => true, 'dia' => '5'] + $base);
+    $c = CategoriaModel::find($id);
+    $check('editar: sem lançamentos, gasto vira entrada (grupo Entradas, nunca essencial)', $erros === [] && $c['grupo'] === 'Entradas' && (int) $c['sinal'] === 1 && (int) $c['essencial'] === 0);
+    $erros = CategoriaModel::editar($id, ['nome' => 'Mercado'] + $base);
+    $check('editar: o nome continua único', isset($erros['nome']) && CategoriaModel::find($id)['nome'] === $novoNome);
+    $erros = CategoriaModel::editar($id, ['nome' => '  ', 'apelido' => str_repeat('a', 25), 'tipo' => 'x'] + $base);
+    $check('editar: nome vazio, apelido longo e tipo inválido, cada erro no seu campo', isset($erros['nome'], $erros['apelido'], $erros['tipo']));
+    $erros = CategoriaModel::editar($id, ['nome' => $novoNome, 'ativo' => false] + $base);
+    $check('editar: arquivar tira das listas e reativar devolve', $erros === [] && (int) CategoriaModel::find($id)['ativo'] === 0
+        && in_array($id, array_map('intval', array_column(CategoriaModel::arquivadas(), 'id')), true)
+        && CategoriaModel::editar($id, ['nome' => $novoNome] + $base) === [] && (int) CategoriaModel::find($id)['ativo'] === 1);
+
+    // com lançamento, entrada e gasto não se trocam: inverteria o histórico
+    $pdo->prepare('INSERT INTO lancamentos (data, descricao, categoria_id, valor, usuario_id) VALUES (?, ?, ?, 50, ?)')->execute([$hoje, 'teste', $id, $uid]);
+    $sinalAntes = (int) CategoriaModel::find($id)['sinal'];
+    $erros = CategoriaModel::editar($id, ['nome' => $novoNome, 'tipo' => $sinalAntes === 1 ? 'saida' : 'entrada'] + $base);
+    $check('editar: com lançamentos, o tipo não troca', isset($erros['tipo']) && (int) CategoriaModel::find($id)['sinal'] === $sinalAntes && CategoriaModel::temHistorico($id));
+
+    // essencial: só gasto de verdade, como em setEssencial
+    $gastoId = (int) $pdo->query("SELECT id FROM categorias WHERE grupo = 'Dia a dia' AND ativo = 1 AND essencial = 0 ORDER BY id LIMIT 1")->fetchColumn();
+    $g = CategoriaModel::find($gastoId);
+    $erros = CategoriaModel::editar($gastoId, ['nome' => $g['nome'], 'apelido' => (string) $g['apelido'], 'essencial' => true] + $base);
+    $check('editar: marcar essencial na própria categoria', $erros === [] && (int) CategoriaModel::find($gastoId)['essencial'] === 1);
+
+    // o que o app procura não muda de tipo, de grupo nem de nome
+    $sal = CategoriaModel::porNome(MotorFinanceiro::CAT_SALARIO);
+    $erros = CategoriaModel::editar((int) $sal['id'], ['nome' => 'Renda', 'tipo' => 'saida'] + $base);
+    $check('editar: o Salário não muda de nome nem de tipo', isset($erros['nome'], $erros['tipo']) && CategoriaModel::porNome(MotorFinanceiro::CAT_SALARIO) !== null);
+    $erros = CategoriaModel::editar((int) $sal['id'], ['nome' => MotorFinanceiro::CAT_SALARIO, 'apelido' => 'Pagamento', 'tipo' => 'entrada', 'essencial' => true] + $base);
+    $sal2 = CategoriaModel::find((int) $sal['id']);
+    $check('editar: o Salário aceita apelido e continua nas Entradas', $erros === [] && $sal2['apelido'] === 'Pagamento' && $sal2['grupo'] === 'Entradas' && (int) $sal2['essencial'] === 0);
+    $guardar = CategoriaModel::porNome(MotorFinanceiro::CAT_GUARDAR);
+    $erros = CategoriaModel::editar((int) $guardar['id'], ['nome' => MotorFinanceiro::CAT_GUARDAR, 'valor_tipo' => 'fixo', 'essencial' => true] + $base);
+    $guardar2 = CategoriaModel::find((int) $guardar['id']);
+    $check('editar: movimentação fica no grupo dela e nunca é essencial', $erros === [] && $guardar2['grupo'] === 'Poupanca' && (int) $guardar2['essencial'] === 0 && (int) $guardar2['operacional'] === 0);
+    $fatura = $pdo->query("SELECT * FROM categorias WHERE grupo = 'Cartao' ORDER BY id LIMIT 1")->fetch();
+    $erros = CategoriaModel::editar((int) $fatura['id'], ['nome' => (string) $fatura['nome'], 'tipo' => 'entrada'] + $base);
+    $check('editar: a fatura do cartão não vira entrada', isset($erros['tipo']) && CategoriaModel::find((int) $fatura['id'])['grupo'] === 'Cartao');
+    $erros = CategoriaModel::editar((int) $fatura['id'], ['nome' => (string) $fatura['nome'], 'valor_tipo' => 'varia', 'dia' => '9', 'essencial' => true] + $base);
+    $check('editar: a fatura aceita o vencimento e continua no Cartão', $erros === [] && CategoriaModel::find((int) $fatura['id'])['grupo'] === 'Cartao'
+        && (int) ContaRecorrenteModel::daCategoria((int) $fatura['id'])['dia_vencimento'] === 9);
+    $erros = CategoriaModel::editar($id, ['nome' => MotorFinanceiro::CAT_APLICAR] + $base);
+    $check('editar: nome que o app usa não pode ser dado a outra', isset($erros['nome']));
+    MotorFinanceiro::limparCache();
+    $check('editar: o motor continua achando as categorias dele', MotorFinanceiro::dados()['esp']['guard'] === (int) $guardar['id']);
+});
 
 // ---- 12. barra do celular: o "+" no meio de 4 abas; o Anual abre pelo seletor de meses do Mês
 $htmlMes = $render(MesController::class, 'index', []);
