@@ -157,7 +157,8 @@
 
     // ---- antes de uma ação (POST): como a tela estava
     function retratoDaTela(form) {
-        var r = { t: Date.now(), rapido: !!form.closest('[data-toast]'), valores: {}, barras: {}, finas: {}, listas: {}, pago: null };
+        var r = { t: Date.now(), rapido: !!form.closest('[data-toast]'), valores: {}, barras: {}, finas: {}, listas: {}, pago: null,
+                  caminho: location.pathname + location.search, rolagem: window.scrollY };
         document.querySelectorAll('[data-mov-conta]').forEach(function (el) {
             var v = parseFloat(el.getAttribute('data-mov-valor'));
             if (isFinite(v)) { r.valores[el.getAttribute('data-mov-conta')] = v; }
@@ -289,6 +290,8 @@
     // ---- na volta de uma ação: o caminho do antes para o agora
     function depoisDaAcao(r) {
         var fator = r.rapido ? SAIDA : 1;   // desfazer: o mesmo caminho, mais rápido
+        // a página voltou do servidor no topo: na mesma tela, a rolagem volta para onde a pessoa estava (o carimbo e os números ficam à vista)
+        if (r.caminho === location.pathname + location.search && r.rolagem > 0) { window.scrollTo(0, r.rolagem); }
         document.querySelectorAll('[data-mov-conta]').forEach(function (el) {
             var k = el.getAttribute('data-mov-conta');
             if (Object.prototype.hasOwnProperty.call(r.valores, k)) { contar(el, r.valores[k], CONTAGEM * fator); }
@@ -308,6 +311,10 @@
         });
         if (r.pago !== null) {
             var carimbo = document.querySelector('[data-mov-pago="' + String(r.pago).replace(/[^\d]/g, '') + '"] .carimbo');
+            if (carimbo) {
+                var cx = carimbo.getBoundingClientRect();
+                if (cx.top < 0 || cx.bottom > window.innerHeight) { carimbo.scrollIntoView({ block: 'center' }); }
+            }
             animar(carimbo, [{ opacity: 0, transform: 'scale(.92) rotate(-4deg)' }, { opacity: 1, transform: 'none' }], { duration: CURTO, easing: ENTRA });
         }
         document.querySelectorAll('[data-mov-lista]').forEach(function (el) {
