@@ -125,3 +125,42 @@ test('erro em Pessoas e em Criar categoria volta com o que foi digitado (A-09)',
     await expect(form.locator('input[name="essencial"][value="0"]')).toBeChecked();
     await expect(cats).not.toContainText('Pet de teste criada');
 });
+
+test('errar a senha atual 5 vezes bloqueia só a troca, com aviso, e a sessão continua (A-13)', async ({ page, browser, baseURL }) => {
+    // uma conta só deste teste: o bloqueio dura alguns minutos e não pode atrapalhar os outros
+    const login = 'teste-a13-' + Date.now();
+    const criada = await page.request.post(baseURL + '/ajustes/pessoas', {
+        form: { csrf_token: await token(page.request, baseURL + '/ajuda'), nome: 'Teste do bloqueio', login, senha: 'senha-certa-a13' },
+    });
+    expect(criada.ok()).toBe(true);
+    const ctx = await browser.newContext({ baseURL });
+    await entrar(ctx.request, baseURL, login, 'senha-certa-a13');
+    const p = await ctx.newPage();
+    const trocar = async (atual) => {
+        await p.goto('/ajustes?aberto=senha');
+        const f = p.locator('#senha');
+        await f.getByLabel('Senha atual').fill(atual);
+        await f.getByLabel('Nova senha', { exact: true }).fill('nova-senha-a13');
+        await f.getByLabel('Repita a nova senha').fill('nova-senha-a13');
+        await f.getByRole('button', { name: 'Trocar senha' }).click();
+    };
+    try {
+        for (let i = 1; i <= 4; i++) {
+            await trocar('errada-' + i);
+            await expect(p.locator('#senha')).toContainText('A senha atual não confere.');
+        }
+        await trocar('errada-5');
+        await expect(p).toHaveURL(/\/ajustes/);
+        await expect(p.locator('#senha')).toContainText('Muitas tentativas. Tente de novo em 5 min.');
+        // nem a senha certa troca agora; a sessão continua, e entrar pela tela continua valendo
+        await trocar('senha-certa-a13');
+        await expect(p.locator('#senha')).toContainText('Muitas tentativas.');
+        await p.goto('/');
+        await expect(p).toHaveURL('/');
+        const outro = await browser.newContext({ baseURL });
+        await entrar(outro.request, baseURL, login, 'senha-certa-a13');
+        await outro.close();
+    } finally {
+        await ctx.close();
+    }
+});

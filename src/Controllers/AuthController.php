@@ -88,7 +88,8 @@ final class AuthController
     {
         csrfCheck();
 
-        $login   = is_string($_POST['login'] ?? null) ? trim($_POST['login']) : '';
+        // sem caractere de controle: nenhum login tem, e assim ninguém daqui chega ao contador de Auth::chaveDaAcao
+        $login   = is_string($_POST['login'] ?? null) ? trim((string) preg_replace('/[\x00-\x1F\x7F]+/', '', $_POST['login'])) : '';
         $senha   = is_string($_POST['senha'] ?? null) ? $_POST['senha'] : '';
         $lembrar = ($_POST['lembrar'] ?? '') === '1';
         $login   = mb_substr($login, 0, 100);

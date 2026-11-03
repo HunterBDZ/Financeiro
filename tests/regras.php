@@ -2191,7 +2191,13 @@ $sairDE = static function (): void {
     $_SESSION = [];
     unset($_COOKIE[Auth::COOKIE_LEMBRAR]);
 };
-$zerarDE = static fn() => $pdo->prepare('DELETE FROM login_tentativas WHERE login = ?')->execute([$loginDE]);
+$zerarDE = static fn() => $pdo->prepare('DELETE FROM login_tentativas WHERE login IN (?, ?)')->execute([$loginDE, Auth::chaveDaAcao($idDE)]);
+// os erros de quem já está logado (desligar, trocar a senha) contam à parte do login (A-13)
+$tentativasLogado = static function () use ($pdo, $idDE): int {
+    $st = $pdo->prepare('SELECT tentativas FROM login_tentativas WHERE login = ?');
+    $st->execute([Auth::chaveDaAcao($idDE)]);
+    return (int) $st->fetchColumn();
+};
 try {
     $sairDE();
     $check('duas etapas: desligada, a senha basta', Auth::primeiroPasso($loginDE, 'senha-do-teste', false) === 'entrou' && Auth::id() === $idDE
@@ -2270,12 +2276,32 @@ try {
     $check('duas etapas: bloqueado, nem o código certo entra', Auth::segundoPasso($cod($pT + 2), $instDE + 60) === 'bloqueado' && !Auth::check());
     $zerarDE();
 
-    // desligar: senha e código, contados no mesmo limite
+    // desligar: senha e código, contados juntos, à parte do login
     $sairDE();
     $_SESSION['usuario_id'] = $idDE;
     $check('duas etapas: desligar com a senha errada não passa nem gasta código', Auth::conferirSenhaECodigo($idDE, 'outra-senha', $recDE[5]) === 'errada' && DuasEtapas::codigosRestantes($idDE) === 8);
-    $check('duas etapas: desligar com o código errado não passa', Auth::conferirSenhaECodigo($idDE, 'senha-do-teste', $erradoDE, $instDE + 60) === 'errada' && $tentativasDE() === 2);
-    $check('duas etapas: senha e código certos conferem e zeram', Auth::conferirSenhaECodigo($idDE, 'senha-do-teste', $cod($pT + 2), $instDE + 60) === 'ok' && $tentativasDE() === 0);
+    $check('duas etapas: desligar com o código errado não passa', Auth::conferirSenhaECodigo($idDE, 'senha-do-teste', $erradoDE, $instDE + 60) === 'errada'
+        && $tentativasLogado() === 2 && $tentativasDE() === 0);
+    $check('duas etapas: senha e código certos conferem e zeram', Auth::conferirSenhaECodigo($idDE, 'senha-do-teste', $cod($pT + 2), $instDE + 60) === 'ok' && $tentativasLogado() === 0);
+
+    // A-13: o bloqueio da tela de entrar não vale para quem já está logado, e o de quem está logado não vale para entrar
+    for ($i = 0; $i < 5; $i++) {
+        Auth::primeiroPasso($loginDE, 'chute-errado', false);
+    }
+    $check('duas etapas: os chutes na tela de entrar não bloqueiam quem já está logado', Auth::segundosBloqueado($loginDE) > 0
+        && Auth::conferirSenhaECodigo($idDE, 'senha-do-teste', $cod($pT + 3), $instDE + 90) === 'ok' && Auth::conferirSenhaAtual($idDE, 'senha-do-teste') === 'ok');
+    $zerarDE();
+    $resLogado = [];
+    for ($i = 0; $i < 5; $i++) {
+        $resLogado[] = Auth::conferirSenhaAtual($idDE, 'chute-errado');
+    }
+    $check('duas etapas: 5 erros de quem está logado bloqueiam só essas ações, por alguns minutos', $resLogado === ['errada', 'errada', 'errada', 'errada', 'bloqueado']
+        && Auth::conferirSenhaAtual($idDE, 'senha-do-teste') === 'bloqueado' && Auth::conferirSenhaECodigo($idDE, 'senha-do-teste', $cod($pT + 4), $instDE + 120) === 'bloqueado'
+        && Auth::minutosBloqueadoLogado($idDE) === 5 && Auth::segundosBloqueado($loginDE) === 0, implode(',', $resLogado));
+    $sessaoLogado = $_SESSION;
+    $check('duas etapas: o bloqueio de quem está logado não impede de entrar', Auth::primeiroPasso($loginDE, 'senha-do-teste', false) === 'codigo');
+    $_SESSION = $sessaoLogado;
+    $zerarDE();
     DuasEtapas::desligar($idDE);
     $sairDE();
     $check('duas etapas: desligada, apaga o segredo e os códigos, e a senha volta a bastar', !DuasEtapas::ligada($idDE) && DuasEtapas::codigosRestantes($idDE) === 0

@@ -399,11 +399,8 @@ final class AjustesController
             redirecionar('/ajustes?aberto=pessoas#pessoas', 303);
         }
         $conferida = Auth::conferirSenhaAtual((int) Auth::id(), $atual);
-        if ($conferida === 'bloqueado') {
-            Auth::logout();
-            renderErro(429, t('Muitas tentativas'), t('A senha atual foi digitada errada muitas vezes. Entre de novo em 10 minutos.'));
-        }
         $erro = match (true) {
+            $conferida === 'bloqueado' => self::muitasTentativas(),
             $conferida !== 'ok'  => t('A senha atual não confere.'),
             default              => UsuarioModel::erroSenha($nova),
         };
@@ -427,14 +424,10 @@ final class AjustesController
         $nova    = $str('senha_nova');
         $repetir = $str('senha_repetir') !== '' ? $str('senha_repetir') : $str('senha_confirma');
 
-        // mesmo limite do login (5 erradas → 10 min), contado no login deste usuário:
-        // quem está chutando a senha atual provavelmente não é o dono → sai desta sessão
+        // 5 erradas bloqueiam só trocar a senha e desligar as duas etapas, por alguns minutos; a sessão continua
         $conferida = Auth::conferirSenhaAtual((int) Auth::id(), $atual);
-        if ($conferida === 'bloqueado') {
-            Auth::logout();
-            renderErro(429, t('Muitas tentativas'), t('A senha atual foi digitada errada muitas vezes. Entre de novo em 10 minutos.'));
-        }
         $erro = match (true) {
+            $conferida === 'bloqueado' => self::muitasTentativas(),
             $conferida !== 'ok'   => t('A senha atual não confere.'),
             UsuarioModel::erroSenha($nova) !== null => UsuarioModel::erroSenha($nova),
             $nova !== $repetir    => t('As duas senhas novas não são iguais.'),
@@ -449,6 +442,12 @@ final class AjustesController
         Auth::sairDeTodos((int) Auth::id());                    // os outros aparelhos precisam da senha nova
         flash('success', t('Senha trocada.'));
         redirecionar('/ajustes', 303);
+    }
+
+    /** O aviso do bloqueio das ações de quem está logado (Auth::conferirSenhaAtual), com os minutos que faltam. */
+    public static function muitasTentativas(): string
+    {
+        return t('Muitas tentativas. Tente de novo em {min} min.', ['min' => max(1, Auth::minutosBloqueadoLogado((int) Auth::id()))]);
     }
 
     public static function rotulo(string $chave): string
