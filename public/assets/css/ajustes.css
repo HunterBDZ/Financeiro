@@ -272,6 +272,13 @@ summary.ajs-linha:has(.ajs-val)::after { margin-left: 0; }
 .tm:hover { color: var(--tinta); }
 .tm.is-on, .tm.is-prev { background: var(--superficie); color: var(--azul); font-weight: 600; box-shadow: 0 0 0 1px var(--fio-forte); }
 @media (pointer: coarse) { .tm { min-height: 40px; } }
+/* no celular, a amostra vai em cima e os três modos dividem a largura: "Automático" não sai da tela */
+@media (max-width: 619px) {
+    .tm-pal { grid-template-columns: minmax(0, 1fr); gap: var(--e-3); }
+    .tm-am { height: 56px; }
+    .tm-modos { display: grid; width: 100%; grid-auto-columns: auto; }   /* cada modo com a largura do texto, e a sobra dividida */
+    .tm { padding: 0 var(--e-2); }
+}
 .tm-barra {
     position: fixed; z-index: 45; right: var(--e-3); left: var(--e-3); bottom: calc(80px + env(safe-area-inset-bottom, 0px));
     display: flex; align-items: center; gap: var(--e-2); padding: var(--e-3);
