@@ -30,6 +30,7 @@ $erroDe = match ($erro) {
     t('Digite um valor.') => 'valor',
     t('Escolha uma categoria.') => 'categoria',
     t('Descrição muito longa. Use até 255 letras.') => 'descricao',
+    motivoValor(is_string($a['valor'] ?? null) ? $a['valor'] : null) => 'valor',     // acima do máximo, vírgula e ponto
     default => null,
 };
 $erroCampo = static fn(string $campo): ?string => $erroDe === $campo ? $erro : null;

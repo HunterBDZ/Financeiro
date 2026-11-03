@@ -281,7 +281,9 @@ final class MesController
                 flash('error', $e->getMessage());                // não há linha para reabrir com o erro
                 redirecionar('/mes?mes=' . $mes, 303);
             }
-            $_SESSION['mes_erro'] = ['mes' => $mes, 'cat' => $cat, 'msg' => $e->getMessage(), 'valor' => $bruto,
+            // o valor recusado diz por quê, quando dá (acima do máximo, vírgula e ponto trocados)
+            $msg = $e->getMessage() === t(PrevisaoEdicao::ERRO_VALOR) ? (motivoValor($bruto) ?? $e->getMessage()) : $e->getMessage();
+            $_SESSION['mes_erro'] = ['mes' => $mes, 'cat' => $cat, 'msg' => $msg, 'valor' => $bruto,
                 'propagar' => $propagar, 'ancora' => $incluindo ? 'incluir' : null];
             redirecionar($incluindo ? '/mes?mes=' . $mes . '#incluir' : $volta, 303);
         }

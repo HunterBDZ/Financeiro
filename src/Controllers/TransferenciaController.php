@@ -127,7 +127,7 @@ final class TransferenciaController
         $valor = parseMoedaBr($s('valor'));
         $valor = $valor === null ? null : round(abs($valor), 2);
         if ($valor === null || $valor <= 0 || $valor > valorMaximo()) {
-            return [t('Digite um valor.'), null];
+            return [motivoValor($s('valor')) ?? t('Digite um valor.'), null];
         }
         $pode = static function (int $id) use ($atual): ?array {
             $c = ContaModel::achar($id);

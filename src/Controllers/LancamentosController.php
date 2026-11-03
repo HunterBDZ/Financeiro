@@ -629,7 +629,7 @@ final class LancamentosController
         $valor = parseMoedaBr(is_string($in['valor'] ?? null) ? $in['valor'] : null);
         $valor = $valor === null ? null : round(abs($valor), 2);     // "-50" / "−50" gravam 50 (o sinal vem da categoria)
         if ($valor === null || $valor <= 0 || $valor > valorMaximo()) {
-            return [t('Digite um valor.'), null];
+            return [motivoValor(is_string($in['valor'] ?? null) ? $in['valor'] : null) ?? t('Digite um valor.'), null];
         }
 
         $categoriaId = (int) (is_string($in['categoria_id'] ?? null) ? $in['categoria_id'] : 0);

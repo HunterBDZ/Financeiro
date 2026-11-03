@@ -2367,4 +2367,7 @@ return [
     'Cerca de {valor} por dia nos {n} dias que faltam, contando hoje.' => 'Unos {valor} por día en los {n} días que faltan, contando hoy.',
     'Cerca de {valor} por dia nos {n} dias do mês.' => 'Unos {valor} por día en los {n} días del mes.',
     'sem previsão' => 'sin previsión',
+    'O valor máximo é {valor}.' => 'El valor máximo es {valor}.',
+    'Use vírgula para os centavos: {exemplo}.' => 'Use coma para los centavos: {exemplo}.',
+    'Use vírgula só para os centavos: {mil} ou {cent}.' => 'Use coma solo para los centavos: {mil} o {cent}.',
 ];

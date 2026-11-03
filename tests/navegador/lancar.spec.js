@@ -128,6 +128,20 @@ test.describe('no computador', () => {
         await expect(dialogo.locator('[data-lf-erro]')).toBeHidden();
     });
 
+    test('valor acima do máximo ou com a vírgula trocada: a mensagem diz por quê, no campo (B-10)', async ({ page }) => {
+        for (const [digitado, msg] of [['999999999', 'O valor máximo é R$\u00a01.000.000,00.'], ['1.5', 'Use vírgula para os centavos: 1,50.']]) {
+            await page.goto('/');
+            await page.keyboard.press('n');
+            const dialogo = page.getByRole('dialog', { name: 'lançar' });
+            await dialogo.getByRole('textbox', { name: 'valor' }).fill(digitado);
+            await escolherCategoria(dialogo, 'Mercado');
+            await dialogo.getByRole('button', { name: 'Lançar' }).click();
+            const valor = page.getByRole('main').getByRole('textbox', { name: 'valor' });
+            await expect(valor).toHaveAttribute('aria-invalid', 'true');
+            await expect(valor).toHaveAccessibleDescription(msg);
+        }
+    });
+
     test('Conta e Cartão em abas; o aviso de lançado fica em tinta, sem verde', async ({ page }) => {
         await page.goto('/');
         await page.keyboard.press('n');

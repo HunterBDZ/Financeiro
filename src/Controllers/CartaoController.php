@@ -189,7 +189,7 @@ final class CartaoController
         $conta = $conta !== null && $conta['ativa'] ? $conta : ContaModel::achar(ContaModel::padrao());
         $erro = match (true) {
             $fatura === null => t('Escolha a fatura.'),
-            $valor === null || $valor <= 0 || $valor > valorMaximo() => t('Digite um valor.'),
+            $valor === null || $valor <= 0 || $valor > valorMaximo() => motivoValor(is_string($_POST['valor'] ?? null) ? $_POST['valor'] : null) ?? t('Digite um valor.'),
             default => LancamentosController::validarData($data) ?? LancamentosController::erroMesFechado($data),
         };
         if ($erro !== null) {
@@ -348,7 +348,7 @@ final class CartaoController
         $valor = parseMoedaBr($s('valor'));
         $valor = $valor === null ? null : round(abs($valor), 2);
         if ($valor === null || $valor <= 0 || $valor > valorMaximo()) {
-            return [t('Digite um valor.'), null];
+            return [motivoValor($s('valor')) ?? t('Digite um valor.'), null];
         }
         $cat = (int) $s('categoria_id') > 0 ? CategoriaModel::find((int) $s('categoria_id')) : null;
         $catFatura = CartaoModel::categoriaFatura();

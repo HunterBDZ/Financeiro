@@ -522,7 +522,7 @@ final class MetaController
         $v = parseMoedaBr($bruto);
         if ($v === null || $v < 0 || $v > valorMaximo()) {
             // i18n: t('Digite um valor, por exemplo 1.200 ou 1.200,50.')
-            throw new \InvalidArgumentException(t(PrevisaoEdicao::ERRO_VALOR));
+            throw new \InvalidArgumentException(motivoValor($bruto) ?? t(PrevisaoEdicao::ERRO_VALOR));
         }
         return round($v, 2);
     }

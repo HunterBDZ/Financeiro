@@ -1623,6 +1623,14 @@ Idioma::usar('es');
 $check('espanhol: o dia continua "el día 30"', t('Dá para gastar até dia {dia}', ['dia' => 30]) === 'Puede gastar hasta el día 30');
 Idioma::usar('pt');
 
+// ---- 9j. Valor recusado diz por quê (B-10)
+$validarL = new \ReflectionMethod(LancamentosController::class, 'validar');
+$check('valor: acima do máximo diz o máximo', ($validarL->invoke(null, ['valor' => '999999999', 'categoria_id' => '1'])[0] ?? '') === 'O valor máximo é ' . money(valorMaximo()) . '.'
+    && (TransferenciaController::validar(['valor' => '999999999'])[0] ?? '') === 'O valor máximo é ' . money(valorMaximo()) . '.');
+$check('valor: vírgula e ponto trocados dizem como escrever', motivoValor('1,500') === 'Use vírgula só para os centavos: 1.500,00 ou 1,50.'
+    && motivoValor('1.5') === 'Use vírgula para os centavos: 1,50.' && motivoValor('45') === null && motivoValor('abc') === null
+    && ($validarL->invoke(null, ['valor' => '1.5', 'categoria_id' => '1'])[0] ?? '') === 'Use vírgula para os centavos: 1,50.');
+
 // ---- 9d. Mês fechado não muda (B-01): lançar, editar, excluir, transferir, pagar e a compra cuja fatura é de mês fechado
 $emTransacao('mês fechado não muda', static function () use ($pdo, $check, $render, $catDia, $mesHoje, $hoje, $uid): void {
     $fechado = (string) $pdo->query("SELECT MAX(mes) FROM meses WHERE situacao = 'REAL'")->fetchColumn();
