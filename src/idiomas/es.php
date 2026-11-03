@@ -2346,4 +2346,5 @@ return [
     'Colunas' => 'Columnas',
     'Colunas, se for CSV' => 'Columnas, si es CSV',
     'Revisar' => 'Revisar',
+    'Outra pessoa mudou isto agora. Confira e salve de novo.' => 'Otra persona acaba de cambiar esto. Revísalo y guarda de nuevo.',
 ];

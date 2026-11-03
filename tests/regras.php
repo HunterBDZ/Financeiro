@@ -2101,6 +2101,22 @@ $check('conta nova: login repetido não passa', UsuarioModel::erroNovaConta('Alg
 $check('conta nova: dados certos passam', UsuarioModel::erroNovaConta('Alguém', 'login-livre-' . bin2hex(random_bytes(3)), 'senha-longa') === null);
 $check('conta nova: com conta no banco, a tela de criar some', !UsuarioModel::nenhum());
 
+// ---- 18b2. duas pessoas em Ajustes (A-04): grava só o que a pessoa mudou; o campo que as duas mudaram não é gravado
+$mud = AjustesController::mudancas(['reserva_minima' => 1500.0, 'meta_final' => 30000.0], ['reserva_minima' => 1500.0, 'meta_final' => 25000.0], ['reserva_minima' => 2000.0, 'meta_final' => 25000.0]);
+$check('ajustes: quem mudou só a meta não desfaz a reserva que a outra pessoa salvou', $mud === ['gravar' => ['meta_final' => 30000.0], 'conflito' => []], json_encode($mud));
+$mud = AjustesController::mudancas(['reserva_minima' => 1800.0], ['reserva_minima' => 1500.0], ['reserva_minima' => 2000.0]);
+$check('ajustes: o mesmo campo mudado pelas duas pessoas não é gravado e avisa', $mud === ['gravar' => [], 'conflito' => ['reserva_minima']], json_encode($mud));
+$check('ajustes: o mesmo valor que já está gravado não é conflito (duplo clique)', AjustesController::mudancas(['reserva_minima' => 2000.0], ['reserva_minima' => 1500.0], ['reserva_minima' => 2000.0])['conflito'] === []);
+$check('ajustes: diferença menor que meio centavo é o mesmo valor', AjustesController::mudancas(['reserva_minima' => 1500.0], ['reserva_minima' => 1500.0], ['reserva_minima' => 1500.0012])['gravar'] === []);
+$check('ajustes: sem o original, o campo conta como mudado', AjustesController::mudancas(['reserva_minima' => 10.0], [], ['reserva_minima' => 20.0]) === ['gravar' => ['reserva_minima' => 10.0], 'conflito' => []]);
+$mud = AjustesController::mudancas(['usa_carro' => 1.0, 'usa_emprestimo' => 0.0], ['usa_carro' => 1.0, 'usa_emprestimo' => 1.0], ['usa_carro' => 0.0, 'usa_emprestimo' => 1.0]);
+$check('ajustes: em "O que você usa", desligar o empréstimo não liga de novo o carro que a outra pessoa desligou', $mud === ['gravar' => ['usa_emprestimo' => 0.0], 'conflito' => []], json_encode($mud));
+$check('ajustes: moeda e fuso também', AjustesController::mudancas(['moeda' => 'EUR', 'fuso' => 'America/Sao_Paulo'], ['moeda' => 'BRL', 'fuso' => 'America/Sao_Paulo'], ['moeda' => 'BRL', 'fuso' => 'Europe/Lisbon'])
+    === ['gravar' => ['moeda' => 'EUR'], 'conflito' => []]);
+$htmlAj = $pagina(AjustesController::class, 'index', '/ajustes');
+$check('ajustes: cada formulário manda o valor que mostrou ao abrir', str_contains($htmlAj, 'name="orig[reserva_minima]" value="' . numInput(AjusteModel::valor('reserva_minima')) . '"')
+    && str_contains($htmlAj, 'name="orig[meta_mes]"') && str_contains($htmlAj, 'name="orig[usa_carro]"') && str_contains($htmlAj, 'name="orig[moeda]"'));
+
 // ---- 18c. verificação em duas etapas: TOTP da RFC 6238, janela, reuso, recuperação, login, limite, desligar e o
 // comando que redefine a senha. Numa conta só do teste, com um instante fixo (o código não usa Relogio).
 $rfc = '12345678901234567890';      // a semente SHA1 dos vetores da RFC 6238, apêndice B

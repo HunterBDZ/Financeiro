@@ -9,7 +9,9 @@ use Financeiro\Temas;
  * separam um do outro. Cada linha (48px) tem o nome e o estado atual à direita; ao tocar, abre ali mesmo
  * (<details>, o id é o mesmo de ?aberto=, com a seta para baixo) ou leva a outra tela (seta para a direita).
  * O perigoso fica no fim de cada grupo. No computador, os grupos vão em duas colunas que crescem cada uma por si.
- * Todo value de dinheiro sai de numInput() (hífen ASCII): parseMoedaBr() lê de volta sem perder o sinal.
+ * Todo value de dinheiro sai de numInput() (hífen ASCII): parseMoedaBr() lê de volta sem perder o sinal. Cada campo
+ * que duas pessoas podem salvar leva ao lado o valor que a página mostrou ao abrir (orig[...]): o servidor grava só o
+ * que mudou (AjustesController::mudancas).
  * Variáveis: $aj, $contas (quantas contas fixas), $dias (categoria => dia do vencimento), $categorias, $arquivadas,
  * $abertos, $erro, $login, $contasDinheiro (ContaModel::todas()), $saldosContas (conta => saldo de hoje).
  */
@@ -27,7 +29,7 @@ $erroDe = static function (string $g) use ($erro): void {
         echo '<p class="aviso aviso-error">' . e((string) $erro['msg']) . '</p>';
     }
 };
-$campo = static function (string $chave, string $rotulo, string $un = '', int $dec = 2) use ($valorDe, $erro): void {
+$campo = static function (string $chave, string $rotulo, string $un = '', int $dec = 2) use ($valorDe, $erro, $aj): void {
     $id = 'aj-' . $chave;
     $inval = $erro !== null && ($erro['campo'] ?? '') === $chave; ?>
     <div class="aj-campo">
@@ -35,6 +37,7 @@ $campo = static function (string $chave, string $rotulo, string $un = '', int $d
         <span class="aj-input<?= $un !== '' ? ' tem-un' : '' ?>">
             <input id="<?= e($id) ?>" type="text" name="valores[<?= e($chave) ?>]" inputmode="<?= $dec === 0 ? 'numeric' : 'decimal' ?>" autocomplete="off"
                    value="<?= e($valorDe($chave, $dec)) ?>"<?= $inval ? ' aria-invalid="true" autofocus' : '' ?>>
+            <input type="hidden" name="orig[<?= e($chave) ?>]" value="<?= e(numInput((float) ($aj[$chave]['valor'] ?? 0.0), $dec)) ?>">
             <?php if ($un !== ''): ?><span class="aj-un"><?= e($un) ?></span><?php endif; ?>
         </span>
     </div>
@@ -156,10 +159,12 @@ $formConta = static function (?array $c) use ($csrf, $erroConta, $tiposD, $inici
                         <?= $csrf ?><input type="hidden" name="grupo" value="parametros">
                         <?php $campo('reserva_minima', t('Reserva mínima')); ?>
                         <?php $campo('meta_final', t('Meta de conta e poupança')); ?>
-                        <?php $metaInt = (int) round((float) ($aj['meta_mes']['valor'] ?? 0)); ?>
+                        <?php $metaInt = (int) round((float) ($aj['meta_mes']['valor'] ?? 0));
+                        $metaMes = $metaInt > 0 ? sprintf('%04d-%02d', intdiv($metaInt, 100), $metaInt % 100) : ''; ?>
                         <div class="aj-campo">
                             <label for="aj-meta_mes"><?= e(t('Até quando (opcional)')) ?></label>
-                            <span class="aj-input aj-input-mes"><input id="aj-meta_mes" type="month" name="valores[meta_mes]" value="<?= $metaInt > 0 ? e(sprintf('%04d-%02d', intdiv($metaInt, 100), $metaInt % 100)) : '' ?>"></span>
+                            <span class="aj-input aj-input-mes"><input id="aj-meta_mes" type="month" name="valores[meta_mes]" value="<?= e($metaMes) ?>"></span>
+                            <input type="hidden" name="orig[meta_mes]" value="<?= e($metaMes) ?>">
                         </div>
                         <?php $erroDe('parametros'); ?>
                         <button type="submit" class="btn btn-primary aj-salvar"><?= e(t('Salvar')) ?></button>
@@ -174,6 +179,7 @@ $formConta = static function (?array $c) use ($csrf, $erroConta, $tiposD, $inici
                 <div class="ajs-corpo">
                     <form class="aj-recursos-form" method="post" action="/ajustes/recursos">
                         <?= $csrf ?>
+                        <?php foreach (\Financeiro\Controllers\AjustesController::recursosAtuais() as $k => $v): ?><input type="hidden" name="orig[<?= e($k) ?>]" value="<?= (int) $v ?>"><?php endforeach; ?>
                         <label class="aj-marcar"><input type="checkbox" name="usa_cartao" value="1"<?= $usa('usa_cartao') ? ' checked' : '' ?>><span><?= e(t('Cartão de crédito')) ?></span></label>
                         <label class="aj-marcar"><input type="checkbox" name="usa_emprestimo" value="1"<?= $usa('usa_emprestimo') ? ' checked' : '' ?>><span><?= e(t('Empréstimo ou financiamento')) ?></span></label>
                         <label class="aj-marcar"><input type="checkbox" name="tem_carro" value="1"<?= $usa('usa_carro') ? ' checked' : '' ?>><span><?= e(t('Carro')) ?></span></label>
@@ -183,6 +189,7 @@ $formConta = static function (?array $c) use ($csrf, $erroConta, $tiposD, $inici
                             <label class="aj-marcar"><input type="radio" name="objetivo" value="3"<?= $naConta ? ' checked' : '' ?>><span><?= e(t('Deixar na conta')) ?></span></label>
                             <label class="aj-marcar"><input type="radio" name="objetivo" value="1"<?= $naConta ? '' : ' checked' ?>><span><?= e(t('Usar para adiantar o empréstimo')) ?></span></label>
                         </fieldset>
+                        <?php $erroDe('recursos'); ?>
                         <button type="submit" class="btn btn-primary aj-salvar"><?= e(t('Salvar')) ?></button>
                     </form>
                 </div>
@@ -234,13 +241,14 @@ $formConta = static function (?array $c) use ($csrf, $erroConta, $tiposD, $inici
                 <summary class="ajs-linha"><?= $linha('emprestimo', t('Moeda e fuso horário'), t('{moeda}, {cidade}', ['moeda' => moedaSimbolo(), 'cidade' => $cidade])) ?></summary>
                 <div class="ajs-corpo">
                     <form class="aj-form" method="post" action="/ajustes/regional">
-                        <?= $csrf ?>
+                        <?= $csrf ?><input type="hidden" name="orig[moeda]" value="<?= e(Site::moeda()) ?>"><input type="hidden" name="orig[fuso]" value="<?= e($fuso) ?>">
                         <label class="campo"><span><?= e(t('Moeda')) ?></span>
                             <select name="moeda"><?php foreach (Site::opcoesMoeda() as $cod => $rotulo): ?><option value="<?= e($cod) ?>"<?= $cod === Site::moeda() ? ' selected' : '' ?>><?= e($rotulo) ?></option><?php endforeach; ?></select></label>
                         <p class="aj-ajuda"><?= e(t('Muda só o símbolo: os valores já lançados não são convertidos.')) ?></p>
                         <label class="campo"><span><?= e(t('Fuso horário')) ?></span>
                             <select name="fuso" data-fuso><?php foreach (Site::opcoesFuso() as $nome => $rotulo): ?><option value="<?= e($nome) ?>"<?= $nome === $fuso ? ' selected' : '' ?>><?= e($rotulo) ?></option><?php endforeach; ?></select></label>
                         <p class="aj-ajuda" data-fuso-dica hidden><?= e(t('Seu navegador está em outro fuso:')) ?> <b data-fuso-nome></b> <button type="button" class="btn btn-contorno btn-sm" data-fuso-usar><?= e(t('Usar este')) ?></button></p>
+                        <?php $erroDe('regional'); ?>
                         <button type="submit" class="btn btn-primary aj-salvar"><?= e(t('Salvar')) ?></button>
                     </form>
                 </div>
