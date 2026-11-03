@@ -18,6 +18,7 @@ use Financeiro\Controllers\WishlistController;
 use Financeiro\Controllers\SistemaController;
 use Financeiro\Controllers\TemaController;
 use Financeiro\Controllers\IdiomaController;
+use Financeiro\Controllers\MenuController;
 use Financeiro\Controllers\InvestimentosController;
 use Financeiro\Controllers\ComecarController;
 use Financeiro\Controllers\RelatorioController;
@@ -100,6 +101,9 @@ $router->get('/investimentos', [InvestimentosController::class, 'index']);
 
 // ---- idioma
 $router->post('/idioma', [IdiomaController::class, 'salvar']);
+
+// ---- ordem das abas do menu (modo organizar)
+$router->post('/menu/ordem', [MenuController::class, 'salvarOrdem']);
 
 // ---- wishlist
 $router->get('/wishlist', [WishlistController::class, 'index']);

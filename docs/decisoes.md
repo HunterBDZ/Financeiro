@@ -144,6 +144,7 @@ As regras do app e o porquê de cada uma. Para instalar e operar, veja o [manual
 - **Saídas em vermelho:** nos lançamentos e nos totais. Os valores por categoria do Mês ficam neutros, porque o vermelho ali quer dizer "passou da meta".
 - **Olho do saldo (`[data-ocultar]`):** borra os números e vale só para a aba aberta (`sessionStorage`).
 - **Menus:** a barra do celular tem 5 itens (Início, Extrato, +, Mês, Cartão), com o "+" no meio. O resto fica no botão Menu e no menu lateral. Simular tem item próprio.
+- **Ordem do menu (`Financeiro\Menu`):** cada conta organiza as abas do menu lateral e da lista do botão Menu, segurando uma aba ou pelo botão "Organizar menu"; as setas de cada aba são o caminho do teclado. A ordem fica em `usuarios.menu_ordem` (JSON com as chaves; NULL = padrão) e vale em qualquer aparelho. Chave desconhecida é ignorada, aba nova entra no fim, e a escondida em Ajustes guarda o lugar. O "+ Lançar" e a barra de baixo não mudam.
 - **Telas grandes:** a partir de 1600 px, o conteúdo cresce até 1560 px e as telas ganham colunas; a partir de 1280 px, Fechar e Ajustes ficam em 2 colunas.
 - **Ajustes:** só Dinheiro abre sozinho. Os links antigos `?aberto=` continuam valendo. Categorias ficam em Ajustes, com o atalho "Criar categoria" no Lançar.
 - **Aviso de conexão:** a explicação fica em `/ajuda/conexao`, que abre sem login, porque quem vê o aviso ainda não entrou.
