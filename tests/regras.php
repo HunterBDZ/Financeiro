@@ -3840,6 +3840,14 @@ if (Sql::sqlite()) {
             && str_contains($hIni, 'action="/importar/' . (int) $g['id'] . '/desfazer"') && str_contains($hIni, 'data-confirm=') && str_contains($hIni, 'Tem “Padaria”'));
         $hExt = $render(LancamentosController::class, 'index', ['mes' => '2026-11-01']);
         $check('importar: o Extrato tem "Importar extrato"', str_contains($hExt, 'href="/importar"') && str_contains($hExt, 'Importar extrato'));
+        // desfazer com uma linha num mês fechado: recusado, com a frase do mês fechado (B-01); reaberto, sai
+        $mesesLote = \Financeiro\Models\ImportacaoModel::meses((int) $g['id']);
+        MesModel::setSituacao($mesesLote[0], 'REAL');
+        [$erroDf, $fraseDf] = [\Financeiro\Services\Importacao::erroDesfazer((int) $g['id']), LancamentosController::erroMesFechado($mesesLote[0])];
+        MesModel::setSituacao($mesesLote[0], 'PREVISAO');
+        $check('importar: "Desfazer importação" com uma linha num mês fechado é recusado, com a frase do mês fechado', $mesesLote !== []
+            && $erroDf === $fraseDf && $erroDf !== null
+            && \Financeiro\Services\Importacao::erroDesfazer((int) $g['id']) === null, json_encode([$mesesLote, $erroDf]));
         // desfazer: o lote inteiro sai, e o arquivo pode entrar de novo
         $antes = (int) $pdo->query('SELECT COUNT(*) FROM lancamentos')->fetchColumn();
         $n = \Financeiro\Services\Importacao::desfazer((int) $g['id'], $uid);
@@ -3886,6 +3894,7 @@ if (Sql::sqlite()) {
         $rc = \Financeiro\Services\Importacao::revisao([['data' => '2026-11-03', 'valor' => 20.0, 'descricao' => 'A', 'fitid' => '', 'categoria' => ''],
             ['data' => '2026-11-04', 'valor' => 30.0, 'descricao' => 'B', 'fitid' => '', 'categoria' => ''], ['data' => '2026-11-05', 'valor' => -500.0, 'descricao' => 'PAGAMENTO EFETUADO', 'fitid' => '', 'categoria' => '']], $destino, 'csv');
         $check('importar cartão: com compras positivas, o negativo é o pagamento', array_column($rc, 'tipo') === ['compra', 'compra', 'pagamento']);
+        $check('importar cartão: o desfazer olha a 1ª fatura de cada compra, como o Excluir do Cartão', in_array($rev[0]['primeira'], \Financeiro\Models\ImportacaoModel::meses((int) $g['id']), true));
         $n = \Financeiro\Services\Importacao::desfazer((int) $g['id'], $uid);
         $check('importar cartão: desfazer apaga as compras do lote', $n === 3 && (int) $pdo->query('SELECT COUNT(*) FROM cartao_compras WHERE importacao_id = ' . (int) $g['id'])->fetchColumn() === 0);
     });

@@ -65,6 +65,21 @@ final class ImportacaoModel
     }
 
     /**
+     * Os meses em que as linhas do lote caem (Y-m-01), do mais antigo ao mais novo: o mês da data, num lançamento, e o
+     * da 1ª fatura, numa compra no cartão (é a fatura que muda o valor quando a compra sai).
+     * @return list<string>
+     */
+    public static function meses(int $id): array
+    {
+        $st = Database::connection()->prepare(
+            'SELECT ' . Sql::inicioMes('data') . ' AS mes FROM lancamentos WHERE importacao_id = :a
+             UNION SELECT ' . Sql::inicioMes('primeira_fatura') . ' AS mes FROM cartao_compras WHERE importacao_id = :b ORDER BY mes'
+        );
+        $st->execute(['a' => $id, 'b' => $id]);
+        return array_map('strval', $st->fetchAll(PDO::FETCH_COLUMN));
+    }
+
+    /**
      * Apaga as linhas do lote e marca o lote como desfeito; quem chama cuida da transação.
      * @return int quantas linhas saíram
      */

@@ -399,6 +399,20 @@ final class Importacao
         return ['erro' => null, 'id' => $id, 'n' => count($marcadas)];
     }
 
+    /**
+     * Mês fechado não muda: o lote com alguma linha num mês fechado (a data do lançamento, ou a 1ª fatura da compra)
+     * não sai. null = pode desfazer; senão, a frase do mês fechado mais antigo (LancamentosController::erroMesFechado).
+     */
+    public static function erroDesfazer(int $id): ?string
+    {
+        foreach (ImportacaoModel::meses($id) as $mes) {
+            if (($erro = LancamentosController::erroMesFechado($mes)) !== null) {
+                return $erro;
+            }
+        }
+        return null;
+    }
+
     /** "Desfazer importação": apaga o lote inteiro. @return int quantas linhas saíram */
     public static function desfazer(int $id, int $usuarioId): int
     {

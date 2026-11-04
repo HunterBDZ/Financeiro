@@ -268,7 +268,7 @@ final class ImportacaoController
             . ' · ' . tn($n, '1 linha mudou', '{n} linhas mudaram')];
     }
 
-    /** POST /importar/{id}/desfazer: apaga o lote inteiro (a tela pede confirmação). */
+    /** POST /importar/{id}/desfazer: apaga o lote inteiro (a tela pede confirmação), salvo se alguma linha cai num mês fechado. */
     public function desfazer(string $id): void
     {
         Auth::requireLogin();
@@ -277,6 +277,10 @@ final class ImportacaoController
         $imp = ImportacaoModel::achar((int) $id);
         if ($imp === null || $imp['desfeita_em'] !== null) {
             flash('warn', t('Essa importação já tinha sido desfeita.'));
+            redirecionar($volta, 303);
+        }
+        if (($fechado = Importacao::erroDesfazer((int) $id)) !== null) {
+            flash('error', $fechado);
             redirecionar($volta, 303);
         }
         $n = Importacao::desfazer((int) $id, (int) Auth::id());
