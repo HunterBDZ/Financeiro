@@ -563,10 +563,7 @@
 
     // mês fechado não muda: a data de um lançamento ou de uma transferência num mês fechado é avisada antes de enviar
     // (data-lf-fechados: 'AAAA-MM' → a frase do servidor). A compra no cartão segue pela fatura, que só o servidor sabe
-    function noCartao(form) {
-        var p = form.querySelector('input[name="pagou"]:checked');
-        return !transferindo(form) && !!p && /^cartao/.test(p.value);
-    }
+    // (noCartao, lá em cima)
     function mesFechado(form) {
         var mapa;
         try { mapa = JSON.parse(form.getAttribute('data-lf-fechados') || '{}'); } catch (e) { mapa = {}; }

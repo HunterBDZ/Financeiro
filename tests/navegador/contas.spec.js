@@ -124,6 +124,16 @@ test('transferir mais do que a conta tem pede confirmação', async ({ page, con
 // no celular, as abas do "Pagou com" ficam numa linha, mesmo com duas contas e um cartão (B-16)
 test('celular: as abas do "Pagou com" cabem numa linha', async ({ page, context }) => {
     await entrar(context.request, srv.url);
+    // a segunda conta: o primeiro teste a cria, mas este pode rodar sozinho ou noutro processo
+    await page.goto(srv.url + '/ajustes?aberto=carteira#carteira');
+    const contas = page.locator('#carteira');
+    if (!(await contas.getByText('Reserva da casa').count())) {
+        await contas.getByText('Nova conta').click();
+        const nova = contas.locator('.aj-cd-nova form');
+        await nova.getByLabel('Nome').fill('Reserva da casa');
+        await nova.getByRole('button', { name: 'Criar conta' }).click();
+        await expect(page.getByRole('status').filter({ hasText: 'Conta criada' })).toBeVisible();
+    }
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(srv.url + '/lancar?volta=%2F');
     const abas = page.locator('[data-ct-pagou] label');

@@ -129,8 +129,8 @@ test('o diálogo de lançar abre a partir do botão clicado', async ({ page }) =
     await page.getByRole('complementary', { name: 'menu' }).getByRole('link', { name: /Lançar/ }).click();
     const dlg = page.locator('dialog#lancar');
     await expect(dlg).toBeVisible();
-    const origem = await dlg.evaluate((d) => d.style.getPropertyValue('--origem'));
-    expect(origem).toMatch(/^-?\d+px -?\d+px$/);
+    // a origem é posta pelo observador do atributo open, logo depois de abrir
+    await expect.poll(() => dlg.evaluate((d) => d.style.getPropertyValue('--origem'))).toMatch(/^-?\d+px -?\d+px$/);
     await page.keyboard.press('Escape');
     await expect(dlg).toBeHidden();
 });
