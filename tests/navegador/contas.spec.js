@@ -12,6 +12,8 @@ test.afterAll(async () => {
     await srv?.parar();
 });
 test.use({ logado: false });
+// os testes daqui contam com o que os anteriores criaram (a conta Bolso, a Carteira): em ordem, num processo só
+test.describe.configure({ mode: 'serial' });
 
 test('transfere para uma conta nova e paga a fatura escolhendo o cartão', async ({ page, context }) => {
     await entrar(context.request, srv.url);
