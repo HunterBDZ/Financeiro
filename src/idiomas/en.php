@@ -2392,4 +2392,5 @@ return [
     '{valor} pela fatura paga' => '{valor} by paid statement',
     'Total pela data da compra' => 'Total by purchase date',
     'Total pela fatura paga' => 'Total by paid statement',
+    'Assim, o resgate de {data} passa do saldo guardado. Mude esse resgate antes.' => 'That way, the withdrawal on {data} is more than the saved balance. Change that withdrawal first.',
 ];

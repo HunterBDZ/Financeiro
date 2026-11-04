@@ -524,8 +524,8 @@ final class LancamentosController
             flash('warn', t('Esse lançamento já tinha sido excluído.'));
             redirecionar($volta);
         }
-        if (($fechado = self::erroMesFechado((string) $l['data'])) !== null) {
-            flash('error', $fechado);
+        if (($fechado = self::erroMesFechado((string) $l['data']) ?? Investimentos::erroCascata([(int) $l['id']])) !== null) {
+            flash('error', $fechado);                    // mês fechado, ou um resgate de depois passaria do saldo guardado
             redirecionar($volta);
         }
 
@@ -567,7 +567,8 @@ final class LancamentosController
 
         $linha = $d['linha'];
         $cat = CategoriaModel::find((int) $linha['categoria_id']);
-        $erroData = self::validarData((string) $linha['data']) ?? self::erroMesFechado((string) $linha['data']);
+        $erroData = self::validarData((string) $linha['data']) ?? self::erroMesFechado((string) $linha['data'])
+            ?? Investimentos::erroCascata([], [$linha]);
         if ($cat === null || $erroData !== null) {
             flash('error', $erroData ?? t('Escolha uma categoria.'));
             redirecionar($volta);
@@ -654,8 +655,10 @@ final class LancamentosController
         if (($erro = self::validarData($data) ?? self::erroMesFechado($data)) !== null) {
             return [$erro, null];
         }
-        // resgatar mais do que estava guardado deixaria a poupança (ou os investimentos) negativa
-        if (($erro = Investimentos::erroResgate($categoriaId, $valor, $data, $editando)) !== null) {
+        // resgatar mais do que estava guardado deixaria a poupança (ou os investimentos) negativa; e mudar um guardar ou
+        // um resgate não pode deixar um resgate de depois maior que o saldo (efeito cascata)
+        if (($erro = Investimentos::erroResgate($categoriaId, $valor, $data, $editando)
+                ?? Investimentos::erroCascata($editando !== null ? [$editando] : [], [['categoria_id' => $categoriaId, 'valor' => $valor, 'data' => $data]])) !== null) {
             return [$erro, null];
         }
 

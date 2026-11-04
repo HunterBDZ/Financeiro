@@ -4248,6 +4248,25 @@ $emTransacao('C-06 resgate maior que o saldo', static function () use ($check, $
         && Investimentos::erroResgate((int) CategoriaModel::porChave(MotorFinanceiro::CAT_SALARIO)['id'], 99999.0, $hoje) === null, (string) $erroP);
 });
 
+// C-06, efeito cascata: mudar ou excluir um guardar (ou incluir um resgate antes) não deixa um resgate de depois maior que o saldo
+$emTransacao('C-06 efeito cascata', static function () use ($check, $hoje, $uid, $catDia): void {
+    $guard = (int) CategoriaModel::porChave(MotorFinanceiro::CAT_GUARDAR)['id'];
+    $resg = (int) CategoriaModel::porChave(MotorFinanceiro::CAT_RESGATE)['id'];
+    $antes = date('Y-m-d', strtotime($hoje . ' -2 day'));
+    $saldoP = (float) Investimentos::resumo($hoje)['poupanca']['saldo'];
+    $idG = LancamentoModel::criar($antes, 'guardar', $guard, 300.0, $uid, ContaModel::PRINCIPAL);
+    LancamentoModel::criar($hoje, 'resgate tudo', $resg, round($saldoP + 300.0, 2), $uid, ContaModel::PRINCIPAL);
+    $frase = t('Assim, o resgate de {data} passa do saldo guardado. Mude esse resgate antes.', ['data' => diaMes($hoje)]);
+    $validar = new \ReflectionMethod(LancamentosController::class, 'validar');
+    [$erroEd] = $validar->invoke(null, ['valor' => '100', 'categoria_id' => (string) $guard, 'quando' => 'outro', 'data' => $antes], $idG);
+    [$erroOk] = $validar->invoke(null, ['valor' => '400', 'categoria_id' => (string) $guard, 'quando' => 'outro', 'data' => $antes], $idG);
+    $check('C-06 cascata: excluir o guardar, ou baixar o valor dele, é recusado com a frase do resgate', Investimentos::erroCascata([$idG]) === $frase
+        && $erroEd === $frase && Investimentos::erroCascata([$idG], [['categoria_id' => $guard, 'valor' => 300.0, 'data' => date('Y-m-d', strtotime($hoje . ' +1 day'))]]) === $frase, (string) $erroEd);
+    $check('C-06 cascata: um resgate novo antes do outro também; subir o guardar ou lançar outra coisa passa', $erroOk === null
+        && Investimentos::erroCascata([], [['categoria_id' => $resg, 'valor' => 50.0, 'data' => $antes]]) === $frase
+        && Investimentos::erroCascata([], [['categoria_id' => $catDia, 'valor' => 50.0, 'data' => $antes]]) === null, (string) $erroOk);
+});
+
 // C-07: no lançar, só as categorias que o servidor aceita numa compra no cartão vêm marcadas para o cartão
 LancarForm::limparCache();
 $okC07 = true;

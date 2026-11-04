@@ -2392,4 +2392,5 @@ return [
     '{valor} pela fatura paga' => '{valor} por factura pagada',
     'Total pela data da compra' => 'Total por fecha de compra',
     'Total pela fatura paga' => 'Total por factura pagada',
+    'Assim, o resgate de {data} passa do saldo guardado. Mude esse resgate antes.' => 'Así, el retiro del {data} supera el saldo guardado. Cambie ese retiro antes.',
 ];
