@@ -356,6 +356,7 @@ final class LancamentosController
 
         MesModel::ensureExists(substr($d['data'], 0, 8) . '01');   // dentro de [primeiro, último]: nunca cria mês novo
         $id = LancamentoModel::criar($d['data'], $d['descricao'], $d['categoria_id'], $d['valor'], (int) Auth::id(), $d['conta_id']);
+        MotorFinanceiro::limparCache();                          // o aviso conta com o que acabou de entrar
 
         $destino = $volta !== '' ? $volta : '/lancamentos?mes=' . substr($d['data'], 0, 8) . '01';
         flash('success', self::avisoLancado($d['cat'], $d['valor'], $d['data'], $destino), [
@@ -523,8 +524,8 @@ final class LancamentosController
             flash('warn', t('Esse lançamento já tinha sido excluído.'));
             redirecionar($volta);
         }
-        if (($fechado = self::erroMesFechado((string) $l['data'])) !== null) {
-            flash('error', $fechado);
+        if (($fechado = self::erroMesFechado((string) $l['data']) ?? Investimentos::erroCascata([(int) $l['id']])) !== null) {
+            flash('error', $fechado);                    // mês fechado, ou um resgate de depois passaria do saldo guardado
             redirecionar($volta);
         }
 
@@ -566,7 +567,8 @@ final class LancamentosController
 
         $linha = $d['linha'];
         $cat = CategoriaModel::find((int) $linha['categoria_id']);
-        $erroData = self::validarData((string) $linha['data']) ?? self::erroMesFechado((string) $linha['data']);
+        $erroData = self::validarData((string) $linha['data']) ?? self::erroMesFechado((string) $linha['data'])
+            ?? Investimentos::erroCascata([], [$linha]);
         if ($cat === null || $erroData !== null) {
             flash('error', $erroData ?? t('Escolha uma categoria.'));
             redirecionar($volta);
@@ -653,8 +655,10 @@ final class LancamentosController
         if (($erro = self::validarData($data) ?? self::erroMesFechado($data)) !== null) {
             return [$erro, null];
         }
-        // resgatar mais do que estava guardado deixaria a poupança (ou os investimentos) negativa
-        if (($erro = Investimentos::erroResgate($categoriaId, $valor, $data, $editando)) !== null) {
+        // resgatar mais do que estava guardado deixaria a poupança (ou os investimentos) negativa; e mudar um guardar ou
+        // um resgate não pode deixar um resgate de depois maior que o saldo (efeito cascata)
+        if (($erro = Investimentos::erroResgate($categoriaId, $valor, $data, $editando)
+                ?? Investimentos::erroCascata($editando !== null ? [$editando] : [], [['categoria_id' => $categoriaId, 'valor' => $valor, 'data' => $data]])) !== null) {
             return [$erro, null];
         }
 
@@ -700,16 +704,20 @@ final class LancamentosController
      * Aviso depois de lançar: `Delivery −56,80 · Ainda dá para gastar 343,20 da meta.`; categoria sem previsão no mês:
      * só `Salário +3.000,00`. O número é o da tela para onde a pessoa volta: nas Metas, o gasto como elas contam (com o
      * cartão, pela data da compra, e a frase diz "com o cartão" quando isso muda o número); nas outras (Início, Mês,
-     * Extrato), o lançado na conta, como o Mês.
+     * Extrato), o lançado na conta, como o Mês. Os dois são o realizado: o lançamento com data depois de hoje é
+     * agendado, fica fora do gasto até o dia dele (MotorFinanceiro::realizado), e o aviso diz isso.
      */
     private static function avisoLancado(array $cat, float $valor, string $data, string $destino = ''): string
     {
         $txt = self::valorTexto($cat, $valor, true);
+        if ($data > Relogio::hoje()) {
+            $txt = t('{texto}, agendado para {data}', ['texto' => $txt, 'data' => diaMes($data)]);
+        }
         $mes = substr($data, 0, 8) . '01';
         if ((int) $cat['operacional'] === 1 && (int) $cat['sinal'] < 0) {
             $previsto = PrevisaoModel::valor((int) $cat['id'], $mes);
             if ($previsto > 0) {
-                $gasto = LancamentoModel::somaPorCategoria((int) $cat['id'], $mes);
+                $gasto = round((float) (MotorFinanceiro::realizado()['real'][$mes][(int) $cat['id']] ?? 0.0), 2);
                 $cartao = false;
                 if (preg_match('#^/meta(?:[?\#]|$)#', $destino)) {
                     $m = MetaController::gastosDoMes($mes)[(int) $cat['id']] ?? null;

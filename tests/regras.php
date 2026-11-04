@@ -984,6 +984,34 @@ $emTransacao('gasto por categoria', static function () use ($pdo, $check, $catFa
         && abs($relFat['categorias']['totalReal'] - $somaCaixa) < 0.01 && in_array('Fatura', array_column($relFat['categorias']['linhas'], 'nome'), true));
     $check('"Para onde foi": o Relatório mostra a lista na tela, com a escolha, e o PDF sai', str_contains($hRel, 'class="faixa-grade rl-onde"') && str_contains($hRel, 'Ver por fatura')
         && str_starts_with((new \Financeiro\Pdf\RelatorioPdf($rel))->gerar(), '%PDF') && str_starts_with((new \Financeiro\Pdf\RelatorioPdf($relFat))->gerar(), '%PDF'));
+    // o total diz que conta é, para não parecer o "Gastou" da escada (C-03): na tela e no PDF, pela data da compra ou pela fatura
+    $textoPdf = static function (array $r): string {
+        $pdf = new \Financeiro\Pdf\RelatorioPdf($r);
+        $pdf->gerar();
+        $doc = (new \ReflectionProperty($pdf, 'd'))->getValue($pdf);
+        $mapa = [];
+        foreach ((new \ReflectionProperty($doc, 'fontes'))->getValue($doc) as $f) {
+            foreach ($f['usados'] as $gid => [$cp]) {
+                $mapa[$f['n']][$gid] = mb_chr($cp);
+            }
+        }
+        $txt = '';
+        foreach ((new \ReflectionProperty($doc, 'paginas'))->getValue($doc) as $pag) {
+            preg_match_all('#/F(\d+) .*? <([0-9A-F]*)> Tj#', $pag, $mm, PREG_SET_ORDER);
+            foreach ($mm as [, $n, $hex]) {
+                foreach (str_split($hex, 4) as $g) {
+                    $txt .= $mapa[(int) $n][hexdec($g)] ?? '';
+                }
+                $txt .= "\n";
+            }
+        }
+        return $txt;
+    };
+    $check('"Para onde foi": o total diz a conta, na tela e no PDF ("pela data da compra" ou "pela fatura paga"), e não "gastos"',
+        str_contains($hRel, num($rel['categorias']['totalReal']) . ' pela data da compra') && !str_contains($hRel, ' gastos</p>')
+        && str_contains($render(RelatorioController::class, 'index', ['mes' => $mesHoje, 'onde' => 'fatura']), num($relFat['categorias']['totalReal']) . ' pela fatura paga')
+        && str_contains($textoPdf($rel), "Total pela data da compra\n") && str_contains($textoPdf($relFat), "Total pela fatura paga\n"));
+    unset($_COOKIE[DashboardController::COOKIE_ONDE]);
 });
 // sem cartão (sem cartão ativo ou sem a aba), nada muda: a visão é o extrato, e as telas não mostram a escolha
 $emTransacao('gasto por categoria sem cartão', static function () use ($pdo, $check, $render, $mesHoje): void {
@@ -1592,6 +1620,91 @@ $emTransacao('agendado e soma do dia', static function () use ($pdo, $check, $re
     $check('Início: a soma de hoje é a do dia inteiro, não só a dos lançamentos à vista', preg_match('#<span>Hoje</span><span class="num">' . MENOS . '280,00</span>#u', $htmlIni) === 1);
 });
 
+// ---- 9h2. Agendado em toda conta: fora de todo realizado (Metas, "Para onde foi", Mês, Relatório, atenção, aviso), no
+// previsto; as somas fecham e o mesmo nome dá o mesmo número no Início, nas Metas e no Relatório
+$emTransacao('agendado em toda conta', static function () use ($pdo, $check, $render, $catDia, $mesHoje, $hoje, $uid): void {
+    $foto = static function () use ($render, $mesHoje, $hoje): array {
+        MotorFinanceiro::limparCache();
+        $rel = RelatorioDados::mensal($mesHoje, $hoje);
+        $ponte = array_column($rel['ponte'], 'valor', 'rotulo');
+        $painel = (new \ReflectionMethod(DashboardController::class, 'painel'))->invoke(null, GastosMensais::matriz()[$mesHoje], $mesHoje, 'aberto', false, $hoje);
+        return [
+            'metas' => array_map(static fn(array $x): float => $x['gasto'], MetaController::gastosDoMes($mesHoje)),
+            'metasProx' => array_map(static fn(array $x): float => $x['gasto'], MetaController::gastosDoMes(date('Y-m-01', strtotime($mesHoje . ' +1 month')))),
+            'onde' => GastoPorCategoria::doMes($mesHoje),
+            'mesReal' => preg_match_all('#<tr id="cat-(\d+)"[^>]*>.*?<td class="c-real">(.*?)</td>#s', $render(MesController::class, 'index', ['mes' => $mesHoje]), $mm) ? array_combine($mm[1], $mm[2]) : [],
+            'relCats' => array_column($rel['categorias']['linhas'], 'real', 'id'), 'relTotal' => $rel['categorias']['totalReal'],
+            'relGastou' => -(float) ($ponte['Gastou até agora'] ?? 0.0), 'relPonte' => $rel['ponte'],
+            'inicioGastou' => \Financeiro\Services\Sobra::ateHoje($mesHoje)['saidas'],
+            'inicioOnde' => array_column($painel['onde'], 'valor', 'id'),
+            'metasAviso' => array_values(array_filter(array_map(static fn(array $a): string => $a['tipo'] === 'meta' ? $a['detalhe'] : '', \Financeiro\Services\Atencao::avisos($hoje)))),
+            'fica' => (float) MotorFinanceiro::calcularPlano()[$mesHoje]['fica_na_conta'],
+        ];
+    };
+    // uma conta fixa por pagar, para o agendado (sem nenhuma por pagar, a primeira com conta recorrente fica sem o pagamento do mês)
+    if (\Financeiro\Services\ChecklistContas::fixasAPagar($hoje) === []) {
+        foreach (\Financeiro\Models\ContaRecorrenteModel::ativas() as $cr) {
+            if ((string) $cr['grupo'] === 'Fixos' && PrevisaoModel::valor((int) $cr['categoria_id'], $mesHoje) > 0) {
+                $pdo->prepare('DELETE FROM lancamentos WHERE categoria_id = ? AND data >= ?')->execute([(int) $cr['categoria_id'], $mesHoje]);
+                break;
+            }
+        }
+        MotorFinanceiro::limparCache();
+    }
+    $antes = $foto();
+    // o mesmo nome, o mesmo número: o "Gastou" do Início e do Relatório; o "Para onde foi" do Início, do Relatório e das Metas
+    $mesmoOnde = true;
+    foreach ($antes['relCats'] as $id => $v) {
+        $mesmoOnde = $mesmoOnde && abs($v - (float) ($antes['inicioOnde'][$id] ?? 0.0)) < 0.005
+            && ($id === GastoPorCategoria::SEM_CATEGORIA || $id === GastoPorCategoria::categoriaFatura() || abs($v - (float) ($antes['metas'][$id] ?? 0.0)) < 0.005);
+    }
+    $check('agendado: "Gastou" é o mesmo no Início e no Relatório, e o "Para onde foi" é o mesmo no Início, no Relatório e nas Metas',
+        abs($antes['inicioGastou'] - $antes['relGastou']) < 0.005 && $mesmoOnde, json_encode([$antes['inicioGastou'], $antes['relGastou'], $antes['relCats'], $antes['inicioOnde']]));
+    $check('agendado: a escada do Relatório fecha no fim do mês do plano', abs(array_sum(array_map(static fn(array $p): float => $p['tipo'] === 'fim' ? 0.0 : (float) $p['valor'], $antes['relPonte']))
+        - $antes['fica']) < 0.01 && abs(end($antes['relPonte'])['valor'] - $antes['fica']) < 0.01);
+    if ($hoje >= date('Y-m-t', strtotime($hoje))) {
+        return;                                            // no último dia do mês, amanhã é o mês seguinte: o resto não se aplica
+    }
+    $amanha = date('Y-m-d', strtotime($hoje . ' +1 day'));
+    $prox = date('Y-m-d', strtotime($mesHoje . ' +1 month +4 day'));
+    LancamentoModel::criar($amanha, 'agendado D', $catDia, 7.0, $uid);
+    LancamentoModel::criar($prox, 'agendado D mês seguinte', $catDia, 9.0, $uid);
+    // a conta fixa ainda por pagar, paga com data de amanhã
+    $fixa = \Financeiro\Services\ChecklistContas::fixasAPagar($hoje)[0] ?? null;
+    $check('agendado: há uma conta fixa por pagar para o teste', $fixa !== null);
+    if ($fixa !== null) {
+        LancamentoModel::criar($amanha, 'conta agendada', (int) $fixa['categoria_id'], (float) $fixa['previsto'], $uid);
+    }
+    // a compra no cartão com data de amanhã
+    $compra = GastoPorCategoria::ativo() ? CartaoController::criarCompraDe(['valor' => '13', 'categoria_id' => (string) $catDia, 'data' => $amanha, 'parcelas' => '1'], $hoje) : null;
+    $depois = $foto();
+    $check('agendado: fica fora do gasto das Metas (no mês e no seguinte) e do "Para onde foi", com a compra no cartão', $antes['metas'] == $depois['metas']
+        && $antes['metasProx'] == $depois['metasProx'] && $antes['onde'] == $depois['onde'] && ($compra === null || $compra['erro'] === null), json_encode([$antes['onde'], $depois['onde'], $compra]));
+    $check('agendado: fica fora da coluna Realizado do Mês', $antes['mesReal'] === $depois['mesReal'], json_encode(array_diff_assoc($depois['mesReal'], $antes['mesReal'])));
+    $check('agendado: fica fora do Relatório ("Para onde foi" e "Gastou até agora") e do "Precisa de atenção"', $antes['relCats'] == $depois['relCats']
+        && abs($antes['relTotal'] - $depois['relTotal']) < 0.005 && abs($antes['relGastou'] - $depois['relGastou']) < 0.005 && $antes['metasAviso'] === $depois['metasAviso']);
+    $check('agendado: continua no previsto, e as somas fecham', abs($depois['inicioGastou'] - $depois['relGastou']) < 0.005
+        && abs(array_sum(array_map(static fn(array $p): float => $p['tipo'] === 'fim' ? 0.0 : (float) $p['valor'], $depois['relPonte'])) - $depois['fica']) < 0.01
+        && $depois['fica'] <= $antes['fica'] + 0.005);
+    if ($fixa !== null) {
+        $st = array_column(\Financeiro\Services\ChecklistContas::statusPorMes($mesHoje, $hoje), null, 'categoria_id')[(int) $fixa['categoria_id']] ?? [];
+        $aPagar = array_column(\Financeiro\Services\ChecklistContas::aPagar($mesHoje, $hoje), 'falta', 'categoria_id');
+        $avisos = array_column(\Financeiro\Services\Atencao::avisos($hoje), 'href');
+        $htmlMes = $render(MesController::class, 'index', ['mes' => $mesHoje]);
+        $linha = preg_match('#<tr id="cat-' . (int) $fixa['categoria_id'] . '".*?</tr>#s', $htmlMes, $mL) ? $mL[0] : '';
+        $check('agendado: a conta paga com data de amanhã é "agendado", não "pago", e não pede pagamento', ($st['status'] ?? '') === 'agendado' && abs((float) $st['pago']) < 0.005
+            && abs((float) ($aPagar[(int) $fixa['categoria_id']] ?? 0) - (float) $fixa['previsto']) < 0.005
+            && !in_array('/lancar?' . http_build_query(['categoria' => (int) $fixa['categoria_id'], 'valor' => numInput((float) $fixa['previsto']), 'volta' => '/']), $avisos, true)
+            && str_contains($linha, 'agendado dia ' . (int) substr($amanha, 8, 2)) && !str_contains($linha, 'btn-pagar') && !str_contains($linha, 'carimbo'), $linha);
+    }
+    // o aviso depois de lançar diz que é agendado, e o número da meta não muda
+    $cat = CategoriaModel::find($catDia);
+    $aviso = (string) (new \ReflectionMethod(LancamentosController::class, 'avisoLancado'))->invoke(null, $cat, 7.0, $amanha, '/');
+    $prevDia = PrevisaoModel::valor($catDia, $mesHoje);
+    $check('agendado: o aviso depois de lançar diz "agendado" e conta só o realizado', str_contains($aviso, 'agendado para ' . diaMes($amanha))
+        && ($prevDia <= 0 || str_contains($aviso, num(abs(round($prevDia - (float) (MotorFinanceiro::realizado()['real'][$mesHoje][$catDia] ?? 0.0), 2))))), $aviso);
+});
+
 // ---- 9i. As contas fecham: categoria tirada do mês (B-08), a barra no vermelho (B-12), o "por dia" (B-19), o ordinal (B-18)
 $emTransacao('as contas fecham', static function () use ($pdo, $check, $render, $mesHoje, $hoje, $uid): void {
     $comb = (int) $pdo->query("SELECT id FROM categorias WHERE nome = 'Combustível'")->fetchColumn();
@@ -1651,6 +1764,21 @@ $emTransacao('transferência negativa', static function () use ($pdo, $check, $h
     $check('transferência: confirmada, grava', $r2['erro'] === null && $r2['id'] > 0 && $n() === $antes + 1 && abs(ContaModel::saldo($c2, $hoje) + 4600) < 0.005);
     $r3 = TransferenciaController::criarDe(['valor' => '100', 'de_conta' => '1', 'para_conta' => (string) $c2, 'data' => $hoje]);
     $check('transferência: sem ficar negativa, grava direto', $r3['id'] > 0 && !isset($r3['negativo']));
+
+    // editar com a mesma pergunta: a conta tem 100 agora (400 + 100 − 5000 + a de 5000 desfeita abaixo)
+    $pdo->prepare('DELETE FROM transferencias WHERE id = ?')->execute([$r2['id']]);
+    $t = \Financeiro\Models\TransferenciaModel::find($r3['id']);                       // 100 da principal para a carteira
+    $e1 = TransferenciaController::editarDe($t, ['valor' => '900', 'de_conta' => (string) $c2, 'para_conta' => '1', 'data' => $hoje]);
+    $t1 = \Financeiro\Models\TransferenciaModel::find($r3['id']);
+    $check('transferência: editar e deixar a conta negativa pede a mesma confirmação e não grava', ($e1['negativo']['valor'] ?? null) === -500.0
+        && $e1['erro'] === null && abs((float) $t1['valor'] - 100) < 0.005 && (int) $t1['de_conta_id'] === 1, json_encode($e1));
+    $e2 = TransferenciaController::editarDe($t, ['valor' => '900', 'de_conta' => (string) $c2, 'para_conta' => '1', 'data' => $hoje, 'confirmar_negativo' => '1']);
+    $check('transferência: editar, confirmado, grava', $e2['erro'] === null && !isset($e2['negativo']) && abs(ContaModel::saldo($c2, $hoje) + 500) < 0.005);
+    $t2 = \Financeiro\Models\TransferenciaModel::find($r3['id']);
+    $e3 = TransferenciaController::editarDe($t2, ['valor' => '900', 'de_conta' => (string) $c2, 'para_conta' => '1', 'data' => $hoje, 'descricao' => 'só o nome']);
+    $e4 = TransferenciaController::editarDe($t2, ['valor' => '350', 'de_conta' => (string) $c2, 'para_conta' => '1', 'data' => $hoje]);
+    $check('transferência: editar só a descrição, ou sem ficar negativa, grava direto (a transferência de antes sai da conta)', $e3['erro'] === null && !isset($e3['negativo'])
+        && $e4['erro'] === null && !isset($e4['negativo']) && abs(ContaModel::saldo($c2, $hoje) - 50) < 0.005, json_encode([$e3, $e4]));
 });
 ContaModel::limparCache();
 LancarForm::limparCache();
@@ -3841,6 +3969,14 @@ if (Sql::sqlite()) {
             && str_contains($hIni, 'action="/importar/' . (int) $g['id'] . '/desfazer"') && str_contains($hIni, 'data-confirm=') && str_contains($hIni, 'Tem “Padaria”'));
         $hExt = $render(LancamentosController::class, 'index', ['mes' => '2026-11-01']);
         $check('importar: o Extrato tem "Importar extrato"', str_contains($hExt, 'href="/importar"') && str_contains($hExt, 'Importar extrato'));
+        // desfazer com uma linha num mês fechado: recusado, com a frase do mês fechado (B-01); reaberto, sai
+        $mesesLote = \Financeiro\Models\ImportacaoModel::meses((int) $g['id']);
+        MesModel::setSituacao($mesesLote[0], 'REAL');
+        [$erroDf, $fraseDf] = [\Financeiro\Services\Importacao::erroDesfazer((int) $g['id']), LancamentosController::erroMesFechado($mesesLote[0])];
+        MesModel::setSituacao($mesesLote[0], 'PREVISAO');
+        $check('importar: "Desfazer importação" com uma linha num mês fechado é recusado, com a frase do mês fechado', $mesesLote !== []
+            && $erroDf === $fraseDf && $erroDf !== null
+            && \Financeiro\Services\Importacao::erroDesfazer((int) $g['id']) === null, json_encode([$mesesLote, $erroDf]));
         // desfazer: o lote inteiro sai, e o arquivo pode entrar de novo
         $antes = (int) $pdo->query('SELECT COUNT(*) FROM lancamentos')->fetchColumn();
         $n = \Financeiro\Services\Importacao::desfazer((int) $g['id'], $uid);
@@ -3887,6 +4023,7 @@ if (Sql::sqlite()) {
         $rc = \Financeiro\Services\Importacao::revisao([['data' => '2026-11-03', 'valor' => 20.0, 'descricao' => 'A', 'fitid' => '', 'categoria' => ''],
             ['data' => '2026-11-04', 'valor' => 30.0, 'descricao' => 'B', 'fitid' => '', 'categoria' => ''], ['data' => '2026-11-05', 'valor' => -500.0, 'descricao' => 'PAGAMENTO EFETUADO', 'fitid' => '', 'categoria' => '']], $destino, 'csv');
         $check('importar cartão: com compras positivas, o negativo é o pagamento', array_column($rc, 'tipo') === ['compra', 'compra', 'pagamento']);
+        $check('importar cartão: o desfazer olha a 1ª fatura de cada compra, como o Excluir do Cartão', in_array($rev[0]['primeira'], \Financeiro\Models\ImportacaoModel::meses((int) $g['id']), true));
         $n = \Financeiro\Services\Importacao::desfazer((int) $g['id'], $uid);
         $check('importar cartão: desfazer apaga as compras do lote', $n === 3 && (int) $pdo->query('SELECT COUNT(*) FROM cartao_compras WHERE importacao_id = ' . (int) $g['id'])->fetchColumn() === 0);
     });
@@ -4110,6 +4247,25 @@ $emTransacao('C-06 resgate maior que o saldo', static function () use ($check, $
         $saldoP > 0 && $erroP === t('O resgate passa do saldo de {valor}.', ['valor' => money($saldoP)])
         && Investimentos::erroResgate($resg, max(0.01, $saldoP), $hoje, $idR) === null && Investimentos::erroResgate($resg, 1.0, $hoje) !== null
         && Investimentos::erroResgate((int) CategoriaModel::porChave(MotorFinanceiro::CAT_SALARIO)['id'], 99999.0, $hoje) === null, (string) $erroP);
+});
+
+// C-06, efeito cascata: mudar ou excluir um guardar (ou incluir um resgate antes) não deixa um resgate de depois maior que o saldo
+$emTransacao('C-06 efeito cascata', static function () use ($check, $hoje, $uid, $catDia): void {
+    $guard = (int) CategoriaModel::porChave(MotorFinanceiro::CAT_GUARDAR)['id'];
+    $resg = (int) CategoriaModel::porChave(MotorFinanceiro::CAT_RESGATE)['id'];
+    $antes = date('Y-m-d', strtotime($hoje . ' -2 day'));
+    $saldoP = (float) Investimentos::resumo($hoje)['poupanca']['saldo'];
+    $idG = LancamentoModel::criar($antes, 'guardar', $guard, 300.0, $uid, ContaModel::PRINCIPAL);
+    LancamentoModel::criar($hoje, 'resgate tudo', $resg, round($saldoP + 300.0, 2), $uid, ContaModel::PRINCIPAL);
+    $frase = t('Assim, o resgate de {data} passa do saldo guardado. Mude esse resgate antes.', ['data' => diaMes($hoje)]);
+    $validar = new \ReflectionMethod(LancamentosController::class, 'validar');
+    [$erroEd] = $validar->invoke(null, ['valor' => '100', 'categoria_id' => (string) $guard, 'quando' => 'outro', 'data' => $antes], $idG);
+    [$erroOk] = $validar->invoke(null, ['valor' => '400', 'categoria_id' => (string) $guard, 'quando' => 'outro', 'data' => $antes], $idG);
+    $check('C-06 cascata: excluir o guardar, ou baixar o valor dele, é recusado com a frase do resgate', Investimentos::erroCascata([$idG]) === $frase
+        && $erroEd === $frase && Investimentos::erroCascata([$idG], [['categoria_id' => $guard, 'valor' => 300.0, 'data' => date('Y-m-d', strtotime($hoje . ' +1 day'))]]) === $frase, (string) $erroEd);
+    $check('C-06 cascata: um resgate novo antes do outro também; subir o guardar ou lançar outra coisa passa', $erroOk === null
+        && Investimentos::erroCascata([], [['categoria_id' => $resg, 'valor' => 50.0, 'data' => $antes]]) === $frase
+        && Investimentos::erroCascata([], [['categoria_id' => $catDia, 'valor' => 50.0, 'data' => $antes]]) === null, (string) $erroOk);
 });
 
 // C-07: no lançar, só as categorias que o servidor aceita numa compra no cartão vêm marcadas para o cartão

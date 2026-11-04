@@ -69,8 +69,11 @@ final class RelatorioDados
         $sobraPlano = Sobra::prevista($l);
         $sobrou = $sobraPlano['sobra'];
         $porCompra = !$porFatura && GastoPorCategoria::ativo();
+        // o que já aconteceu é o realizado: no mês em andamento, o agendado (data depois de hoje) fica de fora do "Para
+        // onde foi", do "Gastou até agora" e da fatura até o dia dele, e continua no planejado (MotorFinanceiro::realizado)
+        $feito = MotorFinanceiro::realizado($hoje);
         // o "Para onde foi" e o que foi bom ou ruim usam a mesma conta: com o cartão aberto, pela data da compra
-        $cats = self::categoriasDoMes($dados, $mes, $porCompra);
+        $cats = self::categoriasDoMes($feito, $mes, $porCompra, $hoje);
         $encerradosAntes = self::encerradosAte($plano, $mes);
         $achados = $encerrado
             ? self::achadosDoMes($dados, $plano, $mes, $l, $sobrou, $cats, $encerradosAntes, $reserva, $hoje, $porCompra)
@@ -85,12 +88,12 @@ final class RelatorioDados
             'sobrou' => $sobrou, 'entrou' => (float) $l['entra'], 'saiu' => (float) $l['sai'], 'fica' => (float) $l['fica_na_conta'],
             'sobras' => $encerrado ? [$sobraPlano] : array_values(array_filter([Sobra::ateHoje($mes, $hoje), $sobraPlano])),
             'reserva' => $reserva, 'conferencia' => self::conferencia($dados, $mes, $hoje),
-            'ponte' => $encerrado ? self::ponteEncerrado($l) : self::ponteAndamento($dados, $l),
+            'ponte' => $encerrado ? self::ponteEncerrado($l) : self::ponteAndamento($feito, $l),
             'divida' => self::divida($dados, $l),
             'achados' => $achados,
-            'categorias' => self::topCategorias($cats), 'fatura' => self::fatura($dados, $mes, $hoje),
+            'categorias' => self::topCategorias($cats), 'fatura' => self::fatura($feito, $mes, $hoje),
             'porCompra' => $porCompra, 'cartaoAberto' => GastoPorCategoria::ativo(),
-            'semCategoria' => $porCompra ? GastoPorCategoria::semCategoria($mes) : null,
+            'semCategoria' => $porCompra ? GastoPorCategoria::semCategoria($mes, $hoje) : null,
             'placar' => $encerrado ? self::placar($dados, $plano, $mes) : null,
             'placarInicio' => FotoPlano::primeiroMes(),
             'previsao' => self::previsao($dados, $plano, $mes, $hoje, 6),
@@ -247,13 +250,14 @@ final class RelatorioDados
      * Os gastos do mês, em ordem de valor. $porCompra: o real é o de GastoPorCategoria, sem negativo; a Fatura do cartão
      * fica só com o que não tem compra registrada ("Fatura sem detalhe", sem planejado, porque o plano dela é o da
      * fatura inteira), e as compras sem categoria são uma linha a mais (id GastoPorCategoria::SEM_CATEGORIA).
+     * $dados: o realizado (MotorFinanceiro::realizado), para o agendado ficar de fora no mês em andamento.
      * @return list<array{id:int,nome:string,nome_banco:string,grupo:string,essencial:bool,planejado:float,real:float,dif:float,semPlano?:bool}>
      */
-    private static function categoriasDoMes(array $dados, string $mes, bool $porCompra = false): array
+    private static function categoriasDoMes(array $dados, string $mes, bool $porCompra = false, ?string $hoje = null): array
     {
         $out = [];
         $prev = $dados['prev'][$mes] ?? [];
-        $real = $porCompra ? GastoPorCategoria::doMes($mes) : ($dados['real'][$mes] ?? []);
+        $real = $porCompra ? GastoPorCategoria::doMes($mes, $hoje) : ($dados['real'][$mes] ?? []);
         $fat = $porCompra ? GastoPorCategoria::categoriaFatura() : null;
         foreach ($prev + $real as $c => $_) {
             if ($porCompra && $c === GastoPorCategoria::SEM_CATEGORIA) {

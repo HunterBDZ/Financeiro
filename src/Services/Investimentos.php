@@ -50,6 +50,65 @@ final class Investimentos
         return null;
     }
 
+    /**
+     * Efeito cascata: mudar, excluir ou incluir lançamentos não pode deixar um resgate, dali em diante, maior que o
+     * saldo guardado na data dele (o valor de partida mais o que entrou menos o que saiu até o fim daquele dia, como em
+     * erroResgate). $sai: os ids que saem (o editado ou o excluído); $entra: as linhas novas (categoria_id, valor, data).
+     * Só recusa o que a mudança piora: um saldo que já ficava negativo antes não impede mudar outra coisa.
+     * null = cabe; senão a frase do primeiro resgate que passaria do saldo.
+     * @param list<int> $sai @param list<array{categoria_id:int, valor:float, data:string}> $entra
+     */
+    public static function erroCascata(array $sai, array $entra = []): ?string
+    {
+        $pdo = Database::connection();
+        $chaves = $pdo->query('SELECT id, chave FROM categorias WHERE chave IS NOT NULL')->fetchAll(\PDO::FETCH_KEY_PAIR);
+        foreach (self::PARTES as $p) {
+            $st = $pdo->prepare(
+                'SELECT l.id, l.data, l.valor, c.chave FROM lancamentos l JOIN categorias c ON c.id = l.categoria_id WHERE c.chave IN (?, ?) ORDER BY l.data, l.id'
+            );
+            $st->execute([$p['entra'], $p['sai']]);
+            $antes = $st->fetchAll(\PDO::FETCH_ASSOC);
+            $depois = array_values(array_filter($antes, static fn(array $l): bool => !in_array((int) $l['id'], $sai, true)));
+            $mudou = count($depois) !== count($antes);
+            foreach ($entra as $l) {
+                $chave = (string) ($chaves[(int) $l['categoria_id']] ?? '');
+                if ($chave === $p['entra'] || $chave === $p['sai']) {
+                    $depois[] = ['id' => 0, 'data' => (string) $l['data'], 'valor' => (float) $l['valor'], 'chave' => $chave];
+                    $mudou = true;
+                }
+            }
+            if (!$mudou) {
+                continue;                                  // nada desta parte mudou
+            }
+            // o saldo no fim de cada dia que tem resgate, do mais antigo ao mais novo
+            $saldos = static function (array $linhas) use ($p): array {
+                $dia = [];
+                foreach ($linhas as $l) {
+                    $d = (string) $l['data'];
+                    $dia[$d]['soma'] = ($dia[$d]['soma'] ?? 0.0) + ($l['chave'] === $p['entra'] ? (float) $l['valor'] : -(float) $l['valor']);
+                    $dia[$d]['resgate'] = ($dia[$d]['resgate'] ?? false) || $l['chave'] === $p['sai'];
+                }
+                ksort($dia);
+                $saldo = AjusteModel::valor($p['ini']);
+                $out = [];
+                foreach ($dia as $d => $x) {
+                    $saldo += $x['soma'];
+                    if ($x['resgate']) {
+                        $out[$d] = round($saldo, 2);
+                    }
+                }
+                return $out;
+            };
+            $sAntes = $saldos($antes);
+            foreach ($saldos($depois) as $d => $v) {
+                if ($v < -0.004 && $v < ($sAntes[$d] ?? 0.0) - 0.004) {
+                    return t('Assim, o resgate de {data} passa do saldo guardado. Mude esse resgate antes.', ['data' => diaMes($d)]);
+                }
+            }
+        }
+        return null;
+    }
+
     private static function parte(array $p, string $hoje, int $ultimos): array
     {
         $pdo = Database::connection();

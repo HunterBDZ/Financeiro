@@ -271,9 +271,10 @@ final class CartaoFatura
      * Sem cartão (ou sem a aba Cartão), cat é null e a Fatura do cartão segue a regra das outras contas: o pagamento
      * fica no mês da data. Com vários cartões, faturas soma os de todos; porCartao separa.
      * @param array<string, array<int, float>> $prev a previsão efetiva de cada mês (MotorFinanceiro::dados())
+     * @param ?string $hoje só os pagamentos feitos até ele, sem o agendado (MotorFinanceiro::realizado); null = todos
      * @return array{cat:?int, vence:int, faturas:array<string, array>, porCartao:array<int, array<string, array>>} ver porFaturaPaga()
      */
-    public static function faturasPagas(array $prev, bool $usaCartao): array
+    public static function faturasPagas(array $prev, bool $usaCartao, ?string $hoje = null): array
     {
         $cartoes = $usaCartao ? CartaoModel::ativos() : [];
         $cat = $cartoes !== [] ? CartaoModel::categoriaFatura() : null;
@@ -281,7 +282,7 @@ final class CartaoFatura
             return ['cat' => null, 'vence' => 0, 'faturas' => [], 'porCartao' => []];
         }
         $porCartao = [];
-        foreach (CartaoModel::pagamentos($cat) as $p) {
+        foreach (CartaoModel::pagamentos($cat, $hoje) as $p) {
             $porCartao[$p['cartao_id']][] = $p;
         }
         $faturas = $separadas = [];

@@ -121,6 +121,31 @@ test('transferir mais do que a conta tem pede confirmação', async ({ page, con
     await expect(page.getByRole('status').filter({ hasText: 'Transferência' })).toContainText('5.000,00');
 });
 
+// editar a transferência e deixar a conta negativa faz a mesma pergunta da criação (B-14), com o que foi digitado
+test('editar a transferência para mais do que a conta tem pede confirmação', async ({ page, context }) => {
+    await entrar(context.request, srv.url);
+    const ir = (caminho) => page.goto(srv.url + caminho);
+    await ir('/lancar?volta=%2Flancamentos');
+    await page.getByText('↔ Transferir').click();
+    await page.getByRole('textbox', { name: 'valor' }).pressSequentially('100');
+    await page.getByRole('combobox', { name: /^De/ }).selectOption({ index: 0 });
+    await page.getByRole('combobox', { name: /^Para/ }).selectOption({ label: 'Bolso' });
+    await page.locator('input[name="descricao"]').fill('edição negativa');
+    await page.getByRole('button', { name: /^Transferir/ }).click();
+    await expect(page.getByRole('status').filter({ hasText: 'Transferência' })).toContainText('100,00');
+
+    await page.getByRole('link', { name: 'edição negativa' }).click();
+    const form = page.locator('form.ct-form');
+    await form.locator('select[name="de_conta"]').selectOption({ label: 'Bolso' });
+    await form.locator('select[name="para_conta"]').selectOption({ index: 0 });
+    await form.locator('input[name="valor"]').fill('9000');
+    await form.getByRole('button', { name: 'Salvar', exact: true }).click();
+    await expect(form.getByRole('status')).toContainText('Bolso fica com −R$');
+    await expect(form.locator('input[name="valor"]')).toHaveValue('9000');
+    await form.getByRole('button', { name: 'Salvar mesmo assim' }).click();
+    await expect(page.getByRole('status').filter({ hasText: 'salvo' })).toContainText('9.000,00');
+});
+
 // no celular, as abas do "Pagou com" ficam numa linha, mesmo com duas contas e um cartão (B-16)
 test('celular: as abas do "Pagou com" cabem numa linha', async ({ page, context }) => {
     await entrar(context.request, srv.url);

@@ -519,7 +519,9 @@ final class RelatorioPdf
             $linha(tn($c['outros']['n'], 'Outra 1 categoria', 'Outras {n} categorias'), $c['outros']['real'], $c['outros']['planejado'], false);
         }
         $this->d->linha($x, $this->y, $x + self::LARG, $this->y, self::TINTA, 1.0);
-        $this->d->texto($x, $this->y + 15, t('Total'), self::BOLD, 10, self::TINTA);
+        // com o cartão, o total diz que conta é, para não parecer o "Gastou" da escada, que é a fatura paga
+        $total = !empty($this->r['porCompra']) ? t('Total pela data da compra') : (!empty($this->r['cartaoAberto']) ? t('Total pela fatura paga') : t('Total'));
+        $this->d->texto($x, $this->y + 15, $total, self::BOLD, 10, self::TINTA);
         $this->d->texto($x + self::LARG - 76, $this->y + 15, num($c['totalReal'], 0), self::BOLD, 10, self::TINTA, 'd');
         $d = $c['totalReal'] - $c['totalPlanejado'];
         $this->d->texto($x + self::LARG, $this->y + 15, ($d > 0 ? '+' : '') . num($d, 0), self::BOLD, 10, self::TINTA, 'd');

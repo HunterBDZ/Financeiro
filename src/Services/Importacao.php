@@ -399,6 +399,24 @@ final class Importacao
         return ['erro' => null, 'id' => $id, 'n' => count($marcadas)];
     }
 
+    /**
+     * Mês fechado não muda: o lote com alguma linha num mês fechado (a data do lançamento, ou a 1ª fatura da compra)
+     * não sai. null = pode desfazer; senão, a frase do mês fechado mais antigo (LancamentosController::erroMesFechado),
+     * ou a do resgate que passaria do saldo guardado sem os lançamentos do lote.
+     */
+    public static function erroDesfazer(int $id): ?string
+    {
+        foreach (ImportacaoModel::meses($id) as $mes) {
+            if (($erro = LancamentosController::erroMesFechado($mes)) !== null) {
+                return $erro;
+            }
+        }
+        // tirar um guardar do lote não pode deixar um resgate de depois maior que o saldo (Investimentos::erroCascata)
+        $st = Database::connection()->prepare('SELECT id FROM lancamentos WHERE importacao_id = ?');
+        $st->execute([$id]);
+        return Investimentos::erroCascata(array_map('intval', $st->fetchAll(\PDO::FETCH_COLUMN)));
+    }
+
     /** "Desfazer importação": apaga o lote inteiro. @return int quantas linhas saíram */
     public static function desfazer(int $id, int $usuarioId): int
     {
