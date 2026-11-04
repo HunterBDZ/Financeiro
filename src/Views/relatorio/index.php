@@ -169,7 +169,8 @@ if ($r !== null && $r['tipo'] === 'mensal') {
             <section class="faixa-grade rl-onde" aria-labelledby="rl-onde-t">
                 <div class="secao-cab">
                     <h2 id="rl-onde-t"><?= e(t('Para onde foi')) ?></h2>
-                    <p class="num"><?= e(t('{valor} gastos', ['valor' => num($onde['totalReal'])])) ?></p>
+                    <?php // o total diz que conta é: não é o "Gastou" da escada, que é o dinheiro que saiu da conta (a fatura paga) ?>
+                    <p class="num" data-onde-total><?= e($r['porCompra'] ? t('{valor} pela data da compra', ['valor' => num($onde['totalReal'])]) : t('{valor} pela fatura paga', ['valor' => num($onde['totalReal'])])) ?></p>
                 </div>
                 <?php if ($onde['linhas'] === []): ?>
                     <p class="rl-nota"><?= e(t('Nenhum gasto lançado neste período.')) ?></p>

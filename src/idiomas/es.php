@@ -2184,7 +2184,6 @@ return [
     'Gastou até agora' => 'Gastó hasta ahora',
     'Ainda planejado para gastar' => 'Todavía planeado para gastar',
     'Os gastos passaram o que entrou em {valor}, sem contar o que foi guardado.' => 'Los gastos superaron lo que entró en {valor}, sin contar lo ahorrado.',
-    '{valor} gastos' => '{valor} gastados',
     '{nome}: {valor} a mais que no mês anterior' => '{nome}: {valor} más que el mes anterior',
     '{nome}: {valor} a menos que no mês anterior' => '{nome}: {valor} menos que el mes anterior',
     'O caminho até lá' => 'El camino hasta allá',
@@ -2389,4 +2388,8 @@ return [
     '{texto}, agendado para {data}' => '{texto}, programado para el {data}',
     '{conta} fica com {valor}. Salvar mesmo assim?' => '{conta} queda con {valor}. ¿Guardar de todos modos?',
     'Salvar mesmo assim' => 'Guardar de todos modos',
+    '{valor} pela data da compra' => '{valor} por fecha de compra',
+    '{valor} pela fatura paga' => '{valor} por factura pagada',
+    'Total pela data da compra' => 'Total por fecha de compra',
+    'Total pela fatura paga' => 'Total por factura pagada',
 ];

@@ -984,6 +984,34 @@ $emTransacao('gasto por categoria', static function () use ($pdo, $check, $catFa
         && abs($relFat['categorias']['totalReal'] - $somaCaixa) < 0.01 && in_array('Fatura', array_column($relFat['categorias']['linhas'], 'nome'), true));
     $check('"Para onde foi": o Relatório mostra a lista na tela, com a escolha, e o PDF sai', str_contains($hRel, 'class="faixa-grade rl-onde"') && str_contains($hRel, 'Ver por fatura')
         && str_starts_with((new \Financeiro\Pdf\RelatorioPdf($rel))->gerar(), '%PDF') && str_starts_with((new \Financeiro\Pdf\RelatorioPdf($relFat))->gerar(), '%PDF'));
+    // o total diz que conta é, para não parecer o "Gastou" da escada (C-03): na tela e no PDF, pela data da compra ou pela fatura
+    $textoPdf = static function (array $r): string {
+        $pdf = new \Financeiro\Pdf\RelatorioPdf($r);
+        $pdf->gerar();
+        $doc = (new \ReflectionProperty($pdf, 'd'))->getValue($pdf);
+        $mapa = [];
+        foreach ((new \ReflectionProperty($doc, 'fontes'))->getValue($doc) as $f) {
+            foreach ($f['usados'] as $gid => [$cp]) {
+                $mapa[$f['n']][$gid] = mb_chr($cp);
+            }
+        }
+        $txt = '';
+        foreach ((new \ReflectionProperty($doc, 'paginas'))->getValue($doc) as $pag) {
+            preg_match_all('#/F(\d+) .*? <([0-9A-F]*)> Tj#', $pag, $mm, PREG_SET_ORDER);
+            foreach ($mm as [, $n, $hex]) {
+                foreach (str_split($hex, 4) as $g) {
+                    $txt .= $mapa[(int) $n][hexdec($g)] ?? '';
+                }
+                $txt .= "\n";
+            }
+        }
+        return $txt;
+    };
+    $check('"Para onde foi": o total diz a conta, na tela e no PDF ("pela data da compra" ou "pela fatura paga"), e não "gastos"',
+        str_contains($hRel, num($rel['categorias']['totalReal']) . ' pela data da compra') && !str_contains($hRel, ' gastos</p>')
+        && str_contains($render(RelatorioController::class, 'index', ['mes' => $mesHoje, 'onde' => 'fatura']), num($relFat['categorias']['totalReal']) . ' pela fatura paga')
+        && str_contains($textoPdf($rel), "Total pela data da compra\n") && str_contains($textoPdf($relFat), "Total pela fatura paga\n"));
+    unset($_COOKIE[DashboardController::COOKIE_ONDE]);
 });
 // sem cartão (sem cartão ativo ou sem a aba), nada muda: a visão é o extrato, e as telas não mostram a escolha
 $emTransacao('gasto por categoria sem cartão', static function () use ($pdo, $check, $render, $mesHoje): void {

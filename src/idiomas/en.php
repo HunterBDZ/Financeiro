@@ -2184,7 +2184,6 @@ return [
     'Gastou até agora' => 'Spent so far',
     'Ainda planejado para gastar' => 'Still planned to spend',
     'Os gastos passaram o que entrou em {valor}, sem contar o que foi guardado.' => 'Spending exceeded income by {valor}, not counting what was saved.',
-    '{valor} gastos' => '{valor} spent',
     '{nome}: {valor} a mais que no mês anterior' => '{nome}: {valor} more than the month before',
     '{nome}: {valor} a menos que no mês anterior' => '{nome}: {valor} less than the month before',
     'O caminho até lá' => 'The way there',
@@ -2389,4 +2388,8 @@ return [
     '{texto}, agendado para {data}' => '{texto}, scheduled for {data}',
     '{conta} fica com {valor}. Salvar mesmo assim?' => '{conta} will be at {valor}. Save anyway?',
     'Salvar mesmo assim' => 'Save anyway',
+    '{valor} pela data da compra' => '{valor} by purchase date',
+    '{valor} pela fatura paga' => '{valor} by paid statement',
+    'Total pela data da compra' => 'Total by purchase date',
+    'Total pela fatura paga' => 'Total by paid statement',
 ];
