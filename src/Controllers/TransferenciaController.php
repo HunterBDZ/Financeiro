@@ -26,15 +26,53 @@ final class TransferenciaController
         if ($erro !== null) {
             return ['erro' => $erro, 'id' => 0, 'aviso' => '', 'data' => ''];
         }
-        if (($in['confirmar_negativo'] ?? '') !== '1') {
-            $fica = round(min(ContaModel::saldo($d['de']['id'], $d['data']), ContaModel::saldo($d['de']['id'], '9999-12-31')) - $d['valor'], 2);
-            if ($fica < -0.004) {
-                return ['erro' => null, 'id' => 0, 'aviso' => '', 'data' => $d['data'], 'negativo' => ['conta' => nomeConta($d['de']), 'valor' => $fica]];
-            }
+        if (($in['confirmar_negativo'] ?? '') !== '1' && ($negativo = self::negativo($d)) !== null) {
+            return ['erro' => null, 'id' => 0, 'aviso' => '', 'data' => $d['data'], 'negativo' => $negativo];
         }
         MesModel::ensureExists(substr($d['data'], 0, 8) . '01');
         $id = TransferenciaModel::criar($d['data'], $d['de']['id'], $d['para']['id'], $d['valor'], $d['descricao'], (int) Auth::id());
         return ['erro' => null, 'id' => $id, 'aviso' => self::aviso($d), 'data' => $d['data']];
+    }
+
+    /**
+     * Valida e grava a edição, com a mesma pergunta da criação: se a mudança (de onde sai, o valor ou o dia) deixa a
+     * conta de onde sai negativa, não grava sem confirmar_negativo=1 e devolve `negativo`. Mudar só a descrição não
+     * pergunta. Nem sai de um mês fechado.
+     * @return array{erro:?string, aviso:string, negativo?:array{conta:string, valor:float}}
+     */
+    public static function editarDe(array $t, array $in): array
+    {
+        [$erro, $d] = self::validar($in, $t);
+        $erro = LancamentosController::erroMesFechado((string) $t['data']) ?? $erro;     // nem sai de um mês fechado
+        if ($erro !== null) {
+            return ['erro' => $erro, 'aviso' => ''];
+        }
+        $mudou = $d['de']['id'] !== (int) $t['de_conta_id'] || abs($d['valor'] - (float) $t['valor']) >= 0.005 || $d['data'] !== (string) $t['data'];
+        if ($mudou && ($in['confirmar_negativo'] ?? '') !== '1' && ($negativo = self::negativo($d, $t)) !== null) {
+            return ['erro' => null, 'aviso' => '', 'negativo' => $negativo];
+        }
+        MesModel::ensureExists(substr($d['data'], 0, 8) . '01');
+        TransferenciaModel::atualizar((int) $t['id'], $d['data'], $d['de']['id'], $d['para']['id'], $d['valor'], $d['descricao']);
+        return ['erro' => null, 'aviso' => self::aviso($d)];
+    }
+
+    /**
+     * A conta de onde sai fica negativa com esta transferência, na data dela ou depois, com o que já está lançado? A
+     * conta e com quanto fica, ou null. Na edição ($atual), a transferência de antes sai da conta.
+     * @return ?array{conta:string, valor:float}
+     */
+    private static function negativo(array $d, ?array $atual = null): ?array
+    {
+        $de = (int) $d['de']['id'];
+        $saldo = static function (string $ate) use ($de, $atual): float {
+            $v = ContaModel::saldo($de, $ate);
+            if ($atual !== null && (string) $atual['data'] <= $ate) {
+                $v += ((int) $atual['de_conta_id'] === $de ? (float) $atual['valor'] : 0.0) - ((int) $atual['para_conta_id'] === $de ? (float) $atual['valor'] : 0.0);
+            }
+            return $v;
+        };
+        $fica = round(min($saldo($d['data']), $saldo('9999-12-31')) - $d['valor'], 2);
+        return $fica < -0.004 ? ['conta' => nomeConta($d['de']), 'valor' => $fica] : null;
     }
 
     /** GET /transferencias/{id}/editar */
@@ -46,9 +84,11 @@ final class TransferenciaController
             renderErro(404, t('Transferência não encontrada'), t('Pode ter sido excluída.'));
         }
         $erro = $_SESSION['transf_erro'] ?? null;
-        unset($_SESSION['transf_erro']);
+        $antigo = $_SESSION['transf_antigo'] ?? null;
+        unset($_SESSION['transf_erro'], $_SESSION['transf_antigo']);
+        $antigo = is_array($antigo) && ($antigo['id'] ?? null) === (int) $t['id'] ? $antigo : null;
         View::render('transferencias/editar', [
-            'pageTitle' => t('transferência · MyMonetto'), 'transf' => $t, 'erro' => is_string($erro) ? $erro : null,
+            'pageTitle' => t('transferência · MyMonetto'), 'transf' => $t, 'erro' => is_string($erro) ? $erro : null, 'antigo' => $antigo,
             'fechado' => LancamentosController::erroMesFechado((string) $t['data']),
             'contas' => self::contasPara($t), 'volta' => voltaSegura(is_string($_GET['volta'] ?? null) ? $_GET['volta'] : null, '/lancamentos?mes=' . substr((string) $t['data'], 0, 8) . '01'),
         ], 'extrato');
@@ -64,15 +104,15 @@ final class TransferenciaController
             renderErro(404, t('Transferência não encontrada'), t('Pode ter sido excluída.'));
         }
         $volta = voltaSegura(is_string($_POST['volta'] ?? null) ? $_POST['volta'] : null, '/lancamentos');
-        [$erro, $d] = self::validar($_POST, $t);
-        $erro = LancamentosController::erroMesFechado((string) $t['data']) ?? $erro;     // nem sai de um mês fechado
-        if ($erro !== null) {
-            $_SESSION['transf_erro'] = $erro;
+        $r = self::editarDe($t, $_POST);
+        if ($r['erro'] !== null || isset($r['negativo'])) {
+            // erro, ou a conta ficaria negativa: volta ao editar com o que foi digitado, com o erro ou a pergunta
+            $_SESSION['transf_erro'] = $r['erro'];
+            $_SESSION['transf_antigo'] = ['id' => (int) $id, 'negativo' => $r['negativo'] ?? null] + array_intersect_key(
+                array_filter($_POST, 'is_string'), array_flip(['de_conta', 'para_conta', 'valor', 'data', 'descricao']));
             redirecionar('/transferencias/' . (int) $id . '/editar?volta=' . rawurlencode($volta), 303);
         }
-        MesModel::ensureExists(substr($d['data'], 0, 8) . '01');
-        TransferenciaModel::atualizar((int) $id, $d['data'], $d['de']['id'], $d['para']['id'], $d['valor'], $d['descricao']);
-        flash('success', t('{texto} · salvo', ['texto' => self::aviso($d)]));
+        flash('success', t('{texto} · salvo', ['texto' => $r['aviso']]));
         redirecionar($volta, 303);
     }
 

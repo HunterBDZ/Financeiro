@@ -2387,4 +2387,6 @@ return [
     'agendado dia {dia}' => 'programado para el día {dia}',
     'agendado {data}' => 'programado {data}',
     '{texto}, agendado para {data}' => '{texto}, programado para el {data}',
+    '{conta} fica com {valor}. Salvar mesmo assim?' => '{conta} queda con {valor}. ¿Guardar de todos modos?',
+    'Salvar mesmo assim' => 'Guardar de todos modos',
 ];

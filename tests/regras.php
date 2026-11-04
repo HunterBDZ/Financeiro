@@ -1736,6 +1736,21 @@ $emTransacao('transferência negativa', static function () use ($pdo, $check, $h
     $check('transferência: confirmada, grava', $r2['erro'] === null && $r2['id'] > 0 && $n() === $antes + 1 && abs(ContaModel::saldo($c2, $hoje) + 4600) < 0.005);
     $r3 = TransferenciaController::criarDe(['valor' => '100', 'de_conta' => '1', 'para_conta' => (string) $c2, 'data' => $hoje]);
     $check('transferência: sem ficar negativa, grava direto', $r3['id'] > 0 && !isset($r3['negativo']));
+
+    // editar com a mesma pergunta: a conta tem 100 agora (400 + 100 − 5000 + a de 5000 desfeita abaixo)
+    $pdo->prepare('DELETE FROM transferencias WHERE id = ?')->execute([$r2['id']]);
+    $t = \Financeiro\Models\TransferenciaModel::find($r3['id']);                       // 100 da principal para a carteira
+    $e1 = TransferenciaController::editarDe($t, ['valor' => '900', 'de_conta' => (string) $c2, 'para_conta' => '1', 'data' => $hoje]);
+    $t1 = \Financeiro\Models\TransferenciaModel::find($r3['id']);
+    $check('transferência: editar e deixar a conta negativa pede a mesma confirmação e não grava', ($e1['negativo']['valor'] ?? null) === -500.0
+        && $e1['erro'] === null && abs((float) $t1['valor'] - 100) < 0.005 && (int) $t1['de_conta_id'] === 1, json_encode($e1));
+    $e2 = TransferenciaController::editarDe($t, ['valor' => '900', 'de_conta' => (string) $c2, 'para_conta' => '1', 'data' => $hoje, 'confirmar_negativo' => '1']);
+    $check('transferência: editar, confirmado, grava', $e2['erro'] === null && !isset($e2['negativo']) && abs(ContaModel::saldo($c2, $hoje) + 500) < 0.005);
+    $t2 = \Financeiro\Models\TransferenciaModel::find($r3['id']);
+    $e3 = TransferenciaController::editarDe($t2, ['valor' => '900', 'de_conta' => (string) $c2, 'para_conta' => '1', 'data' => $hoje, 'descricao' => 'só o nome']);
+    $e4 = TransferenciaController::editarDe($t2, ['valor' => '350', 'de_conta' => (string) $c2, 'para_conta' => '1', 'data' => $hoje]);
+    $check('transferência: editar só a descrição, ou sem ficar negativa, grava direto (a transferência de antes sai da conta)', $e3['erro'] === null && !isset($e3['negativo'])
+        && $e4['erro'] === null && !isset($e4['negativo']) && abs(ContaModel::saldo($c2, $hoje) - 50) < 0.005, json_encode([$e3, $e4]));
 });
 ContaModel::limparCache();
 LancarForm::limparCache();
