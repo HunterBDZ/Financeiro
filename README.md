@@ -74,7 +74,7 @@ Baixe em PDF, por mês ou por ano, com gráficos, o que foi bom, o que foi ruim 
 
 ### Escolha a cara do seu app
 
-São 32 temas com prévia, incluindo opções de alto contraste e para daltonismo.
+São 8 paletas com prévia, cada uma em claro, escuro ou automático, incluindo alto contraste e daltonismo.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/img/pc-temas-escuro.webp">

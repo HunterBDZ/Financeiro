@@ -32,7 +32,7 @@ No subscription, no cloud, and it never asks for your bank password.
 - **Find out if paying a loan early is worth it:** type an amount and see what is left, when it ends and how much interest you save.
 - **Know your next card bills:** add installment purchases and see each bill before it arrives.
 - **Get a report that explains your month:** download a PDF, by month or year, with charts, what went well, what went badly and what can improve.
-- **Pick your look:** 32 themes with preview, including high-contrast and color-blind options.
+- **Pick your look:** 8 palettes with preview, each in light, dark or automatic, including high-contrast and color-blind options.
 
 ## Install
 
