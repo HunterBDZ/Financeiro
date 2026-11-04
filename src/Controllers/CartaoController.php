@@ -49,8 +49,9 @@ final class CartaoController
                 }
             }
         }
-        // cada pagamento na fatura que pagou; a aba mostra isso mesmo com o cartão desligado em Ajustes
-        $pagas   = CartaoFatura::faturasPagas(MotorFinanceiro::dados()['prev'], true)['porCartao'][$cartao['id']] ?? [];
+        // cada pagamento na fatura que pagou, só os feitos até hoje (o agendado ainda não pagou nem libera o limite); a aba
+        // mostra isso mesmo com o cartão desligado em Ajustes
+        $pagas   = CartaoFatura::faturasPagas(MotorFinanceiro::dados()['prev'], true, $hoje)['porCartao'][$cartao['id']] ?? [];
         $painel  = CartaoFatura::painel($cartao, $compras, $hoje, array_map(static fn(array $f): float => $f['pago'], $pagas), $previsto,
                                         array_map(static fn(array $f): string => $f['ultimo'], $pagas));
         $sel     = is_string($_GET['fatura'] ?? null) && preg_match('/^\d{4}-\d{2}-01$/D', $_GET['fatura']) ? $_GET['fatura'] : $aberta;

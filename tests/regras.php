@@ -1705,6 +1705,26 @@ $emTransacao('agendado em toda conta', static function () use ($pdo, $check, $re
         && ($prevDia <= 0 || str_contains($aviso, num(abs(round($prevDia - (float) (MotorFinanceiro::realizado()['real'][$mesHoje][$catDia] ?? 0.0), 2))))), $aviso);
 });
 
+// a fatura paga com data depois de hoje ainda não pagou: a aba Cartão não libera o limite antes do dia (o agendado de toda conta)
+$emTransacao('fatura com pagamento agendado', static function () use ($pdo, $check, $render, $hoje, $uid): void {
+    $cartao = CartaoModel::ativos()[0] ?? null;
+    $cat = CartaoModel::categoriaFatura();
+    if ($cartao === null || $cat === null) {
+        return;
+    }
+    $pdo->prepare('UPDATE cartoes SET limite = 20000 WHERE id = ?')->execute([$cartao['id']]);
+    $livre = static function () use ($render): string {
+        MotorFinanceiro::limparCache();
+        return preg_match('#Livre <b>([^<]+)</b>#', $render(CartaoController::class, 'index', []), $m) ? $m[1] : '';
+    };
+    $antes = $livre();
+    $id = LancamentoModel::criar(date('Y-m-d', strtotime($hoje . ' +3 day')), 'fatura agendada', $cat, 900.0, $uid);
+    $aberta = CartaoFatura::faturaDe($hoje, $cartao['fecha'], $cartao['vence']);
+    $pdo->prepare('UPDATE lancamentos SET cartao_id = ?, fatura = ? WHERE id = ?')->execute([$cartao['id'], $aberta, $id]);
+    $depois = $livre();
+    $check('fatura com pagamento agendado: a aba Cartão não libera o limite antes do dia', $antes !== '' && $depois === $antes, $antes . ' → ' . $depois);
+});
+
 // ---- 9i. As contas fecham: categoria tirada do mês (B-08), a barra no vermelho (B-12), o "por dia" (B-19), o ordinal (B-18)
 $emTransacao('as contas fecham', static function () use ($pdo, $check, $render, $mesHoje, $hoje, $uid): void {
     $comb = (int) $pdo->query("SELECT id FROM categorias WHERE nome = 'Combustível'")->fetchColumn();

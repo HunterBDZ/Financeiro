@@ -134,7 +134,7 @@ final class Atencao
         if ($cartoes === []) {
             return [[], null];
         }
-        $pagas = CartaoFatura::faturasPagas(MotorFinanceiro::dados()['prev'], true)['porCartao'];
+        $pagas = CartaoFatura::faturasPagas(MotorFinanceiro::dados()['prev'], true, $hoje)['porCartao'];   // o pagamento agendado ainda não pagou
         $out = [];
         $comCompras = false;
         foreach ($cartoes as $cartao) {
