@@ -82,7 +82,9 @@ $formConta = static function (?array $c) use ($csrf, $erroConta, $tiposD, $inici
     $saldo = (string) ($volta['saldo_inicial'] ?? ($c !== null ? numInput((float) $c['saldo_inicial']) : ''));
     $pre = 'cd' . $id; ?>
     <form class="aj-form aj-conta-form" method="post" action="/contas">
-        <?= $csrf ?><?php if ($c !== null): ?><input type="hidden" name="id" value="<?= $id ?>"><?php endif; ?>
+        <?= $csrf ?><?php if ($c !== null): ?><input type="hidden" name="id" value="<?= $id ?>">
+            <?php // o que a página mostrou ao abrir: o servidor grava só o que a pessoa mudou (duas pessoas em Ajustes) ?>
+            <input type="hidden" name="orig[nome]" value="<?= e(nomeConta($c)) ?>"><input type="hidden" name="orig[tipo]" value="<?= e((string) $c['tipo']) ?>"><input type="hidden" name="orig[saldo_inicial]" value="<?= e(numInput((float) $c['saldo_inicial'])) ?>"><?php endif; ?>
         <label class="campo"><span><?= e(t('Nome')) ?></span><input type="text" name="nome" maxlength="60" required autocomplete="off" value="<?= e($nome) ?>" placeholder="<?= e(t('ex.: Carteira')) ?>"></label>
         <fieldset class="aj-conta-tipo">
             <legend><?= e(t('Tipo')) ?></legend>

@@ -14,7 +14,12 @@ final class ContaController
 {
     private const VOLTA = '/ajustes?aberto=carteira#carteira';
 
-    /** POST /contas: cria (sem id) ou salva a conta `id`. */
+    /**
+     * POST /contas: cria (sem id) ou salva a conta `id`. Duas pessoas em Ajustes, como em Reserva e meta: o formulário
+     * de uma conta manda também o que mostrou ao abrir (orig[...]), e só o campo que a pessoa mudou é gravado
+     * (AjustesController::mudancas). Se outra pessoa mudou o mesmo campo depois, nada é gravado, e a conta abre com o
+     * valor de agora e "Outra pessoa mudou isto agora. Confira e salve de novo."
+     */
     public function salvar(): void
     {
         Auth::requireLogin();
@@ -28,6 +33,58 @@ final class ContaController
         $tipo = (string) ($_POST['tipo'] ?? '');
         $bruto = trim((string) ($_POST['saldo_inicial'] ?? ''));
         $saldo = $bruto === '' ? 0.0 : parseMoedaBr($bruto);
+        $pdo = Database::connection();
+        $pdo->beginTransaction();
+        try {
+            if ($atual !== null && $saldo !== null) {
+                // o que a página mostrava contra o que está gravado agora: grava só o que a pessoa mudou
+                ContaModel::limparCache();
+                $atual = ContaModel::achar($id) ?? $atual;
+                $orig = self::originais($_POST['orig'] ?? null);
+                ['gravar' => $gravar, 'conflito' => $conflito] = AjustesController::mudancas(
+                    ['nome' => $nome, 'tipo' => $tipo, 'saldo_inicial' => (float) $saldo], $orig,
+                    ['nome' => nomeConta($atual), 'tipo' => (string) $atual['tipo'], 'saldo_inicial' => (float) $atual['saldo_inicial']]
+                );
+                if ($conflito !== []) {
+                    $pdo->rollBack();
+                    $_SESSION['aj_erro'] = ['grupo' => 'carteira', 'msg' => t('Outra pessoa mudou isto agora. Confira e salve de novo.'), 'conta' => $id];
+                    redirecionar(self::VOLTA, 303);
+                }
+                $nome = (string) ($gravar['nome'] ?? nomeConta($atual));
+                $tipo = (string) ($gravar['tipo'] ?? $atual['tipo']);
+                $saldo = (float) ($gravar['saldo_inicial'] ?? $atual['saldo_inicial']);
+            }
+            self::gravar($atual, $id, $nome, $tipo, $saldo, $bruto);
+            $pdo->commit();
+        } catch (\Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $e;
+        }
+        MotorFinanceiro::limparCache();
+        flash('success', $atual === null ? t('Conta criada · {nome}', ['nome' => $nome]) : t('Conta salva · {nome}', ['nome' => nomeConta(['nome' => $nome])]));
+        redirecionar(self::VOLTA, 303);
+    }
+
+    /** orig[...] do formulário de uma conta: nome, tipo e saldo inicial; o que não veio ou não se lê fica de fora. */
+    private static function originais(mixed $orig): array
+    {
+        $orig = is_array($orig) ? array_filter($orig, 'is_string') : [];
+        $out = array_intersect_key($orig, ['nome' => 1, 'tipo' => 1]);
+        if (isset($out['nome'])) {
+            $out['nome'] = trim((string) preg_replace('/[\x00-\x1F\x7F]+/', ' ', $out['nome']));
+        }
+        $s = isset($orig['saldo_inicial']) ? (trim($orig['saldo_inicial']) === '' ? 0.0 : parseMoedaBr(trim($orig['saldo_inicial']))) : null;
+        if ($s !== null) {
+            $out['saldo_inicial'] = (float) $s;
+        }
+        return $out;
+    }
+
+    /** Confere e grava; com erro, volta à conta com o que foi digitado (a transação é desfeita por quem chama). */
+    private static function gravar(?array $atual, int $id, string $nome, string $tipo, float|null $saldo, string $bruto): void
+    {
         $erro = match (true) {
             $nome === '' || mb_strlen($nome) > 60 => t('Dê um nome à conta, com até 60 letras.'),
             ContaModel::nomeUsado($nome, $atual['id'] ?? null) => t('Já existe uma conta com esse nome.'),
@@ -36,6 +93,7 @@ final class ContaController
             default => null,
         };
         if ($erro !== null) {
+            Database::connection()->rollBack();
             $_SESSION['aj_erro'] = ['grupo' => 'carteira', 'msg' => $erro, 'conta' => $id, 'valores' => ['nome' => $nome, 'tipo' => $tipo, 'saldo_inicial' => $bruto]];
             redirecionar(self::VOLTA, 303);
         }
@@ -44,9 +102,6 @@ final class ContaController
             $nome = ContaModel::NOME_PRINCIPAL;
         }
         ContaModel::salvar($atual['id'] ?? null, $nome, $tipo, round((float) $saldo, 2));
-        MotorFinanceiro::limparCache();
-        flash('success', $atual === null ? t('Conta criada · {nome}', ['nome' => $nome]) : t('Conta salva · {nome}', ['nome' => nomeConta(['nome' => $nome])]));
-        redirecionar(self::VOLTA, 303);
     }
 
     /**

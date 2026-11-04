@@ -74,6 +74,53 @@ test('duas pessoas em "O que você usa": desligar uma coisa não liga de novo a 
     }
 });
 
+test('duas pessoas em Contas: cada uma grava só o que mudou, e o mesmo campo avisa (A-04)', async ({ page, browser, baseURL }) => {
+    const outro = await bruno(browser, baseURL);
+    const pb = await outro.newPage();
+    const conta = (p) => p.locator('#carteira .aj-cd-i').first();
+    const abrir = async (p) => {
+        await p.goto('/ajustes?aberto=carteira');            // sem o #: depois de salvar, a página está no endereço com ele
+        if (!(await conta(p).evaluate((d) => d.open))) {
+            await conta(p).locator('summary').click();
+        }
+    };
+    const nome = (p) => conta(p).locator('input[name="nome"]');
+    const saldo = (p) => conta(p).locator('input[name="saldo_inicial"]');
+    const salvar = (p) => conta(p).getByRole('button', { name: 'Salvar' }).click();
+    await abrir(page);
+    const nomeAntes = await nome(page).inputValue();
+    const saldoAntes = await saldo(page).inputValue();
+    try {
+        await abrir(pb);
+        await saldo(page).fill('1.234,00');
+        await salvar(page);
+        await expect(page.getByText('Conta salva')).toBeVisible();
+        await nome(pb).fill('Conta da casa');                     // a página do bruno ainda mostra o saldo antigo
+        await salvar(pb);
+        await expect(pb.getByText('Conta salva')).toBeVisible();
+        await abrir(page);
+        await expect(nome(page)).toHaveValue('Conta da casa');
+        await expect(saldo(page)).toHaveValue('1.234,00');
+
+        // os dois mudam o mesmo campo: o segundo é avisado, e nada dele é gravado
+        await abrir(pb);
+        await saldo(page).fill('1.300,00');
+        await salvar(page);
+        await saldo(pb).fill('1.400,00');
+        await nome(pb).fill('Outro nome');
+        await salvar(pb);
+        await expect(pb.locator('#carteira')).toContainText('Outra pessoa mudou isto agora. Confira e salve de novo.');
+        await expect(saldo(pb)).toHaveValue('1.300,00');
+        await expect(nome(pb)).toHaveValue('Conta da casa');
+    } finally {
+        await abrir(page);
+        await nome(page).fill(nomeAntes);
+        await saldo(page).fill(saldoAntes);
+        await salvar(page);
+        await outro.close();
+    }
+});
+
 test('a mesma regra de senha em todo lugar: 8 caracteres e não só espaços (A-07, A-08)', async ({ page, baseURL }) => {
     // o campo pede 8; o servidor confere também, para quem manda o formulário sem a tela
     await page.goto('/ajustes?aberto=senha');
