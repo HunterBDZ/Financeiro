@@ -63,49 +63,17 @@ jobs:
           path: tests/navegador/playwright-report/
           retention-days: 14
 
-  testes-mysql:
+  # a 2.0 só roda em SQLite (docs/decisoes.md): o banco MySQL saiu do CI; ficam a sintaxe do PHP e os scripts
+  sintaxe:
     runs-on: ubuntu-24.04
-    services:
-      mysql:
-        image: mysql:8.0
-        env:
-          MYSQL_ROOT_PASSWORD: raiz
-          MYSQL_DATABASE: financeiro_demo
-        ports: ['3306:3306']
-        options: >-
-          --health-cmd "mysqladmin ping -uroot -praiz"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 20
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
       - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962  # v2
         with:
           php-version: '8.4'
-          extensions: pdo_mysql, pdo_sqlite, mbstring, curl, sodium
+          extensions: pdo_sqlite, mbstring, curl, sodium
           coverage: none
       - name: Sintaxe do PHP
         run: find src public database tests tools packaging -name '*.php' -print0 | xargs -0 -n1 php -l > /dev/null
       - name: Scripts de shell
         run: shellcheck --severity=warning instalar.sh tools/*.sh packaging/empacotar.sh packaging/linux/financeiro packaging/linux/instalar packaging/windows/montar.sh packaging/windows/loja/montar.sh packaging/macos/montar.sh packaging/macos/financeiro packaging/macos/desinstalar.command packaging/docker/entrada.sh
-      - name: Banco de demonstração
-        run: |
-          mysql -h127.0.0.1 -uroot -praiz -e "CREATE USER 'demo'@'%' IDENTIFIED BY 'demo1234'; GRANT SELECT, INSERT, UPDATE, DELETE ON financeiro_demo.* TO 'demo'@'%';"
-          mysql -h127.0.0.1 -uroot -praiz financeiro_demo < database/schema.sql
-          cp config/.env.example config/.env
-          sed -i 's/^DB_HOST=.*/DB_HOST=127.0.0.1/; s/^DB_NAME=.*/DB_NAME=financeiro_demo/; s/^DB_USER=.*/DB_USER=demo/; s/^DB_PASS=.*/DB_PASS=demo1234/' config/.env
-          php database/instalar.php --demo
-      # a conferência roda no banco acima; as regras, num banco MySQL que elas criam e apagam (por isso o root)
-      - name: Testes
-        env:
-          FIN_REGRAS_DRIVER: mysql
-          FIN_REGRAS_DB_HOST: 127.0.0.1
-          FIN_REGRAS_DB_USER: root
-          FIN_REGRAS_DB_PASS: raiz
-        run: php tests/run.php
-      - name: Importar para SQLite e comparar os bancos
-        run: |
-          mkdir -p "$RUNNER_TEMP/comparar"
-          php tools/importar-mysql.php --mysql=config/.env --destino="$RUNNER_TEMP/comparar/financeiro.sqlite"
-          printf 'APP_ENV=production\nDB_DRIVER=sqlite\nDB_FILE=financeiro.sqlite\nFIN_MODO=servidor\nMOTOR_V2=1\n' > "$RUNNER_TEMP/comparar/config.env"
-          php tools/comparar-bancos.php --a=site --b="$RUNNER_TEMP/comparar"

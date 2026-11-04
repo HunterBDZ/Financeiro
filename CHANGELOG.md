@@ -4,6 +4,43 @@ Cada versão publicada é uma tag `vX.Y.Z` deste repositório. Pacotes atualizam
 
 > **Nota:** a partir do redesenho, o app se chama **MyMonetto**. Os comandos, as pastas de dados e o serviço continuam com o nome antigo (`financeiro`).
 
+## 2.0.0
+
+O app passa a se chamar **MyMonetto**, ganha uma cara nova e aceita várias contas e vários cartões. A atualização muda o banco: o backup feito antes dela é o caminho de volta.
+
+**Várias contas e vários cartões**
+- **Contas:** em Ajustes, crie as contas onde o dinheiro fica (conta corrente, dinheiro vivo, outra conta). Tudo entra no saldo, e cada conta tem o seu. No Lançar, "Pagou com" e "Recebeu em" escolhem a conta.
+- **Transferências** entre contas não mexem no plano nem no "Dá para gastar". A que deixa uma conta negativa pede confirmação.
+- **Vários cartões**, cada um com fechamento, vencimento, limite e visual. O pagamento fica ligado à fatura que pagou, e o estorno abate a fatura.
+- **Importar extrato (OFX e CSV):** revisão linha a linha, categoria sugerida pelas regras, aviso do que parece já lançado e desfazer a importação.
+- **"Precisa de atenção"** no Início junta conta vencida, meta passada e o que pede conferência. O vencimento que cai em fim de semana ou feriado vai para o dia útil seguinte.
+- **Metas e "Para onde foi"** contam a compra no cartão pela data da compra. Onde isso muda o número, a tela diz "com o cartão".
+
+**A cara nova**
+- Todas as telas foram redesenhadas: menos caixas, uma resposta por tela, números maiores e o livro-razão no Extrato, no Mês e no Fechar.
+- O Início mostra quanto dá para gastar até o fim do mês e a barra "para onde vai o dinheiro do mês".
+- O que já saiu aparece em vermelho com "−", o que entrou em verde com "+" e o previsto em cinza.
+- Os ícones de categoria são de traço, desenhados para o app, no lugar dos emojis.
+- Os temas passam de 32 para 7, cada um em claro, escuro e automático, mais as opções de acessibilidade.
+- A tela de entrar mostra o app de verdade ao lado do formulário.
+- A troca de aba e de mês tem transição. Pagar uma conta deixa o carimbo "pago". Com "reduzir movimento" no sistema, nada se mexe.
+- O começo guiado monta o mês na tela, enquanto a pessoa responde.
+
+**Mais seguro e mais certo** (50 correções de uma rodada de testes)
+- **Mês fechado não muda:** lançar, editar, excluir, pagar, transferir e importar num mês fechado é recusado. Para mudar, reabra o mês no Mês. O mês só fecha a partir do último dia, como a tela mostra.
+- **Cartão:** o limite livre desconta a fatura fechada que ainda falta pagar. Mudar a data de uma compra leva a compra à fatura certa. O Lançar no cartão só oferece categorias de compra.
+- **Lançamento agendado** (data depois de hoje) fica fora do que já saiu até o dia dele, em todas as telas.
+- **Sair** sempre sai, mesmo com a sessão vencida. Sem "Lembrar este aparelho", fechar o navegador encerra a sessão.
+- **Senha:** a mesma regra em todo lugar, com 8 caracteres no mínimo e não só espaços.
+- **Duas pessoas em Ajustes:** quem salva por último não desfaz mais, sem aviso, o que a outra salvou.
+- **Pessoas:** remover o acesso de alguém, sem apagar os lançamentos dessa pessoa.
+- **Categorias** que o app usa nos cálculos (Salário, Parcela do empréstimo, Fatura) não podem ser apagadas.
+- **Relatório e PDF:** uma conta só por categoria, e a fatura de cada cartão separada.
+- **Importar:** um valor fora do padrão da coluna vem desmarcado, com "Confira o valor". O duplicado também olha a descrição.
+- **Investimentos:** o resgate não passa do saldo guardado.
+- **Começo guiado:** Voltar não apaga o que já foi informado.
+- Sessão vencida no meio do Lançar: depois de entrar de novo, o formulário volta preenchido.
+
 ## 1.14.1
 
 - Correção num teste do menu: no PHP de servidor ele falhava, e a atualização para a 1.14.0 parava no ensaio, sem mexer no site. Traz tudo o que a 1.14.0 trouxe.

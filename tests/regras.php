@@ -2788,6 +2788,7 @@ $_SERVER['HTTPS'] = $httpsAntes;
 $tudo = ['mbstring' => true, 'session' => true, 'zlib' => true, 'json' => true, 'ctype' => true, 'pdo' => true, 'pdo_sqlite' => true, 'pdo_mysql' => false];
 $check('diagnóstico: com tudo, nada a dizer', \Financeiro\Preflight::faltando(80400, $tudo, 'sqlite') === []);
 $check('diagnóstico: PHP antigo, extensão e banco', count(\Financeiro\Preflight::faltando(80300, $tudo, 'sqlite')) === 1 && count(\Financeiro\Preflight::faltando(80400, ['mbstring' => false] + $tudo, 'sqlite')) === 1 && count(\Financeiro\Preflight::faltando(80400, $tudo, 'mysql')) === 1 && count(\Financeiro\Preflight::faltando(80400, $tudo, 'oracle')) === 1);
+$check('diagnóstico: a 2.0 recusa o MySQL, mesmo com a extensão', \Financeiro\Preflight::faltando(80400, ['pdo_mysql' => true] + $tudo, 'mysql') === [t('Esta versão só funciona com SQLite. Volte para a 1.14, migre o banco para SQLite e atualize de novo.')]);
 $check('caminho absoluto', \Financeiro\Paths::absoluto('/a') && \Financeiro\Paths::absoluto('C:\\a') && \Financeiro\Paths::absoluto('C:/a') && !\Financeiro\Paths::absoluto('a/b'));
 $remoteAntes = $_SERVER['REMOTE_ADDR'] ?? null;
 $_SERVER['REMOTE_ADDR'] = '192.168.0.9';

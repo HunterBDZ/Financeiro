@@ -22,8 +22,12 @@ final class Preflight
                 $out[] = t('Falta a extensão {nome} do PHP.', ['nome' => $ext]);
             }
         }
-        if ($driver !== 'mysql' && $driver !== 'sqlite') {
-            $out[] = t('O banco configurado em DB_DRIVER não existe. Use sqlite ou mysql.');
+        // a 2.0 só tem as tabelas de contas, cartões e importação no SQLite (docs/decisoes.md): um site em MySQL migra
+        // na 1.14 com tools/importar-mysql.php e só então atualiza
+        if ($driver === 'mysql') {
+            $out[] = t('Esta versão só funciona com SQLite. Volte para a 1.14, migre o banco para SQLite e atualize de novo.');
+        } elseif ($driver !== 'sqlite') {
+            $out[] = t('O banco configurado em DB_DRIVER não existe. Use sqlite.');
         } elseif (!($tem['pdo_' . $driver] ?? false)) {
             $out[] = t('Falta a extensão {nome} do PHP.', ['nome' => 'pdo_' . $driver]);
         }
