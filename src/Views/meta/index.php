@@ -29,10 +29,14 @@ foreach ($meses as $m) {
 // as contas fixas do mês que ainda faltam pagar (as mesmas do Mês e do Início); num mês fechado, nada falta
 $porPagar = 0.0;
 $faltaConta = [];        // categoria => o que falta pagar dela no mês
+$agendaConta = [];       // categoria => o dia do pagamento agendado: ainda não saiu, então continua em "falta pagar"
 if (!$fechado) {
     foreach (ChecklistContas::aPagar($mes, $hoje) as $c) {
         $porPagar += (float) $c['falta'];
         $faltaConta[(int) $c['categoria_id']] = (float) $c['falta'];
+        if ($c['status'] === 'agendado') {
+            $agendaConta[(int) $c['categoria_id']] = (string) $c['data_pagamento'];
+        }
     }
 }
 $porPagar = round($porPagar, 2);
@@ -171,13 +175,16 @@ $grupo = static function (string $titulo, string $id, array $cats, float $meta, 
 /* -------- uma conta fixa -------- */
 // nas contas, o que falta é o mesmo da resposta (ChecklistContas): a Fatura do cartão paga conta como paga, mesmo
 // com o gasto dela contado pelas compras
-$linhaConta = static function (array $l) use ($editor, $proprio, $csrf, $mes, $hoje, $colunas, $faltaConta, $fechado): void {
+$linhaConta = static function (array $l) use ($editor, $proprio, $csrf, $mes, $hoje, $colunas, $faltaConta, $agendaConta, $fechado): void {
     $valor = (float) $l['valor'];
     $gasto = (float) $l['gasto'];
     $resta = $faltaConta[(int) $l['id']] ?? 0.0;
-    $falta = $valor <= 0.004 ? '' : ($resta > 0.004
+    $agenda = $agendaConta[(int) $l['id']] ?? null;
+    $falta = $valor <= 0.004 ? '' : ($agenda !== null && $resta > 0.004
+        ? '<span class="fraco">' . e(t('agendado dia {dia}', ['dia' => (int) substr($agenda, 8, 2)])) . '</span>'
+        : ($resta > 0.004
         ? e(t('falta {valor}', ['valor' => num($resta)]))
-        : '<span class="mt-paga">' . ($fechado && $gasto < 0.005 ? e(t('sem pagamento')) : e(t('paga'))) . '</span>');
+        : '<span class="mt-paga">' . ($fechado && $gasto < 0.005 ? e(t('sem pagamento')) : e(t('paga'))) . '</span>'));
     if ($l['do_cartao']) { ?>
         <a class="mt-linha mt-ro" id="conta-<?= (int) $l['id'] ?>" href="/cartao#fatura" data-valor="<?= e(number_format($valor, 2, '.', '')) ?>" data-gasto="<?= e(number_format($gasto, 2, '.', '')) ?>" data-nome="<?= e($l['nome']) ?>">
             <span class="mt-c mt-c-nome"><?= iconeCategoria((int) $l['id'], (string) $l['nome'], $l['grupo'], 20, 'mt-ic') ?><span class="mt-nome-txt"><span class="mt-nome"><?= e($l['nome']) ?></span><small><?= e(t('vem do Cartão, ver a fatura')) ?></small></span></span>

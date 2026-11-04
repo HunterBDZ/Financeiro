@@ -2384,4 +2384,7 @@ return [
     'Sua sessão venceu. Confira e salve.' => 'Su sesión venció. Revise y guarde.',
     '{conta} fica com {valor}. Transferir mesmo assim?' => '{conta} queda con {valor}. ¿Transferir de todos modos?',
     'Transferir mesmo assim' => 'Transferir de todos modos',
+    'agendado dia {dia}' => 'programado para el día {dia}',
+    'agendado {data}' => 'programado {data}',
+    '{texto}, agendado para {data}' => '{texto}, programado para el {data}',
 ];

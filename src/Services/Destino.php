@@ -40,7 +40,7 @@ final class Destino
         // o lançado) menos o lançado até hoje (o agendado ainda não saiu); no futuro, o previsto
         $p = MotorFinanceiro::previsaoDoMes($dados, $mes, $aberto ? 'aberto' : 'previsto', $mesHoje);
         $rTudo = $aberto ? ($dados['real'][$mes] ?? []) : [];
-        $r = $aberto ? (MotorFinanceiro::comRealAte($dados, $mes, $hoje ?? Relogio::hoje())['real'][$mes] ?? []) : [];
+        $r = $aberto ? (MotorFinanceiro::realizado($hoje ?? Relogio::hoje())['real'][$mes] ?? []) : [];
         $contas = $metas = 0.0;
         foreach ($p + $rTudo as $c => $_) {
             $cat = $dados['cats'][$c] ?? null;
@@ -95,7 +95,7 @@ final class Destino
      */
     public static function guardado(array $dados, string $mes, ?string $hoje = null): float
     {
-        $r = MotorFinanceiro::comRealAte($dados, $mes, $hoje ?? Relogio::hoje())['real'][$mes] ?? [];
+        $r = MotorFinanceiro::realizado($hoje ?? Relogio::hoje())['real'][$mes] ?? [];
         $v = static fn(string $k): float => ($id = $dados['esp'][$k] ?? null) !== null ? (float) ($r[$id] ?? 0.0) : 0.0;
         return round($v('guard') - $v('resg') + $v('aplic') - $v('resgInv'), 2);
     }
@@ -104,25 +104,28 @@ final class Destino
      * As linhas do livro-razão que não são renda nem gasto, pela regra do plano: crédito e resgates (entram) e poupança,
      * investimentos, adiantamento, a parcela paga à parte e o adiantamento que o plano sugere sozinho (saem). Com as
      * linhas de renda e de gasto e o saldo do mês anterior, elas fecham no fim do mês do plano.
-     * Cada linha: id (0 no adiantamento sugerido), cat (a categoria, null no sugerido), entra, valor (o que o plano conta),
-     * real (o lançado), prev (o previsto no mês) e ult (o dia do último lançamento).
+     * Cada linha: id (0 no adiantamento sugerido), cat (a categoria, null no sugerido), entra, valor (o que o plano conta,
+     * com o agendado), real (o realizado: o agendado fica de fora até o dia dele, MotorFinanceiro::realizado), prev (o
+     * previsto no mês) e ult (o dia do último lançamento realizado).
      * @return list<array{id:int, cat:?array, entra:bool, valor:float, real:float, prev:float, auto:bool, ult:?string}>
      */
-    public static function movimentos(array $dados, array $linha): array
+    public static function movimentos(array $dados, array $linha, ?string $hoje = null): array
     {
         $mes = (string) $linha['mes'];
         $estado = (string) ($linha['estado'] ?? 'real');
         $r = $estado === 'previsto' ? [] : ($dados['real'][$mes] ?? []);
+        $feito = MotorFinanceiro::realizado($hoje ?? Relogio::hoje());
+        $rFeito = $estado === 'previsto' ? [] : ($feito['real'][$mes] ?? []);
         $p = $dados['prev'][$mes] ?? [];
         $esp = $dados['esp'];
         $auto = (float) ($linha['amortizacao_auto'] ?? 0.0);
         $out = [];
-        $ult = $dados['ult'][$mes] ?? [];
-        $linhaDe = static function (?int $id, bool $entra, float $valor) use ($dados, $r, $p, $ult): ?array {
+        $ult = $feito['ult'][$mes] ?? [];
+        $linhaDe = static function (?int $id, bool $entra, float $valor) use ($dados, $rFeito, $p, $ult): ?array {
             if ($id === null || !isset($dados['cats'][$id])) {
                 return null;
             }
-            $real = round((float) ($r[$id] ?? 0.0), 2);
+            $real = round((float) ($rFeito[$id] ?? 0.0), 2);
             $prev = round((float) ($p[$id] ?? 0.0), 2);
             $valor = round($valor, 2);
             if (abs($valor) < 0.005 && abs($real) < 0.005) {

@@ -85,6 +85,7 @@ $avisos = array_values(array_filter($avisos, static function (array $a) use ($na
 
 // as contas do mês: as que faltam (vencidas primeiro) e as pagas, com o carimbo
 $nContas = count($contasMes) + count($contasPagas);
+$nPagas = count(array_filter($contasPagas, static fn(array $c): bool => empty($c['agendado'])));     // a agendada ainda não foi paga
 $vence = static function (array $c) use ($hoje): string {
     $v = $c['vencimento'] !== null ? (string) $c['vencimento'] : null;
     return match (true) {
@@ -199,7 +200,7 @@ $vazio = !$temLancamento && ($destino === null || $destino['total'] < 0.005);
             <section id="contas-mes" aria-labelledby="ini-contas-t">
                 <div class="secao-cab">
                     <h2 id="ini-contas-t"><?= e(t('Contas do mês')) ?></h2>
-                    <?php if ($nContas > 0): ?><p class="num"><?= e(tn($nContas, '{pagas} de 1 paga', '{pagas} de {n} pagas', ['pagas' => count($contasPagas)])) ?></p><?php endif; ?>
+                    <?php if ($nContas > 0): ?><p class="num"><?= e(tn($nContas, '{pagas} de 1 paga', '{pagas} de {n} pagas', ['pagas' => $nPagas])) ?></p><?php endif; ?>
                 </div>
                 <?php if ($nContas === 0): ?>
                     <p class="ini-nada"><?= e(t('As contas fixas do mês aparecem aqui, com o dia de vencimento.')) ?> <a class="link" href="/meta"><?= e(t('Ver as contas fixas')) ?></a></p>
@@ -224,6 +225,13 @@ $vazio = !$temLancamento && ($destino === null || $destino['total'] < 0.005);
                         </li>
                     <?php endforeach; ?>
                     <?php foreach ($contasPagas as $c): ?>
+                        <?php if (!empty($c['agendado'])): ?>
+                            <li class="linha-lista com-acao ini-conta">
+                                <?= iconeCategoria((int) $c['categoria_id'], (string) $c['nome'], (string) $c['grupo'], 20, 'linha-ic') ?>
+                                <span class="linha-nome"><b><?= e(nomeCurto($c)) ?></b><small><?= e(t('agendado {data}', ['data' => diaMes((string) $c['data'])])) ?></small></span>
+                                <?= valor((float) $c['pago'], 'previsto', ['centavos' => false]) ?>
+                            </li>
+                        <?php continue; endif; ?>
                         <li class="linha-lista com-acao ini-conta is-paga" data-mov-pago="<?= (int) $c['categoria_id'] ?>">
                             <?= iconeCategoria((int) $c['categoria_id'], (string) $c['nome'], (string) $c['grupo'], 20, 'linha-ic') ?>
                             <span class="linha-nome"><b><?= e(nomeCurto($c)) ?></b></span>

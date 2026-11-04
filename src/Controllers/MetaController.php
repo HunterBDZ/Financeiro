@@ -161,13 +161,14 @@ final class MetaController
      * O gasto de cada categoria de gasto no mês, como as Metas contam: com o cartão (GastoPorCategoria::ativo), cada
      * compra na categoria dela, pela data da compra; sem ele, os lançamentos. `cartao` marca as categorias em que as
      * compras no cartão mudam o número: o Mês e o Início contam a fatura e dão outro, então a tela diz "com o cartão".
-     * O "Precisa de atenção" e o aviso do Lançar usam esta mesma conta.
+     * O "Precisa de atenção" e o aviso do Lançar usam esta mesma conta. É o gasto realizado: o agendado (data depois de
+     * hoje) fica de fora até o dia dele (MotorFinanceiro::realizado).
      * @return array<int, array{gasto:float, cartao:bool}>
      */
     public static function gastosDoMes(string $mes, ?string $hoje = null): array
     {
         $cats = GastosMensais::matriz($hoje)[$mes]['cats'] ?? [];
-        $doMes = GastoPorCategoria::ativo() ? GastoPorCategoria::doMes($mes) : null;
+        $doMes = GastoPorCategoria::ativo() ? GastoPorCategoria::doMes($mes, $hoje) : null;
         $out = [];
         foreach (array_keys($cats + ($doMes ?? [])) as $id) {
             $conta = round((float) ($cats[$id]['real'] ?? 0.0), 2);

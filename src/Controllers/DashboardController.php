@@ -68,7 +68,7 @@ final class DashboardController
             ? (float) $linhaCal['fica_na_conta']
             : LancamentoModel::saldoCalculado($saldoIni, $hoje);
 
-        $painel = self::painel($matriz[$mesRef] ?? null, $mesRef, $estadoRef, self::ondePorFatura());
+        $painel = self::painel($matriz[$mesRef] ?? null, $mesRef, $estadoRef, self::ondePorFatura(), $hoje);
         // a sobra do cartão do mês, com o nome da base (a mesma conta do Mês, do Fechar e do Relatório)
         $sobra = $estadoRef === 'previsto' ? Sobra::prevista($linhaRef) : (Sobra::ateHoje($mesRef, $ehHoje ? null : $hoje) ?? Sobra::prevista($linhaRef));
         $ultimos = LancamentoModel::listar($mesRef, ['limite' => 6]);
@@ -124,8 +124,9 @@ final class DashboardController
     /**
      * As contas fixas do mês de hoje já pagas, para o carimbo das "Contas do mês": a mesma regra de
      * ChecklistContas::fixasAPagar (Fixos, ativa, com previsão no mês), mas com algo lançado. O dia é o do pagamento
-     * (o da conta recorrente) ou o do último lançamento dela no mês.
-     * @return list<array{categoria_id:int, nome:string, apelido:?string, grupo:string, pago:float, data:string}>
+     * (o da conta recorrente) ou o do último lançamento dela no mês. Com o pagamento agendado (data depois de hoje),
+     * 'agendado' e o dia dele: a conta não pede pagamento, mas ainda não foi paga (ChecklistContas).
+     * @return list<array{categoria_id:int, nome:string, apelido:?string, grupo:string, pago:float, data:string, agendado:bool}>
      */
     private static function contasPagas(string $hoje): array
     {
@@ -134,9 +135,10 @@ final class DashboardController
         if ((array_column($d['meses'], 'situacao', 'mes')[$mes] ?? '') !== 'PREVISAO') {
             return [];
         }
-        $datas = [];
+        $datas = $agendadas = [];
         foreach (ChecklistContas::statusPorMes($mes, $hoje) as $s) {
             $datas[(int) $s['categoria_id']] = $s['data_pagamento'];
+            $agendadas[(int) $s['categoria_id']] = $s['status'] === 'agendado';
         }
         $out = [];
         foreach ($d['cats'] as $id => $c) {
@@ -145,7 +147,7 @@ final class DashboardController
                 continue;
             }
             $out[] = ['categoria_id' => $id, 'nome' => $c['nome'], 'apelido' => $c['apelido'], 'grupo' => $c['grupo'], 'pago' => $pago,
-                      'data' => (string) ($datas[$id] ?? ($d['ult'][$mes][$id] ?? $hoje))];
+                      'data' => (string) ($datas[$id] ?? ($d['ult'][$mes][$id] ?? $hoje)), 'agendado' => $agendadas[$id] ?? false];
         }
         usort($out, static fn(array $a, array $b): int => [$a['data'], $a['nome']] <=> [$b['data'], $b['nome']]);
         return $out;
@@ -368,16 +370,17 @@ final class DashboardController
      * Painel do mês: entradas (salário × resto) e saídas (essenciais × não essenciais) a partir
      * dos lançamentos; num mês ainda previsto, da previsão. Também os maiores gastos ("Para onde foi"): com o
      * cartão aberto e fora do mês previsto, por GastoPorCategoria (cada compra na categoria dela, pela data),
-     * salvo se a pessoa prefere por fatura. Entradas e saídas continuam as da conta.
+     * salvo se a pessoa prefere por fatura. Entradas e saídas continuam as da conta. Fora do mês previsto, tudo é o
+     * realizado: o agendado fica de fora até o dia dele (MotorFinanceiro::realizado).
      */
-    private static function painel(?array $gm, string $mesRef, string $estadoRef, bool $porFatura = false): array
+    private static function painel(?array $gm, string $mesRef, string $estadoRef, bool $porFatura = false, ?string $hoje = null): array
     {
         $previsto = $estadoRef === 'previsto';
 
         $sal = 0.0;
         $outras = 0.0;
         $outrasItens = [];
-        foreach (LancamentoModel::entradasDoMes($mesRef) as $c) {
+        foreach (LancamentoModel::entradasDoMes($mesRef, $hoje) as $c) {
             $v = $previsto ? $c['previsto'] : $c['real'];
             if ($v < 0.005) {
                 continue;
@@ -408,7 +411,7 @@ final class DashboardController
         }
         $porCompra = !$previsto && !$porFatura && GastoPorCategoria::ativo();
         if ($porCompra) {
-            $top = self::ondeFoi($mesRef, $gm['cats'] ?? []);
+            $top = self::ondeFoi($mesRef, $gm['cats'] ?? [], $hoje);
         }
         usort($top, fn($a, $b) => $b['valor'] <=> $a['valor']);
 
@@ -429,7 +432,7 @@ final class DashboardController
             'ondeTotal'   => $porCompra ? round(array_sum(array_column($top, 'valor')), 2) : $saidas,
             'porCompra'   => $porCompra,
             'cartaoAberto' => !$previsto && GastoPorCategoria::ativo(),
-            'semCategoria' => $porCompra ? GastoPorCategoria::semCategoria($mesRef) : null,
+            'semCategoria' => $porCompra ? GastoPorCategoria::semCategoria($mesRef, $hoje) : null,
         ];
     }
 
@@ -439,11 +442,11 @@ final class DashboardController
      * são uma linha à parte (id 0), que leva a categorizar.
      * @param array<int, array> $cats as categorias do mês em GastosMensais::matriz() (nome, apelido, essencial)
      */
-    private static function ondeFoi(string $mes, array $cats): array
+    private static function ondeFoi(string $mes, array $cats, ?string $hoje = null): array
     {
         $fat = GastoPorCategoria::categoriaFatura();
         $out = [];
-        foreach (GastoPorCategoria::doMes($mes) as $id => $v) {
+        foreach (GastoPorCategoria::doMes($mes, $hoje) as $id => $v) {
             if ($v < 0.005) {
                 continue;
             }

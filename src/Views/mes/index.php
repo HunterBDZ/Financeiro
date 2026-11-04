@@ -5,7 +5,8 @@
  * Contas fixas, Dia a dia e Guardado e empréstimo, as colunas Previsto, Realizado e Situação, e o fim do mês sob o fio
  * duplo. No celular, cada linha vira o nome, o realizado e, embaixo, o previsto e a situação.
  * Base dos números, a mesma do plano: fechado = só o lançado; aberto = em cada categoria, o maior entre o lançado e o
- * previsto; futuro = previsto. Assim a coluna Previsto soma o fim do mês do plano.
+ * previsto; futuro = previsto. Assim a coluna Previsto soma o fim do mês do plano. A coluna Realizado é o realizado
+ * ('real'): o agendado (data depois de hoje) fica fora dela até o dia dele, mas conta no Previsto ('lancado').
  * Mês aberto ou futuro: clicar no previsto abre a edição da previsão na linha (POST /mes/previsao); "+ incluir" põe no
  * mês uma categoria sem previsão. Mês fechado: outro estado, com Planejado, Realizado e Diferença, e o fio de fechamento.
  * Nenhum cálculo de motor aqui: tudo vem do MesController (e de Services\Destino).
@@ -28,7 +29,7 @@ $fimMesData = date('Y-m-t', strtotime($mes));
 $valorConta = static fn(array $l): float => $l['valor'];
 $valorDia = static fn(array $l): float => match ($estado) {
     'real'   => $l['real'],
-    'aberto' => max($l['real'], $l['prev']),
+    'aberto' => max($l['lancado'], $l['prev']),
     default  => $l['prev'],
 };
 $valorEnt = $valorDia;
@@ -170,6 +171,10 @@ $situConta = static function (array $l) use ($estado, $fmt, $mes, $mesCal, $hoje
     if ($estado === 'previsto') {
         return $l['vencimento'] !== null ? '<span class="mes-status mes-status-previsto fraco">' . e(t('vence dia {dia}', ['dia' => (int) substr((string) $l['vencimento'], 8, 2)])) . '</span>' : '';
     }
+    if ($st === 'agendado') {
+        // o pagamento tem data depois de hoje: ainda não saiu, mas não pede pagamento
+        return '<span class="mes-status mes-status-previsto fraco">' . e(t('agendado dia {dia}', ['dia' => (int) substr((string) $l['data_pagamento'], 8, 2)])) . '</span>';
+    }
     $am = $l['a_menos'] ?? null;
     if ($am !== null || $st === 'pago_parcial') {
         return '<span class="mes-status mes-status-parcial atencao">' . e(t('Veio {veio} de {previsto} previstos', ['veio' => $fmt((float) ($am['veio'] ?? $l['pago'])), 'previsto' => $fmt((float) ($am['previsto'] ?? $l['prev']))])) . '</span>';
@@ -190,7 +195,7 @@ $situConta = static function (array $l) use ($estado, $fmt, $mes, $mesCal, $hoje
     }
     // o Pagar lança o previsto hoje (o mesmo do Início): só conta fixa do mês de hoje, ativa e sem nada lançado
     $pagar = '';
-    if ($mes === $mesCal && $l['grupo'] === 'Fixos' && $l['ativo'] && $l['prev'] > 0.004 && $l['real'] <= 0.004) {
+    if ($mes === $mesCal && $l['grupo'] === 'Fixos' && $l['ativo'] && $l['prev'] > 0.004 && $l['lancado'] <= 0.004) {
         $pagar = '<form class="mes-pagar" method="post" action="/lancamentos/pago" data-espera="' . e(t('Lançando…')) . '">' . $csrf
             . '<input type="hidden" name="categoria_id" value="' . (int) $l['id'] . '">'
             . '<input type="hidden" name="volta" value="' . e('/mes?mes=' . $mes) . '">'

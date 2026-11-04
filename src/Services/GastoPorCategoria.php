@@ -2,6 +2,7 @@
 namespace Financeiro\Services;
 
 use Financeiro\Models\CartaoModel;
+use Financeiro\Relogio;
 
 /**
  * O gasto de cada categoria mês a mês, com a fatura aberta nas compras: cada compra no cartão conta na categoria
@@ -14,15 +15,16 @@ use Financeiro\Models\CartaoModel;
  * - o pagamento sem cartão fica na Fatura do cartão, como antes.
  * Compra sem categoria (ou numa categoria que não é gasto) fica em SEM_CATEGORIA. Compra antiga lançada com a data
  * do registro, depois da 1ª fatura, conta a partir do mês da 1ª fatura. Sem a aba Cartão ou sem cartão ativo, é o
- * mesmo que os lançamentos.
+ * mesmo que os lançamentos. É gasto realizado: o lançamento, o pagamento e a compra com data depois de hoje são
+ * agendados e ficam de fora até o dia deles (MotorFinanceiro::realizado).
  */
 final class GastoPorCategoria
 {
     /** A "categoria" das compras no cartão sem categoria: "Cartão sem categoria". */
     public const SEM_CATEGORIA = 0;
 
-    /** @var ?array{gasto: array<string, array<int, float>>, sem: array<string, array{valor:float, compras:list<int>}>, fatura:?int} */
-    private static ?array $cache = null;
+    /** @var array<string, array{gasto: array<string, array<int, float>>, sem: array<string, array{valor:float, compras:list<int>}>, fatura:?int}> por dia */
+    private static array $cache = [];
 
     /** O cartão abre a fatura nas categorias: a aba Cartão em uso, a categoria da fatura e um cartão ativo. */
     public static function ativo(): bool
@@ -39,36 +41,38 @@ final class GastoPorCategoria
     /**
      * O gasto de cada categoria de gasto operacional no mês (Y-m-01), com SEM_CATEGORIA para as compras sem categoria.
      * Pode ser negativo, se um estorno passar das compras da categoria no mês. Sem as que dão zero.
+     * @param ?string $hoje Y-m-d (padrão: hoje): o que tem data depois dele é agendado e fica de fora
      * @return array<int, float>
      */
-    public static function doMes(string $mes): array
+    public static function doMes(string $mes, ?string $hoje = null): array
     {
-        return self::tudo()['gasto'][$mes] ?? [];
+        return self::tudo($hoje)['gasto'][$mes] ?? [];
     }
 
     /** @return array<string, array<int, float>> todos os meses (Y-m-01) que têm gasto, em ordem, como doMes() */
-    public static function todos(): array
+    public static function todos(?string $hoje = null): array
     {
-        return self::tudo()['gasto'];
+        return self::tudo($hoje)['gasto'];
     }
 
     /** @return ?array{valor:float, compras:list<int>} as compras sem categoria com parcela no mês, das mais antigas para as mais novas */
-    public static function semCategoria(string $mes): ?array
+    public static function semCategoria(string $mes, ?string $hoje = null): ?array
     {
-        return self::tudo()['sem'][$mes] ?? null;
+        return self::tudo($hoje)['sem'][$mes] ?? null;
     }
 
     public static function limparCache(): void
     {
-        self::$cache = null;
+        self::$cache = [];
     }
 
-    private static function tudo(): array
+    private static function tudo(?string $hoje = null): array
     {
-        if (self::$cache !== null) {
-            return self::$cache;
+        $hoje ??= Relogio::hoje();
+        if (isset(self::$cache[$hoje])) {
+            return self::$cache[$hoje];
         }
-        $dados = MotorFinanceiro::dados();
+        $dados = MotorFinanceiro::realizado($hoje);
         $ehGasto = static fn(?array $c): bool => $c !== null && $c['operacional'] === 1 && $c['sinal'] === -1;
         $gasto = [];
         foreach ($dados['real'] as $m => $porCat) {
@@ -84,7 +88,7 @@ final class GastoPorCategoria
         if ($fat !== null) {
             // o pagamento ligado a um cartão sai; guarda quanto cada fatura recebeu e em que mês
             $pagas = [];
-            foreach (CartaoModel::pagamentos($fat) as $p) {
+            foreach (CartaoModel::pagamentos($fat, $hoje) as $p) {
                 $m = substr($p['data'], 0, 8) . '01';
                 $gasto[$m][$fat] = ($gasto[$m][$fat] ?? 0.0) - $p['valor'];
                 $k = $p['cartao_id'] . '|' . $p['fatura'];
@@ -93,7 +97,7 @@ final class GastoPorCategoria
             }
             // as compras entram pela data, parcela a parcela; a soma por fatura acha o que a fatura paga tem a mais
             $parcelas = [];
-            foreach (CartaoModel::todasAsCompras() as $c) {
+            foreach (CartaoModel::todasAsCompras($hoje) as $c) {
                 $cat = $c['categoria_id'];
                 if ($cat === null || $cat === $fat || !$ehGasto($dados['cats'][$cat] ?? null)) {
                     $cat = self::SEM_CATEGORIA;
@@ -138,6 +142,6 @@ final class GastoPorCategoria
             }
         }
         ksort($gasto);
-        return self::$cache = ['gasto' => $gasto, 'sem' => $sem, 'fatura' => $fat];
+        return self::$cache[$hoje] = ['gasto' => $gasto, 'sem' => $sem, 'fatura' => $fat];
     }
 }

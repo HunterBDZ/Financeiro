@@ -109,12 +109,14 @@ final class CartaoModel
     }
 
     /**
-     * As compras de todos os cartões, ativos ou não, só com o que a conta pede (Services\GastoPorCategoria).
+     * As compras de todos os cartões, ativos ou não, só com o que a conta pede (Services\GastoPorCategoria). Com $hoje,
+     * só as feitas até ele: a compra agendada fica de fora (LancamentoModel::realizado).
      * @return list<array{id:int, cartao_id:int, data:string, categoria_id:?int, valor_total:float, parcelas:int, primeira_fatura:string}>
      */
-    public static function todasAsCompras(): array
+    public static function todasAsCompras(?string $hoje = null): array
     {
-        $st = Database::connection()->query('SELECT id, cartao_id, data, categoria_id, valor_total, parcelas, primeira_fatura FROM cartao_compras ORDER BY data, id');
+        $st = Database::connection()->query('SELECT id, cartao_id, data, categoria_id, valor_total, parcelas, primeira_fatura FROM cartao_compras'
+            . ($hoje !== null ? ' WHERE ' . LancamentoModel::realizado('data', $hoje) : '') . ' ORDER BY data, id');
         return array_map(static fn(array $r): array => ['id' => (int) $r['id'], 'cartao_id' => (int) $r['cartao_id'], 'data' => (string) $r['data'],
             'categoria_id' => $r['categoria_id'] !== null ? (int) $r['categoria_id'] : null, 'valor_total' => (float) $r['valor_total'],
             'parcelas' => (int) $r['parcelas'], 'primeira_fatura' => (string) $r['primeira_fatura']], $st->fetchAll());
@@ -187,13 +189,15 @@ final class CartaoModel
 
     /**
      * Os pagamentos de fatura já ligados a um cartão, do mais antigo para o mais novo, cada um com a fatura que pagou
-     * (lancamentos.cartao_id e lancamentos.fatura). Os sem cartão contam no mês da data, como as outras contas.
+     * (lancamentos.cartao_id e lancamentos.fatura). Os sem cartão contam no mês da data, como as outras contas. Com
+     * $hoje, só os feitos até ele: o pagamento agendado fica de fora (LancamentoModel::realizado).
      * @return list<array{id:int, data:string, valor:float, cartao_id:int, fatura:string}>
      */
-    public static function pagamentos(int $categoriaFatura): array
+    public static function pagamentos(int $categoriaFatura, ?string $hoje = null): array
     {
         $st = Database::connection()->prepare(
-            'SELECT id, data, valor, cartao_id, fatura FROM lancamentos WHERE categoria_id = :c AND cartao_id IS NOT NULL ORDER BY data, id'
+            'SELECT id, data, valor, cartao_id, fatura FROM lancamentos WHERE categoria_id = :c AND cartao_id IS NOT NULL'
+            . ($hoje !== null ? ' AND ' . LancamentoModel::realizado('data', $hoje) : '') . ' ORDER BY data, id'
         );
         $st->execute(['c' => $categoriaFatura]);
         return array_map(static fn(array $r): array => ['id' => (int) $r['id'], 'data' => (string) $r['data'], 'valor' => (float) $r['valor'],

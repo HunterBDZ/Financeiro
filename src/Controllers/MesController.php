@@ -54,7 +54,10 @@ final class MesController
         $plano = MotorFinanceiro::calcularPlano();
         $linha = $plano[$mes];
         $prev  = $d['prev'][$mes] ?? [];
+        // o lançado, que o plano conta (com o agendado), e o realizado, da coluna Realizado: o agendado (data depois de
+        // hoje) fica fora dela até o dia dele (MotorFinanceiro::realizado)
         $real  = $d['real'][$mes] ?? [];
+        $feito = MotorFinanceiro::realizado($hoje)['real'][$mes] ?? [];
         $cats  = $d['cats'];
         $metas = MetaModel::todas();
         $saldoIni = (float) ($d['aj']['saldo_ini'] ?? 0.0);
@@ -86,7 +89,8 @@ final class MesController
             $r = round((float) ($real[$id] ?? 0.0), 2);
             $l = [
                 'id' => $id, 'nome' => nomeCurto($c), 'nome_completo' => $c['nome'], 'chave' => $c['chave'] ?? null, 'grupo' => $c['grupo'],
-                'essencial' => (bool) ($c['essencial'] ?? true), 'prev' => $p, 'real' => $r, 'ativo' => $c['ativo'] === 1,
+                'essencial' => (bool) ($c['essencial'] ?? true), 'prev' => $p, 'ativo' => $c['ativo'] === 1,
+                'real' => round((float) ($feito[$id] ?? 0.0), 2), 'lancado' => $r,
                 'meta' => $metas[$id] ?? null,
                 // previsão: a meta vale para todo mês; 'ajuste' = este mês tem valor próprio
                 'meta_padrao' => PrevisaoEdicao::meta($d, $id), 'ajuste' => isset($excecao[$id]),
@@ -125,7 +129,7 @@ final class MesController
                     $l['vencimento'] = $s['vencimento'] ?? null;
                     $l['paga_ate'] = $s['paga_ate'] ?? null;
                     $l['data_pagamento'] = $s['data_pagamento'] ?? null;
-                    $l['pago'] = $s !== null ? round((float) $s['pago'], 2) : $r;
+                    $l['pago'] = $s !== null ? round((float) $s['pago'], 2) : $l['real'];
                     if ($l['do_cartao']) {
                         $l['a_menos'] = null;                // a previsão é do Cartão
                     }
@@ -195,8 +199,8 @@ final class MesController
             // o resumo do mês: a mesma linha do plano que dá a previsão do fim do mês
             'sobra' => Sobra::prevista($linha),
             // o livro-razão: poupança, investimentos, crédito e empréstimo; a barra do dinheiro do mês; o fechamento
-            'movimentos' => Destino::movimentos($d, $linha),
-            'destino' => Destino::doMes($d, $linha, $mesCal),
+            'movimentos' => Destino::movimentos($d, $linha, $hoje),
+            'destino' => Destino::doMes($d, $linha, $mesCal, $hoje),
             'fechamento' => $editavel ? null : self::fechamento($mes),
         ], 'mes');
     }

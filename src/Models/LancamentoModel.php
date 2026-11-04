@@ -21,6 +21,21 @@ final class LancamentoModel
     }
 
     /**
+     * Agendado: o lançamento com data depois de hoje ainda não aconteceu. Este é o critério SQL do realizado, um só para
+     * toda soma do que já entrou ou saiu: a data até hoje. A previsão continua contando o agendado (MotorFinanceiro::dados);
+     * o realizado, não (MotorFinanceiro::realizado), até o dia dele. Ex.: realizado('l.data') → "l.data <= '2026-11-22'".
+     * @param ?string $hoje Y-m-d (padrão: hoje)
+     */
+    public static function realizado(string $coluna, ?string $hoje = null): string
+    {
+        $hoje ??= Relogio::hoje();
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/D', $hoje)) {
+            throw new \InvalidArgumentException('Data inválida: ' . $hoje);
+        }
+        return $coluna . " <= '" . $hoje . "'";
+    }
+
+    /**
      * WHERE comum do extrato. $f: grupo (string[]), usuario_id (int), categoria_id (int), q (string),
      * periodo (array{de:?string, ate:?string}, AAAA-MM-DD inclusivos, null = sem limite; sem ele, vale o mês),
      * min e max (float: o valor, sem sinal). As datas usam idx_data e idx_categoria_data.
@@ -144,21 +159,21 @@ final class LancamentoModel
     {
         [$where, $params] = self::filtro($mes, $f);
         // o agendado (data depois de hoje) ainda não aconteceu: fica fora do que entrou e do gasto, e é somado à parte
+        $feito = self::realizado('l.data');
         $stmt = Database::connection()->prepare(
-            'SELECT COUNT(*) AS n,
-                    COALESCE(SUM(CASE WHEN c.operacional = 1 AND l.data <= :hj1 THEN c.sinal * l.valor ELSE 0 END), 0) AS soma,
+            "SELECT COUNT(*) AS n,
+                    COALESCE(SUM(CASE WHEN c.operacional = 1 AND {$feito} THEN c.sinal * l.valor ELSE 0 END), 0) AS soma,
                     COALESCE(SUM(CASE WHEN c.operacional = 1 THEN 1 ELSE 0 END), 0) AS n_op,
                     COALESCE(SUM(CASE WHEN c.operacional = 1 THEN 0 ELSE l.valor END), 0) AS mov,
-                    COALESCE(SUM(CASE WHEN c.operacional = 1 AND c.sinal = -1 AND l.data <= :hj2 THEN l.valor ELSE 0 END), 0) AS gasto,
-                    COALESCE(SUM(CASE WHEN c.operacional = 1 AND c.sinal = 1 AND l.data <= :hj3 THEN l.valor ELSE 0 END), 0) AS entrada,
-                    COALESCE(SUM(CASE WHEN c.operacional = 1 AND c.sinal = -1 AND l.data > :hj4 THEN l.valor ELSE 0 END), 0) AS gasto_ag,
-                    COALESCE(SUM(CASE WHEN c.operacional = 1 AND c.sinal = 1 AND l.data > :hj5 THEN l.valor ELSE 0 END), 0) AS entrada_ag
+                    COALESCE(SUM(CASE WHEN c.operacional = 1 AND c.sinal = -1 AND {$feito} THEN l.valor ELSE 0 END), 0) AS gasto,
+                    COALESCE(SUM(CASE WHEN c.operacional = 1 AND c.sinal = 1 AND {$feito} THEN l.valor ELSE 0 END), 0) AS entrada,
+                    COALESCE(SUM(CASE WHEN c.operacional = 1 AND c.sinal = -1 AND NOT ({$feito}) THEN l.valor ELSE 0 END), 0) AS gasto_ag,
+                    COALESCE(SUM(CASE WHEN c.operacional = 1 AND c.sinal = 1 AND NOT ({$feito}) THEN l.valor ELSE 0 END), 0) AS entrada_ag
              FROM lancamentos l
              JOIN categorias c ON c.id = l.categoria_id
-             WHERE ' . $where
+             WHERE {$where}"
         );
-        $hoje = Relogio::hoje();
-        $stmt->execute($params + ['hj1' => $hoje, 'hj2' => $hoje, 'hj3' => $hoje, 'hj4' => $hoje, 'hj5' => $hoje]);
+        $stmt->execute($params);
         $r = $stmt->fetch() ?: [];
         return [
             'n' => (int) ($r['n'] ?? 0), 'n_op' => (int) ($r['n_op'] ?? 0), 'soma' => round((float) ($r['soma'] ?? 0), 2),
@@ -361,16 +376,17 @@ final class LancamentoModel
     }
 
     /**
-     * Entradas (sinal +1, qualquer grupo) de um mês: previsto e real por categoria.
+     * Entradas (sinal +1, qualquer grupo) de um mês: previsto e real por categoria. O real é o realizado: o agendado
+     * fica de fora até o dia dele (realizado()).
      * @return list<array{id:int,nome:string,apelido:?string,grupo:string,operacional:bool,previsto:float,real:float}>
      */
-    public static function entradasDoMes(string $mes): array
+    public static function entradasDoMes(string $mes, ?string $hoje = null): array
     {
         $stmt = Database::connection()->prepare(
             'SELECT c.id, c.nome, c.apelido, c.grupo, c.operacional,
                     COALESCE((SELECT MAX(p.valor) FROM previsao_efetiva p WHERE p.categoria_id = c.id AND p.mes = :mes1), 0) AS previsto,
                     COALESCE((SELECT SUM(l.valor) FROM lancamentos l
-                              WHERE l.categoria_id = c.id AND l.data >= :mes2 AND l.data < :fim), 0) AS realizado
+                              WHERE l.categoria_id = c.id AND l.data >= :mes2 AND l.data < :fim AND ' . self::realizado('l.data', $hoje) . '), 0) AS realizado
              FROM categorias c
              WHERE c.sinal = 1
              ORDER BY c.ordem, c.id'
@@ -419,33 +435,17 @@ final class LancamentoModel
     }
 
     /**
-     * A soma de cada categoria no mês, só até o dia $ate (inclusive): o lançamento agendado, com data depois de hoje,
-     * ainda não saiu (MotorFinanceiro::comRealAte).
-     * @return array<int, float> categoria => soma
+     * Data do primeiro lançamento de uma categoria num mês (pra saber se foi pago antes/depois do vencimento).
+     * Com $agendado: só o agendado, depois de $hoje (o dia em que a conta agendada vai ser paga).
      */
-    public static function somasDoMesAte(string $mes, string $ate): array
-    {
-        $stmt = Database::connection()->prepare(
-            'SELECT categoria_id, SUM(valor) AS total FROM lancamentos
-             WHERE data >= :inicio AND data < :fim AND data <= :ate GROUP BY categoria_id'
-        );
-        $stmt->execute(['inicio' => $mes, 'fim' => self::fimDoMes($mes), 'ate' => $ate]);
-        $out = [];
-        foreach ($stmt->fetchAll() as $r) {
-            $out[(int) $r['categoria_id']] = (float) $r['total'];
-        }
-        return $out;
-    }
-
-    /** Data do primeiro lançamento de uma categoria num mês (pra saber se foi pago antes/depois do vencimento). */
-    public static function primeiraDataPorCategoriaNome(string $categoriaNome, string $mes): ?string
+    public static function primeiraDataPorCategoriaNome(string $categoriaNome, string $mes, bool $agendado = false, ?string $hoje = null): ?string
     {
         $pdo = Database::connection();
         $stmt = $pdo->prepare(
             'SELECT MIN(l.data) AS primeira
              FROM lancamentos l
              JOIN categorias c ON c.id = l.categoria_id
-             WHERE c.nome = :nome AND l.data >= :inicio AND l.data < :fim'
+             WHERE c.nome = :nome AND l.data >= :inicio AND l.data < :fim' . ($agendado ? ' AND NOT (' . self::realizado('l.data', $hoje) . ')' : '')
         );
         $stmt->execute([
             'nome'   => $categoriaNome,
@@ -456,15 +456,15 @@ final class LancamentoModel
         return $data ?: null;
     }
 
-    /** Soma lançamentos de uma categoria específica (pelo nome) num mês. */
-    public static function somaPorCategoriaNome(string $categoriaNome, string $mes): float
+    /** Soma lançamentos de uma categoria específica (pelo nome) num mês. Com $hoje: só o realizado até ele (realizado()). */
+    public static function somaPorCategoriaNome(string $categoriaNome, string $mes, ?string $hoje = null): float
     {
         $pdo = Database::connection();
         $stmt = $pdo->prepare(
             'SELECT COALESCE(SUM(l.valor), 0) AS total
              FROM lancamentos l
              JOIN categorias c ON c.id = l.categoria_id
-             WHERE c.nome = :nome AND l.data >= :inicio AND l.data < :fim'
+             WHERE c.nome = :nome AND l.data >= :inicio AND l.data < :fim' . ($hoje !== null ? ' AND ' . self::realizado('l.data', $hoje) : '')
         );
         $stmt->execute([
             'nome'   => $categoriaNome,

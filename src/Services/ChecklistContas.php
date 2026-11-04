@@ -13,32 +13,41 @@ use Financeiro\Relogio;
  * cartão é a exceção: "pago" é o que foi pago da fatura que vence no mês, mesmo antes dele
  * (CartaoFatura::atribuir), e o vencimento é o do cartão. Vencimento em dia que não é útil só atrasa depois do
  * próximo dia útil (DiaUtil): 'paga_ate' é esse dia, e é ele que decide atrasado e pago com atraso.
+ * O pagamento com data depois de hoje é agendado (MotorFinanceiro::realizado): fica fora do pago até o dia dele, e a
+ * conta fica "agendado", que não atrasa nem pede pagamento, porque a pessoa já cuidou dela.
  */
 final class ChecklistContas
 {
     /**
      * @param ?string $hoje 'Y-m-d' (padrão: hoje) — define o que está atrasado.
      * @return list<array{categoria_id:int,categoria_nome:string,grupo:string,dia_vencimento:int,vencimento:string,
-     *   paga_ate:string,previsto:float,pago:float,data_pagamento:?string,status:string}>
-     *   status: inexistente | pago_parcial | pago_atrasado | pago | atrasado | pendente
+     *   paga_ate:string,previsto:float,pago:float,agendado:float,data_pagamento:?string,status:string}>
+     *   status: inexistente | agendado | pago_parcial | pago_atrasado | pago | atrasado | pendente
+     *   pago: o realizado até hoje; agendado: o que tem data depois de hoje (data_pagamento é então o dia dele)
      */
     public static function statusPorMes(string $mes, ?string $hoje = null): array
     {
-        $hoje = new \DateTimeImmutable($hoje ?? Relogio::hoje());
+        $hojeTxt = $hoje ?? Relogio::hoje();
+        $hoje = new \DateTimeImmutable($hojeTxt);
         $hoje = $hoje->setTime(0, 0);
         $resultado = [];
         $fatura = MotorFinanceiro::dados()['fatura'];
+        $faturaFeita = MotorFinanceiro::realizado($hojeTxt)['fatura'];
 
         foreach (ContaRecorrenteModel::ativas() as $conta) {
             $previsto = PrevisaoModel::somaPorCategoriaNome($conta['categoria_nome'], $mes);
             if ((int) $conta['categoria_id'] === $fatura['cat']) {
                 $conta['dia_vencimento'] = $fatura['vence'];
-                $pagoFatura    = $fatura['faturas'][$mes] ?? null;
+                $pagoFatura    = $faturaFeita['faturas'][$mes] ?? null;
                 $pago          = (float) ($pagoFatura['pago'] ?? 0.0);
-                $dataPagamento = $pagoFatura['ultimo'] ?? null;          // paga em partes: o dia em que completou
+                $agendado      = round((float) ($fatura['faturas'][$mes]['pago'] ?? 0.0) - $pago, 2);
+                $dataPagamento = $agendado > 0.004 ? ($fatura['faturas'][$mes]['ultimo'] ?? null)
+                    : ($pagoFatura['ultimo'] ?? null);                   // paga em partes: o dia em que completou
             } else {
-                $pago          = LancamentoModel::somaPorCategoriaNome($conta['categoria_nome'], $mes);
-                $dataPagamento = $pago > 0 ? LancamentoModel::primeiraDataPorCategoriaNome($conta['categoria_nome'], $mes) : null;
+                $pago          = LancamentoModel::somaPorCategoriaNome($conta['categoria_nome'], $mes, $hojeTxt);
+                $agendado      = round(LancamentoModel::somaPorCategoriaNome($conta['categoria_nome'], $mes) - $pago, 2);
+                $dataPagamento = $agendado > 0.004 ? LancamentoModel::primeiraDataPorCategoriaNome($conta['categoria_nome'], $mes, true, $hojeTxt)
+                    : ($pago > 0 ? LancamentoModel::primeiraDataPorCategoriaNome($conta['categoria_nome'], $mes) : null);
             }
             $existe   = $previsto > 0;
 
@@ -53,6 +62,7 @@ final class ChecklistContas
 
             $status = match (true) {
                 !$existe        => 'inexistente',
+                $agendado > 0.004 => 'agendado',
                 $pagoParcial    => 'pago_parcial',
                 $pagoAtrasado   => 'pago_atrasado',
                 $pago > 0       => 'pago',
@@ -69,6 +79,7 @@ final class ChecklistContas
                 'paga_ate'       => $pagaAte->format('Y-m-d'),
                 'previsto'       => $previsto,
                 'pago'           => $pago,
+                'agendado'       => max(0.0, $agendado),
                 'data_pagamento' => $dataPagamento,
                 'status'         => $status,
             ];
@@ -78,14 +89,14 @@ final class ChecklistContas
     }
 
     /**
-     * O que ainda falta pagar no mês: status pendente | atrasado | pago_parcial, na ordem
-     * atrasado → vencimento → nome. Cada item ganha 'falta' = max(0, previsto − pago).
+     * O que ainda falta pagar no mês: status pendente | atrasado | pago_parcial | agendado (ainda não saiu), na ordem
+     * atrasado → vencimento → nome. Cada item ganha 'falta' = max(0, previsto − pago), com o pago realizado.
      */
     public static function aPagar(string $mes, ?string $hoje = null): array
     {
         $itens = array_values(array_filter(
             self::statusPorMes($mes, $hoje),
-            fn($c) => in_array($c['status'], ['pendente', 'atrasado', 'pago_parcial'], true)
+            fn($c) => in_array($c['status'], ['pendente', 'atrasado', 'pago_parcial', 'agendado'], true)
         ));
         foreach ($itens as &$c) {
             $c['falta'] = max(0.0, round($c['previsto'] - $c['pago'], 2));

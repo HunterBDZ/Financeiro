@@ -1592,6 +1592,91 @@ $emTransacao('agendado e soma do dia', static function () use ($pdo, $check, $re
     $check('Início: a soma de hoje é a do dia inteiro, não só a dos lançamentos à vista', preg_match('#<span>Hoje</span><span class="num">' . MENOS . '280,00</span>#u', $htmlIni) === 1);
 });
 
+// ---- 9h2. Agendado em toda conta: fora de todo realizado (Metas, "Para onde foi", Mês, Relatório, atenção, aviso), no
+// previsto; as somas fecham e o mesmo nome dá o mesmo número no Início, nas Metas e no Relatório
+$emTransacao('agendado em toda conta', static function () use ($pdo, $check, $render, $catDia, $mesHoje, $hoje, $uid): void {
+    $foto = static function () use ($render, $mesHoje, $hoje): array {
+        MotorFinanceiro::limparCache();
+        $rel = RelatorioDados::mensal($mesHoje, $hoje);
+        $ponte = array_column($rel['ponte'], 'valor', 'rotulo');
+        $painel = (new \ReflectionMethod(DashboardController::class, 'painel'))->invoke(null, GastosMensais::matriz()[$mesHoje], $mesHoje, 'aberto', false, $hoje);
+        return [
+            'metas' => array_map(static fn(array $x): float => $x['gasto'], MetaController::gastosDoMes($mesHoje)),
+            'metasProx' => array_map(static fn(array $x): float => $x['gasto'], MetaController::gastosDoMes(date('Y-m-01', strtotime($mesHoje . ' +1 month')))),
+            'onde' => GastoPorCategoria::doMes($mesHoje),
+            'mesReal' => preg_match_all('#<tr id="cat-(\d+)"[^>]*>.*?<td class="c-real">(.*?)</td>#s', $render(MesController::class, 'index', ['mes' => $mesHoje]), $mm) ? array_combine($mm[1], $mm[2]) : [],
+            'relCats' => array_column($rel['categorias']['linhas'], 'real', 'id'), 'relTotal' => $rel['categorias']['totalReal'],
+            'relGastou' => -(float) ($ponte['Gastou até agora'] ?? 0.0), 'relPonte' => $rel['ponte'],
+            'inicioGastou' => \Financeiro\Services\Sobra::ateHoje($mesHoje)['saidas'],
+            'inicioOnde' => array_column($painel['onde'], 'valor', 'id'),
+            'metasAviso' => array_values(array_filter(array_map(static fn(array $a): string => $a['tipo'] === 'meta' ? $a['detalhe'] : '', \Financeiro\Services\Atencao::avisos($hoje)))),
+            'fica' => (float) MotorFinanceiro::calcularPlano()[$mesHoje]['fica_na_conta'],
+        ];
+    };
+    // uma conta fixa por pagar, para o agendado (sem nenhuma por pagar, a primeira com conta recorrente fica sem o pagamento do mês)
+    if (\Financeiro\Services\ChecklistContas::fixasAPagar($hoje) === []) {
+        foreach (\Financeiro\Models\ContaRecorrenteModel::ativas() as $cr) {
+            if ((string) $cr['grupo'] === 'Fixos' && PrevisaoModel::valor((int) $cr['categoria_id'], $mesHoje) > 0) {
+                $pdo->prepare('DELETE FROM lancamentos WHERE categoria_id = ? AND data >= ?')->execute([(int) $cr['categoria_id'], $mesHoje]);
+                break;
+            }
+        }
+        MotorFinanceiro::limparCache();
+    }
+    $antes = $foto();
+    // o mesmo nome, o mesmo número: o "Gastou" do Início e do Relatório; o "Para onde foi" do Início, do Relatório e das Metas
+    $mesmoOnde = true;
+    foreach ($antes['relCats'] as $id => $v) {
+        $mesmoOnde = $mesmoOnde && abs($v - (float) ($antes['inicioOnde'][$id] ?? 0.0)) < 0.005
+            && ($id === GastoPorCategoria::SEM_CATEGORIA || $id === GastoPorCategoria::categoriaFatura() || abs($v - (float) ($antes['metas'][$id] ?? 0.0)) < 0.005);
+    }
+    $check('agendado: "Gastou" é o mesmo no Início e no Relatório, e o "Para onde foi" é o mesmo no Início, no Relatório e nas Metas',
+        abs($antes['inicioGastou'] - $antes['relGastou']) < 0.005 && $mesmoOnde, json_encode([$antes['inicioGastou'], $antes['relGastou'], $antes['relCats'], $antes['inicioOnde']]));
+    $check('agendado: a escada do Relatório fecha no fim do mês do plano', abs(array_sum(array_map(static fn(array $p): float => $p['tipo'] === 'fim' ? 0.0 : (float) $p['valor'], $antes['relPonte']))
+        - $antes['fica']) < 0.01 && abs(end($antes['relPonte'])['valor'] - $antes['fica']) < 0.01);
+    if ($hoje >= date('Y-m-t', strtotime($hoje))) {
+        return;                                            // no último dia do mês, amanhã é o mês seguinte: o resto não se aplica
+    }
+    $amanha = date('Y-m-d', strtotime($hoje . ' +1 day'));
+    $prox = date('Y-m-d', strtotime($mesHoje . ' +1 month +4 day'));
+    LancamentoModel::criar($amanha, 'agendado D', $catDia, 7.0, $uid);
+    LancamentoModel::criar($prox, 'agendado D mês seguinte', $catDia, 9.0, $uid);
+    // a conta fixa ainda por pagar, paga com data de amanhã
+    $fixa = \Financeiro\Services\ChecklistContas::fixasAPagar($hoje)[0] ?? null;
+    $check('agendado: há uma conta fixa por pagar para o teste', $fixa !== null);
+    if ($fixa !== null) {
+        LancamentoModel::criar($amanha, 'conta agendada', (int) $fixa['categoria_id'], (float) $fixa['previsto'], $uid);
+    }
+    // a compra no cartão com data de amanhã
+    $compra = GastoPorCategoria::ativo() ? CartaoController::criarCompraDe(['valor' => '13', 'categoria_id' => (string) $catDia, 'data' => $amanha, 'parcelas' => '1'], $hoje) : null;
+    $depois = $foto();
+    $check('agendado: fica fora do gasto das Metas (no mês e no seguinte) e do "Para onde foi", com a compra no cartão', $antes['metas'] == $depois['metas']
+        && $antes['metasProx'] == $depois['metasProx'] && $antes['onde'] == $depois['onde'] && ($compra === null || $compra['erro'] === null), json_encode([$antes['onde'], $depois['onde'], $compra]));
+    $check('agendado: fica fora da coluna Realizado do Mês', $antes['mesReal'] === $depois['mesReal'], json_encode(array_diff_assoc($depois['mesReal'], $antes['mesReal'])));
+    $check('agendado: fica fora do Relatório ("Para onde foi" e "Gastou até agora") e do "Precisa de atenção"', $antes['relCats'] == $depois['relCats']
+        && abs($antes['relTotal'] - $depois['relTotal']) < 0.005 && abs($antes['relGastou'] - $depois['relGastou']) < 0.005 && $antes['metasAviso'] === $depois['metasAviso']);
+    $check('agendado: continua no previsto, e as somas fecham', abs($depois['inicioGastou'] - $depois['relGastou']) < 0.005
+        && abs(array_sum(array_map(static fn(array $p): float => $p['tipo'] === 'fim' ? 0.0 : (float) $p['valor'], $depois['relPonte'])) - $depois['fica']) < 0.01
+        && $depois['fica'] <= $antes['fica'] + 0.005);
+    if ($fixa !== null) {
+        $st = array_column(\Financeiro\Services\ChecklistContas::statusPorMes($mesHoje, $hoje), null, 'categoria_id')[(int) $fixa['categoria_id']] ?? [];
+        $aPagar = array_column(\Financeiro\Services\ChecklistContas::aPagar($mesHoje, $hoje), 'falta', 'categoria_id');
+        $avisos = array_column(\Financeiro\Services\Atencao::avisos($hoje), 'href');
+        $htmlMes = $render(MesController::class, 'index', ['mes' => $mesHoje]);
+        $linha = preg_match('#<tr id="cat-' . (int) $fixa['categoria_id'] . '".*?</tr>#s', $htmlMes, $mL) ? $mL[0] : '';
+        $check('agendado: a conta paga com data de amanhã é "agendado", não "pago", e não pede pagamento', ($st['status'] ?? '') === 'agendado' && abs((float) $st['pago']) < 0.005
+            && abs((float) ($aPagar[(int) $fixa['categoria_id']] ?? 0) - (float) $fixa['previsto']) < 0.005
+            && !in_array('/lancar?' . http_build_query(['categoria' => (int) $fixa['categoria_id'], 'valor' => numInput((float) $fixa['previsto']), 'volta' => '/']), $avisos, true)
+            && str_contains($linha, 'agendado dia ' . (int) substr($amanha, 8, 2)) && !str_contains($linha, 'btn-pagar') && !str_contains($linha, 'carimbo'), $linha);
+    }
+    // o aviso depois de lançar diz que é agendado, e o número da meta não muda
+    $cat = CategoriaModel::find($catDia);
+    $aviso = (string) (new \ReflectionMethod(LancamentosController::class, 'avisoLancado'))->invoke(null, $cat, 7.0, $amanha, '/');
+    $prevDia = PrevisaoModel::valor($catDia, $mesHoje);
+    $check('agendado: o aviso depois de lançar diz "agendado" e conta só o realizado', str_contains($aviso, 'agendado para ' . diaMes($amanha))
+        && ($prevDia <= 0 || str_contains($aviso, num(abs(round($prevDia - (float) (MotorFinanceiro::realizado()['real'][$mesHoje][$catDia] ?? 0.0), 2))))), $aviso);
+});
+
 // ---- 9i. As contas fecham: categoria tirada do mês (B-08), a barra no vermelho (B-12), o "por dia" (B-19), o ordinal (B-18)
 $emTransacao('as contas fecham', static function () use ($pdo, $check, $render, $mesHoje, $hoje, $uid): void {
     $comb = (int) $pdo->query("SELECT id FROM categorias WHERE nome = 'Combustível'")->fetchColumn();

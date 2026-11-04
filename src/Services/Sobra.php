@@ -59,7 +59,9 @@ final class Sobra
         if ($hoje !== null) {
             $opts['hoje'] = $hoje;
         }
-        $linha = MotorFinanceiro::calcular(MotorFinanceiro::comRealAte(MotorFinanceiro::dados(), $mes, $hoje ?? Relogio::hoje()), $opts)[$mes] ?? null;
+        $dados = MotorFinanceiro::dados();
+        $dados['real'][$mes] = MotorFinanceiro::realizado($hoje ?? Relogio::hoje())['real'][$mes] ?? [];
+        $linha = MotorFinanceiro::calcular($dados, $opts)[$mes] ?? null;
         return $linha === null ? null : self::de($linha) + ['base' => ($linha['situacao'] ?? '') === 'REAL' ? 'mes' : 'hoje'];
     }
 

@@ -2,13 +2,15 @@
 namespace Financeiro\Services;
 
 use Financeiro\Database;
+use Financeiro\Models\LancamentoModel;
 use Financeiro\Sql;
 
 /**
  * Dados do gráfico "gastos mês a mês": previsto e real por categoria × mês, só das
  * categorias operacionais de gasto (Dia a dia, Fixos, Cartao, Ano), SEM filtro de `ativo` — o
  * motor soma todas, e o gráfico tem que bater com ele. A renda vem do plano do motor. O previsto
- * é o da view previsao_efetiva (o do mês, senão a meta), o mesmo que o motor usa.
+ * é o da view previsao_efetiva (o do mês, senão a meta), o mesmo que o motor usa. O real é o realizado: o
+ * lançamento agendado (data depois de hoje) fica de fora até o dia dele (LancamentoModel::realizado).
  */
 final class GastosMensais
 {
@@ -36,6 +38,7 @@ final class GastosMensais
         $plano = $hoje === null
             ? MotorFinanceiro::calcularPlano()
             : MotorFinanceiro::calcular(MotorFinanceiro::dados(), ['hoje' => $hoje]);
+        $feito = LancamentoModel::realizado('l.data', $hoje);
 
         $sql = "SELECT m.mes, m.situacao, c.id, c.nome, c.apelido, c.grupo, c.essencial, c.ordem,
                        COALESCE(MAX(p.valor), 0) AS previsto,
@@ -45,7 +48,7 @@ final class GastosMensais
                 CROSS JOIN categorias c
                 LEFT JOIN previsao_efetiva p ON p.categoria_id = c.id AND p.mes = m.mes
                 LEFT JOIN lancamentos l ON l.categoria_id = c.id
-                      AND l.data >= m.mes AND l.data < " . Sql::mesSeguinte('m.mes') . "
+                      AND l.data >= m.mes AND l.data < " . Sql::mesSeguinte('m.mes') . " AND {$feito}
                 WHERE c.operacional = 1 AND c.sinal = -1
                 GROUP BY m.mes, m.situacao, c.id, c.nome, c.apelido, c.grupo, c.essencial, c.ordem
                 ORDER BY m.mes, c.ordem, c.id";
@@ -91,7 +94,7 @@ final class GastosMensais
         $sqlRenda = 'SELECT ' . Sql::inicioMes('l.data') . " AS mes, SUM(l.valor) AS total
                      FROM lancamentos l
                      JOIN categorias c ON c.id = l.categoria_id
-                     WHERE c.operacional = 1 AND c.sinal = 1
+                     WHERE c.operacional = 1 AND c.sinal = 1 AND {$feito}
                      GROUP BY " . Sql::inicioMes('l.data');
         foreach (Database::connection()->query($sqlRenda) as $r) {
             $m = (string) $r['mes'];

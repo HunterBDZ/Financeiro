@@ -46,6 +46,8 @@ final class MotorFinanceiro
 
     private static ?array $planoCache = null;
     private static ?array $dadosCache = null;
+    /** @var array<string, array> realizado(), por dia */
+    private static array $realizadoCache = [];
 
     public static function v2(): bool
     {
@@ -56,6 +58,7 @@ final class MotorFinanceiro
     {
         self::$planoCache = null;
         self::$dadosCache = null;
+        self::$realizadoCache = [];
         ContaModel::limparCache();
         SugestaoAlocacao::limparCache();
         GastosMensais::limparCache();
@@ -156,16 +159,37 @@ final class MotorFinanceiro
     }
 
     /**
-     * Os dados com o lançado do mês só até $hoje: o lançamento agendado (data depois de hoje, no mês) fica fora do que
-     * já saiu (o "Gastou" e o "Já saiu" do Início e do Mês) e continua no previsto. Mês já terminado: os mesmos dados.
+     * Agendado em toda conta: o lançamento (ou a compra no cartão) com data depois de hoje ainda não aconteceu. A previsão
+     * o conta (o plano usa dados(), com tudo o que foi lançado), mas nenhum realizado o conta até o dia dele: o "Gastou"
+     * e o "Já saiu" do Início e do Mês, a coluna Realizado do Mês, o gasto das Metas, o "Para onde foi"
+     * (GastoPorCategoria), o Relatório e o PDF, o "Precisa de atenção" e o aviso depois de lançar. Esta é a regra única:
+     * os dados do motor com o lançado só até $hoje (real, n, ult e os pagamentos de fatura), pelo critério SQL de
+     * LancamentoModel::realizado. Mês já terminado não muda, porque todo lançamento dele é passado.
+     * @param ?string $hoje Y-m-d (padrão: hoje)
      */
-    public static function comRealAte(array $dados, string $mes, string $hoje): array
+    public static function realizado(?string $hoje = null): array
     {
-        if ($hoje >= date('Y-m-t', strtotime($mes)) || $hoje < $mes) {
-            return $dados;
+        $hoje ??= Relogio::hoje();
+        if (isset(self::$realizadoCache[$hoje])) {
+            return self::$realizadoCache[$hoje];
         }
-        $dados['real'][$mes] = LancamentoModel::somasDoMesAte($mes, $hoje);
-        return $dados;
+        $dados = self::dados();
+        $real = $n = $ult = [];
+        $mesDaData = Sql::inicioMes('data');
+        $sql = "SELECT {$mesDaData} AS mes, categoria_id, SUM(valor) AS total, COUNT(*) AS n, MAX(data) AS ult
+                FROM lancamentos WHERE " . LancamentoModel::realizado('data', $hoje) . " GROUP BY {$mesDaData}, categoria_id";
+        foreach (Database::connection()->query($sql) as $r) {
+            $m = (string) $r['mes'];
+            $c = (int) $r['categoria_id'];
+            $real[$m][$c] = (float) $r['total'];
+            $n[$m][$c]    = (int) $r['n'];
+            $ult[$m][$c]  = (string) $r['ult'];
+        }
+        $dados['real'] = $real;
+        $dados['n'] = $n;
+        $dados['ult'] = $ult;
+        $dados['fatura'] = CartaoFatura::faturasPagas($dados['prev'], ($dados['aj']['usa_cartao'] ?? 1.0) >= 1.0, $hoje);
+        return self::$realizadoCache[$hoje] = $dados;
     }
 
     /**
